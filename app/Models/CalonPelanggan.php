@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CalonPelanggan extends Model
 {
@@ -14,133 +16,110 @@ class CalonPelanggan extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    protected $fillable = [
-        'reff_id_pelanggan',
-        'nama_pelanggan',
-        'alamat',
-        'no_telepon',
-        'status',
-        'progress_status',
-        'keterangan',
-        'wilayah_area',
-        'jenis_pelanggan',
-        'tanggal_registrasi'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'tanggal_registrasi' => 'datetime',
+        'last_login'         => 'datetime',
+        'status'             => 'string',        // pending | validated | in_progress | lanjut | batal
+        'progress_status'    => 'string',        // validasi | sk | sr | mgrt | gas_in | jalur_pipa | penyambungan | done | batal
     ];
 
-    // Relationships
-    public function skData()
-    {
-        return $this->hasOne(SkData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
-    }
+    /* =========================
+     * RELATIONS (1:1 per modul)
+     * ========================= */
+    public function skData(): HasOne { return $this->hasOne(SkData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
+    public function srData(): HasOne { return $this->hasOne(SrData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
+    public function mgrtData(): HasOne { return $this->hasOne(MgrtData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
+    public function gasInData(): HasOne { return $this->hasOne(GasInData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
+    public function jalurPipaData(): HasOne { return $this->hasOne(JalurPipaData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
+    public function penyambunganPipaData(): HasOne { return $this->hasOne(PenyambunganPipaData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
+    public function baBatalData(): HasOne { return $this->hasOne(BaBatalData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
 
-    public function srData()
-    {
-        return $this->hasOne(SrData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
-    }
-
-    public function mgrtData()
-    {
-        return $this->hasOne(MgrtData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
-    }
-
-    public function gasInData()
-    {
-        return $this->hasOne(GasInData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
-    }
-
-    public function jalurPipaData()
-    {
-        return $this->hasOne(JalurPipaData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
-    }
-
-    public function penyambunganPipaData()
-    {
-        return $this->hasOne(PenyambunganPipaData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
-    }
-
-    public function baBatalData()
-    {
-        return $this->hasOne(BaBatalData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
-    }
-
-    public function photoApprovals()
+    public function photoApprovals(): HasMany
     {
         return $this->hasMany(PhotoApproval::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
     }
 
-    public function fileStorages()
-    {
-        return $this->hasMany(FileStorage::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
-    }
-
-    public function auditLogs()
+    public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
     }
-
-    // Helper Methods
-    public function getProgressPercentage()
+    public function getRouteKeyName()
     {
-        $steps = ['validasi', 'sk', 'sr', 'mgrt', 'gas_in', 'jalur_pipa', 'penyambungan', 'done'];
-        $currentIndex = array_search($this->progress_status, $steps);
-        return $currentIndex !== false ? (($currentIndex + 1) / count($steps)) * 100 : 0;
+        return 'reff_id_pelanggan';
     }
 
-    public function canProceedToModule($module)
+    /* =========================
+     * SCOPES
+     * ========================= */
+    public function scopeSearch($q, ?string $term)
     {
-        $dependencies = [
-            'sk' => ['validasi'],
-            'sr' => ['sk'],
-            'mgrt' => ['validasi'],
-            'gas_in' => ['sk', 'sr'],
-            'jalur_pipa' => ['validasi'],
-            'penyambungan' => ['jalur_pipa'],
-        ];
-
-        if (!isset($dependencies[$module])) {
-            return true;
-        }
-
-        $requiredSteps = $dependencies[$module];
-
-        // Check if current progress allows this module
-        foreach ($requiredSteps as $requiredStep) {
-            if ($requiredStep === 'sk' && $this->skData && $this->skData->module_status === 'completed') {
-                continue;
-            }
-            if ($requiredStep === 'sr' && $this->srData && $this->srData->module_status === 'completed') {
-                continue;
-            }
-            if ($requiredStep === 'validasi' && in_array($this->status, ['validated', 'in_progress'])) {
-                continue;
-            }
-            if ($requiredStep === 'jalur_pipa' && $this->jalurPipaData && $this->jalurPipaData->module_status === 'completed') {
-                continue;
-            }
-
-            return false; // Dependency not met
-        }
-
-        return true;
+        if (!$term) return $q;
+        return $q->where(function ($qq) use ($term) {
+            $qq->where('nama_pelanggan', 'like', "%{$term}%")
+               ->orWhere('reff_id_pelanggan', 'like', "%{$term}%")
+               ->orWhere('alamat', 'like', "%{$term}%")
+               ->orWhere('no_telepon', 'like', "%{$term}%");
+        });
     }
 
-    public function getNextAvailableModule()
+    protected $fillable = [
+        'reff_id_pelanggan','nama_pelanggan','alamat','no_telepon',
+        'kelurahan','padukuhan','status','progress_status','jenis_pelanggan','keterangan',
+        'tanggal_registrasi',
+    ];
+
+    /* =========================
+     * HELPERS — Progress & Dependency
+     * ========================= */
+
+    public function getProgressPercentage(): int
     {
-        $modules = ['sk', 'sr', 'mgrt', 'gas_in', 'jalur_pipa', 'penyambungan'];
+        $steps = ['validasi','sk','sr','mgrt','gas_in','jalur_pipa','penyambungan','done'];
+        $idx = array_search($this->progress_status, $steps, true);
+        if ($idx === false) return 0;
+        $max = count($steps) - 1;
+        return (int) round(($idx / $max) * 100);
+    }
 
-        foreach ($modules as $module) {
-            if ($this->canProceedToModule($module)) {
-                $moduleData = $this->{$module === 'jalur_pipa' ? 'jalurPipaData' : $module . 'Data'};
-                if (!$moduleData || $moduleData->module_status === 'not_started') {
-                    return $module;
-                }
-            }
-        }
+    public function getNextAvailableModule(): ?string
+    {
+        if ($this->status === 'batal' || $this->progress_status === 'batal') return null;
 
-        return null; // All modules completed or no available module
+        $order = ['validasi','sk','sr','mgrt','gas_in','jalur_pipa','penyambungan','done'];
+        $pos = array_search($this->progress_status, $order, true);
+        if ($pos === false || $this->progress_status === 'done') return null;
+
+        // Naikkan kalau dependency sudah terpenuhi
+        $next = $order[$pos] === 'validasi' ? 'sk' : $order[$pos]; // dari validasi → sk
+
+        // Hard dependency minimal:
+        if ($next === 'sr' && !$this->skData?->module_status === 'completed') return null;
+        if ($next === 'gas_in' && (!($this->skData?->module_status === 'completed') || !($this->srData?->module_status === 'completed'))) return null;
+
+        return $next;
+    }
+
+    /**
+     * Boleh lanjut ke modul X?
+     * - sk: status pelanggan harus validated/in_progress
+     * - sr: SK completed
+     * - gas_in: SK & SR completed
+     * - mgrt, jalur_pipa, penyambungan: (sementara) true atau tambahkan rule saat sudah fix
+     */
+    public function canProceedToModule(string $module): bool
+    {
+        $module = strtolower($module);
+
+        return match ($module) {
+            'sk' => in_array($this->status, ['validated','in_progress','lanjut'], true),
+            'sr' => ($this->skData?->module_status === 'completed'),
+            'gas_in' => ($this->skData?->module_status === 'completed') && ($this->srData?->module_status === 'completed'),
+            'mgrt' => true,            // TODO: pasang rule bila sudah final
+            'jalur_pipa' => true,      // TODO
+            'penyambungan' => true,    // TODO / atau cek jalur pipa selesai
+            default => false,
+        };
     }
 }

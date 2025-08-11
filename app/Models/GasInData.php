@@ -21,10 +21,10 @@ class GasInData extends BaseModuleModel
         'module_status'
     ];
 
-    public function getCasts()
-    {
-        return parent::getCasts();
-    }
+    // public function getCasts()
+    // {
+    //     return parent::getCasts();
+    // }
 
 
     public function getRequiredPhotos(): array

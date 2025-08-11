@@ -25,7 +25,7 @@ class AuditLogSeeder extends Seeder
                 'old_values' => null,
                 'new_values' => [
                     'reff_id_pelanggan' => 'AER001',
-                    'nama_petugas_sk' => 'Petugas Sambungan Kompor 1',
+                    // 'nama_petugas_sk' => 'Petugas Sambungan Kompor 1',
                     'module_status' => 'draft'
                 ],
                 'ip_address' => '192.168.1.100',

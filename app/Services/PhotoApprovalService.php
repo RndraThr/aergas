@@ -1,52 +1,32 @@
 <?php
 
-/**
- * =============================================================================
- * SERVICE: PhotoApprovalService.php
- * Location: app/Services/PhotoApprovalService.php
- * =============================================================================
- */
 namespace App\Services;
 
 use App\Models\PhotoApproval;
 use App\Models\CalonPelanggan;
 use App\Models\User;
 use App\Models\AuditLog;
-use App\Services\TelegramService;
-use App\Services\OpenAIService;
-use App\Services\NotificationService;
+use App\Models\SRData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Exception;
+use Carbon\Carbon;
+use App\Services\FileUploadService;
+use Illuminate\Http\UploadedFile;
+use App\Services\PhotoRuleEvaluator;
+use Illuminate\Support\Facades\Auth;
+use App\Services\OpenAIService;
+
 
 class PhotoApprovalService
 {
-    private TelegramService $telegramService;
-    private OpenAIService $openAIService;
-    private NotificationService $notificationService;
-
     public function __construct(
-        TelegramService $telegramService,
-        OpenAIService $openAIService,
-        NotificationService $notificationService
-    ) {
-        $this->telegramService = $telegramService;
-        $this->openAIService = $openAIService;
-        $this->notificationService = $notificationService;
-    }
+        private TelegramService $telegramService,
+        private OpenAIService $openAIService,
+        private NotificationService $notificationService
+    ) {}
 
-    /**
-     * Process AI validation for uploaded photo
-     *
-     * @param string $reffId
-     * @param string $module
-     * @param string $photoField
-     * @param string $photoUrl
-     * @param int|null $uploadedBy
-     * @return PhotoApproval
-     * @throws Exception
-     */
     public function processAIValidation(
         string $reffId,
         string $module,
@@ -55,812 +35,604 @@ class PhotoApprovalService
         ?int $uploadedBy = null
     ): PhotoApproval {
         DB::beginTransaction();
-
         try {
-            Log::info('Starting AI validation process', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'photo_field' => $photoField,
-                'uploaded_by' => $uploadedBy
-            ]);
-
-            // Verify customer exists
             $customer = CalonPelanggan::find($reffId);
-            if (!$customer) {
-                throw new Exception("Customer not found: {$reffId}");
-            }
+            if (!$customer) throw new Exception("Customer not found: {$reffId}");
 
-            // Get full file path
-            $fullPath = Storage::path('public' . str_replace('/storage', '', $photoUrl));
+            // Konversi URL -> path relatif sesuai disk default
+            $disk = config('filesystems.default', 'public');
+            // untuk public, url biasanya /storage/{path}; kita buang prefix itu
+            $relative = $this->urlToRelativePath($disk, $photoUrl);
+            $fullPath = Storage::disk($disk)->path($relative);
+            if (!file_exists($fullPath)) throw new Exception("Photo file not found: {$fullPath}");
 
-            if (!file_exists($fullPath)) {
-                throw new Exception("Photo file not found: {$fullPath}");
-            }
-
-            // Create or update PhotoApproval record with pending status
-            $photoApproval = PhotoApproval::updateOrCreate(
+            $pa = PhotoApproval::updateOrCreate(
+                ['reff_id_pelanggan' => $reffId, 'module_name' => strtolower($module), 'photo_field_name' => $photoField],
                 [
-                    'reff_id_pelanggan' => $reffId,
-                    'module_name' => $module,
-                    'photo_field_name' => $photoField
-                ],
-                [
-                    'photo_url' => $photoUrl,
-                    'photo_status' => 'ai_pending',
-                    'ai_confidence_score' => null,
+                    'photo_url'            => $photoUrl,
+                    'photo_status'         => 'ai_pending',
+                    'ai_confidence_score'  => null,
                     'ai_validation_result' => null,
-                    'ai_approved_at' => null,
-                    'rejection_reason' => null
+                    'ai_approved_at'       => null,
+                    'rejection_reason'     => null,
                 ]
             );
 
-            // Create audit log
-            $this->createAuditLog($uploadedBy, 'ai_validation_started', 'PhotoApproval', $photoApproval->id, $reffId, [
-                'module' => $module,
-                'photo_field' => $photoField,
-                'status' => 'ai_pending'
+            $this->createAuditLog($uploadedBy, 'ai_validation_started', 'PhotoApproval', $pa->id, $reffId, [
+                'module' => $module, 'photo_field' => $photoField, 'status' => 'ai_pending',
             ]);
 
             DB::commit();
 
-            // Run AI validation asynchronously (in real production, use queue)
-            $this->runAIValidation($photoApproval, $fullPath);
+            $this->runAIValidation($pa, $fullPath);
 
-            return $photoApproval->fresh();
-
+            return $pa->fresh();
         } catch (Exception $e) {
-            DB::rollback();
-
-            Log::error('AI validation process failed', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'photo_field' => $photoField,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            // Create failed validation record
-            $photoApproval = PhotoApproval::updateOrCreate(
-                [
-                    'reff_id_pelanggan' => $reffId,
-                    'module_name' => $module,
-                    'photo_field_name' => $photoField
-                ],
-                [
-                    'photo_url' => $photoUrl,
-                    'photo_status' => 'ai_rejected',
-                    'rejection_reason' => 'Technical error during AI validation: ' . $e->getMessage()
-                ]
+            DB::rollBack();
+            Log::error('AI validation init failed', ['reff_id' => $reffId, 'module' => $module, 'field' => $photoField, 'err' => $e->getMessage()]);
+            return PhotoApproval::updateOrCreate(
+                ['reff_id_pelanggan' => $reffId, 'module_name' => strtolower($module), 'photo_field_name' => $photoField],
+                ['photo_url' => $photoUrl, 'photo_status' => 'ai_rejected', 'rejection_reason' => 'Technical error during AI validation: '.$e->getMessage()]
             );
-
-            return $photoApproval;
         }
     }
 
     /**
-     * Run AI validation on photo
+     * Statistik umum photo approval dengan filter opsional.
      *
-     * @param PhotoApproval $photoApproval
-     * @param string $fullPath
-     * @return void
+     * @param array $filters ['module'|'module_name' => string, 'status' => string, 'reff_id_pelanggan' => string, 'date_from' => Y-m-d, 'date_to' => Y-m-d]
+     * @return array
      */
-    private function runAIValidation(PhotoApproval $photoApproval, string $fullPath): void
+    public function getPhotoApprovalStats(array $filters = []): array
+    {
+        $q = PhotoApproval::query();
+
+        // Terapkan filter
+        $module = $filters['module_name'] ?? $filters['module'] ?? null;
+        if (!empty($module)) {
+            $q->where('module_name', $module);
+        }
+        if (!empty($filters['status'])) {
+            $q->where('photo_status', $filters['status']);
+        }
+        if (!empty($filters['reff_id_pelanggan'])) {
+            $q->where('reff_id_pelanggan', 'like', '%'.$filters['reff_id_pelanggan'].'%');
+        }
+
+        // rentang tanggal pakai created_at (bisa diubah sesuai kebutuhan)
+        $from = !empty($filters['date_from']) ? Carbon::parse($filters['date_from'])->startOfDay() : null;
+        $to   = !empty($filters['date_to'])   ? Carbon::parse($filters['date_to'])->endOfDay()   : null;
+        if ($from) $q->where('created_at', '>=', $from);
+        if ($to)   $q->where('created_at', '<=', $to);
+
+        // ringkasan
+        $total          = (clone $q)->count();
+        $pendingAi      = (clone $q)->where('photo_status', 'ai_pending')->count();
+        $tracerPending  = (clone $q)->where('photo_status', 'tracer_pending')->count();
+        $cgpPending     = (clone $q)->where('photo_status', 'cgp_pending')->count();
+        $approved       = (clone $q)->where('photo_status', 'cgp_approved')->count();
+        $rejected       = (clone $q)->whereIn('photo_status', ['ai_rejected','tracer_rejected','cgp_rejected'])->count();
+        $avgConfidence  = round((float) (clone $q)->avg('ai_confidence_score'), 2);
+        $todayCompleted = (clone $q)->where('photo_status', 'cgp_approved')->whereDate('cgp_approved_at', Carbon::today())->count();
+
+        // by status & module
+        $byStatus = (clone $q)->select('photo_status', DB::raw('COUNT(*) as c'))
+            ->groupBy('photo_status')->pluck('c','photo_status')->toArray();
+
+        $byModule = (clone $q)->select('module_name', DB::raw('COUNT(*) as c'))
+            ->groupBy('module_name')->pluck('c','module_name')->toArray();
+
+        // SLA (menghormati filter dasar di atas)
+        $slaTracerViolation = (clone $q)->where('photo_status','tracer_pending')
+            ->where('ai_approved_at','<', Carbon::now()->subHours(24))->count();
+
+        $slaTracerWarning = (clone $q)->where('photo_status','tracer_pending')
+            ->where('ai_approved_at','<', Carbon::now()->subHours(20))
+            ->where('ai_approved_at','>=', Carbon::now()->subHours(24))->count();
+
+        $slaCgpViolation = (clone $q)->where('photo_status','cgp_pending')
+            ->where('tracer_approved_at','<', Carbon::now()->subHours(48))->count();
+
+        $slaCgpWarning = (clone $q)->where('photo_status','cgp_pending')
+            ->where('tracer_approved_at','<', Carbon::now()->subHours(40))
+            ->where('tracer_approved_at','>=', Carbon::now()->subHours(48))->count();
+
+        return [
+            'summary' => [
+                'total'            => $total,
+                'pending_ai'       => $pendingAi,
+                'tracer_pending'   => $tracerPending,
+                'cgp_pending'      => $cgpPending,
+                'approved'         => $approved,
+                'rejected'         => $rejected,
+                'avg_ai_confidence'=> $avgConfidence,
+                'today_completed'  => $todayCompleted,
+            ],
+            'by_status' => $byStatus,
+            'by_module' => $byModule,
+            'sla' => [
+                'tracer' => ['violations' => $slaTracerViolation, 'warnings' => $slaTracerWarning, 'limit_hours' => 24],
+                'cgp'    => ['violations' => $slaCgpViolation,    'warnings' => $slaCgpWarning,    'limit_hours' => 48],
+                'total_violations' => $slaTracerViolation + $slaCgpViolation,
+                'total_warnings'   => $slaTracerWarning  + $slaCgpWarning,
+            ],
+            'filters_applied' => [
+                'module' => $module,
+                'status' => $filters['status'] ?? null,
+                'reff_id_pelanggan' => $filters['reff_id_pelanggan'] ?? null,
+                'date_from' => $from?->toDateString(),
+                'date_to'   => $to?->toDateString(),
+            ],
+            'generated_at' => Carbon::now()->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Orkestra: upload file → jalankan AI → simpan PhotoApproval → recalc status modul.
+     *
+     * @return array{
+     *   success:bool, photo_id:int, ai_status:string, ai_score: int|null,
+     *   ai_notes:?string, preview_url:string, file:array, module:string, reff_id:string
+     * }
+     */
+    public function handleUploadAndValidate(
+        string $module,            // 'SK' | 'SR'
+        string $reffId,
+        string $slotIncoming,      // boleh alias (mis. foto_pneumatic_start_sr_url)
+        UploadedFile $file,
+        ?int $userId = null
+    ): array {
+        $module = strtoupper($module);
+        $uid    = (int) ($userId ?? Auth::id());
+
+        // 1) ambil config sekali, map alias → slot key
+        $cfg     = config('aergas_photos', []);
+        $aliases = $cfg['aliases'][$module] ?? [];
+        $slotKey = $aliases[$slotIncoming] ?? $slotIncoming;
+
+        $rules = $cfg['modules'][$module]['slots'][$slotKey] ?? null;
+        if (!$rules) {
+            return ['success'=>false,'message'=>"Slot tidak dikenal: $slotIncoming → $slotKey"];
+        }
+
+        // 2) enforce dependency (contoh: SR.tapping_saddle butuh jenis_tapping)
+        $requires = $rules['requires']['fields'] ?? [];
+        if ($requires) {
+            if ($module === 'SR') {
+                $sr = SrData::where('reff_id_pelanggan', $reffId)->first();
+                foreach ($requires as $fieldName) {
+                    if (!$sr || is_null($sr->{$fieldName}) || $sr->{$fieldName} === '') {
+                        return [
+                            'success'=>false,
+                            'message'=>"Field '$fieldName' wajib diisi sebelum upload foto '{$rules['label']}'."
+                        ];
+                    }
+                }
+            }
+            // (kalau ada modul lain, tambahkan di sini)
+        }
+
+        // 3) upload file (Drive/lokal) via FileUploadService
+        /** @var FileUploadService $uploader */
+        $uploader = app(FileUploadService::class);
+        $u = $uploader->uploadPhoto($file, $reffId, $module, $slotIncoming, $uid);
+        // $u: ['url','disk','path','drive_file_id','drive_link']
+
+        $disk = $u['disk'] ?? config('filesystems.default','public');
+        $path = $u['path'] ?? null;
+        if (!$path) throw new \RuntimeException('Upload gagal: path kosong');
+
+        // 4) simpan/update PhotoApproval (kunci: reff + module + slotKey)
+        $pa = PhotoApproval::updateOrCreate(
+            [
+                'reff_id_pelanggan' => $reffId,
+                'module_name'       => strtolower($module),
+                'photo_field_name'  => $slotKey,
+            ],
+            [
+                'photo_url'    => $u['url'] ?? '',
+                'storage_disk' => $disk,
+                'storage_path' => $path,
+                'drive_file_id'=> $u['drive_file_id'] ?? null,
+                'drive_link'   => $u['drive_link']    ?? null,
+                'uploaded_by'  => $uid,
+                'uploaded_at'  => now(),
+                'ai_status'    => 'pending',
+            ]
+        );
+
+        // 5) jalankan AI (pakai OpenAIService yang sudah ada di service ini)
+        $fullPath = Storage::disk($disk)->path($path);
+        $aiRaw    = $this->openAIService->validatePhoto($fullPath, $slotKey, $module);
+
+        // 6) normalisasi output AI → evaluator
+        $ai = [
+            'score'   => $aiRaw['confidence']       ?? null,
+            'notes'   => $aiRaw['rejection_reason'] ?? null,
+            'objects' => $aiRaw['objects']          ?? ($aiRaw['labels'] ?? []),
+            'image'   => $aiRaw['image']            ?? [],
+        ];
+        if ($ai['objects'] && is_string($ai['objects'][0] ?? null)) {
+            $ai['objects'] = array_map(fn($n)=>['name'=>$n,'confidence'=>null], $ai['objects']);
+        }
+
+        $verdict = app(PhotoRuleEvaluator::class)->evaluate($rules, $ai);
+
+        // 7) persist hasil & recalc modul
+        $pa->ai_status          = $verdict['status'];
+        $pa->ai_score           = $verdict['score'];
+        $pa->ai_checks          = $verdict['checks'];
+        $pa->ai_notes           = $verdict['notes'];
+        $pa->ai_last_checked_at = now();
+        $pa->save();
+
+        $this->recalcModule($reffId, $module);
+
+        return [
+            'success'      => true,
+            'photo_id'     => $pa->id,
+            'ai_status'    => $pa->ai_status,
+            'ai_score'     => $pa->ai_score,
+            'ai_notes'     => $pa->ai_notes,
+            'checks'       => $pa->ai_checks,
+            'preview_url'  => $u['url'] ?? '',
+            'file'         => ['disk'=>$disk,'path'=>$path,'drive_file_id'=>$u['drive_file_id'] ?? null],
+            'module'       => $module,
+            'reff_id'      => $reffId,
+            'slot'         => $slotKey,
+        ];
+    }
+
+
+
+    private function runAIValidation(PhotoApproval $pa, string $fullPath): void
     {
         try {
-            // Run AI validation
-            $aiResult = $this->openAIService->validatePhoto(
-                $fullPath,
-                $photoApproval->photo_field_name,
-                $photoApproval->module_name
-            );
+            $ai = $this->openAIService->validatePhoto($fullPath, $pa->photo_field_name, $pa->module_name);
 
-            // Update photo approval with AI results
-            $photoApproval->update([
-                'ai_confidence_score' => $aiResult['confidence'],
-                'ai_validation_result' => $aiResult,
-                'ai_approved_at' => $aiResult['validation_passed'] ? now() : null,
-                'photo_status' => $aiResult['validation_passed'] ? 'tracer_pending' : 'ai_rejected',
-                'rejection_reason' => $aiResult['rejection_reason']
+            $pa->update([
+                'ai_confidence_score'  => $ai['confidence'] ?? null,
+                'ai_validation_result' => $ai,
+                'ai_approved_at'       => !empty($ai['validation_passed']) ? now() : null,
+                'photo_status'         => !empty($ai['validation_passed']) ? 'tracer_pending' : 'ai_rejected',
+                'rejection_reason'     => $ai['rejection_reason'] ?? null,
             ]);
 
-            Log::info('AI validation completed', [
-                'reff_id' => $photoApproval->reff_id_pelanggan,
-                'photo_field' => $photoApproval->photo_field_name,
-                'result' => $aiResult['validation_passed'] ? 'PASSED' : 'REJECTED',
-                'confidence' => $aiResult['confidence']
-            ]);
+            $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
 
-            // Handle result
-            if (!$aiResult['validation_passed']) {
-                $this->handlePhotoRejection(
-                    $photoApproval,
-                    'AI System',
-                    $aiResult['rejection_reason'] ?? 'Failed AI validation'
-                );
+            if (!empty($ai['validation_passed'])) {
+                $this->notificationService->notifyTracerPhotoPending($pa->reff_id_pelanggan, $pa->module_name);
             } else {
-                // Notify tracer about pending review
-                $this->notificationService->notifyTracerPhotoPending(
-                    $photoApproval->reff_id_pelanggan,
-                    $photoApproval->module_name
-                );
+                $this->handlePhotoRejection($pa, 'AI System', $ai['rejection_reason'] ?? 'Failed AI validation');
             }
 
-            // Create audit log
-            $this->createAuditLog(null, 'ai_validation_completed', 'PhotoApproval', $photoApproval->id, $photoApproval->reff_id_pelanggan, [
-                'result' => $aiResult['validation_passed'] ? 'passed' : 'rejected',
-                'confidence' => $aiResult['confidence'],
-                'reason' => $aiResult['rejection_reason']
+            $this->createAuditLog(null, 'ai_validation_completed', 'PhotoApproval', $pa->id, $pa->reff_id_pelanggan, [
+                'result' => !empty($ai['validation_passed']) ? 'passed' : 'rejected',
+                'confidence' => $ai['confidence'] ?? null,
+                'reason' => $ai['rejection_reason'] ?? null,
             ]);
-
         } catch (Exception $e) {
-            Log::error('AI validation execution failed', [
-                'photo_approval_id' => $photoApproval->id,
-                'error' => $e->getMessage()
-            ]);
-
-            $photoApproval->update([
-                'photo_status' => 'ai_rejected',
-                'rejection_reason' => 'AI validation system error: ' . $e->getMessage()
-            ]);
+            Log::error('AI validation exec failed', ['id' => $pa->id, 'err' => $e->getMessage()]);
+            $pa->update(['photo_status' => 'ai_rejected', 'rejection_reason' => 'AI validation system error: '.$e->getMessage()]);
+            $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
         }
     }
 
-    /**
-     * Approve photo by Tracer
-     *
-     * @param int $photoApprovalId
-     * @param int $userId
-     * @param string|null $notes
-     * @return PhotoApproval
-     * @throws Exception
-     */
     public function approveByTracer(int $photoApprovalId, int $userId, ?string $notes = null): PhotoApproval
     {
         DB::beginTransaction();
-
         try {
-            $photoApproval = PhotoApproval::findOrFail($photoApprovalId);
+            $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            // Validate user permissions
-            if (!$user->isTracer() && !$user->isAdmin()) {
-                throw new Exception('Unauthorized: Only Tracer or Admin can approve photos');
-            }
+            if (!$user->isTracer() && !$user->isAdmin()) throw new Exception('Unauthorized: Only Tracer or Admin can approve photos');
+            if ($pa->photo_status !== 'tracer_pending') throw new Exception("Photo is not in tracer_pending status. Current: {$pa->photo_status}");
 
-            // Validate current status
-            if ($photoApproval->photo_status !== 'tracer_pending') {
-                throw new Exception("Photo is not in tracer_pending status. Current status: {$photoApproval->photo_status}");
-            }
-
-            // Update photo approval
-            $oldStatus = $photoApproval->photo_status;
-            $photoApproval->update([
-                'tracer_user_id' => $userId,
+            $old = $pa->photo_status;
+            $pa->update([
+                'tracer_user_id'     => $userId,
                 'tracer_approved_at' => now(),
-                'tracer_notes' => $notes,
-                'photo_status' => 'cgp_pending'
+                'tracer_notes'       => $notes,
+                'photo_status'       => 'cgp_pending',
             ]);
 
-            Log::info('Photo approved by Tracer', [
-                'photo_approval_id' => $photoApprovalId,
-                'reff_id' => $photoApproval->reff_id_pelanggan,
-                'tracer_id' => $userId,
-                'tracer_name' => $user->full_name
+            $this->createAuditLog($userId, 'tracer_approved', 'PhotoApproval', $pa->id, $pa->reff_id_pelanggan, [
+                'old_status' => $old, 'new_status' => 'cgp_pending', 'notes' => $notes
             ]);
 
-            // Create audit log
-            $this->createAuditLog($userId, 'tracer_approved', 'PhotoApproval', $photoApprovalId, $photoApproval->reff_id_pelanggan, [
-                'old_status' => $oldStatus,
-                'new_status' => 'cgp_pending',
-                'notes' => $notes
-            ]);
-
-            // Notify admin for CGP review
-            $this->notificationService->notifyAdminCgpReview(
-                $photoApproval->reff_id_pelanggan,
-                $photoApproval->module_name
-            );
-
-            // Send Telegram status update
-            $this->telegramService->sendModuleStatusAlert(
-                $photoApproval->reff_id_pelanggan,
-                $photoApproval->module_name,
-                'tracer_review',
-                'cgp_pending',
-                $user->full_name
-            );
+            $this->notificationService->notifyAdminCgpReview($pa->reff_id_pelanggan, $pa->module_name);
+            $this->telegramService->sendModuleStatusAlert($pa->reff_id_pelanggan, $pa->module_name, 'tracer_review', 'cgp_pending', $user->full_name);
 
             DB::commit();
+            $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
 
-            return $photoApproval->fresh();
-
+            return $pa->fresh();
         } catch (Exception $e) {
-            DB::rollback();
-
-            Log::error('Tracer approval failed', [
-                'photo_approval_id' => $photoApprovalId,
-                'user_id' => $userId,
-                'error' => $e->getMessage()
-            ]);
-
+            DB::rollBack();
+            Log::error('approveByTracer failed', ['id' => $photoApprovalId, 'err' => $e->getMessage()]);
             throw $e;
         }
     }
 
-    /**
-     * Reject photo by Tracer
-     *
-     * @param int $photoApprovalId
-     * @param int $userId
-     * @param string $reason
-     * @return PhotoApproval
-     * @throws Exception
-     */
+    public function batchProcessPhotos(array $photoIds, string $action, int $actorUserId, array $payload = []): array
+    {
+        $results = [];
+        $ok = 0;
+        $notes  = $payload['notes']  ?? null;
+        $reason = $payload['reason'] ?? null;
+
+        foreach ($photoIds as $id) {
+            try {
+                switch ($action) {
+                    case 'tracer_approve':
+                        $this->approveByTracer((int)$id, $actorUserId, $notes);
+                        $results[] = ['id' => (int)$id, 'success' => true, 'message' => 'Tracer approved'];
+                        $ok++;
+                        break;
+
+                    case 'tracer_reject':
+                        $this->rejectByTracer((int)$id, $actorUserId, (string)($reason ?: 'Rejected by Tracer'));
+                        $results[] = ['id' => (int)$id, 'success' => true, 'message' => 'Tracer rejected'];
+                        $ok++;
+                        break;
+
+                    case 'cgp_approve':
+                        $this->approveByCgp((int)$id, $actorUserId, $notes);
+                        $results[] = ['id' => (int)$id, 'success' => true, 'message' => 'CGP approved'];
+                        $ok++;
+                        break;
+
+                    case 'cgp_reject':
+                        $this->rejectByCgp((int)$id, $actorUserId, (string)($reason ?: 'Rejected by CGP'));
+                        $results[] = ['id' => (int)$id, 'success' => true, 'message' => 'CGP rejected'];
+                        $ok++;
+                        break;
+
+                    default:
+                        throw new \Exception('Unsupported action: '.$action);
+                }
+            } catch (\Throwable $e) {
+                $results[] = ['id' => (int)$id, 'success' => false, 'message' => $e->getMessage()];
+            }
+        }
+
+        return [
+            'total'      => count($photoIds),
+            'successful' => $ok,
+            'failed'     => count($photoIds) - $ok,
+            'results'    => $results,
+        ];
+    }
+
+
     public function rejectByTracer(int $photoApprovalId, int $userId, string $reason): PhotoApproval
     {
         DB::beginTransaction();
-
         try {
-            $photoApproval = PhotoApproval::findOrFail($photoApprovalId);
+            $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            // Validate user permissions
-            if (!$user->isTracer() && !$user->isAdmin()) {
-                throw new Exception('Unauthorized: Only Tracer or Admin can reject photos');
-            }
+            if (!$user->isTracer() && !$user->isAdmin()) throw new Exception('Unauthorized: Only Tracer or Admin can reject photos');
+            if ($pa->photo_status !== 'tracer_pending') throw new Exception("Photo is not in tracer_pending status. Current: {$pa->photo_status}");
 
-            // Validate current status
-            if ($photoApproval->photo_status !== 'tracer_pending') {
-                throw new Exception("Photo is not in tracer_pending status. Current status: {$photoApproval->photo_status}");
-            }
-
-            // Update photo approval
-            $oldStatus = $photoApproval->photo_status;
-            $photoApproval->update([
-                'tracer_user_id' => $userId,
+            $old = $pa->photo_status;
+            $pa->update([
+                'tracer_user_id'     => $userId,
                 'tracer_approved_at' => null,
-                'tracer_notes' => $reason,
-                'photo_status' => 'tracer_rejected',
-                'rejection_reason' => $reason
+                'tracer_notes'       => $reason,
+                'photo_status'       => 'tracer_rejected',
+                'rejection_reason'   => $reason,
             ]);
 
-            Log::info('Photo rejected by Tracer', [
-                'photo_approval_id' => $photoApprovalId,
-                'reff_id' => $photoApproval->reff_id_pelanggan,
-                'tracer_id' => $userId,
-                'reason' => $reason
+            $this->createAuditLog($userId, 'tracer_rejected', 'PhotoApproval', $pa->id, $pa->reff_id_pelanggan, [
+                'old_status' => $old, 'new_status' => 'tracer_rejected', 'rejection_reason' => $reason
             ]);
 
-            // Create audit log
-            $this->createAuditLog($userId, 'tracer_rejected', 'PhotoApproval', $photoApprovalId, $photoApproval->reff_id_pelanggan, [
-                'old_status' => $oldStatus,
-                'new_status' => 'tracer_rejected',
-                'rejection_reason' => $reason
-            ]);
-
-            // Handle rejection notifications
-            $this->handlePhotoRejection($photoApproval, $user->full_name, $reason);
+            $this->handlePhotoRejection($pa, $user->full_name, $reason);
 
             DB::commit();
+            $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
 
-            return $photoApproval->fresh();
-
+            return $pa->fresh();
         } catch (Exception $e) {
-            DB::rollback();
-
-            Log::error('Tracer rejection failed', [
-                'photo_approval_id' => $photoApprovalId,
-                'user_id' => $userId,
-                'error' => $e->getMessage()
-            ]);
-
+            DB::rollBack();
+            Log::error('rejectByTracer failed', ['id' => $photoApprovalId, 'err' => $e->getMessage()]);
             throw $e;
         }
     }
 
-    /**
-     * Approve photo by CGP (Final approval)
-     *
-     * @param int $photoApprovalId
-     * @param int $userId
-     * @param string|null $notes
-     * @return PhotoApproval
-     * @throws Exception
-     */
     public function approveByCgp(int $photoApprovalId, int $userId, ?string $notes = null): PhotoApproval
     {
         DB::beginTransaction();
-
         try {
-            $photoApproval = PhotoApproval::findOrFail($photoApprovalId);
+            $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            // Validate user permissions
-            if (!$user->isAdmin()) {
-                throw new Exception('Unauthorized: Only Admin can perform CGP approval');
-            }
+            if (!$user->isAdmin()) throw new Exception('Unauthorized: Only Admin can perform CGP approval');
+            if ($pa->photo_status !== 'cgp_pending') throw new Exception("Photo is not in cgp_pending status. Current: {$pa->photo_status}");
 
-            // Validate current status
-            if ($photoApproval->photo_status !== 'cgp_pending') {
-                throw new Exception("Photo is not in cgp_pending status. Current status: {$photoApproval->photo_status}");
-            }
-
-            // Update photo approval
-            $oldStatus = $photoApproval->photo_status;
-            $photoApproval->update([
-                'cgp_user_id' => $userId,
+            $old = $pa->photo_status;
+            $pa->update([
+                'cgp_user_id'     => $userId,
                 'cgp_approved_at' => now(),
-                'cgp_notes' => $notes,
-                'photo_status' => 'cgp_approved'
+                'cgp_notes'       => $notes,
+                'photo_status'    => 'cgp_approved',
             ]);
 
-            Log::info('Photo approved by CGP', [
-                'photo_approval_id' => $photoApprovalId,
-                'reff_id' => $photoApproval->reff_id_pelanggan,
-                'cgp_id' => $userId,
-                'cgp_name' => $user->full_name
+            $this->createAuditLog($userId, 'cgp_approved', 'PhotoApproval', $pa->id, $pa->reff_id_pelanggan, [
+                'old_status' => $old, 'new_status' => 'cgp_approved', 'notes' => $notes
             ]);
 
-            // Create audit log
-            $this->createAuditLog($userId, 'cgp_approved', 'PhotoApproval', $photoApprovalId, $photoApproval->reff_id_pelanggan, [
-                'old_status' => $oldStatus,
-                'new_status' => 'cgp_approved',
-                'notes' => $notes
-            ]);
-
-            // Check if all photos in module are completed
-            $this->checkModuleCompletion($photoApproval->reff_id_pelanggan, $photoApproval->module_name);
-
-            // Notify field user about approval
-            $this->notificationService->notifyPhotoApproved(
-                $photoApproval->reff_id_pelanggan,
-                $photoApproval->module_name,
-                $photoApproval->photo_field_name
-            );
-
-            // Send Telegram status update
-            $this->telegramService->sendModuleStatusAlert(
-                $photoApproval->reff_id_pelanggan,
-                $photoApproval->module_name,
-                'cgp_review',
-                'completed',
-                $user->full_name
-            );
+            $this->checkModuleCompletion($pa->reff_id_pelanggan, $pa->module_name);
+            $this->notificationService->notifyPhotoApproved($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name);
+            $this->telegramService->sendModuleStatusAlert($pa->reff_id_pelanggan, $pa->module_name, 'cgp_review', 'completed', $user->full_name);
 
             DB::commit();
+            $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
 
-            return $photoApproval->fresh();
-
+            return $pa->fresh();
         } catch (Exception $e) {
-            DB::rollback();
-
-            Log::error('CGP approval failed', [
-                'photo_approval_id' => $photoApprovalId,
-                'user_id' => $userId,
-                'error' => $e->getMessage()
-            ]);
-
+            DB::rollBack();
+            Log::error('approveByCgp failed', ['id' => $photoApprovalId, 'err' => $e->getMessage()]);
             throw $e;
         }
     }
 
-    /**
-     * Reject photo by CGP
-     *
-     * @param int $photoApprovalId
-     * @param int $userId
-     * @param string $reason
-     * @return PhotoApproval
-     * @throws Exception
-     */
     public function rejectByCgp(int $photoApprovalId, int $userId, string $reason): PhotoApproval
     {
         DB::beginTransaction();
-
         try {
-            $photoApproval = PhotoApproval::findOrFail($photoApprovalId);
+            $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            // Validate user permissions
-            if (!$user->isAdmin()) {
-                throw new Exception('Unauthorized: Only Admin can perform CGP rejection');
-            }
+            if (!$user->isAdmin()) throw new Exception('Unauthorized: Only Admin can perform CGP rejection');
+            if ($pa->photo_status !== 'cgp_pending') throw new Exception("Photo is not in cgp_pending status. Current: {$pa->photo_status}");
 
-            // Validate current status
-            if ($photoApproval->photo_status !== 'cgp_pending') {
-                throw new Exception("Photo is not in cgp_pending status. Current status: {$photoApproval->photo_status}");
-            }
-
-            // Update photo approval
-            $oldStatus = $photoApproval->photo_status;
-            $photoApproval->update([
-                'cgp_user_id' => $userId,
+            $old = $pa->photo_status;
+            $pa->update([
+                'cgp_user_id'     => $userId,
                 'cgp_approved_at' => null,
-                'cgp_notes' => $reason,
-                'photo_status' => 'cgp_rejected',
-                'rejection_reason' => $reason
+                'cgp_notes'       => $reason,
+                'photo_status'    => 'cgp_rejected',
+                'rejection_reason'=> $reason,
             ]);
 
-            Log::info('Photo rejected by CGP', [
-                'photo_approval_id' => $photoApprovalId,
-                'reff_id' => $photoApproval->reff_id_pelanggan,
-                'cgp_id' => $userId,
-                'reason' => $reason
+            $this->createAuditLog($userId, 'cgp_rejected', 'PhotoApproval', $pa->id, $pa->reff_id_pelanggan, [
+                'old_status' => $old, 'new_status' => 'cgp_rejected', 'rejection_reason' => $reason
             ]);
 
-            // Create audit log
-            $this->createAuditLog($userId, 'cgp_rejected', 'PhotoApproval', $photoApprovalId, $photoApproval->reff_id_pelanggan, [
-                'old_status' => $oldStatus,
-                'new_status' => 'cgp_rejected',
-                'rejection_reason' => $reason
-            ]);
-
-            // Handle rejection notifications
-            $this->handlePhotoRejection($photoApproval, $user->full_name . ' (CGP)', $reason);
+            $this->handlePhotoRejection($pa, $user->full_name.' (CGP)', $reason);
 
             DB::commit();
+            $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
 
-            return $photoApproval->fresh();
-
+            return $pa->fresh();
         } catch (Exception $e) {
-            DB::rollback();
-
-            Log::error('CGP rejection failed', [
-                'photo_approval_id' => $photoApprovalId,
-                'user_id' => $userId,
-                'error' => $e->getMessage()
-            ]);
-
+            DB::rollBack();
+            Log::error('rejectByCgp failed', ['id' => $photoApprovalId, 'err' => $e->getMessage()]);
             throw $e;
         }
     }
 
-    /**
-     * Handle photo rejection notifications and alerts
-     *
-     * @param PhotoApproval $photoApproval
-     * @param string $rejectedBy
-     * @param string $reason
-     * @return void
-     */
-    private function handlePhotoRejection(PhotoApproval $photoApproval, string $rejectedBy, string $reason): void
+    // --- utils ---
+
+    private function urlToRelativePath(string $disk, string $url): string
+    {
+        // untuk disk public, /storage/{path}; untuk disk lain, coba langsung treat sebagai path
+        if ($disk === 'public' && str_starts_with($url, '/storage/')) {
+            return ltrim(substr($url, strlen('/storage/')), '/');
+        }
+        // fallback: kalau URL adalah absolute path, coba trim sampai storage path
+        return ltrim($url, '/');
+    }
+
+    private function handlePhotoRejection(PhotoApproval $pa, string $by, string $reason): void
     {
         try {
-            // Send Telegram alert
-            $this->telegramService->sendPhotoRejectionAlert(
-                $photoApproval->reff_id_pelanggan,
-                $photoApproval->module_name,
-                $photoApproval->photo_field_name,
-                $rejectedBy,
-                $reason
-            );
-
-            // Send notification to field user
-            $this->notificationService->notifyPhotoRejection(
-                $photoApproval->reff_id_pelanggan,
-                $photoApproval->module_name,
-                $photoApproval->photo_field_name,
-                $reason
-            );
-
-            Log::info('Photo rejection notifications sent', [
-                'reff_id' => $photoApproval->reff_id_pelanggan,
-                'photo_field' => $photoApproval->photo_field_name,
-                'rejected_by' => $rejectedBy
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Failed to send photo rejection notifications', [
-                'photo_approval_id' => $photoApproval->id,
-                'error' => $e->getMessage()
-            ]);
+            $this->telegramService->sendPhotoRejectionAlert($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name, $by, $reason);
+            $this->notificationService->notifyPhotoRejection($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name, $reason);
+        } catch (\Throwable $e) {
+            // non-fatal
         }
     }
 
-    /**
-     * Check if module is completed and update status
-     *
-     * @param string $reffId
-     * @param string $module
-     * @return void
-     */
     private function checkModuleCompletion(string $reffId, string $module): void
     {
         try {
-            $moduleClassName = 'App\\Models\\' . ucfirst(str_replace('_', '', ucwords($module, '_'))) . 'Data';
+            $class = $this->resolveModuleModelClass($module);
+            if (!$class) return;
 
-            if (!class_exists($moduleClassName)) {
-                Log::warning("Module class not found: {$moduleClassName}");
-                return;
-            }
+            /** @var \App\Models\BaseModuleModel|null $mod */
+            $mod = $class::where('reff_id_pelanggan', $reffId)->first();
+            if (!$mod) return;
 
-            $moduleData = $moduleClassName::where('reff_id_pelanggan', $reffId)->first();
-
-            if (!$moduleData) {
-                Log::warning("Module data not found for {$module}: {$reffId}");
-                return;
-            }
-
-            // Get required photos for this module
-            $requiredPhotos = $moduleData->getRequiredPhotos();
-
-            // Count completed photos
-            $completedPhotos = PhotoApproval::where('reff_id_pelanggan', $reffId)
+            $required = $mod->getRequiredPhotos();
+            $done = PhotoApproval::where('reff_id_pelanggan', $reffId)
                 ->where('module_name', $module)
                 ->where('photo_status', 'cgp_approved')
                 ->count();
 
-            Log::info('Checking module completion', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'required_photos' => count($requiredPhotos),
-                'completed_photos' => $completedPhotos
-            ]);
-
-            // If all photos are completed, mark module as completed
-            if ($completedPhotos >= count($requiredPhotos)) {
-                $moduleData->update([
-                    'module_status' => 'completed',
-                    'overall_photo_status' => 'completed'
-                ]);
-
-                // Update customer progress
-                $this->updateCustomerProgress($reffId, $module);
-
-                // Send completion notification
+            if ($done >= count($required)) {
+                $mod->update(['module_status' => 'completed', 'overall_photo_status' => 'completed']);
                 $this->notificationService->notifyModuleCompletion($reffId, $module);
-
-                Log::info('Module completed', [
-                    'reff_id' => $reffId,
-                    'module' => $module
-                ]);
+                $this->updateCustomerProgress($reffId, $module);
             }
-
         } catch (Exception $e) {
-            Log::error('Error checking module completion', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'error' => $e->getMessage()
-            ]);
+            Log::error('checkModuleCompletion error', ['reff' => $reffId, 'module' => $module, 'err' => $e->getMessage()]);
         }
     }
 
-    /**
-     * Update customer progress after module completion
-     *
-     * @param string $reffId
-     * @param string $completedModule
-     * @return void
-     */
     private function updateCustomerProgress(string $reffId, string $completedModule): void
     {
         try {
-            $customer = CalonPelanggan::find($reffId);
+            $c = CalonPelanggan::find($reffId);
+            if (!$c) return;
 
-            if (!$customer) {
-                Log::warning("Customer not found for progress update: {$reffId}");
-                return;
-            }
-
-            // Define module progression
-            $moduleProgression = [
+            $next = [
                 'sk' => 'sr',
                 'sr' => 'mgrt',
                 'mgrt' => 'gas_in',
                 'gas_in' => 'jalur_pipa',
                 'jalur_pipa' => 'penyambungan',
-                'penyambungan' => 'done'
-            ];
+                'penyambungan' => 'done',
+            ][$completedModule] ?? null;
 
-            // Update progress status
-            if (isset($moduleProgression[$completedModule])) {
-                $nextStatus = $moduleProgression[$completedModule];
-
-                $customer->update([
-                    'progress_status' => $nextStatus,
-                    'status' => $nextStatus === 'done' ? 'lanjut' : 'in_progress'
-                ]);
-
-                Log::info('Customer progress updated', [
-                    'reff_id' => $reffId,
-                    'completed_module' => $completedModule,
-                    'new_progress_status' => $nextStatus
+            if ($next) {
+                $c->update([
+                    'progress_status' => $next,
+                    'status' => $next === 'done' ? 'lanjut' : 'in_progress',
                 ]);
             }
-
         } catch (Exception $e) {
-            Log::error('Error updating customer progress', [
-                'reff_id' => $reffId,
-                'completed_module' => $completedModule,
-                'error' => $e->getMessage()
-            ]);
+            Log::warning('updateCustomerProgress failed', ['err' => $e->getMessage()]);
         }
     }
 
-    /**
-     * Create audit log entry
-     *
-     * @param int|null $userId
-     * @param string $action
-     * @param string $modelType
-     * @param int|null $modelId
-     * @param string|null $reffId
-     * @param array $data
-     * @return void
-     */
-    private function createAuditLog(
-        ?int $userId,
-        string $action,
-        string $modelType,
-        ?int $modelId,
-        ?string $reffId,
-        array $data = []
-    ): void {
-        try {
-            AuditLog::create([
-                'user_id' => $userId,
-                'action' => $action,
-                'model_type' => $modelType,
-                'model_id' => $modelId,
-                'reff_id_pelanggan' => $reffId,
-                'old_values' => $data['old_values'] ?? null,
-                'new_values' => $data,
-                'ip_address' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-                'description' => $this->getActionDescription($action, $data)
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Failed to create audit log', [
-                'action' => $action,
-                'model_type' => $modelType,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Get description for audit log action
-     *
-     * @param string $action
-     * @param array $data
-     * @return string
-     */
-    private function getActionDescription(string $action, array $data): string
+    private function resolveModuleModelClass(string $module): ?string
     {
-        return match($action) {
-            'ai_validation_started' => 'AI validation process started for photo',
-            'ai_validation_completed' => 'AI validation completed with result: ' . ($data['result'] ?? 'unknown'),
-            'tracer_approved' => 'Photo approved by Tracer',
-            'tracer_rejected' => 'Photo rejected by Tracer: ' . ($data['rejection_reason'] ?? ''),
-            'cgp_approved' => 'Photo approved by CGP (Final approval)',
-            'cgp_rejected' => 'Photo rejected by CGP: ' . ($data['rejection_reason'] ?? ''),
-            default => ucwords(str_replace('_', ' ', $action))
+        return match (strtolower($module)) {
+            'sk'           => \App\Models\SkData::class,
+            'sr'           => \App\Models\SrData::class,
+            'mgrt'         => \App\Models\MgrtData::class,
+            'gas_in'       => \App\Models\GasInData::class,
+            'jalur_pipa'   => \App\Models\JalurPipaData::class,
+            'penyambungan' => \App\Models\PenyambunganPipaData::class,
+            default        => null,
         };
     }
 
-    /**
-     * Get photo approval statistics
-     *
-     * @param array $filters
-     * @return array
-     */
-    public function getPhotoApprovalStats(array $filters = []): array
+    private function recalcModule(string $reffId, string $module): void
     {
-        $query = PhotoApproval::query();
+        try {
+            $class = $this->resolveModuleModelClass($module);
+            if (!$class) return;
 
-        // Apply filters
-        if (isset($filters['module'])) {
-            $query->where('module_name', $filters['module']);
+            /** @var \App\Models\BaseModuleModel|null $m */
+            $m = $class::where('reff_id_pelanggan', $reffId)->first();
+            if ($m) $m->syncModuleStatusFromPhotos();
+        } catch (Exception $e) {
+            Log::info('recalcModule soft-failed', ['err' => $e->getMessage()]);
         }
-
-        if (isset($filters['date_from'])) {
-            $query->whereDate('created_at', '>=', $filters['date_from']);
-        }
-
-        if (isset($filters['date_to'])) {
-            $query->whereDate('created_at', '<=', $filters['date_to']);
-        }
-
-        $stats = [
-            'total_photos' => $query->count(),
-            'ai_pending' => (clone $query)->where('photo_status', 'ai_pending')->count(),
-            'ai_approved' => (clone $query)->where('photo_status', 'ai_approved')->count(),
-            'ai_rejected' => (clone $query)->where('photo_status', 'ai_rejected')->count(),
-            'tracer_pending' => (clone $query)->where('photo_status', 'tracer_pending')->count(),
-            'tracer_approved' => (clone $query)->where('photo_status', 'tracer_approved')->count(),
-            'tracer_rejected' => (clone $query)->where('photo_status', 'tracer_rejected')->count(),
-            'cgp_pending' => (clone $query)->where('photo_status', 'cgp_pending')->count(),
-            'cgp_approved' => (clone $query)->where('photo_status', 'cgp_approved')->count(),
-            'cgp_rejected' => (clone $query)->where('photo_status', 'cgp_rejected')->count(),
-        ];
-
-        // Calculate rates
-        $total = $stats['total_photos'];
-        if ($total > 0) {
-            $stats['ai_approval_rate'] = round(($stats['ai_approved'] / $total) * 100, 2);
-            $stats['tracer_approval_rate'] = round(($stats['tracer_approved'] / $total) * 100, 2);
-            $stats['cgp_approval_rate'] = round(($stats['cgp_approved'] / $total) * 100, 2);
-            $stats['overall_completion_rate'] = round(($stats['cgp_approved'] / $total) * 100, 2);
-        } else {
-            $stats['ai_approval_rate'] = 0;
-            $stats['tracer_approval_rate'] = 0;
-            $stats['cgp_approval_rate'] = 0;
-            $stats['overall_completion_rate'] = 0;
-        }
-
-        return $stats;
     }
 
-    /**
-     * Batch process photo approvals
-     *
-     * @param array $photoIds
-     * @param string $action
-     * @param int $userId
-     * @param array $options
-     * @return array
-     */
-    public function batchProcessPhotos(array $photoIds, string $action, int $userId, array $options = []): array
-    {
-        $results = [];
-        $successCount = 0;
-
-        DB::beginTransaction();
-
+    private function createAuditLog(
+        ?int $userId, string $action, string $modelType, ?int $modelId, ?string $reffId, array $data = []
+    ): void {
         try {
-            foreach ($photoIds as $photoId) {
-                try {
-                    $result = match($action) {
-                        'tracer_approve' => $this->approveByTracer($photoId, $userId, $options['notes'] ?? null),
-                        'tracer_reject' => $this->rejectByTracer($photoId, $userId, $options['reason'] ?? 'Batch rejection'),
-                        'cgp_approve' => $this->approveByCgp($photoId, $userId, $options['notes'] ?? null),
-                        'cgp_reject' => $this->rejectByCgp($photoId, $userId, $options['reason'] ?? 'Batch rejection'),
-                        default => throw new Exception("Invalid action: {$action}")
-                    };
-
-                    $results[] = [
-                        'id' => $photoId,
-                        'success' => true,
-                        'data' => $result
-                    ];
-                    $successCount++;
-
-                } catch (Exception $e) {
-                    $results[] = [
-                        'id' => $photoId,
-                        'success' => false,
-                        'error' => $e->getMessage()
-                    ];
-                }
-            }
-
-            DB::commit();
-
-            Log::info('Batch photo processing completed', [
-                'action' => $action,
-                'total_photos' => count($photoIds),
-                'successful' => $successCount,
-                'failed' => count($photoIds) - $successCount,
-                'user_id' => $userId
+            AuditLog::create([
+                'user_id'           => $userId,
+                'action'            => $action,
+                'model_type'        => $modelType,
+                'model_id'          => $modelId,
+                'reff_id_pelanggan' => $reffId,
+                'old_values'        => $data['old_values'] ?? null,
+                'new_values'        => $data,
+                'ip_address'        => request()->ip(),
+                'user_agent'        => request()->userAgent(),
+                'description'       => ucwords(str_replace('_', ' ', $action)),
             ]);
-
-        } catch (Exception $e) {
-            DB::rollback();
-            Log::error('Batch photo processing failed', [
-                'action' => $action,
-                'error' => $e->getMessage(),
-                'user_id' => $userId
-            ]);
-
-            throw $e;
+        } catch (\Throwable) {
+            // non-fatal
         }
-
-        return [
-            'total' => count($photoIds),
-            'successful' => $successCount,
-            'failed' => count($photoIds) - $successCount,
-            'results' => $results
-        ];
     }
 }

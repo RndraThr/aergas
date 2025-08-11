@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use App\Models\Notification;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
@@ -11,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Exception;
 
-class NotificationController extends Controller
+class NotificationController extends Controller implements HasMiddleware
 {
     private NotificationService $notificationService;
 
@@ -20,11 +22,17 @@ class NotificationController extends Controller
         $this->notificationService = $notificationService;
     }
 
+    // Proteksi semua action (Laravel 11+)
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('auth'),
+            new Middleware('role:super_admin,admin,sk,sr,gas_in,validasi,tracer,mgrt,pic'),
+        ];
+    }
+
     /**
-     * Display a listing of user notifications
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * List notifikasi user (filter + pagination)
      */
     public function index(Request $request): JsonResponse
     {
@@ -32,50 +40,56 @@ class NotificationController extends Controller
             $user = $request->user();
             $query = Notification::where('user_id', $user->id);
 
-            // Apply filters
+            // Optional: quick search
+            if ($request->filled('q')) {
+                $q = $request->string('q');
+                $query->where(function ($qq) use ($q) {
+                    $qq->where('title', 'like', '%'.$q.'%')
+                       ->orWhere('message', 'like', '%'.$q.'%');
+                });
+            }
+
+            // Filters
             if ($request->has('is_read') && $request->is_read !== '') {
                 $query->where('is_read', $request->boolean('is_read'));
             }
-
-            if ($request->has('type') && $request->type !== '') {
+            if ($request->filled('type')) {
                 $query->where('type', $request->type);
             }
-
-            if ($request->has('priority') && $request->priority !== '') {
+            if ($request->filled('priority')) {
                 $query->where('priority', $request->priority);
             }
-
-            if ($request->has('date_from') && $request->date_from !== '') {
+            if ($request->filled('date_from')) {
                 $query->whereDate('created_at', '>=', $request->date_from);
             }
-
-            if ($request->has('date_to') && $request->date_to !== '') {
+            if ($request->filled('date_to')) {
                 $query->whereDate('created_at', '<=', $request->date_to);
             }
 
-            // Sorting
+            // Sorting (sanitasi)
             $sortBy = $request->get('sort_by', 'created_at');
-            $sortDirection = $request->get('sort_direction', 'desc');
+            $sortDirection = strtolower($request->get('sort_direction', 'desc'));
+            $sortDirection = in_array($sortDirection, ['asc','desc'], true) ? $sortDirection : 'desc';
             $allowedSortFields = ['created_at', 'updated_at', 'priority', 'type', 'is_read'];
 
-            if (in_array($sortBy, $allowedSortFields)) {
+            if (in_array($sortBy, $allowedSortFields, true)) {
                 $query->orderBy($sortBy, $sortDirection);
             } else {
                 $query->orderBy('created_at', 'desc');
             }
 
-            // Pagination
-            $perPage = min($request->get('per_page', 20), 50);
+            // Pagination (cast integer)
+            $perPage = (int) min((int) $request->get('per_page', 20), 50);
             $notifications = $query->paginate($perPage);
 
-            // Add human-readable timestamps
-            $notifications->getCollection()->transform(function ($notification) {
-                $notification->created_at_human = $notification->created_at->diffForHumans();
-                $notification->read_at_human = $notification->read_at ? $notification->read_at->diffForHumans() : null;
-                return $notification;
+            // Human-readable timestamps
+            $notifications->getCollection()->transform(function ($n) {
+                $n->created_at_human = $n->created_at?->diffForHumans();
+                $n->read_at_human = $n->read_at ? $n->read_at->diffForHumans() : null;
+                return $n;
             });
 
-            // Get summary stats
+            // Summary
             $stats = $this->notificationService->getUserNotificationStats($user->id);
 
             return response()->json([
@@ -86,23 +100,19 @@ class NotificationController extends Controller
 
         } catch (Exception $e) {
             Log::error('Error fetching notifications', [
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()?->id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while fetching notifications'
+                'message' => 'Terjadi kesalahan saat mengambil notifikasi'
             ], 500);
         }
     }
 
     /**
-     * Display the specified notification
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
+     * Detail notifikasi
      */
     public function show(Request $request, int $id): JsonResponse
     {
@@ -110,8 +120,7 @@ class NotificationController extends Controller
             $notification = Notification::where('user_id', $request->user()->id)
                                        ->findOrFail($id);
 
-            // Add human-readable timestamps
-            $notification->created_at_human = $notification->created_at->diffForHumans();
+            $notification->created_at_human = $notification->created_at?->diffForHumans();
             $notification->read_at_human = $notification->read_at ? $notification->read_at->diffForHumans() : null;
 
             return response()->json([
@@ -122,23 +131,19 @@ class NotificationController extends Controller
         } catch (Exception $e) {
             Log::error('Error fetching notification details', [
                 'notification_id' => $id,
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()?->id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Notification not found'
+                'message' => 'Notifikasi tidak ditemukan'
             ], 404);
         }
     }
 
     /**
-     * Mark single notification as read
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
+     * Tandai 1 notifikasi sebagai dibaca
      */
     public function markAsRead(Request $request, int $id): JsonResponse
     {
@@ -148,7 +153,7 @@ class NotificationController extends Controller
             if (!$result) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Notification not found'
+                    'message' => 'Notifikasi tidak ditemukan'
                 ], 404);
             }
 
@@ -159,28 +164,25 @@ class NotificationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Notification marked as read'
+                'message' => 'Notifikasi ditandai sebagai dibaca'
             ]);
 
         } catch (Exception $e) {
             Log::error('Error marking notification as read', [
                 'notification_id' => $id,
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()?->id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while updating notification'
+                'message' => 'Terjadi kesalahan saat mengubah notifikasi'
             ], 500);
         }
     }
 
     /**
-     * Mark all notifications as read
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * Tandai semua notifikasi sebagai dibaca
      */
     public function markAllAsRead(Request $request): JsonResponse
     {
@@ -194,31 +196,25 @@ class NotificationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Marked {$count} notifications as read",
-                'data' => [
-                    'marked_count' => $count
-                ]
+                'message' => "Berhasil menandai {$count} notifikasi sebagai dibaca",
+                'data' => ['marked_count' => $count]
             ]);
 
         } catch (Exception $e) {
             Log::error('Error marking all notifications as read', [
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()?->id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while updating notifications'
+                'message' => 'Terjadi kesalahan saat mengubah notifikasi'
             ], 500);
         }
     }
 
     /**
-     * Delete notification
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
+     * Hapus 1 notifikasi
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
@@ -236,28 +232,25 @@ class NotificationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Notification deleted successfully'
+                'message' => 'Notifikasi berhasil dihapus'
             ]);
 
         } catch (Exception $e) {
             Log::error('Error deleting notification', [
                 'notification_id' => $id,
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()?->id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Notification not found'
+                'message' => 'Notifikasi tidak ditemukan'
             ], 404);
         }
     }
 
     /**
-     * Get notification statistics
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * Statistik notifikasi user
      */
     public function getStats(Request $request): JsonResponse
     {
@@ -265,43 +258,34 @@ class NotificationController extends Controller
             $user = $request->user();
             $stats = $this->notificationService->getUserNotificationStats($user->id);
 
-            // Add detailed breakdown
             $detailedStats = [
                 'by_type' => Notification::where('user_id', $user->id)
-                                        ->selectRaw('type, COUNT(*) as count, SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) as unread_count')
-                                        ->groupBy('type')
-                                        ->get()
-                                        ->keyBy('type')
-                                        ->map(function ($item) {
-                                            return [
-                                                'total' => $item->count,
-                                                'unread' => $item->unread_count,
-                                                'read' => $item->count - $item->unread_count
-                                            ];
-                                        })
-                                        ->toArray(),
+                    ->selectRaw('type, COUNT(*) as count, SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) as unread_count')
+                    ->groupBy('type')
+                    ->get()
+                    ->keyBy('type')
+                    ->map(fn($i) => [
+                        'total' => (int) $i->count,
+                        'unread' => (int) $i->unread_count,
+                        'read' => (int) $i->count - (int) $i->unread_count
+                    ])->toArray(),
                 'by_priority' => Notification::where('user_id', $user->id)
-                                             ->selectRaw('priority, COUNT(*) as count, SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) as unread_count')
-                                             ->groupBy('priority')
-                                             ->get()
-                                             ->keyBy('priority')
-                                             ->map(function ($item) {
-                                                 return [
-                                                     'total' => $item->count,
-                                                     'unread' => $item->unread_count,
-                                                     'read' => $item->count - $item->unread_count
-                                                 ];
-                                             })
-                                             ->toArray(),
+                    ->selectRaw('priority, COUNT(*) as count, SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) as unread_count')
+                    ->groupBy('priority')
+                    ->get()
+                    ->keyBy('priority')
+                    ->map(fn($i) => [
+                        'total' => (int) $i->count,
+                        'unread' => (int) $i->unread_count,
+                        'read' => (int) $i->count - (int) $i->unread_count
+                    ])->toArray(),
                 'recent_activity' => Notification::where('user_id', $user->id)
-                                                 ->whereDate('created_at', '>=', now()->subDays(7))
-                                                 ->count(),
+                    ->whereDate('created_at', '>=', now()->subDays(7))
+                    ->count(),
                 'oldest_unread' => Notification::where('user_id', $user->id)
-                                               ->where('is_read', false)
-                                               ->orderBy('created_at')
-                                               ->first()
-                                               ?->created_at
-                                               ?->diffForHumans()
+                    ->where('is_read', false)
+                    ->orderBy('created_at')
+                    ->value('created_at')?->diffForHumans()
             ];
 
             return response()->json([
@@ -311,30 +295,26 @@ class NotificationController extends Controller
 
         } catch (Exception $e) {
             Log::error('Error fetching notification stats', [
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()?->id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while fetching notification statistics'
+                'message' => 'Terjadi kesalahan saat mengambil statistik notifikasi'
             ], 500);
         }
     }
 
     /**
-     * Create test notification (for development/testing)
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * Buat notifikasi dummy (dev only)
      */
     public function createTestNotification(Request $request): JsonResponse
     {
-        // Only allow in development environment
-        if (config('app.env') !== 'local' && config('app.env') !== 'development') {
+        if (!in_array(config('app.env'), ['local','development'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Test notifications only available in development environment'
+                'message' => 'Hanya tersedia pada environment development'
             ], 403);
         }
 
@@ -349,7 +329,7 @@ class NotificationController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation error',
+                'message' => 'Validasi gagal',
                 'errors' => $validator->errors()
             ], 422);
         }
@@ -366,28 +346,25 @@ class NotificationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Test notification created',
+                'message' => 'Notifikasi uji berhasil dibuat',
                 'data' => $notification
             ], 201);
 
         } catch (Exception $e) {
             Log::error('Error creating test notification', [
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()?->id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while creating test notification'
+                'message' => 'Terjadi kesalahan saat membuat notifikasi uji'
             ], 500);
         }
     }
 
     /**
-     * Bulk delete notifications
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * Bulk delete notifikasi
      */
     public function bulkDelete(Request $request): JsonResponse
     {
@@ -399,115 +376,105 @@ class NotificationController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation error',
+                'message' => 'Validasi gagal',
                 'errors' => $validator->errors()
             ], 422);
         }
 
         try {
             $user = $request->user();
-            $notificationIds = $request->notification_ids;
+            $ids = $request->notification_ids;
 
-            // Delete only user's own notifications
             $deletedCount = Notification::where('user_id', $user->id)
-                                       ->whereIn('id', $notificationIds)
-                                       ->delete();
+                ->whereIn('id', $ids)
+                ->delete();
 
             Log::info('Bulk notification deletion', [
                 'user_id' => $user->id,
-                'requested_count' => count($notificationIds),
+                'requested_count' => count($ids),
                 'deleted_count' => $deletedCount
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Deleted {$deletedCount} notifications",
+                'message' => "Berhasil menghapus {$deletedCount} notifikasi",
                 'data' => [
                     'deleted_count' => $deletedCount,
-                    'requested_count' => count($notificationIds)
+                    'requested_count' => count($ids)
                 ]
             ]);
 
         } catch (Exception $e) {
             Log::error('Error in bulk notification deletion', [
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()?->id,
                 'notification_ids' => $request->notification_ids,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while deleting notifications'
+                'message' => 'Terjadi kesalahan saat menghapus notifikasi'
             ], 500);
         }
     }
 
     /**
-     * Mark notifications as read by type
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * Bulk mark-as-read by IDs (tambahan opsional)
      */
-    public function markAsReadByType(Request $request): JsonResponse
+    public function bulkMarkAsRead(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'type' => 'required|string|max:100'
+            'notification_ids' => 'required|array',
+            'notification_ids.*' => 'integer|exists:notifications,id'
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation error',
+                'message' => 'Validasi gagal',
                 'errors' => $validator->errors()
             ], 422);
         }
 
         try {
             $user = $request->user();
-            $type = $request->type;
+            $ids = $request->notification_ids;
 
             $count = Notification::where('user_id', $user->id)
-                                 ->where('type', $type)
-                                 ->where('is_read', false)
-                                 ->update([
-                                     'is_read' => true,
-                                     'read_at' => now()
-                                 ]);
+                ->whereIn('id', $ids)
+                ->where('is_read', false)
+                ->update([
+                    'is_read' => true,
+                    'read_at' => now()
+                ]);
 
-            Log::info('Notifications marked as read by type', [
+            Log::info('Bulk mark-as-read', [
                 'user_id' => $user->id,
-                'type' => $type,
                 'count' => $count
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Marked {$count} notifications of type '{$type}' as read",
-                'data' => [
-                    'marked_count' => $count,
-                    'type' => $type
-                ]
+                'message' => "Berhasil menandai {$count} notifikasi sebagai dibaca",
+                'data' => ['marked_count' => $count]
             ]);
 
         } catch (Exception $e) {
-            Log::error('Error marking notifications as read by type', [
-                'user_id' => $request->user()->id,
-                'type' => $request->type,
+            Log::error('Error bulk mark-as-read', [
+                'user_id' => $request->user()?->id,
+                'notification_ids' => $request->notification_ids,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while updating notifications'
+                'message' => 'Terjadi kesalahan saat mengubah notifikasi'
             ], 500);
         }
     }
 
     /**
-     * Get notification types for current user
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * Dapatkan daftar tipe notifikasi (untuk filter dropdown)
      */
     public function getNotificationTypes(Request $request): JsonResponse
     {
@@ -515,15 +482,12 @@ class NotificationController extends Controller
             $user = $request->user();
 
             $types = Notification::where('user_id', $user->id)
-                                 ->distinct()
-                                 ->pluck('type')
-                                 ->map(function ($type) {
-                                     return [
-                                         'value' => $type,
-                                         'label' => ucwords(str_replace('_', ' ', $type))
-                                     ];
-                                 })
-                                 ->values();
+                ->distinct()
+                ->pluck('type')
+                ->map(fn($t) => [
+                    'value' => $t,
+                    'label' => ucwords(str_replace('_', ' ', $t))
+                ])->values();
 
             return response()->json([
                 'success' => true,
@@ -532,13 +496,13 @@ class NotificationController extends Controller
 
         } catch (Exception $e) {
             Log::error('Error fetching notification types', [
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()?->id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while fetching notification types'
+                'message' => 'Terjadi kesalahan saat mengambil tipe notifikasi'
             ], 500);
         }
     }

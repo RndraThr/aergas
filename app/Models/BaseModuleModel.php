@@ -4,119 +4,222 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * Base untuk semua modul lapangan (SK, SR, MGRT, GasIn, JalurPipa, Penyambungan).
+ * - Relasi standar: pelanggan, approver, photoApprovals
+ * - Scopes umum: byReff, completed, pendingApproval, status, overallStatus
+ * - Agregasi status foto → overall_photo_status → sync ke module_status
+ *
+ * Catatan:
+ * - Child WAJIB implement getModuleName() & getRequiredPhotos() (nama kanonik TANPA suffix _url)
+ * - Jika masih ada field lama pakai *_url, override photoFieldAliases() di child
+ */
 abstract class BaseModuleModel extends Model
 {
     use HasFactory;
 
-    // Common approval fields yang ada di semua module
-    protected $approvalCasts = [
-        'tracer_approved_at' => 'datetime',
-        'cgp_approved_at' => 'datetime',
+    protected $guarded = [];
+
+    public const MODULE_STATUSES = [
+        'not_started','draft','ai_validation','tracer_review','cgp_review','completed','rejected',
     ];
 
-    // Abstract methods yang harus diimplementasi child class
-    abstract public function getRequiredPhotos(): array;
-    abstract public function getModuleName(): string;
+    public const OVERALL_PHOTO_STATUSES = [
+        'draft','ai_validation','tracer_review','cgp_review','completed','rejected',
+    ];
 
-    public function getCasts()
+    protected array $approvalCasts = [
+        'tracer_approved_at' => 'datetime',
+        'cgp_approved_at'    => 'datetime',
+    ];
+
+    public function getCasts(): array
     {
-        return array_merge([
-            'tracer_approved_at' => 'datetime',
-            'cgp_approved_at' => 'datetime',
-        ], parent::getCasts());
+        return array_merge(parent::getCasts(), $this->approvalCasts, [
+            'module_status'        => 'string',
+            'overall_photo_status' => 'string',
+        ]);
     }
-    // Common relationships
-    public function pelanggan()
+
+    // -------------------- Relations --------------------
+
+    public function pelanggan(): BelongsTo
     {
         return $this->belongsTo(CalonPelanggan::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
     }
 
-    public function tracerApprover()
+    public function tracerApprover(): BelongsTo
     {
         return $this->belongsTo(User::class, 'tracer_approved_by');
     }
 
-    public function cgpApprover()
+    public function cgpApprover(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cgp_approved_by');
     }
 
-    public function photoApprovals()
+    /**
+     * Relasi ke detail approval foto untuk modul ini.
+     * Dibatasi oleh module_name sesuai implementasi child::getModuleName().
+     */
+    public function photoApprovals(): HasMany
     {
         return $this->hasMany(PhotoApproval::class, 'reff_id_pelanggan', 'reff_id_pelanggan')
-                    ->where('module_name', $this->getModuleName());
+            ->where('module_name', $this->getModuleName());
     }
 
-    public function fileStorages()
-    {
-        return $this->hasMany(FileStorage::class, 'reff_id_pelanggan', 'reff_id_pelanggan')
-                    ->where('module_name', $this->getModuleName());
-    }
+    // -------------------- Scopes --------------------
 
-    // Common helper methods
-    public function isCompleted()
-    {
-        return $this->module_status === 'completed';
-    }
+    public function scopeByReff($q, string $reff) { return $q->where('reff_id_pelanggan', $reff); }
 
-    public function isInProgress()
-    {
-        return in_array($this->module_status, ['draft', 'ai_validation', 'tracer_review', 'cgp_review']);
-    }
+    public function scopeCompleted($q) { return $q->where('module_status', 'completed'); }
 
-    public function canSubmit()
-    {
-        $requiredPhotos = $this->getRequiredPhotos();
+    public function scopePendingApproval($q) { return $q->whereIn('module_status', ['tracer_review','cgp_review']); }
 
-        // Check all required photos are uploaded
-        foreach ($requiredPhotos as $photoField) {
-            if (empty($this->$photoField)) {
-                return false;
-            }
+    public function scopeStatus($q, string $status) { return $q->where('module_status', $status); }
+
+    public function scopeOverallStatus($q, string $status) { return $q->where('overall_photo_status', $status); }
+
+    // -------------------- Foto helpers --------------------
+
+    /**
+     * Map alias nama foto lama → nama kanonik (override di child jika perlu).
+     * Contoh di SK: ['foto_berita_acara_url' => 'foto_berita_acara', ...]
+     */
+    protected function photoFieldAliases(): array { return []; }
+
+    /**
+     * Hitung ulang overall_photo_status dari tabel photo_approvals sesuai required photos.
+     */
+    public function recalcOverallPhotoStatus(): string
+    {
+        $required = collect($this->getRequiredPhotos())->filter()->values();
+        if ($required->isEmpty()) return 'completed';
+
+        $aliases = $this->photoFieldAliases();
+
+        $rows = $this->photoApprovals()
+            ->get(['photo_field_name','photo_status'])
+            ->mapWithKeys(function ($r) use ($aliases) {
+                $key = $aliases[$r->photo_field_name] ?? $r->photo_field_name;
+                return [$key => $r->photo_status];
+            });
+
+        // ada foto wajib yang belum pernah diupload
+        if ($required->some(fn($f) => !isset($rows[$f]))) return 'draft';
+
+        $statuses = $rows->only(...$required)->values();
+
+        if ($statuses->contains('ai_rejected') || $statuses->contains('tracer_rejected') || $statuses->contains('cgp_rejected')) {
+            return 'rejected';
+        }
+        if ($statuses->every(fn($s) => $s === 'cgp_approved')) {
+            return 'completed';
+        }
+        if ($statuses->contains('cgp_pending') || $statuses->contains('tracer_approved')) {
+            return 'cgp_review';
+        }
+        if ($statuses->contains('tracer_pending') || $statuses->contains('ai_approved')) {
+            return 'tracer_review';
+        }
+        if ($statuses->contains('ai_pending')) {
+            return 'ai_validation';
         }
 
-        // Check all photos are AI approved minimum
-        $pendingPhotos = $this->photoApprovals()
-                              ->whereNotIn('photo_status', ['ai_approved', 'tracer_approved', 'cgp_approved'])
-                              ->count();
-
-        return $pendingPhotos === 0;
+        return 'draft';
     }
 
-    public function getAllPhotosStatus()
+    /**
+     * Semua required foto boleh submit jika min. sudah AI approved (or lebih).
+     */
+    public function canSubmit(): bool
     {
-        $requiredPhotos = $this->getRequiredPhotos();
-        $photoStatuses = [];
+        $statuses = collect($this->getAllPhotosStatus())->values();
+        if ($statuses->isEmpty()) return true;
 
-        foreach ($requiredPhotos as $photoField) {
-            $approval = $this->photoApprovals()
-                           ->where('photo_field_name', $photoField)
-                           ->first();
+        $ok = ['ai_approved','tracer_pending','tracer_approved','cgp_pending','cgp_approved'];
+        return $statuses->every(fn($s) => in_array($s, $ok, true));
+    }
 
-            $photoStatuses[$photoField] = [
-                'url' => $this->$photoField,
-                'status' => $approval ? $approval->photo_status : 'draft',
-                'approval' => $approval
-            ];
+    /**
+     * Sinkron module_status dari overall_photo_status (1:1 mapping).
+     */
+    public function syncModuleStatusFromPhotos(bool $save = true): string
+    {
+        $overall = $this->recalcOverallPhotoStatus();
+
+        $map = [
+            'draft'         => 'draft',
+            'ai_validation' => 'ai_validation',
+            'tracer_review' => 'tracer_review',
+            'cgp_review'    => 'cgp_review',
+            'completed'     => 'completed',
+            'rejected'      => 'rejected',
+        ];
+
+        $this->overall_photo_status = $overall;
+        $this->module_status        = $map[$overall] ?? 'draft';
+
+        if ($save) $this->save();
+
+        return $this->module_status;
+    }
+
+    public function getModuleStatusLabelAttribute(): string
+    {
+        return match ($this->module_status) {
+            'not_started'   => 'Belum Mulai',
+            'draft'         => 'Draft',
+            'ai_validation' => 'Validasi AI',
+            'tracer_review' => 'Menunggu Tracer',
+            'cgp_review'    => 'Menunggu CGP',
+            'completed'     => 'Selesai',
+            'rejected'      => 'Ditolak',
+            default         => ucfirst(str_replace('_', ' ', (string) $this->module_status)),
+        };
+    }
+
+    public function getOverallPhotoStatusLabelAttribute(): string
+    {
+        return match ($this->overall_photo_status) {
+            'draft'         => 'Draft',
+            'ai_validation' => 'Validasi AI',
+            'tracer_review' => 'Menunggu Tracer',
+            'cgp_review'    => 'Menunggu CGP',
+            'completed'     => 'Selesai',
+            'rejected'      => 'Ditolak',
+            default         => ucfirst(str_replace('_', ' ', (string) $this->overall_photo_status)),
+        };
+    }
+
+    /**
+     * Ambil status tiap foto wajib (key = nama kanonik).
+     */
+    public function getAllPhotosStatus(): array
+    {
+        $required = collect($this->getRequiredPhotos())->filter()->values();
+        if ($required->isEmpty()) return [];
+
+        $aliases = $this->photoFieldAliases();
+
+        $rows = $this->photoApprovals()
+            ->get(['photo_field_name','photo_status'])
+            ->mapWithKeys(function ($r) use ($aliases) {
+                $key = $aliases[$r->photo_field_name] ?? $r->photo_field_name;
+                return [$key => $r->photo_status];
+            });
+
+        $out = [];
+        foreach ($required as $name) {
+            $out[$name] = $rows[$name] ?? 'draft';
         }
-
-        return $photoStatuses;
+        return $out;
     }
 
-    // Scopes
-    public function scopeCompleted($query)
-    {
-        return $query->where('module_status', 'completed');
-    }
-
-    public function scopeInProgress($query)
-    {
-        return $query->whereIn('module_status', ['draft', 'ai_validation', 'tracer_review', 'cgp_review']);
-    }
-
-    public function scopePendingApproval($query)
-    {
-        return $query->whereIn('module_status', ['tracer_review', 'cgp_review']);
-    }
+    // Kontrak yang wajib diimplement oleh child:
+    abstract public function getModuleName(): string;
+    abstract public function getRequiredPhotos(): array;
 }

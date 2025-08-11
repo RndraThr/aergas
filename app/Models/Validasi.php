@@ -83,11 +83,21 @@ class Validasi extends Model
     }
 
     // Relationships
-    public function calonPelanggan(): BelongsTo
-    {
-        return $this->belongsTo(CalonPelanggan::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
+    public function pelanggan() {
+        return $this->belongsTo(CalonPelanggan::class,'reff_id_pelanggan','reff_id_pelanggan');
     }
-
+    public function setLanjut(?string $note=null): void {
+        $this->status = 'lanjut';
+        $this->catatan = $note;
+        $this->save();
+        optional($this->pelanggan)->update(['status'=>'validated']); // sinkron
+    }
+    public function setBatal(?string $note=null): void {
+        $this->status = 'batal';
+        $this->catatan = $note;
+        $this->save();
+        optional($this->pelanggan)->update(['status'=>'canceled']);
+    }
     public function validatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'validated_by');
@@ -138,7 +148,7 @@ class Validasi extends Model
         if ($user->hasRole('validasi')) {
             return $query->where('validated_by', $user->id);
         }
-        
+
         return $query; // Admin/Super Admin can see all
     }
 
@@ -175,7 +185,7 @@ class Validasi extends Model
     {
         $criteriaFields = [
             'alamat_sesuai',
-            'identitas_valid', 
+            'identitas_valid',
             'akses_lokasi_memadai',
             'persyaratan_teknis_terpenuhi'
         ];
@@ -204,11 +214,11 @@ class Validasi extends Model
     public function getCustomerAddressAttribute(): ?string
     {
         if (!$this->calonPelanggan) return null;
-        
+
         $customer = $this->calonPelanggan;
         $rt = $customer->rt ?: 'N/A';
         $rw = $customer->rw ?: 'N/A';
-        
+
         return "{$customer->alamat}, RT {$rt}/RW {$rw}, {$customer->kelurahan}";
     }
 
@@ -269,7 +279,7 @@ class Validasi extends Model
         }
 
         // Admin and Super Admin can always edit
-        return $user->hasRole(['admin', 'super_admin']);
+        return $user->hasRole(...['admin', 'super_admin']);
     }
 
     public function canBeDeletedBy(User $user): bool
@@ -285,7 +295,7 @@ class Validasi extends Model
         }
 
         // Admin and Super Admin can delete any pending validation
-        return $user->hasRole(['admin', 'super_admin']);
+        return $user->hasRole(...['admin', 'super_admin']);
     }
 
     public function getEditableFieldsFor(User $user): array
@@ -312,7 +322,7 @@ class Validasi extends Model
         }
 
         // Admin and Super Admin can edit all fields
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->hasRole(...['admin', 'super_admin'])) {
             return array_keys($this->fillable);
         }
 
@@ -329,7 +339,7 @@ class Validasi extends Model
         // Check if validation data is complete
         if (!$this->is_complete) {
             return [
-                'success' => false, 
+                'success' => false,
                 'message' => 'Data validasi belum lengkap',
                 'missing' => $this->missing_validations
             ];
@@ -360,7 +370,7 @@ class Validasi extends Model
                 'validated_by' => $user->id,
                 'validated_at' => now()
             ]);
-            
+
             return ['success' => true, 'message' => 'Validasi berhasil - Status: LANJUT'];
         } else {
             $this->update([
@@ -370,7 +380,7 @@ class Validasi extends Model
                 'validated_by' => $user->id,
                 'validated_at' => now()
             ]);
-            
+
             return ['success' => true, 'message' => 'Validasi selesai - Status: TIDAK LANJUT'];
         }
     }
@@ -395,7 +405,7 @@ class Validasi extends Model
 
     public function resolveDataError(User $admin): array
     {
-        if (!$admin->hasRole(['admin', 'super_admin'])) {
+        if (!$admin->hasRole(...['admin', 'super_admin'])) {
             return ['success' => false, 'message' => 'Hanya admin yang bisa resolve error data'];
         }
 
@@ -414,14 +424,14 @@ class Validasi extends Model
     {
         // Check if customer exists
         $customer = CalonPelanggan::where('reff_id_pelanggan', $reffId)->first();
-        
+
         if (!$customer) {
             return ['success' => false, 'message' => 'Customer dengan Reference ID tersebut tidak ditemukan'];
         }
 
         // Check if validation already exists
         $existingValidation = static::where('reff_id_pelanggan', $reffId)->first();
-        
+
         if ($existingValidation) {
             return ['success' => false, 'message' => 'Validasi untuk customer ini sudah ada'];
         }
@@ -433,7 +443,7 @@ class Validasi extends Model
         ]);
 
         return [
-            'success' => true, 
+            'success' => true,
             'message' => 'Record validasi berhasil dibuat',
             'validation' => $validation
         ];
@@ -442,7 +452,7 @@ class Validasi extends Model
     // ADDED: Reset validation
     public function resetValidation(User $user): array
     {
-        if (!$user->hasRole(['admin', 'super_admin'])) {
+        if (!$user->hasRole(...['admin', 'super_admin'])) {
             return ['success' => false, 'message' => 'Hanya admin yang bisa reset validasi'];
         }
 
@@ -467,7 +477,7 @@ class Validasi extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         // Auto-assign current user when creating
         static::creating(function ($model) {
             if (empty($model->validated_by) && Auth::check()) {

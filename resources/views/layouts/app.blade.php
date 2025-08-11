@@ -1,130 +1,77 @@
-<!DOCTYPE html>
-<html lang="id" x-data="{ sidebarOpen: false }" x-init="$store.auth = { user: @json(auth()->user()) }">
+<!doctype html>
+<html lang="id" class="h-full">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'AERGAS System')</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+  <title>@yield('title', config('app.name'))</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- Alpine.js -->
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  {{-- Tailwind CDN (cepat untuk start). Jika mau Vite, tinggal aktifkan baris @vite di bawah --}}
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkfQqb1iVj0G6R9GAsx1hZlQ5GdISo5uXVVhFQ4lJ8iP+P1Z9Hf3bJrSw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  {{-- Alpine.js (untuk toggle sidebar, dropdown, dsb) --}}
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    <!-- Icons (Heroicons) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/heroicons@2.0.18/24/outline/index.css">
+  {{-- Jika pakai Vite: --}}
+  {{-- @vite(['resources/css/app.css','resources/js/app.js']) --}}
 
-    <style>
-        [x-cloak] { display: none !important; }
-        .sidebar-active { @apply bg-blue-50 border-r-2 border-blue-500 text-blue-700; }
-    </style>
+  <style>
+    :root { --sidebar-w: 18rem; }
+    html, body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'; }
+  </style>
+
+  @stack('head')
 </head>
-<body class="bg-gray-50 font-sans antialiased">
-    <div class="flex h-screen overflow-hidden">
-        <!-- Sidebar -->
-        @include('layouts.sidebar')
+<body class="h-full bg-gray-50 text-gray-800" x-data="{ sidebarOpen: false }">
 
-        <!-- Main Content -->
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <!-- Top Navigation -->
-            <header class="bg-white shadow-sm border-b border-gray-200">
-                <div class="flex items-center justify-between px-6 py-4">
-                    <div class="flex items-center space-x-4">
-                        <!-- Mobile menu button -->
-                        <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                        </button>
+  {{-- NAVBAR --}}
+  @include('layouts.navbar')
 
-                        <!-- Navigation Tabs -->
-                        <nav class="flex space-x-8">
-                            <a href="{{ route('dashboard') }}"
-                               class="px-4 py-2 text-sm font-medium rounded-lg {{ request()->routeIs('dashboard') ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700' }}">
-                                Dashboard
-                            </a>
-                            <a href="{{ route('customers.index') }}"
-                               class="px-4 py-2 text-sm font-medium rounded-lg {{ request()->routeIs('customers.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700' }}">
-                                Calon Pelanggan
-                            </a>
-                        </nav>
-                    </div>
+  <div class="flex">
+    {{-- SIDEBAR --}}
+    @include('layouts.sidebar')
 
-                    <!-- Right side -->
-                    <div class="flex items-center space-x-4">
-                        <!-- Search -->
-                        <div class="relative">
-                            <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            <input type="text" placeholder="Cari..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        </div>
-
-                        <!-- Notifications -->
-                        <button class="relative p-2 text-gray-400 hover:text-gray-500">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-3.405-3.405A9.9 9.9 0 0118 12c0-5.523-4.477-10-10-10S-2 6.477-2 12a9.9 9.9 0 001.405 5l-3.405 3.405h5" />
-                            </svg>
-                            <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400"></span>
-                        </button>
-
-                        <!-- User Menu -->
-                        <div class="relative" x-data="{ open: false }">
-                            <button @click="open = !open" class="flex items-center space-x-3 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
-                                    {{ substr(auth()->user()->name, 0, 1) }}
-                                </div>
-                                <div class="hidden md:block text-left">
-                                    <div class="text-sm font-medium text-gray-700">{{ auth()->user()->name }}</div>
-                                    <div class="text-xs text-gray-500">{{ ucfirst(auth()->user()->role) }}</div>
-                                </div>
-                            </button>
-
-                            <!-- Dropdown -->
-                            <div x-show="open" @click.away="open = false" x-cloak
-                                 class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</a>
-                                <hr class="my-1">
-                                <form method="POST" action="{{ route('logout') }}">
-                                    @csrf
-                                    <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                        Logout
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <!-- Page Content -->
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
-                @yield('content')
-            </main>
+    {{-- MAIN CONTENT --}}
+    <main class="flex-1 min-h-screen">
+      {{-- Flash messages --}}
+      @if (session('success') || session('error'))
+        <div class="max-w-7xl mx-auto px-4 mt-4">
+          @if (session('success'))
+            <div class="rounded-md bg-green-50 border border-green-200 p-4 text-green-700 mb-3">
+              {{ session('success') }}
+            </div>
+          @endif
+          @if (session('error'))
+            <div class="rounded-md bg-red-50 border border-red-200 p-4 text-red-700">
+              {{ session('error') }}
+            </div>
+          @endif
         </div>
-    </div>
+      @endif
 
-    <!-- Toast Notifications -->
-    <div x-data="{ show: false, message: '', type: 'success' }"
-         x-show="show" x-cloak
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0 transform translate-y-2"
-         x-transition:enter-end="opacity-100 transform translate-y-0"
-         x-transition:leave="transition ease-in duration-200"
-         x-transition:leave-start="opacity-100 transform translate-y-0"
-         x-transition:leave-end="opacity-0 transform translate-y-2"
-         class="fixed top-4 right-4 z-50">
-        <div :class="type === 'success' ? 'bg-green-500' : 'bg-red-500'"
-             class="text-white px-6 py-3 rounded-lg shadow-lg">
-            <span x-text="message"></span>
-        </div>
-    </div>
+      <div class="max-w-7xl mx-auto px-4 py-6">
+        @yield('content')
+      </div>
+    </main>
+  </div>
 
-    @stack('scripts')
+  {{-- Hidden logout form as fallback (non-JS / graceful) --}}
+  <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">
+    @csrf
+  </form>
+
+  @stack('scripts')
+  <script>
+    // helper fetch logout (opsional; fallback form juga ada)
+    window.appLogout = function() {
+      const f = document.getElementById('logout-form');
+      f && f.submit();
+    }
+  </script>
 </body>
 </html>

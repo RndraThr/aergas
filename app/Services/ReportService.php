@@ -3,64 +3,52 @@
 namespace App\Services;
 
 use App\Models\CalonPelanggan;
+use App\Models\PhotoApproval;
+use Illuminate\Support\Facades\DB;
 
 class ReportService
 {
-    /**
-     * Get customer statistics summary
-     *
-     * @return array
-     */
     public function getCustomerSummaryStats(): array
     {
+        $total = CalonPelanggan::count();
+
+        $byStatus = CalonPelanggan::select('status', DB::raw('COUNT(*) as c'))
+            ->groupBy('status')->pluck('c','status')->toArray();
+
+        $byProgress = CalonPelanggan::select('progress_status', DB::raw('COUNT(*) as c'))
+            ->groupBy('progress_status')->pluck('c','progress_status')->toArray();
+
         return [
-            'total_customers' => CalonPelanggan::count(),
-            'active_customers' => CalonPelanggan::whereIn('status', ['validated', 'in_progress'])->count(),
-            'completed_customers' => CalonPelanggan::where('progress_status', 'done')->count(),
-            'cancelled_customers' => CalonPelanggan::where('status', 'batal')->count(),
-            'pending_validation' => CalonPelanggan::where('status', 'pending')->count(),
+            'total_customers' => $total,
+            'by_status'       => $byStatus,
+            'by_progress'     => $byProgress,
+            'photos_pending_ai'     => PhotoApproval::where('photo_status','ai_pending')->count(),
+            'photos_pending_tracer' => PhotoApproval::where('photo_status','tracer_pending')->count(),
+            'photos_pending_cgp'    => PhotoApproval::where('photo_status','cgp_pending')->count(),
+            'photos_completed'      => PhotoApproval::where('photo_status','cgp_approved')->count(),
         ];
     }
 
-    /**
-     * Get monthly completion rate for customers
-     *
-     * @return float
-     */
     public function getMonthlyCompletionRate(): float
     {
-        $startersThisMonth = CalonPelanggan::whereMonth('tanggal_registrasi', now()->month)
-                                           ->whereYear('tanggal_registregistrasi', now()->year)
-                                           ->count();
+        $monthStart = now()->startOfMonth();
+        $completed = CalonPelanggan::where('progress_status','done')
+            ->where('updated_at','>=',$monthStart)->count();
 
-        if ($startersThisMonth === 0) {
-            return 0;
-        }
+        $total = CalonPelanggan::where('created_at','>=',$monthStart)->count();
+        if ($total === 0) return 0.0;
 
-        $completedThisMonth = CalonPelanggan::whereMonth('tanggal_registrasi', now()->month)
-                                            ->whereYear('tanggal_registrasi', now()->year)
-                                            ->where('progress_status', 'done')
-                                            ->count();
-
-        return round(($completedThisMonth / $startersThisMonth) * 100, 2);
+        return round(($completed / $total) * 100, 2);
     }
 
-    /**
-     * Get average completion time in days for customers
-     *
-     * @return float
-     */
     public function getAverageCompletionTimeInDays(): float
     {
-        $completedCustomers = CalonPelanggan::where('progress_status', 'done')
-                                            ->whereNotNull('tanggal_registrasi')
-                                            ->selectRaw('DATEDIFF(updated_at, tanggal_registrasi) as completion_days')
-                                            ->get();
+        $rows = CalonPelanggan::where('progress_status','done')
+            ->whereNotNull('tanggal_registrasi')
+            ->selectRaw('DATEDIFF(updated_at, tanggal_registrasi) AS d')
+            ->pluck('d');
 
-        if ($completedCustomers->isEmpty()) {
-            return 0;
-        }
-
-        return round($completedCustomers->avg('completion_days'), 1);
+        if ($rows->isEmpty()) return 0.0;
+        return round($rows->avg(), 1);
     }
 }

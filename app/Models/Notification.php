@@ -10,41 +10,27 @@ class Notification extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'type',
-        'title',
-        'message',
-        'data',
-        'is_read',
-        'read_at',
-        'priority'
+        'user_id', 'type', 'title', 'message', 'priority', 'data',
+        'is_read', 'read_at',
     ];
 
+
     protected $casts = [
-        'data' => 'array',
+        'data'    => 'array',
         'is_read' => 'boolean',
         'read_at' => 'datetime',
     ];
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
+    public function user() { return $this->belongsTo(User::class); }
 
-    public function markAsRead()
-    {
-        $this->update([
-            'is_read' => true,
-            'read_at' => now()
-        ]);
-    }
+    public function scopeUnread($q) { return $q->where('is_read', false); }
+    public function scopeDueSoon($q) { return $q->whereNotNull('sla_due_at')->where('sla_due_at','<=',now()->addDay()); }
 
+    public function markAsRead(): void
+    {
+        $this->forceFill(['is_read'=>true,'read_at'=>now()])->save();
+    }
     // Scopes
-    public function scopeUnread($query)
-    {
-        return $query->where('is_read', false);
-    }
-
     public function scopeByPriority($query, $priority)
     {
         return $query->where('priority', $priority);

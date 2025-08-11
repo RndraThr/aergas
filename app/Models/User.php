@@ -2,94 +2,95 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasFactory, Notifiable;
 
-    protected $fillable = [
-        'username',
-        'email',
-        'password',
-        'name',
-        'full_name',
-        'role',
-        'is_active',
-        'last_login'
-    ];
+    protected $table = 'users';
+    protected $guarded = []; // pertimbangkan ganti ke $fillable untuk produksi
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['password', 'remember_token'];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'last_login' => 'datetime',
-        'is_active' => 'boolean',
-        'password' => 'hashed',
+        'last_login'        => 'datetime',
+        'is_active'         => 'boolean',
+        'password'          => 'hashed', // Laravel 10+
+        'role'              => 'string', // super_admin, admin, sk, sr, mgrt, gas_in, pic, tracer
     ];
 
-    // Role checking methods
-    public function isSuperAdmin()
-    {
-        return $this->role === 'super_admin';
-    }
-
-    public function isAdmin()
-    {
-        return in_array($this->role, ['super_admin', 'admin']);
-    }
-
-    public function isTracer()
-    {
-        return $this->role === 'tracer';
-    }
-
-    public function canAccessModule($module)
-    {
-        $moduleAccess = [
-            'super_admin' => ['all'],
-            'admin' => ['all'],
-            'tracer' => ['all'],
-            'sk' => ['sk'],
-            'sr' => ['sr'],
-            'mgrt' => ['mgrt'],
-            'gas_in' => ['gas_in'],
-            'pic' => ['jalur_pipa', 'penyambungan'],
-        ];
-
-        $userAccess = $moduleAccess[$this->role] ?? [];
-        return in_array('all', $userAccess) || in_array($module, $userAccess);
-    }
-
-    // Relationships
-    public function photoApprovalsAsTracer()
+    // --------- Relations ---------
+    public function tracerApprovedPhotos(): HasMany
     {
         return $this->hasMany(PhotoApproval::class, 'tracer_user_id');
     }
 
-    public function photoApprovalsAsCgp()
+    public function cgpApprovedPhotos(): HasMany
     {
         return $this->hasMany(PhotoApproval::class, 'cgp_user_id');
     }
 
-    public function notifications()
+    // --------- Role helpers ---------
+    public function isSuperAdmin(): bool
     {
-        return $this->hasMany(Notification::class);
+        return $this->role === 'super_admin';
     }
 
-    public function auditLogs()
+    // admin saja (tidak termasuk super admin)
+    public function isAdmin(): bool
     {
-        return $this->hasMany(AuditLog::class);
+        return $this->role === 'admin';
     }
 
-    public function fileUploads()
+    // admin atau super admin
+    public function isAdminLike(): bool
     {
-        return $this->hasMany(FileStorage::class, 'uploaded_by');
+        return $this->isAdmin() || $this->isSuperAdmin();
+    }
+
+    public function isTracer(): bool
+    {
+        return $this->role === 'tracer';
+    }
+
+    public function hasRole(string $role): bool
+    {
+        // Super admin lewat semua
+        if ($this->isSuperAdmin()) return true;
+        return $this->role === $role;
+    }
+
+    public function hasAnyRole(array|string $roles): bool
+    {
+        if (is_string($roles)) {
+            // dukung pemisah koma/pipe/titik koma
+            $roles = array_map('trim', preg_split('/[,\|;]+/', $roles));
+        }
+        if ($this->isSuperAdmin()) return true;
+        return in_array($this->role, $roles, true);
+    }
+
+    // Akses modul (dipakai di Blade: canAccessModule('sk'), dll)
+    public function canAccessModule(string $module): bool
+    {
+        if ($this->isSuperAdmin()) return true;
+
+        $map = [
+            'customers'   => ['admin', 'tracer'],
+            'sk'          => ['admin', 'sk'],
+            'sr'          => ['admin', 'sr'],
+            'mgrt'        => ['admin', 'mgrt'],
+            'gas_in'      => ['admin', 'gas_in'],
+            'validasi'    => ['admin', 'tracer'],
+            'jalur_pipa'  => ['admin', 'sk', 'sr'], // sesuaikan
+            'penyambungan'=> ['admin', 'sr'],       // sesuaikan
+        ];
+
+        return in_array($this->role, $map[$module] ?? [], true);
     }
 }

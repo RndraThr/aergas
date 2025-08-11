@@ -2,101 +2,109 @@
 
 namespace Database\Seeders;
 
-use App\Models\SkData;
-use App\Models\CalonPelanggan;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 use Carbon\Carbon;
+use App\Models\User;
+use App\Models\CalonPelanggan;
+use App\Models\SkData;
 
 class SkDataSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        $petugasSk = User::where('role', 'sk')->first();
-        $tracer = User::where('role', 'tracer')->first();
-        $admin = User::where('role', 'admin')->first();
+        $user = User::first() ?? User::factory()->create([
+            'name' => 'Seeder Admin',
+            'email' => 'seeder-admin@example.com',
+            'password' => bcrypt('password'),
+        ]);
 
-        $skDataList = [
-            [
-                'reff_id_pelanggan' => 'AER001',
-                'nama_petugas_sk' => $petugasSk->full_name,
-                'tanggal_instalasi' => Carbon::now()->subDays(9),
-                'catatan_tambahan' => 'Instalasi berjalan lancar, tidak ada kendala',
-                // Material quantities
-                'pipa_hot_drip_meter' => 5.5,
-                'long_elbow_34_pcs' => 2,
-                'elbow_34_to_12_pcs' => 1,
-                'elbow_12_pcs' => 3,
-                'ball_valve_12_pcs' => 1,
-                'double_nipple_12_pcs' => 2,
-                'sock_draft_galvanis_12_pcs' => 1,
-                'klem_pipa_12_pcs' => 8,
-                'seal_tape_roll' => 1,
-                // Photo URLs (dummy URLs for testing)
-                'foto_berita_acara_url' => '/storage/sk/AER001/foto_berita_acara.jpg',
-                'foto_pneumatic_sk_url' => '/storage/sk/AER001/foto_pneumatic_sk.jpg',
-                'foto_valve_krunchis_url' => '/storage/sk/AER001/foto_valve_krunchis.jpg',
-                'foto_isometrik_sk_url' => '/storage/sk/AER001/foto_isometrik_sk.jpg',
-                // Approval status
-                'overall_photo_status' => 'tracer_review',
-                'module_status' => 'tracer_review',
-            ],
-            [
-                'reff_id_pelanggan' => 'AER002',
-                'nama_petugas_sk' => $petugasSk->full_name,
-                'tanggal_instalasi' => Carbon::now()->subDays(7),
-                'catatan_tambahan' => 'Lokasi agak sempit tapi berhasil diinstal dengan baik',
-                'pipa_hot_drip_meter' => 4.2,
-                'long_elbow_34_pcs' => 3,
-                'elbow_34_to_12_pcs' => 2,
-                'elbow_12_pcs' => 2,
-                'ball_valve_12_pcs' => 1,
-                'double_nipple_12_pcs' => 1,
-                'sock_draft_galvanis_12_pcs' => 1,
-                'klem_pipa_12_pcs' => 6,
-                'seal_tape_roll' => 1,
-                'foto_berita_acara_url' => '/storage/sk/AER002/foto_berita_acara.jpg',
-                'foto_pneumatic_sk_url' => '/storage/sk/AER002/foto_pneumatic_sk.jpg',
-                'foto_valve_krunchis_url' => '/storage/sk/AER002/foto_valve_krunchis.jpg',
-                'foto_isometrik_sk_url' => '/storage/sk/AER002/foto_isometrik_sk.jpg',
-                'tracer_approved_by' => $tracer->id,
-                'tracer_approved_at' => Carbon::now()->subDays(6),
-                'cgp_approved_by' => $admin->id,
-                'cgp_approved_at' => Carbon::now()->subDays(5),
-                'overall_photo_status' => 'completed',
-                'module_status' => 'completed',
-            ],
-            [
-                'reff_id_pelanggan' => 'AER004',
-                'nama_petugas_sk' => $petugasSk->full_name,
-                'tanggal_instalasi' => Carbon::now()->subDays(18),
-                'catatan_tambahan' => 'Instalasi sempurna, pelanggan sangat puas',
-                'pipa_hot_drip_meter' => 6.0,
-                'long_elbow_34_pcs' => 2,
-                'elbow_34_to_12_pcs' => 1,
-                'elbow_12_pcs' => 4,
-                'ball_valve_12_pcs' => 1,
-                'double_nipple_12_pcs' => 2,
-                'sock_draft_galvanis_12_pcs' => 1,
-                'klem_pipa_12_pcs' => 10,
-                'seal_tape_roll' => 1,
-                'foto_berita_acara_url' => '/storage/sk/AER004/foto_berita_acara.jpg',
-                'foto_pneumatic_sk_url' => '/storage/sk/AER004/foto_pneumatic_sk.jpg',
-                'foto_valve_krunchis_url' => '/storage/sk/AER004/foto_valve_krunchis.jpg',
-                'foto_isometrik_sk_url' => '/storage/sk/AER004/foto_isometrik_sk.jpg',
-                'tracer_approved_by' => $tracer->id,
-                'tracer_approved_at' => Carbon::now()->subDays(17),
-                'cgp_approved_by' => $admin->id,
-                'cgp_approved_at' => Carbon::now()->subDays(16),
-                'overall_photo_status' => 'completed',
-                'module_status' => 'completed',
-            ]
-        ];
-
-        foreach ($skDataList as $data) {
-            SkData::create($data);
+        $pelanggan = CalonPelanggan::take(6)->get();
+        if ($pelanggan->isEmpty()) {
+            $this->command?->warn('Skip SkDataSeeder: tabel calon_pelanggan masih kosong.');
+            return;
         }
 
-        $this->command->info('Created ' . count($skDataList) . ' SK data records successfully.');
+        $rows = [
+            // 1) Draft (AI belum semua pass)
+            [
+                'status'             => SkData::STATUS_DRAFT,
+                'ai_overall_status'  => 'pending',
+                'ai_checked_at'      => null,
+                'tanggal_instalasi'  => null,
+                'nomor_sk'           => null,
+            ],
+            // 2) Semua foto pass → ready_for_tracer
+            [
+                'status'             => SkData::STATUS_READY_FOR_TRACER,
+                'ai_overall_status'  => 'passed',
+                'ai_checked_at'      => now(),
+                'tanggal_instalasi'  => null,
+                'nomor_sk'           => null,
+            ],
+            // 3) Tracer approved
+            [
+                'status'              => SkData::STATUS_TRACER_APPROVED,
+                'ai_overall_status'   => 'passed',
+                'ai_checked_at'       => now(),
+                'tracer_approved_at'  => now(),
+                'tracer_approved_by'  => $user->id,
+                'tanggal_instalasi'   => null,
+                'nomor_sk'            => null,
+            ],
+            // 4) CGP approved
+            [
+                'status'              => SkData::STATUS_CGP_APPROVED,
+                'ai_overall_status'   => 'passed',
+                'ai_checked_at'       => now(),
+                'tracer_approved_at'  => now()->subDay(),
+                'tracer_approved_by'  => $user->id,
+                'cgp_approved_at'     => now(),
+                'cgp_approved_by'     => $user->id,
+                'tanggal_instalasi'   => null,
+                'nomor_sk'            => null,
+            ],
+            // 5) Scheduled (punya nomor SK & tanggal)
+            [
+                'status'              => SkData::STATUS_SCHEDULED,
+                'ai_overall_status'   => 'passed',
+                'ai_checked_at'       => now(),
+                'tracer_approved_at'  => now()->subDays(3),
+                'tracer_approved_by'  => $user->id,
+                'cgp_approved_at'     => now()->subDays(2),
+                'cgp_approved_by'     => $user->id,
+                'tanggal_instalasi'   => Carbon::now()->addDays(5),
+                'nomor_sk'            => self::makeNomor('SK'),
+            ],
+            // 6) Completed (tanggal terlewat)
+            [
+                'status'              => SkData::STATUS_COMPLETED,
+                'ai_overall_status'   => 'passed',
+                'ai_checked_at'       => now(),
+                'tracer_approved_at'  => now()->subDays(10),
+                'tracer_approved_by'  => $user->id,
+                'cgp_approved_at'     => now()->subDays(9),
+                'cgp_approved_by'     => $user->id,
+                'tanggal_instalasi'   => Carbon::now()->subDays(2),
+                'nomor_sk'            => self::makeNomor('SK'),
+            ],
+        ];
+
+        $i = 0;
+        foreach ($rows as $data) {
+            $cp = $pelanggan[$i % $pelanggan->count()];
+            SkData::create(array_merge($data, [
+                'reff_id_pelanggan' => $cp->reff_id_pelanggan, // <- kunci baru
+                'notes'             => $data['status'] === SkData::STATUS_DRAFT
+                                        ? 'Contoh data draft (AI belum semua pass)' : null,
+                'created_by'        => $user->id,
+                'updated_by'        => $user->id,
+            ]));
+            $i++;
+        }
+    }
+
+    private static function makeNomor(string $prefix): string
+    {
+        return sprintf('%s-%s-%04d', strtoupper($prefix), now()->format('Ym'), random_int(1, 9999));
     }
 }

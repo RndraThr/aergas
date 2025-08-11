@@ -91,10 +91,10 @@ class HseData extends Model
 
     public function scopeForUser($query, User $user)
     {
-        if ($user->hasRole('hse') && !$user->hasRole(['admin', 'super_admin'])) {
+        if ($user->hasRole('hse') && !$user->hasRole(...['admin', 'super_admin'])) {
             return $query->where('created_by', $user->id);
         }
-        
+
         return $query; // Admin/Super Admin can see all
     }
 
@@ -126,24 +126,24 @@ class HseData extends Model
     {
         $bytes = $this->file_size;
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        
+
         for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
             $bytes /= 1024;
         }
-        
+
         return round($bytes, 2) . ' ' . $units[$i];
     }
 
     public function getFotoPreviewUrlAttribute(): string
     {
         // Generate preview URL for the photo
-        return route('aergas.hse.preview', ['hseData' => $this->id]);
+        return route('hse.preview', ['hseData' => $this->id]);
     }
 
     public function getFotoDownloadUrlAttribute(): string
     {
         // Generate download URL for the photo
-        return route('aergas.hse.download', ['hseData' => $this->id]);
+        return route('hse.download', ['hseData' => $this->id]);
     }
 
     // Methods
@@ -151,7 +151,7 @@ class HseData extends Model
     {
         // HSE data biasanya tidak bisa diedit setelah diupload
         // Hanya bisa diedit oleh admin/super_admin dalam waktu 24 jam
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->hasRole(...['admin', 'super_admin'])) {
             return true;
         }
 
@@ -181,7 +181,7 @@ class HseData extends Model
     public function canBeViewedBy(User $user): bool
     {
         // Admin dan super admin bisa lihat semua
-        if ($user->hasRole(['admin', 'super_admin'])) {
+        if ($user->hasRole(...['admin', 'super_admin'])) {
             return true;
         }
 
@@ -194,11 +194,11 @@ class HseData extends Model
         if ($this->calonPelanggan) {
             // Check if user has access to this customer through other roles
             $customer = $this->calonPelanggan;
-            
+
             if ($user->hasRole('sk') && $customer->skData && $customer->skData->created_by === $user->id) {
                 return true;
             }
-            
+
             if ($user->hasRole('validasi') && $customer->validasi && $customer->validasi->validated_by === $user->id) {
                 return true;
             }
@@ -218,41 +218,41 @@ class HseData extends Model
         $prefix = 'HSE-AERGAS-';
         $year = date('Y');
         $month = date('m');
-        
+
         $maxAttempts = 10;
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             $lastRecord = static::where('nomor_laporan_hse', 'like', "{$prefix}{$year}{$month}%")
                                ->orderBy('nomor_laporan_hse', 'desc')
                                ->first();
-            
+
             if ($lastRecord) {
                 $lastNumber = (int) substr($lastRecord->nomor_laporan_hse, -4);
                 $newNumber = $lastNumber + 1;
             } else {
                 $newNumber = 1;
             }
-            
+
             $nomorLaporan = $prefix . $year . $month . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
-            
+
             if (!static::where('nomor_laporan_hse', $nomorLaporan)->exists()) {
                 return $nomorLaporan;
             }
         }
-        
+
         return $prefix . $year . $month . str_pad(time() % 10000, 4, '0', STR_PAD_LEFT);
     }
 
     public static function getUploadStats($userId = null, $days = 30): array
     {
         $query = static::query();
-        
+
         if ($userId) {
             $query->where('created_by', $userId);
         }
-        
+
         $recentQuery = clone $query;
         $recentQuery->where('tanggal_laporan', '>=', now()->subDays($days));
-        
+
         return [
             'total' => $query->count(),
             'recent' => $recentQuery->count(),
@@ -277,12 +277,12 @@ class HseData extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($model) {
             if (empty($model->nomor_laporan_hse)) {
                 $model->nomor_laporan_hse = static::generateNomorLaporan();
             }
-            
+
             // Set default status if not provided
             if (empty($model->status)) {
                 $model->status = 'uploaded';
@@ -293,10 +293,10 @@ class HseData extends Model
             // Log creation automatically
             if (class_exists('App\Models\AuditLog')) {
                 \App\Models\AuditLog::logCreate(
-                    'hse_data', 
-                    (string)$model->id, 
-                    $model->toArray(), 
-                    "HSE Data uploaded for {$model->reff_id_pelanggan}", 
+                    'hse_data',
+                    (string)$model->id,
+                    $model->toArray(),
+                    "HSE Data uploaded for {$model->reff_id_pelanggan}",
                     Auth::user()
                 );
             }
@@ -313,11 +313,11 @@ class HseData extends Model
             // Log updates automatically
             if (class_exists('App\Models\AuditLog')) {
                 \App\Models\AuditLog::logUpdate(
-                    'hse_data', 
-                    (string)$model->id, 
-                    $model->getOriginal(), 
-                    $model->toArray(), 
-                    "HSE Data updated", 
+                    'hse_data',
+                    (string)$model->id,
+                    $model->getOriginal(),
+                    $model->toArray(),
+                    "HSE Data updated",
                     Auth::user()
                 );
             }
@@ -327,10 +327,10 @@ class HseData extends Model
             // Log deletion automatically
             if (class_exists('App\Models\AuditLog')) {
                 \App\Models\AuditLog::logDelete(
-                    'hse_data', 
-                    (string)$model->id, 
-                    $model->toArray(), 
-                    "HSE Data deleted", 
+                    'hse_data',
+                    (string)$model->id,
+                    $model->toArray(),
+                    "HSE Data deleted",
                     Auth::user()
                 );
             }

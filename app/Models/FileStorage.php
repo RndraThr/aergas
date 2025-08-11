@@ -23,10 +23,12 @@ class FileStorage extends Model
         'uploaded_by'
     ];
 
-    public function pelanggan()
-    {
-        return $this->belongsTo(CalonPelanggan::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
-    }
+    // di FileStorage
+    public function owner() { return $this->belongsTo(User::class, 'owner_id'); }
+    public function pelanggan() { return $this->belongsTo(CalonPelanggan::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
+
+    public function scopeByReff($q, $reff) { return $q->where('reff_id_pelanggan', $reff); }
+    public function scopeActive($q) { return $q->where('status','active'); }
 
     public function uploadedByUser()
     {

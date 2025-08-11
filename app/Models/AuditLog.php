@@ -27,9 +27,21 @@ class AuditLog extends Model
         'new_values' => 'array',
     ];
 
-    public function user()
+    public function user() { return $this->belongsTo(User::class); }
+
+    public function scopeByModel($q, $type, $id)
     {
-        return $this->belongsTo(User::class);
+        return $q->where('model_type', $type)->where('model_id', $id);
+    }
+
+    public function scopeByUser($q, $userId)
+    {
+        return $q->where('user_id', $userId);
+    }
+
+    public function scopeRecent($q)
+    {
+        return $q->orderByDesc('created_at');
     }
 
     public function pelanggan()

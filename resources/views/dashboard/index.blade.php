@@ -1,17 +1,29 @@
+{{-- resources/views/dashboard/index.blade.php --}}
 @extends('layouts.app')
 
 @section('title', 'Dashboard AERGAS')
 
+@once
+@push('head')
+    {{-- Chart.js (aman kalau layout belum include) --}}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+@endpush
+@endonce
+
 @section('content')
-<div class="space-y-6" x-data="dashboardData()">
+<div class="space-y-6" x-data="dashboardData()" x-init="init()">
 
     <!-- Header -->
     <div class="flex justify-between items-center">
         <div>
             <h1 class="text-3xl font-bold text-gray-800">Dashboard AERGAS</h1>
-            <p class="text-gray-600 mt-1">Selamat datang kembali, {{ auth()->user()->name }}! {{ ucfirst(str_replace('_', ' ', auth()->user()->role)) }}</p>
+            <p class="text-gray-600 mt-1">
+                Selamat datang kembali, {{ auth()->user()->name }}!
+                {{ ucfirst(str_replace('_', ' ', auth()->user()->role)) }}
+            </p>
         </div>
-        <button @click="refreshData()" class="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <button @click="refreshData()"
+                class="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
             <i class="fas fa-sync-alt"></i>
             <span>Refresh</span>
         </button>
@@ -29,13 +41,15 @@
                         </div>
                         <span class="text-gray-600 text-sm">Total Pelanggan</span>
                     </div>
-                    <div class="text-2xl font-bold text-gray-800" x-text="stats.total_customers">{{ $stats['total_customers'] ?? 0 }}</div>
+                    <div class="text-2xl font-bold text-gray-800" x-text="stats.total_customers">
+                        {{ $stats['total_customers'] ?? 0 }}
+                    </div>
                     <a href="{{ route('customers.index') }}" class="text-blue-600 text-sm hover:underline">Lihat semua</a>
                 </div>
             </div>
         </div>
 
-        <!-- My SK Total -->
+        <!-- My SK Total / SK Completed -->
         <div class="bg-white rounded-xl card-shadow p-6 hover-scale">
             <div class="flex items-center justify-between">
                 <div>
@@ -51,7 +65,9 @@
                             @endif
                         </span>
                     </div>
-                    <div class="text-2xl font-bold text-gray-800" x-text="stats.sk_completed">{{ $stats['sk_completed'] ?? 0 }}</div>
+                    <div class="text-2xl font-bold text-gray-800" x-text="stats.sk_completed">
+                        {{ $stats['sk_completed'] ?? 0 }}
+                    </div>
                     @if(auth()->user()->canAccessModule('sk'))
                         <a href="{{ route('sk.index') }}" class="text-green-600 text-sm hover:underline">Manage SK</a>
                     @else
@@ -61,7 +77,7 @@
             </div>
         </div>
 
-        <!-- SK Pending -->
+        <!-- SK Pending / Pending Review -->
         <div class="bg-white rounded-xl card-shadow p-6 hover-scale">
             <div class="flex items-center justify-between">
                 <div>
@@ -77,9 +93,11 @@
                             @endif
                         </span>
                     </div>
-                    <div class="text-2xl font-bold text-gray-800" x-text="stats.pending_approvals">{{ $stats['pending_approvals'] ?? 0 }}</div>
+                    <div class="text-2xl font-bold text-gray-800" x-text="stats.pending_approvals">
+                        {{ $stats['pending_approvals'] ?? 0 }}
+                    </div>
                     @if(auth()->user()->isTracer())
-                        <a href="{{ route('photo-approvals.index') }}" class="text-yellow-600 text-sm hover:underline">Review pending</a>
+                        <a href="{{ route('photos.index') }}" class="text-yellow-600 text-sm hover:underline">Review pending</a>
                     @else
                         <span class="text-yellow-600 text-sm">Review pending</span>
                     @endif
@@ -97,7 +115,9 @@
                         </div>
                         <span class="text-gray-600 text-sm">AI Validated</span>
                     </div>
-                    <div class="text-2xl font-bold text-gray-800" x-text="stats.ai_approved">{{ $stats['ai_approved'] ?? 0 }}</div>
+                    <div class="text-2xl font-bold text-gray-800" x-text="stats.ai_approved">
+                        {{ $stats['ai_approved'] ?? 0 }}
+                    </div>
                     <span class="text-purple-600 text-sm">View validated</span>
                 </div>
             </div>
@@ -136,7 +156,7 @@
             <div class="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors cursor-pointer"
                  onclick="window.location.href='{{ route('sk.create') }}'">
                 <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center mb-3">
-                    <i class="fas fa-file-plus text-white"></i>
+                    <i class="fas fa-file-circle-plus text-white"></i>
                 </div>
                 <div class="text-sm font-medium text-gray-800">Create SK</div>
                 <div class="text-xs text-gray-500">New SK document</div>
@@ -155,7 +175,8 @@
 
             @if(auth()->user()->canAccessModule('sr'))
             <!-- Create SR -->
-            <div class="p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors cursor-pointer">
+            <div class="p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors cursor-pointer"
+                 onclick="window.location.href='{{ route('sr.create') }}'">
                 <div class="w-8 h-8 bg-yellow-600 rounded-lg flex items-center justify-center mb-3">
                     <i class="fas fa-cog text-white"></i>
                 </div>
@@ -213,11 +234,13 @@
             <h2 class="text-xl font-semibold text-gray-800 mb-6">Workflow Progress</h2>
 
             <!-- Progress Chart -->
-            <div class="relative">
-                <canvas id="progressChart" width="400" height="400"></canvas>
-                <div class="absolute inset-0 flex items-center justify-center">
+            <div class="relative h-64">
+                <canvas id="progressChart"></canvas>
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div class="text-center">
-                        <div class="text-2xl font-bold text-gray-800" x-text="stats.completion_rate + '%'">{{ $stats['completion_rate'] ?? 0 }}%</div>
+                        <div class="text-2xl font-bold text-gray-800" x-text="(stats.completion_rate || 0) + '%'">
+                            {{ $stats['completion_rate'] ?? 0 }}%
+                        </div>
                         <div class="text-sm text-gray-500">Completion</div>
                     </div>
                 </div>
@@ -245,42 +268,49 @@
         </div>
     </div>
 </div>
+@endsection
 
+@push('scripts')
 <script>
 function dashboardData() {
     return {
         stats: @json($stats ?? []),
         recentActivities: @json($recentActivities ?? []),
         progressChart: null,
+        timer: null,
 
         init() {
             this.initProgressChart();
-            // Refresh data every 5 minutes
-            setInterval(() => {
-                this.refreshData();
-            }, 300000);
+            this.timer = setInterval(() => this.refreshData(), 300000); // 5 menit
         },
 
         refreshData() {
-            fetch('/api/dashboard')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        this.stats = data.data.stats;
-                        this.recentActivities = data.data.recent_activities;
-                        this.updateProgressChart();
+            fetch(@json(route('dashboard.data')))
+                .then(r => r.ok ? r.json() : Promise.reject('HTTP ' + r.status))
+                .then(({ success, data }) => {
+                    if (!success || !data) return;
+
+                    this.stats = data.stats || {};
+                    this.recentActivities = data.recent_activities || [];
+                    this.updateProgressChart();
+
+                    if (typeof showToast === 'function') {
                         showToast('Dashboard updated successfully', 'success');
                     }
                 })
-                .catch(error => {
-                    console.error('Error refreshing dashboard:', error);
-                    showToast('Failed to refresh dashboard', 'error');
+                .catch(err => {
+                    console.error('Dashboard refresh error:', err);
+                    if (typeof showToast === 'function') {
+                        showToast('Failed to refresh dashboard', 'error');
+                    }
                 });
         },
 
         initProgressChart() {
-            const ctx = document.getElementById('progressChart').getContext('2d');
+            const el = document.getElementById('progressChart');
+            if (!window.Chart || !el) return;
 
+            const ctx = el.getContext('2d');
             this.progressChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
@@ -292,12 +322,7 @@ function dashboardData() {
                             this.stats.pending_validation || 0,
                             this.stats.cancelled_customers || 0
                         ],
-                        backgroundColor: [
-                            '#3B82F6', // Blue
-                            '#10B981', // Green
-                            '#F59E0B', // Yellow
-                            '#EF4444'  // Red
-                        ],
+                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'],
                         borderWidth: 0,
                     }]
                 },
@@ -306,14 +331,12 @@ function dashboardData() {
                     maintainAspectRatio: false,
                     cutout: '70%',
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            backgroundColor: 'rgba(0,0,0,0.8)',
                             titleColor: '#fff',
                             bodyColor: '#fff',
-                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderColor: 'rgba(255,255,255,0.1)',
                             borderWidth: 1
                         }
                     }
@@ -322,30 +345,28 @@ function dashboardData() {
         },
 
         updateProgressChart() {
-            if (this.progressChart) {
-                this.progressChart.data.datasets[0].data = [
-                    this.stats.in_progress_count || 0,
-                    this.stats.completed_customers || 0,
-                    this.stats.pending_validation || 0,
-                    this.stats.cancelled_customers || 0
-                ];
-                this.progressChart.update();
-            }
+            if (!this.progressChart) return;
+            this.progressChart.data.datasets[0].data = [
+                this.stats.in_progress_count || 0,
+                this.stats.completed_customers || 0,
+                this.stats.pending_validation || 0,
+                this.stats.cancelled_customers || 0
+            ];
+            this.progressChart.update();
         }
     }
 }
-</script>
-@endpush
 
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize dashboard when DOM is ready
-    Alpine.store('dashboard', {
-        loading: false,
-        lastUpdated: new Date().toLocaleString('id-ID')
-    });
-});
+// Toast minimal (kalau layout belum punya)
+window.showToast = window.showToast || function (msg, type = 'info') {
+    const bg = type === 'success' ? 'bg-green-600' :
+               type === 'error' ? 'bg-red-600' :
+               type === 'warning' ? 'bg-yellow-600' : 'bg-gray-800';
+    const el = document.createElement('div');
+    el.className = `fixed bottom-6 right-6 text-white ${bg} px-4 py-2 rounded-lg shadow-lg z-50`;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2500);
+};
 </script>
 @endpush
-@endsection

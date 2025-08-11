@@ -24,9 +24,9 @@ class PenyambunganPipaData extends BaseModuleModel
         'module_status'
     ];
 
-    protected $casts = [
-        ...$this->approvalCasts
-    ];
+    // protected $casts = [
+    //     ...$this->approvalCasts
+    // ];
 
     public function getRequiredPhotos(): array
     {

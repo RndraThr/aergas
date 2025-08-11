@@ -1,4 +1,4 @@
-@extends('aergas.layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Dashboard')
 
@@ -9,7 +9,7 @@
             Dashboard AERGAS
         </h2>
         <p class="mt-1 text-sm text-gray-500">
-            Selamat datang kembali, {{ auth()->user()->name }}! 
+            Selamat datang kembali, {{ auth()->user()->name }}!
             <span class="text-blue-600 font-medium">
                 @if(auth()->user()->hasRole('super_admin'))
                     Super Administrator
@@ -30,7 +30,7 @@
         </p>
     </div>
     <div class="mt-4 flex md:mt-0 md:ml-4 space-x-3">
-        <button onclick="refreshDashboard()" 
+        <button onclick="refreshDashboard()"
                 class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
             <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -38,7 +38,7 @@
             Refresh
         </button>
         @canany(['super_admin', 'admin'])
-        <a href="{{ route('aergas.admin.index') }}" 
+        <a href="{{ route('admin.index') }}"
            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
             <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -53,7 +53,7 @@
 
 @section('content')
 <div x-data="dashboardData()" x-init="initDashboard()" class="space-y-6">
-    
+
     {{-- Quick Stats Cards --}}
     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {{-- Total Pelanggan --}}
@@ -77,7 +77,7 @@
             </div>
             <div class="bg-gray-50 px-5 py-3">
                 <div class="text-sm">
-                    <a href="{{ route('aergas.calon-pelanggan.index') }}" class="font-medium text-blue-700 hover:text-blue-900 transition-colors">
+                    <a href="{{ route('calon-pelanggan.index') }}" class="font-medium text-blue-700 hover:text-blue-900 transition-colors">
                         Lihat semua
                     </a>
                 </div>
@@ -105,7 +105,7 @@
             </div>
             <div class="bg-gray-50 px-5 py-3">
                 <div class="text-sm">
-                    <a href="{{ route('aergas.calon-pelanggan.index', ['status' => 'pending']) }}" class="font-medium text-yellow-700 hover:text-yellow-900 transition-colors">
+                    <a href="{{ route('calon-pelanggan.index', ['status' => 'pending']) }}" class="font-medium text-yellow-700 hover:text-yellow-900 transition-colors">
                         Review pending
                     </a>
                 </div>
@@ -133,7 +133,7 @@
             </div>
             <div class="bg-gray-50 px-5 py-3">
                 <div class="text-sm">
-                    <a href="{{ route('aergas.calon-pelanggan.index', ['status' => 'completed']) }}" class="font-medium text-green-700 hover:text-green-900 transition-colors">
+                    <a href="{{ route('calon-pelanggan.index', ['status' => 'completed']) }}" class="font-medium text-green-700 hover:text-green-900 transition-colors">
                         View completed
                     </a>
                 </div>
@@ -161,7 +161,7 @@
             </div>
             <div class="bg-gray-50 px-5 py-3">
                 <div class="text-sm">
-                    <a href="{{ route('aergas.files.index') }}" class="font-medium text-purple-700 hover:text-purple-900 transition-colors">
+                    <a href="{{ route('files.index') }}" class="font-medium text-purple-700 hover:text-purple-900 transition-colors">
                         Manage files
                     </a>
                 </div>
@@ -174,7 +174,7 @@
         <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                
+
                 {{-- Add New Customer --}}
                 @canany(['super_admin', 'admin'])
                 <div class="relative group">
@@ -187,7 +187,7 @@
                             </div>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <a href="{{ route('aergas.calon-pelanggan.create') }}" class="focus:outline-none">
+                            <a href="{{ route('calon-pelanggan.create') }}" class="focus:outline-none">
                                 <span class="absolute inset-0" aria-hidden="true"></span>
                                 <p class="text-sm font-medium text-gray-900">Add Customer</p>
                                 <p class="text-sm text-gray-500">Register new customer</p>
@@ -209,7 +209,7 @@
                             </div>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <a href="{{ route('aergas.sk.create') }}" class="focus:outline-none">
+                            <a href="{{ route('sk.create') }}" class="focus:outline-none">
                                 <span class="absolute inset-0" aria-hidden="true"></span>
                                 <p class="text-sm font-medium text-gray-900">Create SK</p>
                                 <p class="text-sm text-gray-500">New SK document</p>
@@ -231,7 +231,7 @@
                             </div>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <a href="{{ route('aergas.sr.create') }}" class="focus:outline-none">
+                            <a href="{{ route('sr.create') }}" class="focus:outline-none">
                                 <span class="absolute inset-0" aria-hidden="true"></span>
                                 <p class="text-sm font-medium text-gray-900">Create SR</p>
                                 <p class="text-sm text-gray-500">Installation request</p>
@@ -253,7 +253,7 @@
                             </div>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <a href="{{ route('aergas.gas-in.create') }}" class="focus:outline-none">
+                            <a href="{{ route('gas-in.create') }}" class="focus:outline-none">
                                 <span class="absolute inset-0" aria-hidden="true"></span>
                                 <p class="text-sm font-medium text-gray-900">Gas In</p>
                                 <p class="text-sm text-gray-500">Gas commissioning</p>
@@ -268,13 +268,13 @@
 
     {{-- Main Content Grid --}}
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        
+
         {{-- Recent Activities --}}
         <div class="bg-white shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Activities</h3>
-                    <a href="{{ route('aergas.audit.index') }}" class="text-sm text-blue-600 hover:text-blue-800 transition-colors">View all</a>
+                    <a href="{{ route('audit.index') }}" class="text-sm text-blue-600 hover:text-blue-800 transition-colors">View all</a>
                 </div>
                 <div x-show="!recentActivities.length" class="text-center py-8">
                     <div class="text-gray-400 mb-2">
@@ -392,12 +392,12 @@ function dashboardData() {
                 await this.loadRecentActivities();
                 await this.loadMyRecentWork();
                 await this.loadChartData();
-                
+
                 // Delay chart initialization to ensure DOM is ready
                 setTimeout(() => {
                     this.initCharts();
                 }, 100);
-                
+
             } catch (error) {
                 console.error('Dashboard initialization error:', error);
             }
@@ -406,7 +406,7 @@ function dashboardData() {
         async loadStats() {
             try {
                 // Gunakan route() helper dari Laravel atau URL statis
-                const response = await fetch("{{ route('aergas.api.quick-stats') }}");
+                const response = await fetch("{{ route('quick-stats') }}");
                 if (!response.ok) throw new Error('Network response was not ok');
                 this.stats = await response.json();
             } catch (error) {
@@ -588,7 +588,7 @@ function dashboardData() {
                 }
 
                 this.chartsInitialized = true;
-                
+
             } catch (error) {
                 console.error('Error initializing charts:', error);
             }
@@ -609,13 +609,13 @@ function dashboardData() {
                 await this.loadStats();
                 await this.loadRecentActivities();
                 await this.loadMyRecentWork();
-                
+
                 // Update chart data without recreating charts
                 if (this.charts.status && this.chartData.status) {
                     this.charts.status.data.datasets[0].data = [
-                        this.stats.pending_pelanggan || 0, 
-                        this.stats.in_progress_pelanggan || 0, 
-                        this.stats.completed_pelanggan || 0, 
+                        this.stats.pending_pelanggan || 0,
+                        this.stats.in_progress_pelanggan || 0,
+                        this.stats.completed_pelanggan || 0,
                         this.stats.rejected_pelanggan || 0
                     ];
                     this.charts.status.update('none'); // No animation on update

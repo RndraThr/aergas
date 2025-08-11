@@ -4,49 +4,69 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
-    /**
-     * Run the migrations.
-     */
-    public function up()
+return new class extends Migration {
+    public function up(): void
     {
-        Schema::create('sr_data', function (Blueprint $table) {
-            $table->id();
-            $table->string('reff_id_pelanggan', 50);
+        Schema::create('sr_data', function (Blueprint $t) {
+            $t->engine = 'InnoDB';
 
-            // SR Form Fields
-            $table->string('foto_pneumatic_start_sr_url', 500)->nullable();
-            $table->string('foto_pneumatic_finish_sr_url', 500)->nullable();
-            $table->enum('jenis_tapping', ['63x20', '90x20'])->nullable();
-            $table->decimal('panjang_pipa_pe', 8, 2)->nullable();
-            $table->string('foto_kedalaman_url', 500)->nullable();
-            $table->string('foto_isometrik_sr_url', 500)->nullable();
-            $table->decimal('panjang_casing_crossing_sr', 8, 2)->nullable();
+            $t->id();
 
-            // Approval System
-            $table->unsignedBigInteger('tracer_approved_by')->nullable();
-            $table->timestamp('tracer_approved_at')->nullable();
-            $table->unsignedBigInteger('cgp_approved_by')->nullable();
-            $table->timestamp('cgp_approved_at')->nullable();
-            $table->enum('overall_photo_status', [
-                'draft', 'ai_validation', 'tracer_review',
-                'cgp_review', 'completed', 'rejected'
-            ])->default('draft');
-            $table->enum('module_status', [
-                'not_started', 'draft', 'ai_validation',
-                'tracer_review', 'cgp_review', 'completed', 'rejected'
-            ])->default('not_started');
+            // FK ke calon_pelanggan.reff_id_pelanggan (string PK)
+            $t->string('reff_id_pelanggan', 50);
+            $t->foreign('reff_id_pelanggan', 'fk_sr_reff_pelanggan')
+              ->references('reff_id_pelanggan')->on('calon_pelanggan')
+              ->cascadeOnDelete();
 
-            $table->timestamps();
+            // Identitas & status
+            $t->string('nomor_sr')->nullable()->unique();
+            $t->enum('status', [
+                'draft',
+                'ready_for_tracer',
+                'tracer_approved',
+                'tracer_rejected',
+                'cgp_approved',
+                'cgp_rejected',
+                'approved_scheduled',
+                'completed',
+                'canceled',
+            ])->default('draft')->index();
 
-            $table->foreign('reff_id_pelanggan')->references('reff_id_pelanggan')->on('calon_pelanggan')->onDelete('cascade');
-            $table->foreign('tracer_approved_by')->references('id')->on('users')->onDelete('set null');
-            $table->foreign('cgp_approved_by')->references('id')->on('users')->onDelete('set null');
+            // Data teknis SR (tanpa material tracking)
+            $t->decimal('panjang_pipa_pe', 10, 2)->nullable();
+            $t->decimal('panjang_casing_crossing_sr', 10, 2)->nullable();
+            $t->date('tanggal_pemasangan')->nullable();
+            $t->text('notes')->nullable();
+
+            // Ringkasan AI (opsional)
+            $t->enum('ai_overall_status', ['pending','passed','flagged'])->default('pending')->index();
+            $t->timestamp('ai_checked_at')->nullable();
+
+            // Approval chain
+            $t->timestamp('tracer_approved_at')->nullable();
+            $t->unsignedBigInteger('tracer_approved_by')->nullable();
+            $t->foreign('tracer_approved_by', 'fk_sr_tracer_by')->references('id')->on('users')->nullOnDelete();
+            $t->text('tracer_notes')->nullable();
+
+            $t->timestamp('cgp_approved_at')->nullable();
+            $t->unsignedBigInteger('cgp_approved_by')->nullable();
+            $t->foreign('cgp_approved_by', 'fk_sr_cgp_by')->references('id')->on('users')->nullOnDelete();
+            $t->text('cgp_notes')->nullable();
+
+            // Audit user
+            $t->unsignedBigInteger('created_by')->nullable();
+            $t->unsignedBigInteger('updated_by')->nullable();
+            $t->foreign('created_by', 'fk_sr_created_by')->references('id')->on('users')->nullOnDelete();
+            $t->foreign('updated_by', 'fk_sr_updated_by')->references('id')->on('users')->nullOnDelete();
+
+            $t->timestamps();
+            $t->softDeletes();
+
+            $t->index(['reff_id_pelanggan', 'status'], 'idx_sr_reff_status');
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('sr_data');
     }

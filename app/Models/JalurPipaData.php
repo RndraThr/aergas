@@ -30,12 +30,12 @@ class JalurPipaData extends BaseModuleModel
         'module_status'
     ];
 
-    protected $casts = [
-        'kedalaman_pipa' => 'decimal:2',
-        'panjang_pipa' => 'decimal:2',
-        'panjang_casing' => 'decimal:2',
-        ...$this->approvalCasts
-    ];
+    // protected $casts = [
+    //     'kedalaman_pipa' => 'decimal:2',
+    //     'panjang_pipa' => 'decimal:2',
+    //     'panjang_casing' => 'decimal:2',
+    //     ...$this->approvalCasts
+    // ];
 
     public function getRequiredPhotos(): array
     {

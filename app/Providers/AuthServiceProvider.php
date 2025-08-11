@@ -4,7 +4,9 @@ namespace App\Providers;
 
 // Tambahkan use statement untuk Model dan Policy Anda
 use App\Models\SkData;
+use App\Models\SrData;
 use App\Policies\SkDataPolicy;
+use App\Policies\SrDataPolicy;
 
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
@@ -19,6 +21,7 @@ class AuthServiceProvider extends ServiceProvider
     protected $policies = [
         // Daftarkan policy Anda di sini
         SkData::class => SkDataPolicy::class,
+        SrData::class => SrDataPolicy::class,
     ];
 
     /**

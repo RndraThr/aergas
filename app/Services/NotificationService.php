@@ -5,532 +5,417 @@ namespace App\Services;
 use App\Models\Notification;
 use App\Models\User;
 use App\Models\CalonPelanggan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Exception;
+use Illuminate\Support\Facades\Schema; // <— TAMBAH INI
+use Illuminate\Support\Arr;
+use Carbon\Carbon;
+
 
 class NotificationService
 {
     /**
-     * Create a new notification
+     * Buat satu notifikasi untuk user.
      *
-     * @param array $data
-     * @return Notification
+     * Wajib: user_id, type, title, message
+     * Opsional: priority (low|medium|high|urgent), data (array), is_read (bool), read_at (datetime)
      */
-    public function createNotification(array $data): Notification
-    {
-        try {
-            return Notification::create([
-                'user_id' => $data['user_id'],
-                'type' => $data['type'],
-                'title' => $data['title'],
-                'message' => $data['message'],
-                'data' => $data['data'] ?? null,
-                'priority' => $data['priority'] ?? 'medium'
-            ]);
-        } catch (Exception $e) {
-            Log::error('Failed to create notification', [
-                'data' => $data,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        }
-    }
 
     /**
-     * Notify tracers about pending photo review
+     * Kirim notifikasi ke admin/role terkait saat ada pendaftaran pelanggan baru.
      *
-     * @param string $reffId
-     * @param string $module
-     * @return void
+     * @param CalonPelanggan $customer
+     * @param array{
+     *   roles?: string[],        // default: ['super_admin','admin','validasi','tracer']
+     *   user_ids?: int[],        // override penerima spesifik (opsional)
+     *   priority?: string,       // low|medium|high|urgent
+     *   type?: string,           // default: 'customer_registered'
+     *   title?: string|null,     // default: otomatis
+     *   message?: string|null,   // default: otomatis
+     *   extra?: array            // tambahan data untuk kolom 'data'
+     * } $options
+     * @return int jumlah notifikasi yang dibuat
      */
-    public function notifyTracerPhotoPending(string $reffId, string $module): void
+    public function createNotification(array $payload): Notification
     {
-        try {
-            $tracers = User::where('role', 'tracer')
-                          ->where('is_active', true)
-                          ->get();
+        // Sanitasi & default
+        $data = [
+            'user_id'  => Arr::get($payload, 'user_id'),
+            'type'     => trim((string) Arr::get($payload, 'type', 'general')),
+            'title'    => trim((string) Arr::get($payload, 'title', '')),
+            'message'  => trim((string) Arr::get($payload, 'message', '')),
+            'priority' => $this->normalizePriority(Arr::get($payload, 'priority', 'medium')),
+            'data'     => Arr::get($payload, 'data', []),
+            'is_read'  => (bool) Arr::get($payload, 'is_read', false),
+            'read_at'  => Arr::get($payload, 'read_at'),
+        ];
 
-            $customer = CalonPelanggan::find($reffId);
-
-            if (!$customer) {
-                Log::warning("Customer not found for notification: {$reffId}");
-                return;
-            }
-
-            foreach ($tracers as $tracer) {
-                $this->createNotification([
-                    'user_id' => $tracer->id,
-                    'type' => 'photo_pending',
-                    'title' => 'New Photos Pending Review',
-                    'message' => "Photos from customer {$customer->nama_pelanggan} ({$reffId}) in module " . strtoupper($module) . " are ready for your review",
-                    'data' => [
-                        'reff_id_pelanggan' => $reffId,
-                        'module' => $module,
-                        'customer_name' => $customer->nama_pelanggan,
-                        'url' => "/tracer/photo-review/{$reffId}/{$module}"
-                    ],
-                    'priority' => 'medium'
-                ]);
-            }
-
-            Log::info('Tracer photo pending notifications sent', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'tracers_count' => $tracers->count()
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Failed to notify tracers about pending photos', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'error' => $e->getMessage()
-            ]);
+        if (empty($data['user_id'])) {
+            throw new \InvalidArgumentException('user_id wajib diisi untuk membuat notifikasi.');
         }
+        if ($data['title'] === '' || $data['message'] === '') {
+            throw new \InvalidArgumentException('title dan message wajib diisi untuk membuat notifikasi.');
+        }
+
+        // Normalisasi read_at
+        if ($data['is_read'] && empty($data['read_at'])) {
+            $data['read_at'] = now();
+        }
+        if (!$data['is_read']) {
+            $data['read_at'] = null;
+        }
+
+        /** @var Notification $notification */
+        $notification = DB::transaction(function () use ($data) {
+            return Notification::create($data);
+        });
+
+        // Optional: kirim ke channel lain (broadcast/telegram/email) di sini jika diperlukan
+
+        return $notification->refresh();
     }
 
-    /**
-     * Notify admins about CGP review needed
-     *
-     * @param string $reffId
-     * @param string $module
-     * @return void
-     */
-    public function notifyAdminCgpReview(string $reffId, string $module): void
+    public function notifyNewCustomerRegistration(CalonPelanggan $customer, array $options = []): int
     {
-        try {
-            $admins = User::where('role', 'admin')
-                         ->where('is_active', true)
-                         ->get();
+        $type     = $options['type']     ?? 'customer_registered';
+        $priority = $this->normalizePriority($options['priority'] ?? 'medium');
 
-            $customer = CalonPelanggan::find($reffId);
+        $title = $options['title'] ?? 'Pendaftaran Calon Pelanggan Baru';
+        $message = $options['message'] ?? sprintf(
+            'Pelanggan %s (%s) terdaftar dan menunggu proses validasi.',
+            $customer->nama_pelanggan ?? '-',
+            $customer->reff_id_pelanggan ?? '-'
+        );
 
-            if (!$customer) {
-                Log::warning("Customer not found for CGP notification: {$reffId}");
-                return;
-            }
+        // Tentukan penerima
+        $recipients = collect();
 
-            foreach ($admins as $admin) {
-                $this->createNotification([
-                    'user_id' => $admin->id,
-                    'type' => 'cgp_review_pending',
-                    'title' => 'CGP Review Required',
-                    'message' => "Photos from {$customer->nama_pelanggan} ({$reffId}) approved by Tracer, ready for CGP review",
-                    'data' => [
-                        'reff_id_pelanggan' => $reffId,
-                        'module' => $module,
-                        'customer_name' => $customer->nama_pelanggan,
-                        'url' => "/admin/cgp-review/{$reffId}/{$module}"
-                    ],
-                    'priority' => 'high'
-                ]);
-            }
-
-            Log::info('CGP review notifications sent', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'admins_count' => $admins->count()
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Failed to notify admins about CGP review', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'error' => $e->getMessage()
-            ]);
+        if (!empty($options['user_ids']) && is_array($options['user_ids'])) {
+            $recipients = User::query()
+                ->whereIn('id', $options['user_ids'])
+                ->get(['id']);
+        } else {
+            $roles = $options['roles'] ?? ['super_admin','admin','validasi','tracer'];
+            $recipients = $this->getUsersByRoles($roles);
         }
-    }
 
-    /**
-     * Notify field users about photo rejection
-     *
-     * @param string $reffId
-     * @param string $module
-     * @param string $photoField
-     * @param string $reason
-     * @return void
-     */
-    public function notifyPhotoRejection(string $reffId, string $module, string $photoField, string $reason): void
-    {
-        try {
-            // Determine which users should be notified based on module
-            $roleMapping = [
-                'sk' => 'sk',
-                'sr' => 'sr',
-                'mgrt' => 'mgrt',
-                'gas_in' => 'gas_in',
-                'jalur_pipa' => 'pic',
-                'penyambungan' => 'pic'
+        if ($recipients->isEmpty()) {
+            return 0;
+        }
+
+        $now = now();
+        $rows = $recipients->map(function ($u) use ($customer, $type, $title, $message, $priority, $options, $now) {
+            return [
+                'user_id'   => $u->id,
+                'type'      => $type,
+                'title'     => $title,
+                'message'   => $message,
+                'priority'  => $priority,
+                'data'      => [
+                    'reff_id_pelanggan' => $customer->reff_id_pelanggan,
+                    'nama_pelanggan'    => $customer->nama_pelanggan,
+                    'wilayah_area'      => $customer->wilayah_area ?? null,
+                    'progress_status'   => $customer->progress_status ?? null,
+                    'status'            => $customer->status ?? null,
+                    'link' => $this->customerLink($customer->reff_id_pelanggan),
+                    'extra'             => $options['extra'] ?? [],
+                ],
+                'is_read'   => false,
+                'read_at'   => null,
+                'created_at'=> $now,
+                'updated_at'=> $now,
             ];
+        })->all();
 
-            $targetRole = $roleMapping[$module] ?? 'tracer';
-            $users = User::where('role', $targetRole)
-                        ->where('is_active', true)
-                        ->get();
+        // Bulk insert untuk efisiensi
+        Notification::insert($rows);
 
-            $customer = CalonPelanggan::find($reffId);
-
-            if (!$customer) {
-                Log::warning("Customer not found for rejection notification: {$reffId}");
-                return;
-            }
-
-            foreach ($users as $user) {
-                $this->createNotification([
-                    'user_id' => $user->id,
-                    'type' => 'photo_rejected',
-                    'title' => 'Photo Rejected - Action Required',
-                    'message' => "Your photo submission for {$customer->nama_pelanggan} ({$reffId}) has been rejected. Photo: {$photoField}. Reason: {$reason}",
-                    'data' => [
-                        'reff_id_pelanggan' => $reffId,
-                        'module' => $module,
-                        'photo_field' => $photoField,
-                        'rejection_reason' => $reason,
-                        'url' => "/field/{$module}/edit/{$reffId}"
-                    ],
-                    'priority' => 'high'
-                ]);
-            }
-
-            Log::info('Photo rejection notifications sent', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'photo_field' => $photoField,
-                'target_role' => $targetRole,
-                'users_count' => $users->count()
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Failed to notify users about photo rejection', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'photo_field' => $photoField,
-                'error' => $e->getMessage()
-            ]);
-        }
+        return count($rows);
     }
 
     /**
-     * Notify about module completion
+     * Tandai 1 notifikasi user sebagai dibaca.
      *
-     * @param string $reffId
-     * @param string $module
-     * @return void
-     */
-    public function notifyModuleCompletion(string $reffId, string $module): void
-    {
-        try {
-            $customer = CalonPelanggan::find($reffId);
-
-            if (!$customer) {
-                Log::warning("Customer not found for completion notification: {$reffId}");
-                return;
-            }
-
-            // Notify field users about completion
-            $this->notifyPhotoApproved($reffId, $module, 'all_photos');
-
-            // Notify management
-            $admins = User::whereIn('role', ['admin', 'super_admin'])
-                         ->where('is_active', true)
-                         ->get();
-
-            foreach ($admins as $admin) {
-                $this->createNotification([
-                    'user_id' => $admin->id,
-                    'type' => 'module_completed',
-                    'title' => 'Module Completed',
-                    'message' => "Module " . strtoupper($module) . " for {$customer->nama_pelanggan} ({$reffId}) has been completed successfully",
-                    'data' => [
-                        'reff_id_pelanggan' => $reffId,
-                        'module' => $module,
-                        'customer_name' => $customer->nama_pelanggan,
-                        'completion_date' => now()->toDateString()
-                    ],
-                    'priority' => 'low'
-                ]);
-            }
-
-            Log::info('Module completion notifications sent', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'admins_count' => $admins->count()
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Failed to notify about module completion', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Notify field users about photo approval
-     *
-     * @param string $reffId
-     * @param string $module
-     * @param string $photoField
-     * @return void
-     */
-    public function notifyPhotoApproved(string $reffId, string $module, string $photoField): void
-    {
-        try {
-            $roleMapping = [
-                'sk' => 'sk',
-                'sr' => 'sr',
-                'mgrt' => 'mgrt',
-                'gas_in' => 'gas_in',
-                'jalur_pipa' => 'pic',
-                'penyambungan' => 'pic'
-            ];
-
-            $targetRole = $roleMapping[$module] ?? 'tracer';
-            $users = User::where('role', $targetRole)
-                        ->where('is_active', true)
-                        ->get();
-
-            $customer = CalonPelanggan::find($reffId);
-
-            if (!$customer) {
-                Log::warning("Customer not found for approval notification: {$reffId}");
-                return;
-            }
-
-            $messageText = $photoField === 'all_photos'
-                ? "Congratulations! Your work on {$customer->nama_pelanggan} ({$reffId}) for module " . strtoupper($module) . " has been fully approved"
-                : "Photo {$photoField} for {$customer->nama_pelanggan} ({$reffId}) has been approved";
-
-            foreach ($users as $user) {
-                $this->createNotification([
-                    'user_id' => $user->id,
-                    'type' => $photoField === 'all_photos' ? 'module_completed' : 'photo_approved',
-                    'title' => $photoField === 'all_photos' ? 'Module Approved' : 'Photo Approved',
-                    'message' => $messageText,
-                    'data' => [
-                        'reff_id_pelanggan' => $reffId,
-                        'module' => $module,
-                        'photo_field' => $photoField,
-                        'customer_name' => $customer->nama_pelanggan
-                    ],
-                    'priority' => 'low'
-                ]);
-            }
-
-            Log::info('Photo approval notifications sent', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'photo_field' => $photoField,
-                'target_role' => $targetRole,
-                'users_count' => $users->count()
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Failed to notify about photo approval', [
-                'reff_id' => $reffId,
-                'module' => $module,
-                'photo_field' => $photoField,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    public function notifyNewCustomerRegistration(CalonPelanggan $customer): void
-    {
-        try {
-            $tracers = User::where('role', 'tracer')
-                        ->where('is_active', true)
-                        ->get();
-
-            foreach ($tracers as $tracer) {
-                $this->createNotification([
-                    'user_id' => $tracer->id,
-                    'type' => 'new_customer',
-                    'title' => 'New Customer Registration',
-                    'message' => "New customer {$customer->nama_pelanggan} ({$customer->reff_id_pelanggan}) has been registered and needs validation",
-                    'data' => [
-                        'reff_id_pelanggan' => $customer->reff_id_pelanggan,
-                        'customer_name' => $customer->nama_pelanggan,
-                        'registration_date' => $customer->tanggal_registrasi,
-                        'url' => "/customers/{$customer->reff_id_pelanggan}"
-                    ],
-                    'priority' => 'medium'
-                ]);
-            }
-
-            Log::info('New customer registration notifications sent', [
-                'reff_id' => $customer->reff_id_pelanggan,
-                'tracers_count' => $tracers->count()
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Failed to notify about new customer registration', [
-                'reff_id' => $customer->reff_id_pelanggan,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send SLA warning notification
-     *
-     * @param string $type
-     * @param string $reffId
-     * @param string $photoField
-     * @param int $hoursPending
-     * @param int $slaLimit
-     * @return void
-     */
-    public function sendSlaWarning(string $type, string $reffId, string $photoField, int $hoursPending, int $slaLimit): void
-    {
-        try {
-            $targetRole = $type === 'tracer' ? 'tracer' : 'admin';
-            $users = User::where('role', $targetRole)
-                        ->where('is_active', true)
-                        ->get();
-
-            $customer = CalonPelanggan::find($reffId);
-
-            if (!$customer) {
-                Log::warning("Customer not found for SLA warning: {$reffId}");
-                return;
-            }
-
-            foreach ($users as $user) {
-                $this->createNotification([
-                    'user_id' => $user->id,
-                    'type' => 'sla_warning',
-                    'title' => 'SLA Warning - ' . strtoupper($type) . ' Review',
-                    'message' => "Photo {$photoField} from {$customer->nama_pelanggan} ({$reffId}) has been pending for {$hoursPending} hours (SLA: {$slaLimit}h)",
-                    'data' => [
-                        'reff_id_pelanggan' => $reffId,
-                        'photo_field' => $photoField,
-                        'hours_pending' => $hoursPending,
-                        'sla_limit' => $slaLimit,
-                        'review_type' => $type
-                    ],
-                    'priority' => 'urgent'
-                ]);
-            }
-
-            Log::info('SLA warning notifications sent', [
-                'type' => $type,
-                'reff_id' => $reffId,
-                'hours_pending' => $hoursPending,
-                'users_count' => $users->count()
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Failed to send SLA warning notifications', [
-                'type' => $type,
-                'reff_id' => $reffId,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Mark notification as read
-     *
-     * @param int $notificationId
-     * @param int $userId
-     * @return bool
+     * @return bool true jika sukses/perubahan terjadi, false jika notifikasi tidak ditemukan (milik user tsb).
      */
     public function markAsRead(int $notificationId, int $userId): bool
     {
-        try {
-            $notification = Notification::where('id', $notificationId)
-                                       ->where('user_id', $userId)
-                                       ->first();
-
-            if (!$notification) {
-                return false;
-            }
-
-            $notification->markAsRead();
-            return true;
-
-        } catch (Exception $e) {
-            Log::error('Failed to mark notification as read', [
-                'notification_id' => $notificationId,
-                'user_id' => $userId,
-                'error' => $e->getMessage()
-            ]);
+        /** @var Notification|null $n */
+        $n = Notification::where('user_id', $userId)->find($notificationId);
+        if (!$n) {
             return false;
         }
+
+        if ($n->is_read) {
+            return true; // sudah dibaca, anggap sukses
+        }
+
+        $n->is_read = true;
+        $n->read_at = now();
+        $n->save();
+
+        return true;
+    }
+
+    // Tambahan di NotificationService (DI DALAM class)
+
+    public function notifyTracerPhotoPending(string $reffId, string $module): int
+    {
+        $cust = CalonPelanggan::find($reffId);
+        $title = 'Foto menunggu review Tracer';
+        $message = sprintf(
+            'Modul %s untuk %s (%s) siap ditinjau Tracer.',
+            strtoupper($module),
+            $cust->nama_pelanggan ?? '-',
+            $reffId
+        );
+
+        return $this->sendToRoles(
+            ['tracer','validasi','admin','super_admin'],
+            'photo_tracer_pending',
+            $title,
+            $message,
+            'medium',
+            [
+                'reff_id_pelanggan' => $reffId,
+                'module' => $module,
+                'link' => $this->customerLink($reffId),
+            ]
+        );
+    }
+
+    public function notifyAdminCgpReview(string $reffId, string $module): int
+    {
+        $cust = CalonPelanggan::find($reffId);
+        $title = 'Foto menunggu review CGP';
+        $message = sprintf(
+            'Modul %s untuk %s (%s) menunggu persetujuan CGP.',
+            strtoupper($module),
+            $cust->nama_pelanggan ?? '-',
+            $reffId
+        );
+
+        return $this->sendToRoles(
+            ['admin','super_admin'],
+            'photo_cgp_pending',
+            $title,
+            $message,
+            'high',
+            [
+                'reff_id_pelanggan' => $reffId,
+                'module' => $module,
+                'link' => $this->customerLink($reffId),
+            ]
+        );
+    }
+
+    public function notifyPhotoApproved(string $reffId, string $module, string $photoField): int
+    {
+        $cust = CalonPelanggan::find($reffId);
+        $title = 'Foto disetujui';
+        $message = sprintf(
+            'Foto "%s" pada modul %s untuk %s (%s) telah disetujui.',
+            $photoField,
+            strtoupper($module),
+            $cust->nama_pelanggan ?? '-',
+            $reffId
+        );
+
+        // kirim ke tracer & admin
+        return $this->sendToRoles(
+            ['tracer','admin','super_admin'],
+            'photo_approved',
+            $title,
+            $message,
+            'medium',
+            [
+                'reff_id_pelanggan' => $reffId,
+                'module' => $module,
+                'photo_field' => $photoField,
+                'link' => $this->customerLink($reffId),
+            ]
+        );
+    }
+
+    public function notifyPhotoRejection(string $reffId, string $module, string $photoField, string $reason): int
+    {
+        $cust = CalonPelanggan::find($reffId);
+        $title = 'Foto ditolak';
+        $message = sprintf(
+            'Foto "%s" pada modul %s untuk %s (%s) ditolak. Alasan: %s',
+            $photoField,
+            strtoupper($module),
+            $cust->nama_pelanggan ?? '-',
+            $reffId,
+            $reason
+        );
+
+        // utamakan tim lapangan (tracer) & admin
+        return $this->sendToRoles(
+            ['tracer','admin','super_admin'],
+            'photo_rejected',
+            $title,
+            $message,
+            'high',
+            [
+                'reff_id_pelanggan' => $reffId,
+                'module' => $module,
+                'photo_field' => $photoField,
+                'reason' => $reason,
+                'link' => $this->customerLink($reffId),
+            ]
+        );
     }
 
     /**
-     * Mark all notifications as read for user
+     * Batch proses approve/reject berdasarkan action.
      *
-     * @param int $userId
-     * @return int
+     * @param int[]        $photoIds
+     * @param 'tracer_approve'|'tracer_reject'|'cgp_approve'|'cgp_reject' $action
+     * @param int          $actorUserId
+     * @param array{notes?:?string,reason?:?string} $payload
+     * @return array{total:int,successful:int,failed:int,results:array<int,array{id:int,success:bool,message:string}>}
+     */
+
+
+    public function notifyModuleCompletion(string $reffId, string $module): int
+    {
+        $cust = CalonPelanggan::find($reffId);
+        $title = 'Modul selesai';
+        $message = sprintf(
+            'Modul %s untuk %s (%s) selesai. Lanjutkan ke tahap berikutnya.',
+            strtoupper($module),
+            $cust->nama_pelanggan ?? '-',
+            $reffId
+        );
+
+        return $this->sendToRoles(
+            ['admin','super_admin','validasi','tracer'],
+            'module_completed',
+            $title,
+            $message,
+            'medium',
+            [
+                'reff_id_pelanggan' => $reffId,
+                'module' => $module,
+                'link' => $this->customerLink($reffId),
+            ]
+        );
+    }
+
+
+
+
+    protected function getUsersByRoles(array $roles): \Illuminate\Support\Collection
+    {
+        // Jika pakai Spatie (akan berhasil bila trait HasRoles dipasang di User)
+        if (method_exists(User::class, 'role')) {
+            return User::role($roles)->get(['id']);
+        }
+
+        // Fallback: kolom 'role' di tabel users
+        $q = User::query();
+
+        if (Schema::hasColumn('users', 'role')) { // <— GANTI KE FACADE
+            $q->whereIn('role', $roles);
+        }
+
+        return $q->get(['id']);
+    }
+
+    /**
+     * Tandai semua notifikasi user sebagai dibaca.
+     *
+     * @return int jumlah notifikasi yang ditandai dibaca
      */
     public function markAllAsRead(int $userId): int
     {
-        try {
-            $count = Notification::where('user_id', $userId)
-                                ->where('is_read', false)
-                                ->update([
-                                    'is_read' => true,
-                                    'read_at' => now()
-                                ]);
-
-            Log::info('All notifications marked as read', [
-                'user_id' => $userId,
-                'count' => $count
+        return Notification::where('user_id', $userId)
+            ->where('is_read', false)
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
             ]);
-
-            return $count;
-
-        } catch (Exception $e) {
-            Log::error('Failed to mark all notifications as read', [
-                'user_id' => $userId,
-                'error' => $e->getMessage()
-            ]);
-            return 0;
-        }
     }
 
     /**
-     * Get notification statistics for user
+     * Statistik ringkas notifikasi user.
      *
-     * @param int $userId
-     * @return array
+     * @return array{
+     *   total:int,
+     *   unread:int,
+     *   read:int,
+     *   last_7_days:int,
+     *   latest_at:?Carbon,
+     *   latest_unread_at:?Carbon
+     * }
      */
     public function getUserNotificationStats(int $userId): array
     {
-        try {
-            $stats = [
-                'total' => Notification::where('user_id', $userId)->count(),
-                'unread' => Notification::where('user_id', $userId)->where('is_read', false)->count(),
-                'high_priority' => Notification::where('user_id', $userId)
-                                                ->where('is_read', false)
-                                                ->where('priority', 'high')
-                                                ->count(),
-                'urgent' => Notification::where('user_id', $userId)
-                                       ->where('is_read', false)
-                                       ->where('priority', 'urgent')
-                                       ->count(),
-            ];
+        $base = Notification::where('user_id', $userId);
 
-            $stats['read'] = $stats['total'] - $stats['unread'];
+        $total   = (clone $base)->count();
+        $unread  = (clone $base)->where('is_read', false)->count();
+        $read    = $total - $unread;
+        $last7   = (clone $base)->where('created_at', '>=', now()->subDays(7))->count();
+        $latest  = (clone $base)->max('created_at');
+        $latestUnread = (clone $base)->where('is_read', false)->max('created_at');
 
-            return $stats;
-
-        } catch (Exception $e) {
-            Log::error('Failed to get user notification stats', [
-                'user_id' => $userId,
-                'error' => $e->getMessage()
-            ]);
-
-            return [
-                'total' => 0,
-                'unread' => 0,
-                'read' => 0,
-                'high_priority' => 0,
-                'urgent' => 0
-            ];
-        }
+        return [
+            'total'            => (int) $total,
+            'unread'           => (int) $unread,
+            'read'             => (int) $read,
+            'last_7_days'      => (int) $last7,
+            'latest_at'        => $latest ? Carbon::parse($latest) : null,
+            'latest_unread_at' => $latestUnread ? Carbon::parse($latestUnread) : null,
+        ];
     }
+
+    /* ========================= Helpers ========================= */
+
+    private function normalizePriority(?string $priority): string
+    {
+        $allowed = ['low','medium','high','urgent'];
+        $p = strtolower((string) $priority);
+        return in_array($p, $allowed, true) ? $p : 'medium';
+    }
+    private function sendToRoles(array $roles, string $type, string $title, string $message, string $priority = 'medium', array $data = []): int
+    {
+        $recipients = $this->getUsersByRoles($roles);
+        if ($recipients->isEmpty()) {
+            return 0;
+        }
+
+        $now = now();
+        $rows = $recipients->map(function ($u) use ($type, $title, $message, $priority, $data, $now) {
+            return [
+                'user_id'   => $u->id,
+                'type'      => $type,
+                'title'     => $title,
+                'message'   => $message,
+                'priority'  => $this->normalizePriority($priority),
+                'data'      => $data,
+                'is_read'   => false,
+                'read_at'   => null,
+                'created_at'=> $now,
+                'updated_at'=> $now,
+            ];
+        })->all();
+
+        Notification::insert($rows);
+        return count($rows);
+    }
+
+    private function customerLink(?string $reff): string
+    {
+        try {
+            if ($reff && app('router')->has('customers.show')) {
+                return route('customers.show', $reff);
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+        return $reff ? url('/customers/'.$reff) : url('/customers');
+    }
+
 }
