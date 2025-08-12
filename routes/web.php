@@ -95,36 +95,59 @@ Route::middleware('auth')->group(function () {
     | SK (pakai implicit model binding ID numerik)
     |--------------------------------------------------------------------------
     */
-    Route::prefix('sk')->name('sk.')->middleware('role:sk,tracer,admin')->group(function () {
-        Route::get('/', [SkDataController::class, 'index'])->name('index');
 
-        // ⬇️ WAJIB ADA
-        Route::get('/create', [SkDataController::class, 'create'])->name('create');
-        Route::post('/', [SkDataController::class, 'store'])->name('store');
+    Route::prefix('sk')
+        ->name('sk.')
+        ->middleware('role:sk|tracer|admin|super_admin') // ← pakai "|" jika Spatie; kalau middleware kamu pakai koma, kembalikan ke koma
+        ->group(function () {
 
-        Route::get('/{sk}', [SkDataController::class, 'show'])->whereNumber('sk')->name('show');
-        Route::get('/{sk}/edit', [SkDataController::class, 'edit'])->whereNumber('sk')->name('edit');
-        Route::put('/{sk}', [SkDataController::class, 'update'])->whereNumber('sk')->name('update');
-        Route::delete('/{sk}', [SkDataController::class, 'destroy'])->whereNumber('sk')->name('destroy');
+            Route::get('/', [SkDataController::class, 'index'])->name('index');
 
-        Route::post('/{sk}/photos', [SkDataController::class, 'uploadAndValidate'])->whereNumber('sk')->name('photos.upload');
-        Route::post('/{sk}/photos/{photo}/recheck', [SkDataController::class, 'recheck'])
-            ->whereNumber('sk')->whereNumber('photo')->name('photos.recheck');
+            // Form & store draft
+            Route::get('/create', [SkDataController::class, 'create'])->name('create');
+            Route::post('/', [SkDataController::class, 'store'])->name('store');
 
-        Route::get('/{sk}/ready-status', [SkDataController::class, 'readyStatus'])->whereNumber('sk')->name('ready-status');
+            // Detail & CRUD
+            Route::get('/{sk}', [SkDataController::class, 'show'])->whereNumber('sk')->name('show');
+            Route::get('/{sk}/edit', [SkDataController::class, 'edit'])->whereNumber('sk')->name('edit');
+            Route::put('/{sk}', [SkDataController::class, 'update'])->whereNumber('sk')->name('update');
+            Route::delete('/{sk}', [SkDataController::class, 'destroy'])->whereNumber('sk')->name('destroy');
 
-        Route::post('/{sk}/approve-tracer', [SkDataController::class, 'approveTracer'])->whereNumber('sk')->name('approve-tracer');
-        Route::post('/{sk}/reject-tracer',  [SkDataController::class, 'rejectTracer'])->whereNumber('sk')->name('reject-tracer');
-        Route::post('/{sk}/approve-cgp',    [SkDataController::class, 'approveCgp'])->whereNumber('sk')->name('approve-cgp');
-        Route::post('/{sk}/reject-cgp',     [SkDataController::class, 'rejectCgp'])->whereNumber('sk')->name('reject-cgp');
+            // Precheck (tanpa {sk}) — dipakai saat create sebelum ada id
+            Route::post('/photos/precheck-generic', [SkDataController::class, 'precheckGeneric'])
+                ->name('photos.precheck-generic');
 
-        Route::post('/{sk}/schedule', [SkDataController::class, 'schedule'])->whereNumber('sk')->name('schedule');
-        Route::post('/{sk}/complete', [SkDataController::class, 'complete'])->whereNumber('sk')->name('complete');
+            // Upload foto (tanpa AI ulang) + simpan hasil precheck
+            Route::post('/{sk}/photos', [SkDataController::class, 'uploadAndValidate'])
+                ->whereNumber('sk')->name('photos.upload');
 
-        // (opsional) tanpa closure supaya aman route:cache
-        Route::get('/by-reff/{reffId}', [SkDataController::class, 'redirectByReff'])
-            ->where('reffId', '[A-Z0-9\-]+')->name('by-reff');
-    });
+            // ❌ HAPUS: recheck karena tidak dipakai lagi
+            // Route::post('/{sk}/photos/{photo}/recheck', ...)->name('photos.recheck');
+
+            // Status & workflow
+            Route::get('/{sk}/ready-status', [SkDataController::class, 'readyStatus'])
+                ->whereNumber('sk')->name('ready-status');
+
+            Route::post('/{sk}/approve-tracer', [SkDataController::class, 'approveTracer'])
+                ->whereNumber('sk')->name('approve-tracer');
+            Route::post('/{sk}/reject-tracer',  [SkDataController::class, 'rejectTracer'])
+                ->whereNumber('sk')->name('reject-tracer');
+
+            Route::post('/{sk}/approve-cgp', [SkDataController::class, 'approveCgp'])
+                ->whereNumber('sk')->name('approve-cgp');
+            Route::post('/{sk}/reject-cgp',  [SkDataController::class, 'rejectCgp'])
+                ->whereNumber('sk')->name('reject-cgp');
+
+            Route::post('/{sk}/schedule', [SkDataController::class, 'schedule'])
+                ->whereNumber('sk')->name('schedule');
+            Route::post('/{sk}/complete', [SkDataController::class, 'complete'])
+                ->whereNumber('sk')->name('complete');
+
+            // (opsional) by-reff → pastikan controllernya ada. Perlebar regex agar terima huruf kecil juga
+            Route::get('/by-reff/{reffId}', [SkDataController::class, 'redirectByReff'])
+                ->where('reffId', '[A-Za-z0-9\-]+')->name('by-reff');
+        });
+
 
     /*
     |--------------------------------------------------------------------------
@@ -156,6 +179,12 @@ Route::middleware('auth')->group(function () {
         // Penjadwalan & selesai
         Route::post('{sr}/schedule', [SrDataController::class, 'schedule'])->whereNumber('sr')->name('schedule');
         Route::post('{sr}/complete', [SrDataController::class, 'complete'])->whereNumber('sr')->name('complete');
+
+        Route::post('/sk/photos/precheck-generic', [SkDataController::class, 'precheckGeneric'])
+            ->name('sk.photos.precheck-generic'); // untuk halaman create (belum punya {sk})
+
+        Route::post('/sk/{sk}/photos/precheck', [SkDataController::class, 'precheck'])
+            ->whereNumber('sk')->name('sk.photos.precheck');
 
         // (Opsional) akses by reff
         Route::get('by-reff/{reffId}', function (string $reffId) {

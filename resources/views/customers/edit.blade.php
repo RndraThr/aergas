@@ -1,227 +1,385 @@
-{{-- resources/views/customers/edit.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Ubah Data Pelanggan - AERGAS')
+@section('title', 'Edit Pelanggan - AERGAS')
+@section('page-title', 'Edit Pelanggan')
+
+@section('breadcrumb')
+    <li class="flex items-center">
+        <a href="{{ route('dashboard') }}" class="text-gray-500 hover:text-gray-700">Dashboard</a>
+        <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+    </li>
+    <li class="flex items-center">
+        <a href="{{ route('customers.index') }}" class="text-gray-500 hover:text-gray-700">Data Pelanggan</a>
+        <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+    </li>
+    <li class="flex items-center">
+        <a href="{{ route('customers.show', $customer->reff_id_pelanggan) }}" class="text-gray-500 hover:text-gray-700">{{ $customer->reff_id_pelanggan }}</a>
+        <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+    </li>
+    <li class="text-gray-900 font-medium">Edit</li>
+@endsection
 
 @section('content')
-@php
-    /** @var \App\Models\User $auth */
-    $auth = auth()->user();
-    $canEditReff = $auth && ($auth->isSuperAdmin() || $auth->isAdmin() || $auth->isTracer());
-    $statuses = ['pending','validated','in_progress','lanjut','batal'];
-    $progresses = ['validasi','sk','sr','mgrt','gas_in','jalur_pipa','penyambungan','done','batal'];
-@endphp
+<div class="max-w-4xl mx-auto space-y-6" x-data="customerEditData()">
 
-<div class="space-y-6">
-    {{-- Header --}}
+    <!-- Header -->
     <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800">Ubah Data Pelanggan</h1>
-            <p class="text-gray-600 mt-1">Perbarui informasi pelanggan</p>
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-xl flex items-center justify-center text-white text-lg font-bold">
+                {{ substr($customer->nama_pelanggan, 0, 1) }}
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Edit Pelanggan</h1>
+                <p class="text-gray-600">{{ $customer->reff_id_pelanggan }} - {{ $customer->nama_pelanggan }}</p>
+            </div>
         </div>
-        <div class="flex items-center gap-3">
+
+        <div class="flex items-center space-x-3">
             <a href="{{ route('customers.show', $customer->reff_id_pelanggan) }}"
-               class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-                <i class="fas fa-eye mr-2"></i>Lihat
+               class="flex items-center space-x-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                <i class="fas fa-eye"></i>
+                <span>View Detail</span>
             </a>
+
             <a href="{{ route('customers.index') }}"
-               class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-                <i class="fas fa-arrow-left mr-2"></i>Kembali
+               class="flex items-center space-x-2 px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors">
+                <i class="fas fa-arrow-left"></i>
+                <span>Kembali</span>
             </a>
         </div>
     </div>
 
-    {{-- Errors --}}
-    @if ($errors->any())
-        <div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
-            <div class="font-semibold mb-2">Periksa kembali input Anda:</div>
-            <ul class="list-disc ml-5 space-y-1">
-                @foreach ($errors->all() as $err)
-                    <li>{{ $err }}</li>
-                @endforeach
-            </ul>
+    <!-- Current Status Alert -->
+    <div class="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
+        <div class="flex items-center space-x-3">
+            <i class="fas fa-info-circle text-blue-600"></i>
+            <div>
+                <div class="font-medium text-blue-900">Status Pelanggan Saat Ini</div>
+                <div class="text-sm text-blue-700">
+                    Status: <span class="font-medium">{{ ucfirst($customer->status) }}</span> |
+                    Progress: <span class="font-medium">{{ ucfirst($customer->progress_status) }}</span> ({{ $customer->progress_percentage }}%)
+                </div>
+            </div>
         </div>
-    @endif
+    </div>
 
-    {{-- Form --}}
-    <form action="{{ route('customers.update', $customer->reff_id_pelanggan) }}" method="POST"
-          class="bg-white rounded-xl card-shadow p-6 space-y-6">
+    <!-- Form -->
+    <form @submit.prevent="submitForm()" class="space-y-6">
         @csrf
         @method('PUT')
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {{-- REFF ID --}}
-            <div x-data="reffEditor('{{ $customer->reff_id_pelanggan }}', {{ $canEditReff ? 'true' : 'false' }})">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Reference ID @if($canEditReff)<span class="text-red-500">*</span>@endif</label>
-
-                @if ($canEditReff)
-                    <div class="flex">
-                        <input type="text" name="reff_id_pelanggan" x-model="reff" @input="sanitize()"
-                               class="flex-1 px-3 py-2 border rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                               placeholder="Contoh: AER001" required>
-                        <button type="button" @click="check()"
-                                class="px-3 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700">
-                            Cek
-                        </button>
-                    </div>
-                    <p class="text-xs mt-1" :class="stateClass()" x-text="message"></p>
-                @else
-                    <div class="flex">
-                        <input type="text" value="{{ $customer->reff_id_pelanggan }}" readonly
-                               class="flex-1 px-3 py-2 border rounded-l-lg bg-gray-100 text-gray-700">
-                        <button type="button"
-                                @click="navigator.clipboard.writeText('{{ $customer->reff_id_pelanggan }}'); window.showToast?.('Disalin','success')"
-                                class="px-3 py-2 bg-gray-700 text-white rounded-r-lg hover:bg-gray-800">
-                            Salin
-                        </button>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">ID tidak dapat diubah untuk role Anda.</p>
-                @endif
+        <!-- Basic Information -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-6">
+                <div class="w-10 h-10 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-user text-white"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Informasi Dasar</h2>
+                    <p class="text-sm text-gray-600">Update data identitas pelanggan</p>
+                </div>
             </div>
 
-            {{-- Nama --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Nama Pelanggan <span class="text-red-500">*</span></label>
-                <input type="text" name="nama_pelanggan" value="{{ old('nama_pelanggan', $customer->nama_pelanggan) }}"
-                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Reference ID (Read Only) -->
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Reference ID</label>
+                    <input type="text"
+                           value="{{ $customer->reff_id_pelanggan }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                           readonly>
+                    <p class="mt-1 text-xs text-gray-500">Reference ID tidak dapat diubah</p>
+                </div>
 
-            {{-- Telepon --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">No. Telepon</label>
-                <input type="text" name="no_telepon" value="{{ old('no_telepon', $customer->no_telepon) }}"
-                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            </div>
+                <!-- Customer Name -->
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Nama Pelanggan <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text"
+                           x-model="form.nama_pelanggan"
+                           :class="errors.nama_pelanggan ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           required>
+                    <div x-show="errors.nama_pelanggan" class="mt-1 text-sm text-red-600" x-text="errors.nama_pelanggan"></div>
+                </div>
 
-            {{-- Kelurahan --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Kelurahan</label>
-                <input type="text"
-                    name="kelurahan"
-                    value="{{ old('kelurahan', $customer->kelurahan) }}"
-                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Contoh: Menteng">
-            </div>
+                <!-- Phone Number -->
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Nomor Telepon <span class="text-red-500">*</span>
+                    </label>
+                    <input type="tel"
+                           x-model="form.no_telepon"
+                           :class="errors.no_telepon ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           required>
+                    <div x-show="errors.no_telepon" class="mt-1 text-sm text-red-600" x-text="errors.no_telepon"></div>
+                </div>
 
-            {{-- Padukuhan --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Padukuhan</label>
-                <input type="text"
-                    name="padukuhan"
-                    value="{{ old('padukuhan', $customer->padukuhan) }}"
-                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Contoh: RT 05/RW 02">
-            </div>
+                <!-- Customer Type -->
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Pelanggan</label>
+                    <select x-model="form.jenis_pelanggan"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
+                        <option value="residensial">Residensial</option>
+                        <option value="komersial">Komersial</option>
+                        <option value="industri">Industri</option>
+                    </select>
+                </div>
 
-            {{-- Status --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                @php $st = old('status', $customer->status ?? 'pending'); @endphp
-                <select name="status" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                    @foreach ($statuses as $opt)
-                        <option value="{{ $opt }}" {{ $st === $opt ? 'selected' : '' }}>
-                            {{ ucfirst(str_replace('_',' ',$opt)) }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+                <!-- Area -->
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Wilayah Area</label>
+                    <input type="text"
+                           x-model="form.wilayah_area"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
+                           placeholder="Jakarta Selatan, Bekasi, dll">
+                </div>
 
-            {{-- Progress --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Progress</label>
-                @php $pg = old('progress_status', $customer->progress_status ?? 'validasi'); @endphp
-                <select name="progress_status" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                    @foreach ($progresses as $opt)
-                        <option value="{{ $opt }}" {{ $pg === $opt ? 'selected' : '' }}>
-                            {{ ucfirst(str_replace('_',' ',$opt)) }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+                <!-- Address -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Alamat Lengkap <span class="text-red-500">*</span>
+                    </label>
+                    <textarea x-model="form.alamat"
+                              :class="errors.alamat ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                              class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                              rows="3"
+                              required></textarea>
+                    <div x-show="errors.alamat" class="mt-1 text-sm text-red-600" x-text="errors.alamat"></div>
+                </div>
 
-            {{-- Email (opsional) --}}
-            <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email (opsional)</label>
-                <input type="email" name="email" value="{{ old('email', $customer->email ?? '') }}"
-                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            </div>
-
-            {{-- Alamat --}}
-            <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Alamat <span class="text-red-500">*</span></label>
-                <textarea name="alamat" rows="3" required
-                          class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Alamat lengkap">{{ old('alamat', $customer->alamat) }}</textarea>
-            </div>
-
-            {{-- Keterangan --}}
-            <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Keterangan (opsional)</label>
-                <textarea name="keterangan" rows="2"
-                          class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Catatan">{{ old('keterangan', $customer->keterangan) }}</textarea>
+                <!-- Notes -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Keterangan</label>
+                    <textarea x-model="form.keterangan"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
+                              rows="2"
+                              placeholder="Catatan tambahan (opsional)"></textarea>
+                </div>
             </div>
         </div>
 
-        <div class="flex items-center justify-end space-x-3">
-            <a href="{{ route('customers.show', $customer->reff_id_pelanggan) }}"
-               class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Batal</a>
-            <button type="submit"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Simpan Perubahan
-            </button>
+        <!-- Status Management -->
+        @if(auth()->user()->role === 'admin' || auth()->user()->role === 'tracer')
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-6">
+                <div class="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-cog text-white"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Manajemen Status</h2>
+                    <p class="text-sm text-gray-600">Update status dan progress pelanggan</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Status -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status Pelanggan</label>
+                    <select x-model="form.status"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
+                        <option value="pending">Pending</option>
+                        <option value="validated">Validated</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="lanjut">Lanjut</option>
+                        <option value="batal">Batal</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">Status workflow pelanggan</p>
+                </div>
+
+                <!-- Progress -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Progress Status</label>
+                    <select x-model="form.progress_status"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
+                        <option value="validasi">Validasi</option>
+                        <option value="sk">SK</option>
+                        <option value="sr">SR</option>
+                        <option value="mgrt">MGRT</option>
+                        <option value="gas_in">Gas In</option>
+                        <option value="jalur_pipa">Jalur Pipa</option>
+                        <option value="penyambungan">Penyambungan</option>
+                        <option value="done">Done</option>
+                        <option value="batal">Batal</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">Tahapan progress saat ini</p>
+                </div>
+            </div>
+
+            <!-- Status Change Warning -->
+            <div x-show="form.status !== '{{ $customer->status }}' || form.progress_status !== '{{ $customer->progress_status }}'"
+                 class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div class="flex items-start space-x-2">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 mt-0.5"></i>
+                    <div class="text-sm text-yellow-700">
+                        <p class="font-medium">Perhatian: Perubahan Status</p>
+                        <p>Perubahan status atau progress dapat mempengaruhi workflow pelanggan. Pastikan perubahan sudah sesuai dengan kondisi aktual.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        <!-- Change Log -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-4">
+                <div class="w-10 h-10 bg-gray-500 rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-history text-white"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Riwayat Perubahan</h2>
+                    <p class="text-sm text-gray-600">Catatan perubahan terakhir</p>
+                </div>
+            </div>
+
+            <div class="text-sm text-gray-600 space-y-1">
+                <p><strong>Dibuat:</strong> {{ $customer->created_at->format('d/m/Y H:i') }}</p>
+                <p><strong>Diperbarui:</strong> {{ $customer->updated_at->format('d/m/Y H:i') }}</p>
+                <p><strong>Registrasi:</strong> {{ $customer->tanggal_registrasi ? $customer->tanggal_registrasi->format('d/m/Y H:i') : '-' }}</p>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex items-center justify-between space-x-4">
+            <div class="flex items-center space-x-3">
+                <button type="button"
+                        @click="resetForm()"
+                        class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                    Reset Changes
+                </button>
+
+                <button type="button"
+                        @click="confirmCancel()"
+                        class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                    Cancel
+                </button>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button type="submit"
+                        :disabled="submitting || !hasChanges"
+                        :class="hasChanges ? 'bg-gradient-to-r from-aergas-navy to-aergas-orange hover:shadow-lg' : 'bg-gray-400 cursor-not-allowed'"
+                        class="px-6 py-2 text-white rounded-lg transition-all duration-300 disabled:opacity-50">
+                    <span x-show="!submitting">Update Pelanggan</span>
+                    <span x-show="submitting">
+                        <i class="fas fa-spinner animate-spin mr-2"></i>Updating...
+                    </span>
+                </button>
+            </div>
         </div>
     </form>
 </div>
-@endsection
 
 @push('scripts')
 <script>
-function reffEditor(current, editable) {
-  return {
-    reff: current,
-    message: '',
-    valid: null, // true/false/null
+function customerEditData() {
+    return {
+        originalForm: @json([
+            'nama_pelanggan' => $customer->nama_pelanggan,
+            'alamat' => $customer->alamat,
+            'no_telepon' => $customer->no_telepon,
+            'wilayah_area' => $customer->wilayah_area,
+            'jenis_pelanggan' => $customer->jenis_pelanggan ?? 'residensial',
+            'keterangan' => $customer->keterangan,
+            'status' => $customer->status,
+            'progress_status' => $customer->progress_status
+        ]),
 
-    sanitize() {
-      if (!editable) return;
-      this.reff = (this.reff || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
-      this.valid = null;
-      this.message = '';
-    },
-    stateClass() {
-      if (this.valid === true)  return 'text-green-600';
-      if (this.valid === false) return 'text-red-600';
-      return 'text-gray-500';
-    },
-    async check() {
-      if (!editable) return;
-      const v = (this.reff || '').trim();
-      if (!v) { this.valid = null; this.message = 'Masukkan Reference ID.'; return; }
+        form: {
+            nama_pelanggan: '{{ $customer->nama_pelanggan }}',
+            alamat: '{{ $customer->alamat }}',
+            no_telepon: '{{ $customer->no_telepon }}',
+            wilayah_area: '{{ $customer->wilayah_area }}',
+            jenis_pelanggan: '{{ $customer->jenis_pelanggan ?? 'residensial' }}',
+            keterangan: '{{ $customer->keterangan }}',
+            status: '{{ $customer->status }}',
+            progress_status: '{{ $customer->progress_status }}'
+        },
 
-      try {
-        const url = @json(route('customers.validate-reff', ['reffId' => '___'])).replace('___', encodeURIComponent(v));
-        const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
-        const j = await res.json().catch(() => ({}));
+        errors: {},
+        submitting: false,
 
-        if (res.ok && j?.success) {
-          // ditemukan di DB
-          if (v === current) {
-            this.valid = true;  this.message = 'ID sama dengan ID saat ini (boleh).';
-          } else {
-            this.valid = false; this.message = 'ID sudah dipakai pelanggan lain.';
-          }
-        } else if (res.status === 404) {
-          // tidak ditemukan -> tersedia
-          this.valid = true;  this.message = 'ID tersedia.';
-        } else {
-          this.valid = false; this.message = j?.message || 'Gagal memeriksa ID.';
+        get hasChanges() {
+            return JSON.stringify(this.form) !== JSON.stringify(this.originalForm);
+        },
+
+        async submitForm() {
+            if (!this.hasChanges) {
+                window.showToast('info', 'Tidak ada perubahan untuk disimpan');
+                return;
+            }
+
+            this.submitting = true;
+            this.errors = {};
+
+            try {
+                const response = await fetch('{{ route('customers.update', $customer->reff_id_pelanggan) }}', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': window.csrfToken
+                    },
+                    body: JSON.stringify(this.form)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    window.showToast('success', 'Data pelanggan berhasil diperbarui!');
+
+                    // Update original form to reflect changes
+                    this.originalForm = { ...this.form };
+
+                    // Redirect back to detail page
+                    setTimeout(() => {
+                        window.location.href = '{{ route('customers.show', $customer->reff_id_pelanggan) }}';
+                    }, 1500);
+                } else {
+                    if (data.errors) {
+                        this.errors = data.errors;
+                    } else {
+                        window.showToast('error', data.message || 'Gagal memperbarui data pelanggan');
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating customer:', error);
+                window.showToast('error', 'Terjadi kesalahan saat memperbarui data');
+            } finally {
+                this.submitting = false;
+            }
+        },
+
+        resetForm() {
+            if (confirm('Reset semua perubahan?')) {
+                this.form = { ...this.originalForm };
+                this.errors = {};
+                window.showToast('info', 'Form telah direset');
+            }
+        },
+
+        confirmCancel() {
+            if (this.hasChanges) {
+                if (confirm('Ada perubahan yang belum disimpan. Yakin ingin keluar?')) {
+                    window.location.href = '{{ route('customers.show', $customer->reff_id_pelanggan) }}';
+                }
+            } else {
+                window.location.href = '{{ route('customers.show', $customer->reff_id_pelanggan) }}';
+            }
         }
-      } catch (e) {
-        this.valid = false; this.message = 'Gagal memeriksa ID.';
-      }
     }
-  }
 }
+
+// Warn before leaving if there are unsaved changes
+window.addEventListener('beforeunload', function(e) {
+    const data = Alpine.store('customerEdit');
+    if (data && data.hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
 </script>
 @endpush
+@endsection

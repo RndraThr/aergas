@@ -4,15 +4,33 @@
 @section('title', 'Buat SK - AERGAS')
 
 @section('content')
+
 @php
-    // fallback kalau $photoDefs belum dikirim dari controller
-    $photoDefs = $photoDefs ?? [
-        ['field' => 'pneumatic_start',  'label' => 'Foto Pneumatic START SK',  'accept' => ['image/*']],
-        ['field' => 'pneumatic_finish', 'label' => 'Foto Pneumatic FINISH SK', 'accept' => ['image/*']],
-        ['field' => 'valve',            'label' => 'Foto Valve SK',            'accept' => ['image/*']],
-        ['field' => 'pipa_depan',       'label' => 'Foto Pipa SK Depan',       'accept' => ['image/*']],
-        ['field' => 'isometrik_scan',   'label' => 'Scan Isometrik SK (TTD lengkap)', 'accept' => ['image/*','application/pdf']],
-    ];
+  // Ambil definisi slot dari config → siapkan untuk UI (dengan proteksi lebih aman)
+  $cfgAll   = config('aergas_photos') ?: [];
+  $cfgSlots = (array) (data_get($cfgAll, 'modules.SK.slots', []));
+  $photoDefs = [];
+  foreach ($cfgSlots as $key => $rule) {
+      $accept = $rule['accept'] ?? ['image/*'];
+      if (is_string($accept)) $accept = [$accept];
+      $checks = collect($rule['checks'] ?? [])->map(fn($c) => $c['label'] ?? $c['id'] ?? '')->filter()->values()->all();
+      $photoDefs[] = [
+          'field' => $key,
+          'label' => $rule['label'] ?? $key,
+          'accept' => $accept,
+          'required_objects' => $checks,
+      ];
+  }
+  // fallback minimal kalau config belum ada
+  if (empty($photoDefs)) {
+      $photoDefs = [
+          ['field'=>'pneumatic_start','label'=>'Foto Pneumatic START SK','accept'=>['image/*'],'required_objects'=>[]],
+          ['field'=>'pneumatic_finish','label'=>'Foto Pneumatic FINISH SK','accept'=>['image/*'],'required_objects'=>[]],
+          ['field'=>'valve','label'=>'Foto Valve SK','accept'=>['image/*'],'required_objects'=>[]],
+          ['field'=>'pipa_depan','label'=>'Foto Pipa Depan SK','accept'=>['image/*'],'required_objects'=>[]],
+          ['field'=>'isometrik_scan','label'=>'Scan Isometrik SK (TTD lengkap)','accept'=>['image/*','application/pdf'],'required_objects'=>[]],
+      ];
+  }
 @endphp
 
 <div class="space-y-6" x-data="skCreate()" x-init="init()">
@@ -23,7 +41,7 @@
       <h1 class="text-3xl font-bold text-gray-800">Buat SK</h1>
       <p class="text-gray-600 mt-1">Masukkan Reference ID untuk auto-fill data customer</p>
     </div>
-    <a href="{{ url()->previous() }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Kembali</a>
+    <a href="{{ route('sk.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Kembali</a>
   </div>
 
   {{-- Errors (server) --}}
@@ -77,7 +95,7 @@
           </div>
           <div class="md:col-span-2">
             <div class="text-xs text-gray-500">Alamat</div>
-            <div class="font-medium" x-text="customer.alamat || '-'"></div>
+            <div class="font-medium" x-text="customer.alamat || '-' "></div>
             <div class="text-sm text-gray-600 mt-1">
               <span class="mr-4">Kelurahan: <b x-text="customer.kelurahan || '-'"></b></span>
               <span>Padukuhan: <b x-text="customer.padukuhan || '-'"></b></span>
@@ -120,11 +138,18 @@
       <div class="flex items-center gap-3">
         <i class="fas fa-camera text-purple-600"></i>
         <h2 class="font-semibold text-gray-800">Upload Foto</h2>
+        <template x-if="hasAiFailure">
+          <div class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+            <i class="fas fa-exclamation-triangle mr-1"></i>
+            Ada foto yang perlu diperbaiki
+          </div>
+        </template>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <template x-for="ph in photoDefs" :key="ph.field">
-          <div class="border rounded-lg p-4">
+          <div class="border rounded-lg p-4"
+               :class="ai[ph.field] && !ai[ph.field].passed ? 'border-amber-300 bg-amber-50' : ''">
             <label class="block text-sm font-medium text-gray-700 mb-2" x-text="ph.label"></label>
 
             <template x-if="!previews[ph.field]">
@@ -132,8 +157,8 @@
                 Tidak ada file
               </div>
             </template>
-            <template x-if="previews[ph.field]">
-              <img :src="previews[ph.field]" alt="" class="h-32 w-full object-cover rounded" x-show="!isPdf(ph.field)">
+            <template x-if="previews[ph.field] && !isPdf(ph.field)">
+              <img :src="previews[ph.field]" alt="" class="h-32 w-full object-cover rounded">
             </template>
             <template x-if="isPdf(ph.field)">
               <div class="h-32 flex items-center justify-center bg-gray-50 rounded border">
@@ -141,18 +166,54 @@
               </div>
             </template>
 
-            <div class="mt-2">
-              <template x-if="(ph.required_objects || []).length">
-                <div class="text-xs text-gray-500">
-                  Objek wajib:
-                  <span class="inline-block mt-1">
-                    <template x-for="obj in ph.required_objects" :key="obj">
-                      <span class="px-2 py-0.5 mr-1 mb-1 bg-gray-100 rounded border inline-block" x-text="obj"></span>
-                    </template>
-                  </span>
+            {{-- Hasil AI Precheck --}}
+            <template x-if="ai[ph.field]">
+              <div class="mt-3 text-xs border rounded p-2"
+                   :class="ai[ph.field].passed ? 'border-green-300 bg-green-50 text-green-700' : 'border-amber-300 bg-amber-50 text-amber-700'">
+                <div class="font-medium mb-1 flex items-center">
+                  <i :class="ai[ph.field].passed ? 'fas fa-check-circle text-green-600' : 'fas fa-exclamation-triangle text-amber-600'" class="mr-1"></i>
+                  Hasil AI: <span x-text="ai[ph.field].passed ? 'LULUS' : 'PERLU PERBAIKAN'" class="font-bold"></span>
+                  <template x-if="ai[ph.field].score != null">
+                    <span class="ml-2 text-gray-600">Skor:
+                    <span x-text="fmtScore(ai[ph.field].score)"></span>
+                    </span>
+                    </span>
+                  </template>
                 </div>
-              </template>
-            </div>
+                <template x-if="(ai[ph.field].objects || []).length">
+                  <div class="mb-1">
+                    <span class="text-gray-600 font-medium">Objek terdeteksi:</span>
+                    <div class="mt-1">
+                      <template x-for="o in ai[ph.field].objects" :key="o">
+                        <span class="ml-1 px-2 py-0.5 bg-white border rounded inline-block mr-1 mb-1" x-text="o"></span>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+                <template x-if="(ai[ph.field].messages || []).length">
+                  <div>
+                    <span class="text-gray-600 font-medium">Catatan:</span>
+                    <ul class="list-disc ml-4 mt-1">
+                      <template x-for="m in ai[ph.field].messages" :key="m">
+                        <li x-text="m"></li>
+                      </template>
+                    </ul>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            {{-- Required Objects Info --}}
+            <template x-if="(ph.required_objects || []).length">
+              <div class="mt-2 text-xs text-gray-500">
+                <span class="font-medium">Objek wajib:</span>
+                <div class="mt-1">
+                  <template x-for="obj in ph.required_objects" :key="obj">
+                    <span class="px-2 py-0.5 mr-1 mb-1 bg-gray-100 rounded border inline-block" x-text="obj"></span>
+                  </template>
+                </div>
+              </div>
+            </template>
 
             <div class="flex items-center gap-2 mt-3">
               <input class="hidden" type="file"
@@ -160,29 +221,69 @@
                      :id="`inp_${ph.field}`"
                      @change="onPick(ph.field, $event)">
               <label :for="`inp_${ph.field}`"
-                     class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded cursor-pointer">Pilih</label>
+                     class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded cursor-pointer text-sm">
+                <i class="fas fa-folder-open mr-1"></i>Pilih
+              </label>
 
               <button type="button" @click="clearPick(ph.field)"
-                      class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded">Hapus</button>
+                      class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm">
+                <i class="fas fa-trash mr-1"></i>Hapus
+              </button>
 
-              <span class="text-xs" x-text="uploadStatuses[ph.field] || ''"></span>
+              <span class="text-xs flex-1"
+                    :class="uploadStatuses[ph.field]?.includes('AI: LULUS') ? 'text-green-600' :
+                           uploadStatuses[ph.field]?.includes('PERBAIKAN') ? 'text-amber-600' :
+                           uploadStatuses[ph.field]?.includes('gagal') ? 'text-red-600' : 'text-gray-500'"
+                    x-text="uploadStatuses[ph.field] || ''"></span>
             </div>
           </div>
         </template>
       </div>
 
-      <p class="text-xs text-gray-500">Format: JPG/PNG/WEBP, dan untuk Isometrik boleh PDF. Maks 10 MB per file.</p>
+      <div class="bg-blue-50 border border-blue-200 p-3 rounded text-sm">
+        <div class="flex items-start">
+          <i class="fas fa-info-circle text-blue-600 mr-2 mt-0.5"></i>
+          <div>
+            <p class="font-medium text-blue-800 mb-1">Catatan Upload:</p>
+            <ul class="text-blue-700 space-y-1">
+              <li>• Format: JPG/PNG/WEBP untuk foto, PDF untuk dokumen Isometrik</li>
+              <li>• Maksimal 10 MB per file</li>
+              <li>• Foto akan dianalisa otomatis menggunakan AI</li>
+              <li>• Pastikan objek yang diperlukan terlihat jelas dalam foto</li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="flex justify-end gap-3 pt-2">
-      <a href="{{ route('sk.index') }}" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Batal</a>
+      <a href="{{ route('sk.index') }}" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">
+        <i class="fas fa-arrow-left mr-2"></i>Batal
+      </a>
       <button type="submit"
-              :disabled="submitting || !customer || !reff || !tanggal"
+              :disabled="submitting || !customer || !reff || !tanggal || hasAiFailure"
               class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
-        <span x-show="!submitting">Simpan</span>
-        <span x-show="submitting"><i class="fas fa-spinner fa-spin mr-2"></i>Menyimpan…</span>
+        <template x-if="!submitting">
+          <span><i class="fas fa-save mr-2"></i>Simpan</span>
+        </template>
+        <template x-if="submitting">
+          <span><i class="fas fa-spinner fa-spin mr-2"></i>Menyimpan…</span>
+        </template>
       </button>
     </div>
+
+    {{-- AI Failure Warning --}}
+    <template x-if="hasAiFailure">
+      <div class="bg-amber-50 border border-amber-200 p-4 rounded">
+        <div class="flex items-start">
+          <i class="fas fa-exclamation-triangle text-amber-600 mr-2 mt-0.5"></i>
+          <div class="text-amber-800">
+            <p class="font-medium">Perhatian!</p>
+            <p class="text-sm mt-1">Beberapa foto perlu diperbaiki sebelum dapat disimpan. Periksa hasil analisa AI di atas dan pastikan foto memenuhi kriteria yang diperlukan.</p>
+          </div>
+        </div>
+      </div>
+    </template>
   </form>
 </div>
 @endsection
@@ -206,6 +307,11 @@ function skCreate() {
     previews: {},        // { field: dataURL }
     isPdfMap: {},        // { field: boolean }
     uploadStatuses: {},  // { field: 'uploaded' | 'gagal' | '' }
+
+    // AI precheck
+    ai: {},              // { field: { passed, score, objects:[], messages:[] } }
+    hasAiFailure: false, // flag untuk tombol submit
+
     submitting: false,
 
     init() {
@@ -229,14 +335,18 @@ function skCreate() {
       this.customer = null;
       this.reffMsg = '';
       const v = (this.reff || '').trim().toUpperCase();
-      if (!v) { this.reffMsg = 'Masukkan Reference ID terlebih dahulu.'; return; }
+      if (!v) {
+        this.reffMsg = 'Masukkan Reference ID terlebih dahulu.';
+        return;
+      }
 
       try {
         const url = @json(route('customers.validate-reff', ['reffId' => '___'])).replace('___', encodeURIComponent(v));
-        const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
+        const res = await fetch(url, {
+          headers: { 'Accept': 'application/json' }
+        });
         const json = await res.json().catch(() => ({}));
 
-        // kompatibel 2 bentuk: {success:bool,data} atau {valid,exists,data}
         const ok = (json && (json.success === true || json.valid === true || json.exists === true));
         if (res.ok && ok && json.data) {
           this.customer = json.data;
@@ -252,34 +362,114 @@ function skCreate() {
       }
     },
 
-    onPick(field, e) {
+    async onPick(field, e) {
       const file = e.target.files?.[0];
       if (!file) return;
+
       this.pickedFiles[field] = file;
       this.isPdfMap[field] = (file.type === 'application/pdf');
 
       if (!this.isPdfMap[field]) {
         const reader = new FileReader();
-        reader.onload = () => this.$nextTick(() => { this.previews[field] = reader.result; });
+        reader.onload = () => this.$nextTick(() => {
+          this.previews[field] = reader.result;
+        });
         reader.readAsDataURL(file);
       } else {
         this.previews[field] = null;
       }
-      this.uploadStatuses[field] = '';
+
+      // reset status & AI lama
+      this.uploadStatuses[field] = 'Menganalisa…';
+      this.ai[field] = null;
+
+      // PRECHECK — jika PDF, anggap lulus ringan dengan catatan
+      if (this.isPdfMap[field]) {
+        this.ai[field] = {
+          passed: true,
+          score: null,
+          objects: [],
+          messages: ['Berkas PDF: cek manual/TTD']
+        };
+        this.refreshAiFailureFlag();
+        this.uploadStatuses[field] = 'AI: LULUS (PDF)';
+        return;
+      }
+
+      // Precheck untuk file gambar
+      const fd = new FormData();
+      fd.append('_token', document.querySelector('input[name=_token]').value);
+      fd.append('slot_type', field);
+      fd.append('file', file);
+
+      try {
+        const res = await fetch(@json(route('sk.photos.precheck-generic')), {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: fd
+        });
+
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j?.success) {
+          throw new Error(j?.message || 'Precheck gagal');
+        }
+
+        this.ai[field] = {
+          passed: !!j.ai?.passed,
+          score: j.ai?.score ?? null,
+          objects: Array.isArray(j.ai?.objects) ? j.ai.objects : [],
+          messages: Array.isArray(j.ai?.messages) ? j.ai.messages : [],
+        };
+
+        this.uploadStatuses[field] = this.ai[field].passed ? ( (j.warnings && j.warnings.length) ? 'AI: LULUS (warning)' : 'AI: LULUS' ) : 'AI: PERLU PERBAIKAN';
+
+
+      } catch (err) {
+        console.error('Precheck error', err);
+        this.ai[field] = {
+          passed: false,
+          score: null,
+          objects: [],
+          messages: ['Precheck gagal diproses: ' + (err.message || 'Unknown error')]
+        };
+        this.uploadStatuses[field] = 'Precheck gagal';
+      } finally {
+        this.refreshAiFailureFlag();
+      }
     },
 
     clearPick(field) {
       delete this.pickedFiles[field];
       delete this.previews[field];
       delete this.isPdfMap[field];
+      delete this.ai[field];
       this.uploadStatuses[field] = '';
+
       const inp = document.getElementById(`inp_${field}`);
       if (inp) inp.value = '';
+
+      this.refreshAiFailureFlag();
+    },
+
+    refreshAiFailureFlag() {
+      // Jika ada file yang dipilih & hasil AI ada tapi gagal → blok submit
+      this.hasAiFailure = Object.entries(this.pickedFiles).some(([f]) => {
+        const a = this.ai[f];
+        return a && a.passed === false;
+      });
     },
 
     async onSubmit() {
       if (!this.customer || !this.reff || !this.tanggal) {
         this.reffMsg ||= 'Lengkapi Reference ID & cari pelanggan.';
+        return;
+      }
+
+      if (this.hasAiFailure) {
+        alert('Tidak dapat menyimpan karena ada foto yang perlu diperbaiki. Periksa hasil AI precheck.');
         return;
       }
 
@@ -297,22 +487,27 @@ function skCreate() {
         });
 
         const saveJson = await saveRes.json().catch(() => ({}));
-        if (!saveRes.ok) throw new Error((saveJson && (saveJson.message || saveJson.error)) || 'Gagal menyimpan data SK');
+        if (!saveRes.ok) {
+          throw new Error((saveJson && (saveJson.message || saveJson.error)) || 'Gagal menyimpan data SK');
+        }
 
-        // response bisa {id:...} atau {data:{id:...}}
-        const sk = saveJson.data ?? saveJson;
-        if (!sk?.id) throw new Error('Response tidak berisi ID SK');
+        const sk = saveJson.data ?? saveJson; // {id:...}
+        if (!sk?.id) {
+          throw new Error('Response tidak berisi ID SK');
+        }
 
         // 2) Upload setiap foto yang dipilih
         await this.uploadAllPhotos(sk.id);
 
-        // 3) Beres
-        (window.showToast ? window.showToast('Data SK tersimpan. Foto yang dipilih sudah diunggah.', 'success') : alert('Data SK tersimpan. Foto terunggah.'));
-        // optional redirect:
-        // window.location.href = `/sk/${sk.id}`;
+        // 3) Done
+        window.showToast?.('Data SK tersimpan. Foto yang dipilih sudah diunggah.', 'success') ||
+          alert('Data SK tersimpan. Foto terunggah.');
+        window.location.href = @json(route('sk.show', ['sk'=>'__ID__'])).replace('__ID__', sk.id);
+
       } catch (e) {
         console.error(e);
-        (window.showToast ? window.showToast(e.message || 'Terjadi kesalahan saat menyimpan', 'error') : alert(e.message || 'Terjadi kesalahan saat menyimpan'));
+        window.showToast?.(e.message || 'Terjadi kesalahan saat menyimpan', 'error') ||
+          alert(e.message || 'Terjadi kesalahan saat menyimpan');
       } finally {
         this.submitting = false;
       }
@@ -340,15 +535,32 @@ function skCreate() {
         fd.append('slot_type', def.field);
         fd.append('file', file);
 
+        // ⬇️ ikutkan hasil precheck (kalau ada)
+        const a = this.ai[def.field];
+        if (a) {
+          fd.append('ai_passed', a.passed ? '1' : '0');
+          if (a.score != null) fd.append('ai_score', a.score);
+          (a.objects || []).forEach(v => fd.append('ai_objects[]', v));
+          (a.messages || []).forEach(v => fd.append('ai_notes[]', v));
+        }
+
         try {
           const res = await fetch(url, {
             method: 'POST',
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            headers: {
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
             body: fd
           });
+
           const j = await res.json().catch(() => ({}));
-          if (!res.ok || !(j && (j.success === true || j.photo_id))) throw new Error(j?.message || 'Gagal upload');
+          if (!res.ok || !(j && (j.success === true || j.photo_id))) {
+            throw new Error(j?.message || 'Gagal upload');
+          }
+
           this.uploadStatuses[def.field] = '✓ uploaded';
+
         } catch (e) {
           console.error('Upload gagal', def.field, e);
           this.uploadStatuses[def.field] = '✗ gagal';

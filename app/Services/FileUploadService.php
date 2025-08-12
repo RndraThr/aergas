@@ -17,115 +17,201 @@ class FileUploadService
     ) {}
 
     /**
-     * Upload foto ke disk default (disarankan 'public'), lalu (opsional) mirror ke Google Drive.
-     * @return array{url:string,disk:string,path:string,drive_file_id:?string,drive_link:?string}
-     * @throws Exception
+     * Upload foto ke Google Drive (prioritas). Jika Drive tidak tersedia/konfigurasi kosong → fallback ke disk lokal.
+     *
+     * Folder: aergas/{MODULE}/{reff}__{slug-nama}/
+     *
+     * @param  UploadedFile  $file
+     * @param  string        $reffId
+     * @param  string        $module       'SK' | 'SR'
+     * @param  string        $fieldName    nama slot/field di modul
+     * @param  int           $uploadedBy   user id
+     * @param  string|null   $customerName untuk penamaan folder {reff}__{slug-nama}
+     * @param  array         $options      ['target_name' => 'custom_name.ext']  // opsional
+     * @return array{
+     *   url:string,
+     *   disk:string,          // 'gdrive' | 'public' (fallback)
+     *   path:string,          // path pseudo (gdrive) atau path lokal
+     *   drive_file_id:?string,
+     *   drive_link:?string,
+     *   file_storage_id:?int,
+     *   filename:string,
+     *   mime:string,
+     *   bytes:int
+     * }
+     * @throws \Exception
      */
     public function uploadPhoto(
         UploadedFile $file,
         string $reffId,
-        string $module,
-        string $fieldName,
-        int $uploadedBy
+        string $module,        // 'SK' | 'SR'
+        string $fieldName,     // slot/field di modul
+        int $uploadedBy,
+        ?string $customerName = null,
+        array $options = []    // 👈 dukung target_name
     ): array {
         $this->validateFile($file);
 
-        $disk = config('filesystems.default', 'public');
+        $moduleLower = strtolower($module);      // 'sk' | 'sr' untuk DB
+        $folderPath  = $this->buildFolder($module, $reffId, $customerName);
 
-        /** @var FilesystemAdapter $diskAdapter */
-        $diskAdapter = Storage::disk($disk);
+        // Deteksi ekstensi yang aman
+        $ext = strtolower(
+            $file->getClientOriginalExtension()
+            ?: $file->extension()
+            ?: pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION)
+            ?: 'jpg'
+        );
 
-        $moduleSlug = Str::of($module)->snake()->lower();
-        $dir = "AERGAS/{$moduleSlug}/{$reffId}/original";
+        $baseName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME), '_');
+        $slotSlug = Str::slug($fieldName, '_');
+        $ts       = now()->format('Ymd_His');
 
-        $baseName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
-        $ext = strtolower($file->getClientOriginalExtension());
-        $filename = now()->format('Ymd_His') . "_{$baseName}.{$ext}";
-
-        $path = $file->storeAs($dir, $filename, $disk);
-
-        // INTELEPHENSE-SAFE: gunakan helper pembuat URL (punya fallback jika method url() tidak tersedia)
-        $url = $this->makePublicUrl($diskAdapter, $disk, $path);
-
-        // Optional: catat ke file_storages kalau tabelnya ada
-        $fs = null;
-        try {
-            $fs = FileStorage::create([
-                'reff_id_pelanggan' => $reffId,
-                'module_name'       => $moduleSlug,
-                'photo_field_name'  => $fieldName,
-                'storage_disk'      => $disk,
-                'path'              => $path,
-                'url'               => $url,
-                'mime_type'         => $file->getMimeType(),
-                'size_bytes'        => $file->getSize(),
-                'uploaded_by'       => $uploadedBy,
-            ]);
-        } catch (\Throwable $e) {
-            Log::info('file_storages insert skipped (optional table)', ['err' => $e->getMessage()]);
-        }
-
-        // Mirror ke Google Drive jika dikonfigurasi
-        $driveFileId = null;
-        $driveLink = null;
-        if ($this->googleDriveService && config('services.google_drive.folder_id')) {
-            try {
-                [$driveFileId, $driveLink] = $this->googleDriveService
-                    ->mirrorToDrive($disk, $path, $moduleSlug, $reffId, 'original');
-
-                if ($fs) {
-                    $fs->update([
-                        'drive_file_id'   => $driveFileId,
-                        'drive_view_link' => $driveLink,
-                    ]);
-                }
-            } catch (\Throwable $e) {
-                Log::warning('Mirror to Google Drive failed', ['err' => $e->getMessage()]);
+        // 🔧 PRIORITAS 1: pakai nama yang dipaksa caller (controller/service)
+        if (!empty($options['target_name'])) {
+            $targetName = (string) $options['target_name'];
+            // fallback: kalau caller lupa kasih ekstensi
+            if (!Str::of($targetName)->contains('.')) {
+                $targetName .= ".{$ext}";
+            }
+        } else {
+            // 🔧 PRIORITAS 2: pola default dari config (opsional), else fallback standar
+            // config('aergas_photos.naming.pattern'): 'reff_slot_ts' | 'reff_slot' | 'ts_reff_slot_orig'
+            $pattern = (string) data_get(config('aergas_photos'), 'naming.pattern', 'reff_slot_ts');
+            switch ($pattern) {
+                case 'reff_slot':            // tanpa timestamp (rawan tabrakan kalau tidak hapus yang lama)
+                    $targetName = "{$reffId}_{$slotSlug}.{$ext}";
+                    break;
+                case 'ts_reff_slot_orig':    // lengkap (timestamp + reff + slot + nama asli)
+                    $targetName = "{$ts}_{$reffId}_{$slotSlug}_{$baseName}.{$ext}";
+                    break;
+                case 'reff_slot_ts':         // ✅ REKOMENDASI (unik & ringkas)
+                default:
+                    $targetName = "{$reffId}_{$slotSlug}_{$ts}.{$ext}";
+                    break;
             }
         }
 
+        // Variabel hasil
+        $usedDisk  = 'public';
+        $finalPath = $folderPath . '/' . $targetName;
+        $driveId   = null;
+        $driveLink = null;
+        $publicUrl = '';
+        $bytes     = (int) $file->getSize();
+        $mime      = (string) $file->getMimeType();
+
+        // ===== 1) Coba upload langsung ke Google Drive =====
+        if ($this->canUseDrive()) {
+            try {
+                $folderId = $this->googleDriveService->ensureNestedFolders($folderPath);
+                $u        = $this->googleDriveService->uploadFile($file, $folderId, $targetName);
+
+                $driveId   = $u['id'] ?? null;
+                $driveLink = $u['webViewLink'] ?? ($u['webContentLink'] ?? null);
+
+                $usedDisk  = 'gdrive';
+                $publicUrl = $driveLink ?? '';
+                // Simpan path pseudo agar tetap ada informasi struktur
+                $finalPath = $folderPath . '/' . ($u['name'] ?? $targetName);
+            } catch (\Throwable $e) {
+                Log::warning('Upload to Google Drive failed; falling back to local', ['err' => $e->getMessage()]);
+            }
+        }
+
+        // ===== 2) Fallback ke disk lokal (public) =====
+        if ($usedDisk !== 'gdrive') {
+            /** @var \Illuminate\Filesystem\FilesystemAdapter $diskAdapter */
+            $diskAdapter = Storage::disk('public');
+            $stored = $file->storeAs($folderPath, $targetName, 'public');
+            $finalPath = $stored;
+            $publicUrl = $this->makePublicUrl($diskAdapter, 'public', $stored);
+        }
+
+        // ===== 3) Catat ke file_storages (jika tabel/model tersedia) =====
+        $fsId = null;
+        try {
+            $payload = [
+                'reff_id_pelanggan' => $reffId,
+                'module_name'       => $moduleLower,   // konsisten dengan photo_approvals
+                'photo_field_name'  => $fieldName,
+                'storage_disk'      => $usedDisk,
+                'path'              => $finalPath,
+                'url'               => $publicUrl,
+                'mime_type'         => $mime,
+                'size_bytes'        => $bytes,
+                'uploaded_by'       => $uploadedBy,
+                'status'            => 'active',
+            ];
+
+            // kolom drive opsional
+            if ($driveId)   $payload['drive_file_id']   = $driveId;
+            if ($driveLink) $payload['drive_view_link'] = $driveLink;
+
+            /** @var \App\Models\FileStorage $fs */
+            $fs   = FileStorage::create($payload);
+            $fsId = $fs->id ?? null;
+        } catch (\Throwable $e) {
+            Log::info('file_storages insert skipped', ['err' => $e->getMessage()]);
+        }
+
         return [
-            'url'           => $url,
-            'disk'          => $disk,
-            'path'          => $path,
-            'drive_file_id' => $driveFileId,
-            'drive_link'    => $driveLink,
+            'url'             => $publicUrl,
+            'disk'            => $usedDisk,
+            'path'            => $finalPath,
+            'drive_file_id'   => $driveId,
+            'drive_link'      => $driveLink,
+            'file_storage_id' => $fsId,
+            'filename'        => $targetName,
+            'mime'            => $mime,
+            'bytes'           => $bytes,
         ];
     }
 
+
     /**
-     * Hapus foto yang sudah ada (di storage & di Drive jika ada), plus rekaman file_storages.
+     * Hapus semua file untuk kombinasi (reff, module, field).
+     * Menghapus di Drive kalau ada, dan file lokal bila fallback pernah dibuat.
      */
     public function deleteExistingPhoto(string $reffId, string $module, string $photoField): void
     {
         try {
-            $moduleSlug = Str::of($module)->snake()->lower();
+            $moduleLower = strtolower($module);
 
             $records = FileStorage::query()
                 ->where('reff_id_pelanggan', $reffId)
-                ->where('module_name', $moduleSlug)
+                ->where('module_name', $moduleLower)
                 ->where('photo_field_name', $photoField)
                 ->get();
 
             foreach ($records as $rec) {
-                $recDisk = $rec->storage_disk ?: config('filesystems.default', 'public');
+                $recDisk = $rec->storage_disk ?: 'public';
 
-                /** @var FilesystemAdapter $diskAdapter */
-                $diskAdapter = Storage::disk($recDisk);
-
-                if ($rec->path && $diskAdapter->exists($rec->path)) {
-                    $diskAdapter->delete($rec->path);
-                }
-
-                if (!empty($rec->drive_file_id) && $this->googleDriveService) {
+                // Hapus dari Google Drive
+                if (($recDisk === 'gdrive' || !empty($rec->drive_file_id)) && $this->googleDriveService) {
                     try {
-                        $this->googleDriveService->deleteFile($rec->drive_file_id);
-                    } catch (\Throwable) {
-                        // non fatal
+                        if (!empty($rec->drive_file_id)) {
+                            $this->googleDriveService->deleteFile($rec->drive_file_id);
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('delete drive file failed (non fatal)', ['err' => $e->getMessage()]);
                     }
                 }
 
-                $rec->delete();
+                // Hapus file lokal bila ada
+                if ($rec->path && $recDisk !== 'gdrive') {
+                    try {
+                        $diskAdapter = Storage::disk($recDisk);
+                        if ($diskAdapter->exists($rec->path)) {
+                            $diskAdapter->delete($rec->path);
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('delete local file failed (non fatal)', ['err' => $e->getMessage()]);
+                    }
+                }
+
+                // Hapus record
+                try { $rec->delete(); } catch (\Throwable) {}
             }
         } catch (\Throwable $e) {
             Log::warning('deleteExistingPhoto soft-failed', ['err' => $e->getMessage()]);
@@ -133,34 +219,63 @@ class FileUploadService
     }
 
     /**
-     * Validasi ukuran & mime type berdasarkan config services.aergas.*
+     * Validasi ukuran & mime type (env/config).
      * @throws Exception
      */
     private function validateFile(UploadedFile $file): void
     {
-        $maxBytes = (int) (config('services.photo_max_size') ?? (int) env('MAX_FILE_SIZE', 10240) * 1024);
-        $allowedMimes = (array) (config('services.allowed_mime_types') ?? [
-            'image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp', 'application/pdf'
-        ]);
+        // Ambil dari aergas_photos.limits dulu; fallback ke services; terakhir ke ENV/default
+        $cfgAergas = config('aergas_photos');   // pasti array/null
+        $cfgSvc    = config('services');        // pasti array/null
+
+        $maxBytes = (int) (
+            data_get($cfgAergas, 'limits.max_bytes') ?:
+            data_get($cfgSvc,   'photo_max_size_bytes') ?:
+            // ENV fallback: PHOTO_MAX_SIZE_BYTES (langsung bytes) atau MAX_FILE_SIZE (KB)
+            env('PHOTO_MAX_SIZE_BYTES', env('MAX_FILE_SIZE', 10240) * 1024)
+        );
+
+        $allowedMimes = (array) (
+            data_get($cfgAergas, 'limits.allowed_mime_types') ?:
+            data_get($cfgSvc,   'allowed_mime_types') ?:
+            // Default aman
+            ['image/jpeg','image/png','image/jpg','image/webp','application/pdf']
+        );
 
         if ($file->getSize() > $maxBytes) {
             throw new Exception('File terlalu besar. Maksimal ' . number_format($maxBytes / 1024 / 1024, 2) . ' MB');
         }
-
         if (!in_array($file->getMimeType(), $allowedMimes, true)) {
             throw new Exception('Tipe file tidak diizinkan: ' . $file->getMimeType());
         }
     }
 
+
+    /** Pakai Drive kalau service terpasang & folder root diset */
+    private function canUseDrive(): bool
+    {
+        if (!$this->googleDriveService) return false;
+        $root = (string) (config('services.google_drive.folder_id') ?? '');
+        return $root !== '';
+    }
+
+    /** aergas/{MODULE}/{reff}__{slug-nama} */
+    private function buildFolder(string $module, string $reffId, ?string $customerName = null): string
+    {
+        $module = strtoupper($module); // SK / SR
+        $slug   = $customerName ? Str::slug($customerName, '_') : null;
+        $leaf   = $slug ? "{$reffId}__{$slug}" : $reffId;
+        return "aergas/{$module}/{$leaf}";
+    }
+
     /**
-     * Bangun URL publik yang kompatibel dengan Intelephense & runtime.
-     * - Jika adapter punya method url() → gunakan itu.
-     * - Jika disk 'public' → /storage/{path} (butuh `php artisan storage:link`).
-     * - Fallback: return path relatif (minimal tersaji ke UI meski tidak web-accessible).
+     * Buat URL publik untuk file lokal.
+     * - Jika adapter punya method url() → gunakan
+     * - Jika disk 'public' → /storage/{path}
+     * - Fallback: path relatif
      */
     private function makePublicUrl(FilesystemAdapter $diskAdapter, string $disk, string $path): string
     {
-        // Larik runtime: FilesystemAdapter hampir selalu punya url(), tapi IDE tidak tahu.
         if (method_exists($diskAdapter, 'url')) {
             try {
                 return $diskAdapter->url($path);
@@ -173,11 +288,8 @@ class FileUploadService
 
         if ($disk === 'public') {
             $base = rtrim((string) config('app.url'), '/');
-            // symlink "public/storage" → "storage/app/public" wajib dibuat
             return "{$base}/storage/{$normalized}";
         }
-
-        // Fallback terakhir (bukan URL publik, tapi tetap informatif)
         return $normalized;
     }
 }
