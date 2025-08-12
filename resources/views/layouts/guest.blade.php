@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'AERGAS System') }}</title>
-    <link rel="icon" href="{{ asset('build/assets/AERGAS PNG.png') }}" type="image/png">
+    <link rel="icon" href="{{ asset('assets/AERGAS_PNG.png') }}" type="image/png">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -41,7 +41,7 @@
         <!-- Header Logo Section -->
         <div class="mb-8">
             <a href="/">
-                <img src="{{ asset('build/assets/AERGAS PNG.png') }}"
+                <img src="{{ asset('assets/AERGAS_PNG.png') }}"
                      alt="AERGAS Logo"
                      class="w-32 h-auto filter drop-shadow-lg">
             </a>

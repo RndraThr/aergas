@@ -18,7 +18,7 @@
         <!-- Logo -->
         <div class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-aergas-navy to-aergas-navy/90 border-b border-aergas-navy/20">
             <div class="flex items-center space-x-3">
-                <img src="{{ asset('build/assets/AERGAS PNG.png') }}"
+                <img src="{{ asset('assets/AERGAS_PNG.png') }}"
                      alt="AERGAS Logo"
                      class="h-8 w-auto filter brightness-0 invert">
             </div>

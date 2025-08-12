@@ -448,7 +448,7 @@
 
     <div class="login-container">
         <div class="logo-container">
-            <img src="{{ asset('build/assets/AERGAS PNG.png') }}" alt="AERGAS Logo" class="logo">
+            <img src="{{ asset('assets/AERGAS_PNG.png') }}" alt="AERGAS Logo" class="logo">
             <div class="system-subtitle">Gas Installation Management System</div>
         </div>
 
