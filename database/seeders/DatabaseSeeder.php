@@ -12,15 +12,15 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             UserSeeder::class,
-            CalonPelangganSeeder::class,
-            SkDataSeeder::class,
-            SrDataSeeder::class,
+            // CalonPelangganSeeder::class,
+            // SkDataSeeder::class,
+            // SrDataSeeder::class,
             // MgrtDataSeeder::class,
             // GasInDataSeeder::class,
             // PhotoApprovalSeeder::class,
             // FileStorageSeeder::class,
-            NotificationSeeder::class,
-            AuditLogSeeder::class,
+            // NotificationSeeder::class,
+            // AuditLogSeeder::class,
         ]);
 
         $this->command->info('✅ AERGAS Database Seeding completed successfully!');

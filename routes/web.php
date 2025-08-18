@@ -13,6 +13,7 @@ use App\Http\Controllers\Web\SrDataController;
 use App\Http\Controllers\Web\PhotoApprovalController;
 use App\Http\Controllers\Web\NotificationController;
 use App\Http\Controllers\Web\GudangController;
+use App\Http\Controllers\Web\ImportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -272,6 +273,25 @@ Route::middleware('auth')->group(function () {
         Route::post('material-requests/{mr}/return', [GudangController::class, 'mrReturn'])->whereNumber('mr')->name('mr.return');
         Route::post('material-requests/{mr}/reject', [GudangController::class, 'mrReject'])->whereNumber('mr')->name('mr.reject');
     });
+
+    Route::prefix('imports')->name('imports.')->middleware('role:admin|super_admin|tracer')->group(function () {
+    // Form upload & hasil
+    Route::get('/calon-pelanggan', [ImportController::class, 'formCalonPelanggan'])
+        ->name('calon-pelanggan.form');
+
+    // Download template CSV sesuai header: Nama, Nomor Ponsel, Alamat, RT, RW, ID Kelurahan, Padukuhan, ID REFF.
+    Route::get('/calon-pelanggan/template', [ImportController::class, 'downloadTemplateCalonPelanggan'])
+        ->name('calon-pelanggan.template');
+
+    // Proses import (mode: dry-run | commit)
+    Route::post('/calon-pelanggan', [ImportController::class, 'importCalonPelanggan'])
+        ->name('calon-pelanggan.import');
+
+    // Download report JSON hasil import
+    Route::get('/report', [ImportController::class, 'downloadReport'])
+        ->name('report.download');
+    });
+
 });
 
 /*

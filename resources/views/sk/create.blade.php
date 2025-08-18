@@ -1,4 +1,3 @@
-{{-- resources/views/sk/create.blade.php --}}
 @extends('layouts.app')
 
 @section('title', 'Buat SK - AERGAS')
@@ -6,7 +5,6 @@
 @section('content')
 
 @php
-  // Ambil definisi slot dari config → siapkan untuk UI (dengan proteksi lebih aman)
   $cfgAll   = config('aergas_photos') ?: [];
   $cfgSlots = (array) (data_get($cfgAll, 'modules.SK.slots', []));
   $photoDefs = [];
@@ -21,7 +19,6 @@
           'required_objects' => $checks,
       ];
   }
-  // fallback minimal kalau config belum ada
   if (empty($photoDefs)) {
       $photoDefs = [
           ['field'=>'pneumatic_start','label'=>'Foto Pneumatic START SK','accept'=>['image/*'],'required_objects'=>[]],
@@ -35,7 +32,6 @@
 
 <div class="space-y-6" x-data="skCreate()" x-init="init()">
 
-  {{-- Header --}}
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-3xl font-bold text-gray-800">Buat SK</h1>
@@ -44,7 +40,6 @@
     <a href="{{ route('sk.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Kembali</a>
   </div>
 
-  {{-- Errors (server) --}}
   @if ($errors->any())
     <div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded">
       <div class="font-semibold mb-2">Periksa input:</div>
@@ -56,11 +51,9 @@
     </div>
   @endif
 
-  {{-- FORM (disubmit via JS agar bisa upload foto setelah create) --}}
   <form class="bg-white rounded-xl card-shadow p-6 space-y-8" @submit.prevent="onSubmit">
     @csrf
 
-    {{-- SECTION: Informasi Customer --}}
     <div class="space-y-3">
       <div class="flex items-center gap-3">
         <i class="fas fa-user text-blue-600"></i>
@@ -105,7 +98,6 @@
       </template>
     </div>
 
-    {{-- SECTION: Informasi Instalasi SK --}}
     <div class="space-y-4">
       <div class="flex items-center gap-3">
         <i class="fas fa-wrench text-green-600"></i>
@@ -133,7 +125,6 @@
       </div>
     </div>
 
-    {{-- SECTION: Upload Foto (dinamis dari config) --}}
     <div class="space-y-4">
       <div class="flex items-center gap-3">
         <i class="fas fa-camera text-purple-600"></i>
@@ -166,19 +157,15 @@
               </div>
             </template>
 
-            {{-- Hasil AI Precheck --}}
             <template x-if="ai[ph.field]">
               <div class="mt-3 text-xs border rounded p-2"
                    :class="ai[ph.field].passed ? 'border-green-300 bg-green-50 text-green-700' : 'border-amber-300 bg-amber-50 text-amber-700'">
                 <div class="font-medium mb-1 flex items-center">
                   <i :class="ai[ph.field].passed ? 'fas fa-check-circle text-green-600' : 'fas fa-exclamation-triangle text-amber-600'" class="mr-1"></i>
                   Hasil AI: <span x-text="ai[ph.field].passed ? 'LULUS' : 'PERLU PERBAIKAN'" class="font-bold"></span>
-                  <template x-if="ai[ph.field].score != null">
-                    <span class="ml-2 text-gray-600">Skor:
-                    <span x-text="fmtScore(ai[ph.field].score)"></span>
-                    </span>
-                    </span>
-                  </template>
+                  <span class="ml-2 text-gray-600" x-show="ai[ph.field]">
+                    Skor: <span x-text="formatScore(ai[ph.field])"></span>
+                  </span>
                 </div>
                 <template x-if="(ai[ph.field].objects || []).length">
                   <div class="mb-1">
@@ -203,7 +190,6 @@
               </div>
             </template>
 
-            {{-- Required Objects Info --}}
             <template x-if="(ph.required_objects || []).length">
               <div class="mt-2 text-xs text-gray-500">
                 <span class="font-medium">Objek wajib:</span>
@@ -219,9 +205,10 @@
               <input class="hidden" type="file"
                      :accept="acceptString(ph.accept)"
                      :id="`inp_${ph.field}`"
+                     :disabled="!customer || !reff"
                      @change="onPick(ph.field, $event)">
               <label :for="`inp_${ph.field}`"
-                     class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded cursor-pointer text-sm">
+                     :class="!customer || !reff ? 'px-3 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed text-sm' : 'px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded cursor-pointer text-sm'">
                 <i class="fas fa-folder-open mr-1"></i>Pilih
               </label>
 
@@ -272,7 +259,6 @@
       </button>
     </div>
 
-    {{-- AI Failure Warning --}}
     <template x-if="hasAiFailure">
       <div class="bg-amber-50 border border-amber-200 p-4 rounded">
         <div class="flex items-start">
@@ -292,25 +278,21 @@
 <script>
 function skCreate() {
   return {
-    // data dari server
     photoDefs: @json($photoDefs),
 
-    // state form
     reff: @json(request('reff_id', old('reff_id_pelanggan',''))),
     customer: null,
     reffMsg: '',
     tanggal: new Date().toISOString().slice(0,10),
     notes: '',
 
-    // foto
-    pickedFiles: {},     // { field: File }
-    previews: {},        // { field: dataURL }
-    isPdfMap: {},        // { field: boolean }
-    uploadStatuses: {},  // { field: 'uploaded' | 'gagal' | '' }
+    pickedFiles: {},
+    previews: {},
+    isPdfMap: {},
+    uploadStatuses: {},
 
-    // AI precheck
-    ai: {},              // { field: { passed, score, objects:[], messages:[] } }
-    hasAiFailure: false, // flag untuk tombol submit
+    ai: {},
+    hasAiFailure: false,
 
     submitting: false,
 
@@ -329,6 +311,13 @@ function skCreate() {
     reffMsgClass() {
       if (!this.reffMsg) return 'text-gray-500';
       return this.customer ? 'text-green-600' : 'text-red-600';
+    },
+
+    formatScore(aiObj) {
+      if (!aiObj) return '—';
+      const s = Number(aiObj.score);
+      if (!Number.isFinite(s)) return '—';
+      return s > 1 ? Math.round(s) + '%' : Math.round(s * 100) + '%';
     },
 
     async findCustomer() {
@@ -366,6 +355,12 @@ function skCreate() {
       const file = e.target.files?.[0];
       if (!file) return;
 
+      if (!this.customer || !this.reff) {
+        alert('Silakan isi Reference ID dan cari customer terlebih dahulu sebelum upload foto.');
+        e.target.value = '';
+        return;
+      }
+
       this.pickedFiles[field] = file;
       this.isPdfMap[field] = (file.type === 'application/pdf');
 
@@ -379,11 +374,9 @@ function skCreate() {
         this.previews[field] = null;
       }
 
-      // reset status & AI lama
       this.uploadStatuses[field] = 'Menganalisa…';
       this.ai[field] = null;
 
-      // PRECHECK — jika PDF, anggap lulus ringan dengan catatan
       if (this.isPdfMap[field]) {
         this.ai[field] = {
           passed: true,
@@ -396,7 +389,6 @@ function skCreate() {
         return;
       }
 
-      // Precheck untuk file gambar
       const fd = new FormData();
       fd.append('_token', document.querySelector('input[name=_token]').value);
       fd.append('slot_type', field);
@@ -419,13 +411,12 @@ function skCreate() {
 
         this.ai[field] = {
           passed: !!j.ai?.passed,
-          score: j.ai?.score ?? null,
+          score: Number(j.ai?.score ?? 0),
           objects: Array.isArray(j.ai?.objects) ? j.ai.objects : [],
           messages: Array.isArray(j.ai?.messages) ? j.ai.messages : [],
         };
 
         this.uploadStatuses[field] = this.ai[field].passed ? ( (j.warnings && j.warnings.length) ? 'AI: LULUS (warning)' : 'AI: LULUS' ) : 'AI: PERLU PERBAIKAN';
-
 
       } catch (err) {
         console.error('Precheck error', err);
@@ -455,7 +446,6 @@ function skCreate() {
     },
 
     refreshAiFailureFlag() {
-      // Jika ada file yang dipilih & hasil AI ada tapi gagal → blok submit
       this.hasAiFailure = Object.entries(this.pickedFiles).some(([f]) => {
         const a = this.ai[f];
         return a && a.passed === false;
@@ -475,7 +465,6 @@ function skCreate() {
 
       this.submitting = true;
       try {
-        // 1) Simpan data dasar SK
         const saveRes = await fetch(@json(route('sk.store')), {
           method: 'POST',
           headers: {
@@ -491,15 +480,13 @@ function skCreate() {
           throw new Error((saveJson && (saveJson.message || saveJson.error)) || 'Gagal menyimpan data SK');
         }
 
-        const sk = saveJson.data ?? saveJson; // {id:...}
+        const sk = saveJson.data ?? saveJson;
         if (!sk?.id) {
           throw new Error('Response tidak berisi ID SK');
         }
 
-        // 2) Upload setiap foto yang dipilih
         await this.uploadAllPhotos(sk.id);
 
-        // 3) Done
         window.showToast?.('Data SK tersimpan. Foto yang dipilih sudah diunggah.', 'success') ||
           alert('Data SK tersimpan. Foto terunggah.');
         window.location.href = @json(route('sk.show', ['sk'=>'__ID__'])).replace('__ID__', sk.id);
@@ -535,7 +522,6 @@ function skCreate() {
         fd.append('slot_type', def.field);
         fd.append('file', file);
 
-        // ⬇️ ikutkan hasil precheck (kalau ada)
         const a = this.ai[def.field];
         if (a) {
           fd.append('ai_passed', a.passed ? '1' : '0');

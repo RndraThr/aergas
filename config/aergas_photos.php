@@ -21,7 +21,6 @@ return [
             'foto_pneumatic_start_sk_url'  => 'pneumatic_start',
             'foto_pneumatic_finish_sk_url' => 'pneumatic_finish',
             'foto_valve_sk_url'            => 'valve',
-            'foto_pipa_depan_sk_url'       => 'pipa_depan',
             'scan_isometrik_sk_url'        => 'isometrik_scan',
         ],
         'SR' => [
@@ -84,24 +83,16 @@ PROMPT,
                             'min_confidence' => 0.65,
                             'warn_min'       => 0.50,
                         ],
-                        'pipe_connected' => [
-                            'label' => 'Pipa tersambung',
-                            'min_confidence' => 0.55,
-                            'warn_min'       => 0.40,
-                        ],
                     ],
                     'prompt_mode' => true,
                     'prompt' => <<<PROMPT
 Nilai foto "Pneumatic FINISH".
 Kriteria:
 1) not_blurry: Foto cukup jelas; jika sebagian kecil kurang tajam namun teks/objek utama bisa dikenali, tetap LULUS.
-2) pipe_connected: Pastikan pipa & sambungan tampak terpasang/tersambung dengan benar (bukan terlepas).
-
 Output JSON-only:
 {
   "criteria":[
     {"id":"not_blurry","passed":true|false,"confidence":0..1,"reason":"singkat"},
-    {"id":"pipe_connected","passed":true|false,"confidence":0..1,"reason":"singkat"}
   ],
   "overall_passed": true|false,
   "notes":[]
@@ -130,41 +121,6 @@ Balas JSON:
 {
   "criteria":[
     {"id":"not_blurry","passed":true|false,"confidence":0..1,"reason":"singkat"}
-  ],
-  "overall_passed": true|false,
-  "notes":[]
-}
-PROMPT,
-                ],
-
-                // 4) PIPA DEPAN
-                'pipa_depan' => [
-                    'label'  => 'Foto Pipa SK Depan (tampak luar)',
-                    'accept' => ['image/*'],
-                    'checks' => [
-                        'not_blurry' => [
-                            'label' => 'Foto tidak blur',
-                            'min_confidence' => 0.60,
-                            'warn_min'       => 0.45,
-                        ],
-                        'pipe_connected' => [
-                            'label' => 'Pipa tersambung',
-                            'min_confidence' => 0.55,
-                            'warn_min'       => 0.40,
-                        ],
-                    ],
-                    'prompt_mode' => true,
-                    'prompt' => <<<PROMPT
-Nilai foto "Pipa Depan (tampak luar)".
-Kriteria:
-1) not_blurry: Foto cukup jelas (tidak buram parah).
-2) pipe_connected: Ada continuity pipa/sambungan tampak utuh.
-
-JSON ONLY:
-{
-  "criteria":[
-    {"id":"not_blurry","passed":true|false,"confidence":0..1,"reason":"singkat"},
-    {"id":"pipe_connected","passed":true|false,"confidence":0..1,"reason":"singkat"}
   ],
   "overall_passed": true|false,
   "notes":[]

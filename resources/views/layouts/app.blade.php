@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" x-data="{ sidebarOpen: false }" x-init="$store.auth = { user: @json(auth()->user()) }">
+<html lang="id" x-data="{ sidebarOpen: false }">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,6 +25,11 @@
 
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script>
+    document.addEventListener('alpine:init', () => {
+    Alpine.store('auth', { user: @js(auth()->user()) });
+    });
+    </script>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
