@@ -13,7 +13,7 @@ class ImportController extends Controller
 {
     public function formCalonPelanggan()
     {
-        return view('imports.calon-pelanggan');
+        return view('imports.calon-pelanggan'); // pastikan view-nya ada
     }
 
     public function importCalonPelanggan(Request $request)
@@ -25,8 +25,8 @@ class ImportController extends Controller
             'save_report' => ['nullable','boolean'],
         ]);
 
-        // Anti-timeout & hemat memori
-        @ini_set('max_execution_time','0');
+        // anti-timeout & hemat memori
+        @ini_set('max_execution_time', '0');
         @set_time_limit(0);
         DB::connection()->disableQueryLog();
 
@@ -47,16 +47,13 @@ class ImportController extends Controller
         return back()->with('import_results', $results);
     }
 
-    // Opsional: unduh report JSON
+    // opsional: download file report json
     public function downloadReport(Request $request)
     {
         $path = $request->query('path');
         abort_unless($path && Storage::disk('local')->exists($path), 404);
-
-        return response()->download(
-            Storage::disk('local')->path($path),
-            basename($path),
-            ['Content-Type' => 'application/json']
-        );
+        return response()->download(Storage::disk('local')->path($path), basename($path), [
+            'Content-Type' => 'application/json'
+        ]);
     }
 }
