@@ -5,8 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Schema;        // <— tambah
-use App\Models\FileStorage;                   // pastikan sudah ada
+use Illuminate\Support\Facades\Schema;
+use App\Models\FileStorage;
 use App\Models\PhotoApproval;
 
 class SkData extends BaseModuleModel
@@ -26,16 +26,37 @@ class SkData extends BaseModuleModel
     protected $table = 'sk_data';
 
     protected $fillable = [
-        'calon_pelanggan_id','reff_id_pelanggan','nomor_sk','status',
-        'tanggal_instalasi','notes','ai_overall_status','ai_checked_at',
-        'tracer_approved_at','tracer_approved_by','tracer_notes',
-        'cgp_approved_at','cgp_approved_by','cgp_notes',
-        'created_by','updated_by',
+        'calon_pelanggan_id',
+        'reff_id_pelanggan',
+        'nomor_sk',
+        'status',
+        'tanggal_instalasi',
+        'notes',
+        'ai_overall_status',
+        'ai_checked_at',
+        'tracer_approved_at',
+        'tracer_approved_by',
+        'tracer_notes',
+        'cgp_approved_at',
+        'cgp_approved_by',
+        'cgp_notes',
+        'created_by',
+        'updated_by',
+        'panjang_pipa_gl_medium_m',
+        'qty_elbow_1_2_galvanis',
+        'qty_sockdraft_galvanis_1_2',
+        'qty_ball_valve_1_2',
+        'qty_nipel_selang_1_2',
+        'qty_elbow_reduce_3_4_1_2',
+        'qty_long_elbow_3_4_male_female',
+        'qty_klem_pipa_1_2',
+        'qty_double_nipple_1_2',
+        'qty_seal_tape',
+        'qty_tee_1_2',
     ];
 
-    protected $appends = ['status_badge'];
+    protected $appends = ['status_badge', 'material_summary'];
 
-    // === BaseModuleModel abstract implementation ===
     public function getModuleName(): string
     {
         return 'sk';
@@ -43,35 +64,80 @@ class SkData extends BaseModuleModel
 
     public function getRequiredPhotos(): array
     {
-        // slot wajib untuk SK
-        return ['lokasi_meter','jalur_pipa','kompor','regulator','lainnya'];
+        return ['pneumatic_start', 'pneumatic_finish', 'valve', 'isometrik_scan'];
     }
 
-    // === Casts (HARUS public & kompatibel) ===
     public function getCasts(): array
     {
         return array_merge(parent::getCasts(), [
             'tanggal_instalasi' => 'date',
-            'ai_checked_at'     => 'datetime',
+            'ai_checked_at' => 'datetime',
+            'panjang_pipa_gl_medium_m' => 'decimal:2',
+            'qty_elbow_1_2_galvanis' => 'integer',
+            'qty_sockdraft_galvanis_1_2' => 'integer',
+            'qty_ball_valve_1_2' => 'integer',
+            'qty_nipel_selang_1_2' => 'integer',
+            'qty_elbow_reduce_3_4_1_2' => 'integer',
+            'qty_long_elbow_3_4_male_female' => 'integer',
+            'qty_klem_pipa_1_2' => 'integer',
+            'qty_double_nipple_1_2' => 'integer',
+            'qty_seal_tape' => 'integer',
+            'qty_tee_1_2' => 'integer',
         ]);
     }
 
-    // === RELATIONS ===
     public function calonPelanggan()
     {
         return $this->belongsTo(CalonPelanggan::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
     }
-    public function createdBy(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
-    public function updatedBy(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
-    public function tracerApprovedBy(): BelongsTo { return $this->belongsTo(User::class, 'tracer_approved_by'); }
-    public function cgpApprovedBy(): BelongsTo { return $this->belongsTo(User::class, 'cgp_approved_by'); }
 
-    public function auditLogs() { return $this->morphMany(AuditLog::class, 'auditable'); }
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 
-    // === SCOPES ===
-    public function scopeReadyForTracer($q) { return $q->where('status', self::STATUS_READY_FOR_TRACER); }
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
 
-    // === HELPERS ===
+    public function tracerApprovedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'tracer_approved_by');
+    }
+
+    public function cgpApprovedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cgp_approved_by');
+    }
+
+    public function auditLogs()
+    {
+        return $this->morphMany(AuditLog::class, 'auditable');
+    }
+
+    public function files(): HasMany
+    {
+        if (Schema::hasColumn('file_storages', 'sk_data_id')) {
+            return $this->hasMany(FileStorage::class, 'sk_data_id');
+        }
+        return $this->hasMany(FileStorage::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
+    }
+
+    public function photoApprovals(): HasMany
+    {
+        if (Schema::hasColumn('photo_approvals', 'sk_data_id')) {
+            return $this->hasMany(PhotoApproval::class, 'sk_data_id');
+        }
+        return $this->hasMany(PhotoApproval::class, 'reff_id_pelanggan', 'reff_id_pelanggan')
+            ->where('module_name', 'sk');
+    }
+
+    public function scopeReadyForTracer($q)
+    {
+        return $q->where('status', self::STATUS_READY_FOR_TRACER);
+    }
+
     public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {
@@ -88,34 +154,100 @@ class SkData extends BaseModuleModel
         };
     }
 
-    /** ================= Relations ================= */
-
-    public function files(): HasMany
+    public function getMaterialSummaryAttribute(): array
     {
-        // Kalau tabel file_storages punya sk_data_id, pakai itu.
-        if (Schema::hasColumn('file_storages', 'sk_data_id')) {
-            return $this->hasMany(FileStorage::class, 'sk_data_id');
-        }
-        // Fallback: pakai reff_id_pelanggan
-        return $this->hasMany(FileStorage::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
+        return [
+            'pipa_gl_medium' => $this->panjang_pipa_gl_medium_m ?? 0,
+            'total_fitting' => $this->getTotalFittingQty(),
+            'required_items' => $this->getRequiredMaterialItems(),
+            'optional_items' => $this->getOptionalMaterialItems(),
+            'is_complete' => $this->isMaterialComplete(),
+        ];
     }
 
-    public function photoApprovals(): HasMany
+    public function getRequiredMaterialItems(): array
     {
-        // Kalau tabel photo_approvals punya sk_data_id, pakai itu (kompat).
-        if (Schema::hasColumn('photo_approvals', 'sk_data_id')) {
-            return $this->hasMany(PhotoApproval::class, 'sk_data_id');
-        }
-        // Fallback: reff_id_pelanggan + filter module 'sk'
-        return $this->hasMany(PhotoApproval::class, 'reff_id_pelanggan', 'reff_id_pelanggan')
-            ->where('module_name', 'sk');
+        return [
+            'panjang_pipa_gl_medium_m' => $this->panjang_pipa_gl_medium_m,
+            'qty_elbow_1_2_galvanis' => $this->qty_elbow_1_2_galvanis,
+            'qty_sockdraft_galvanis_1_2' => $this->qty_sockdraft_galvanis_1_2,
+            'qty_ball_valve_1_2' => $this->qty_ball_valve_1_2,
+            'qty_nipel_selang_1_2' => $this->qty_nipel_selang_1_2,
+            'qty_elbow_reduce_3_4_1_2' => $this->qty_elbow_reduce_3_4_1_2,
+            'qty_long_elbow_3_4_male_female' => $this->qty_long_elbow_3_4_male_female,
+            'qty_klem_pipa_1_2' => $this->qty_klem_pipa_1_2,
+            'qty_double_nipple_1_2' => $this->qty_double_nipple_1_2,
+            'qty_seal_tape' => $this->qty_seal_tape,
+        ];
     }
 
-    /** ================= Helpers ================= */
+    public function getOptionalMaterialItems(): array
+    {
+        return [
+            'qty_tee_1_2' => $this->qty_tee_1_2,
+        ];
+    }
+
+    public function getTotalFittingQty(): int
+    {
+        return collect($this->getRequiredMaterialItems())
+            ->except('panjang_pipa_gl_medium_m')
+            ->sum() + ($this->qty_tee_1_2 ?? 0);
+    }
+
+    public function isMaterialComplete(): bool
+    {
+        foreach ($this->getRequiredMaterialItems() as $key => $value) {
+            if ($key === 'panjang_pipa_gl_medium_m') {
+                if (is_null($value) || $value <= 0) {
+                    return false;
+                }
+            } else {
+                if (is_null($value) || $value < 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public function getMaterialValidationRules(): array
+    {
+        return [
+            'panjang_pipa_gl_medium_m' => 'required|numeric|min:0.1|max:1000',
+            'qty_elbow_1_2_galvanis' => 'required|integer|min:0|max:100',
+            'qty_sockdraft_galvanis_1_2' => 'required|integer|min:0|max:100',
+            'qty_ball_valve_1_2' => 'required|integer|min:0|max:100',
+            'qty_nipel_selang_1_2' => 'required|integer|min:0|max:100',
+            'qty_elbow_reduce_3_4_1_2' => 'required|integer|min:0|max:100',
+            'qty_long_elbow_3_4_male_female' => 'required|integer|min:0|max:100',
+            'qty_klem_pipa_1_2' => 'required|integer|min:0|max:100',
+            'qty_double_nipple_1_2' => 'required|integer|min:0|max:100',
+            'qty_seal_tape' => 'required|integer|min:0|max:100',
+            'qty_tee_1_2' => 'nullable|integer|min:0|max:100',
+        ];
+    }
+
+    public function getMaterialLabels(): array
+    {
+        return [
+            'panjang_pipa_gl_medium_m' => 'Panjang Pipa 1/2" GL Medium (meter)',
+            'qty_elbow_1_2_galvanis' => 'Elbow 1/2" Galvanis (Pcs)',
+            'qty_sockdraft_galvanis_1_2' => 'SockDraft Galvanis Dia 1/2" (Pcs)',
+            'qty_ball_valve_1_2' => 'Ball Valve 1/2" (Pcs)',
+            'qty_nipel_selang_1_2' => 'Nipel Selang 1/2" (Pcs)',
+            'qty_elbow_reduce_3_4_1_2' => 'Elbow Reduce 3/4" x 1/2" (Pcs)',
+            'qty_long_elbow_3_4_male_female' => 'Long Elbow 3/4" Male Female (Pcs)',
+            'qty_klem_pipa_1_2' => 'Klem Pipa 1/2" (Pcs)',
+            'qty_double_nipple_1_2' => 'Double Nipple 1/2" (Pcs)',
+            'qty_seal_tape' => 'Seal Tape (Pcs)',
+            'qty_tee_1_2' => 'Tee 1/2" (Pcs) - Opsional',
+        ];
+    }
 
     public function recomputeAiOverallStatus(): void
     {
-        $module = strtoupper($this->getModuleName()); // 'SK'
+        $module = strtoupper($this->getModuleName());
         $min = (int) config('aergas_photos.modules.' . $module . '.min_required_slots', 0);
 
         $passed = $this->photoApprovals()
@@ -127,7 +259,7 @@ class SkData extends BaseModuleModel
 
     public function isAllPhotosPassed(): bool
     {
-        $module = strtoupper($this->getModuleName()); // 'SK'
+        $module = strtoupper($this->getModuleName());
         $min = (int) config('aergas_photos.modules.' . $module . '.min_required_slots', 0);
 
         $passed = $this->photoApprovals()
@@ -137,5 +269,30 @@ class SkData extends BaseModuleModel
         return $passed >= $min;
     }
 
+    public function canSubmit(): bool
+    {
+        return $this->status === self::STATUS_DRAFT
+            && $this->isAllPhotosPassed()
+            && $this->isMaterialComplete();
+    }
 
+    public function canApproveTracer(): bool
+    {
+        return $this->status === self::STATUS_READY_FOR_TRACER;
+    }
+
+    public function canApproveCgp(): bool
+    {
+        return $this->status === self::STATUS_TRACER_APPROVED;
+    }
+
+    public function canSchedule(): bool
+    {
+        return $this->status === self::STATUS_CGP_APPROVED;
+    }
+
+    public function canComplete(): bool
+    {
+        return $this->status === self::STATUS_SCHEDULED && !empty($this->tanggal_instalasi);
+    }
 }

@@ -6,6 +6,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
@@ -44,7 +45,7 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
                 $this->results['skipped']++; continue;
             }
 
-            [$ok, $data, $errors] = $this->mapAndValidate($row->toArray());
+            [$ok, $data, $errors] = $this->mapAndValidate($row->toArray(), $i);
             $rowNo = $this->headingRow + 1 + $i;
 
             if (!$ok) {
@@ -73,18 +74,50 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
 
     private function normKey(string $k): string
     {
-        // “nama kolom” → lowercase, hilangkan NBSP, '_' & '.' → spasi tunggal
         $k = trim($k);
-        $k = str_replace("\xC2\xA0", ' ', $k);
-        $k = str_replace(['_', '.'], ' ', $k);
+        $k = str_replace("\xC2\xA0", ' ', $k); // NBSP → space
+
+        // Hapus CR/LF/TAB, DEL, ZWSP/ZWNJ/ZWJ, BOM
+        $k = preg_replace('/[\x00-\x1F\x7F\x{200B}\x{200C}\x{200D}\x{FEFF}]/u', '', $k);
+
+        // Samakan pemisah → spasi
+        $k = str_replace(['_', '.', '/', '\\'], ' ', $k);
+
+        // Rapikan spasi
         $k = preg_replace('/\s+/u', ' ', $k);
+
         return mb_strtolower($k, 'UTF-8');
     }
 
-    private function mapAndValidate(array $r): array
+    private function mapAndValidate(array $r, int $rowIndex = 0): array
     {
+        // DEBUG: Log raw data untuk troubleshooting
+        if ($rowIndex < 5) { // Log hanya 5 baris pertama
+            Log::info("Raw Row $rowIndex:", [
+                'keys' => array_keys($r),
+                'values' => $r
+            ]);
+        }
+
         $n = [];
-        foreach ($r as $k => $v) $n[$this->normKey((string)$k)] = is_string($v) ? trim($v) : $v;
+        foreach ($r as $k => $v) {
+            $normalizedKey = $this->normKey((string)$k);
+            $n[$normalizedKey] = is_string($v) ? trim($v) : $v;
+
+            // DEBUG: Log normalisasi key
+            if ($rowIndex < 5 && str_contains(strtolower($k), 'kelurahan')) {
+                Log::info("Key normalization:", [
+                    'original' => $k,
+                    'normalized' => $normalizedKey,
+                    'value' => $v
+                ]);
+            }
+        }
+
+        // DEBUG: Log normalized data
+        if ($rowIndex < 5) {
+            Log::info("Normalized Row $rowIndex:", $n);
+        }
 
         // === mapping persis sesuai request ===
         $reff   = $this->toString($n['id reff'] ?? $n['id_reff'] ?? null);
@@ -93,8 +126,17 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
         $alamat = $n['alamat'] ?? null;
         $rt     = $this->toString($n['rt'] ?? null);
         $rw     = $this->toString($n['rw'] ?? null);
-        $kel    = $n['kelurahan'] ?? null;
+        $kel    = $n['kelurahan'] ?? $n['id kelurahan'] ?? null;
         $pdk    = $n['padukuhan'] ?? $n['dusun'] ?? null;
+
+        // DEBUG: Log extracted values
+        if ($rowIndex < 5) {
+            Log::info("Extracted values Row $rowIndex:", [
+                'kelurahan' => $kel,
+                'padukuhan' => $pdk,
+                'available_keys' => array_keys($n)
+            ]);
+        }
 
         // fallback reff dari ujung alamat (… AF6518) jika id_reff kosong
         if (!$reff && is_string($alamat) && $alamat !== '') {
@@ -105,10 +147,25 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
         }
 
         // fill-down (atasi cell merge)
+        $originalKel = $kel;
+        $originalPdk = $pdk;
+
         if ($kel === null || $kel === '') $kel = $this->lastKel ?? null;
         if ($pdk === null || $pdk === '') $pdk = $this->lastPdk ?? null;
         if ($kel) $this->lastKel = $kel;
         if ($pdk) $this->lastPdk = $pdk;
+
+        // DEBUG: Log fill-down process
+        if ($rowIndex < 10) {
+            Log::info("Fill-down Row $rowIndex:", [
+                'original_kel' => $originalKel,
+                'final_kel' => $kel,
+                'last_kel' => $this->lastKel,
+                'original_pdk' => $originalPdk,
+                'final_pdk' => $pdk,
+                'last_pdk' => $this->lastPdk
+            ]);
+        }
 
         $data = [
             'reff_id_pelanggan' => $reff,
@@ -129,8 +186,8 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
             'no_telepon'        => ['nullable','string','max:20'],
             'rt'                => ['nullable','string','max:10'],
             'rw'                => ['nullable','string','max:10'],
-            'kelurahan'         => ['nullable','string','max:120'],
-            'padukuhan'         => ['nullable','string','max:120'],
+            'kelurahan'         => ['required','string','max:120'],
+            'padukuhan'         => ['required','string','max:120'],
         ]);
 
         return [$v->passes(), $data, $v->errors()->all()];

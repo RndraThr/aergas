@@ -114,9 +114,7 @@ class PhotoApprovalService
             ]
         );
 
-        // ---------- 6) Jalankan AI checks berbasis config ----------
-        $checksSpec = (array) ($slotCfg['checks'] ?? []);
-        $ai         = $this->runAiChecks($up['url'], $checksSpec, $slotKey, $moduleKey);
+        $ai = $this->runAiValidationWithPrompt($up['url'], $slotKey, $moduleKey);
 
         // Update FileStorage.ai_status (kalau ada)
         try {
@@ -134,14 +132,12 @@ class PhotoApprovalService
         // ---------- 7) Persist hasil AI + transisi status ----------
         $photoStatus = $ai['status'] === 'passed' ? 'tracer_pending' : 'ai_rejected';
         $pa->ai_status          = $ai['status'];
-        $pa->ai_score           = $ai['score'];
-        $pa->ai_checks          = $ai['checks'];
-        $pa->ai_notes           = $ai['notes'];
+        $pa->ai_score           = $ai['score'] / 100; // Store as decimal (0-1)
+        $pa->ai_notes           = $ai['reason']; // Store the specific reason
+        $pa->ai_checks          = $ai['checks'] ?? [];
         $pa->ai_last_checked_at = now();
         $pa->photo_status       = $photoStatus;
-        $pa->rejection_reason   = $ai['status'] === 'failed'
-            ? $this->composeFailedMessage($checksSpec, $ai['failed'])
-            : null;
+        $pa->rejection_reason   = $ai['status'] === 'failed' ? $ai['reason'] : null;
         $pa->save();
 
         // ---------- 8) Recalc status modul, notifikasi, audit ----------
@@ -152,31 +148,27 @@ class PhotoApprovalService
             'slot'        => $slotKey,
             'result'      => $ai['status'],
             'ai_score'    => $ai['score'],
-            'failed'      => $ai['failed'],
+            'ai_reason'   => $ai['reason'],
             'photoStatus' => $photoStatus,
         ]);
 
         if ($ai['status'] === 'passed') {
-            // opsi: kirim notifikasi ke Tracer bahwa ada foto pending
             try { $this->notificationService->notifyTracerPhotoPending($reffId, $moduleSlug); } catch (\Throwable) {}
         } else {
-            // beri tahu alasan ke channel
             try {
-                $msg = $pa->rejection_reason ?: 'AI validation failed';
-                $this->handlePhotoRejection($pa, 'AI System', $msg);
+                $this->handlePhotoRejection($pa, 'AI System', $ai['reason']);
             } catch (\Throwable) {}
         }
 
         // ---------- 9) Return payload ke controller ----------
-        if (!empty($ai['failed'])) {
+        if ($ai['status'] === 'failed') {
             return [
                 'success'        => false,
-                'message'        => $pa->rejection_reason,
-                'failed_checks'  => $ai['failed'],
+                'message'        => $ai['reason'],
+                'ai_status'      => $ai['status'],
+                'ai_reason'      => $ai['reason'],
                 'preview_url'    => $up['url'] ?? '',
                 'file_storage_id'=> $up['file_storage_id'] ?? null,
-                'ai_status'      => $ai['status'],
-                'ai_checks'      => $ai['checks'],
                 'module'         => $moduleKey,
                 'reff_id'        => $reffId,
                 'slot'           => $slotKey,
@@ -187,9 +179,8 @@ class PhotoApprovalService
             'success'        => true,
             'photo_id'       => $pa->id,
             'ai_status'      => $pa->ai_status,
-            'ai_score'       => $pa->ai_score,
-            'ai_notes'       => $pa->ai_notes,
-            'checks'         => $pa->ai_checks,
+            'ai_score'       => $pa->ai_score * 100, // Convert back to percentage
+            'ai_reason'      => $pa->ai_notes,
             'preview_url'    => $up['url'] ?? '',
             'file'           => ['disk' => $up['disk'] ?? null, 'path' => $up['path'] ?? null, 'drive_file_id' => $up['drive_file_id'] ?? null],
             'module'         => $moduleKey,
@@ -456,17 +447,21 @@ class PhotoApprovalService
         // 4) Simpan/Update PhotoApproval (pakai hasil precheck dari client)
         $aiPassed  = (bool) ($precheck['ai_passed'] ?? false);
         $aiScore   = $precheck['ai_score'] ?? null;
-        $aiObjects = $precheck['ai_objects'] ?? [];
+        $aiReason  = $precheck['ai_reason'] ?? 'No reason provided'; // CHANGED: from ai_objects to ai_reason
         $aiNotes   = $precheck['ai_notes'] ?? [];
 
         // Susun struktur ai_checks minimal (boleh menyesuaikan kebutuhan)
         $aiChecks = [
-            'detected' => array_values($aiObjects),
-            'source'   => 'precheck-client',
+            [
+                'id' => $slotKey,
+                'passed' => $aiPassed,
+                'confidence' => ($aiScore ?? 0) / 100,
+                'reason' => $aiReason
+            ]
         ];
 
         $photoStatus = $aiPassed ? 'tracer_pending' : 'ai_rejected';
-        $rejection   = $aiPassed ? null : 'Precheck AI tidak lulus. Periksa catatan.';
+        $rejection   = $aiPassed ? null : $aiReason;
 
         $pa = PhotoApproval::updateOrCreate(
             [
@@ -483,9 +478,9 @@ class PhotoApprovalService
                 'uploaded_by'   => $uid,
                 'uploaded_at'   => now(),
                 'ai_status'     => $aiPassed ? 'passed' : 'failed',
-                'ai_score'      => $aiScore,
+                'ai_score'      => ($aiScore ?? 0) / 100, // Store as decimal
                 'ai_checks'     => $aiChecks,
-                'ai_notes'      => $aiNotes,
+                'ai_notes'      => $aiReason, // CHANGED: Store reason instead of notes array
                 'ai_last_checked_at' => now(),
                 'photo_status'  => $photoStatus,
                 'rejection_reason' => $rejection,
@@ -513,7 +508,7 @@ class PhotoApprovalService
             'from'        => 'precheck-only',
             'ai_passed'   => $aiPassed,
             'ai_score'    => $aiScore,
-            'objects'     => $aiObjects,
+            // 'objects'     => $aiObjects,
         ]);
 
         // Notifikasi ringan (opsional)
@@ -617,82 +612,76 @@ class PhotoApprovalService
     /* ===================== Util internal ===================== */
 
     /** Jalankan cek AI per-slot menggunakan OpenAIService::analyzeImageChecks */
-    private function runAiChecks(string $imageUrl, array $checksSpec, string $slotKey, string $moduleKey): array
+    private function runAiValidationWithPrompt(string $imageUrl, string $slotKey, string $moduleKey): array
     {
-        // Keyed-by-id
-        $checksSpecKeyed = collect($checksSpec)->mapWithKeys(function ($c, $k) {
-            if (is_string($k)) return [$k => (array)$c];
-            $id = is_array($c) ? ($c['id'] ?? null) : null;
-            return $id ? [$id => (array)$c] : [];
-        })->all();
+        try {
+            // Get slot configuration and custom prompt
+            $cfg = config('aergas_photos.modules.' . $moduleKey . '.slots.' . $slotKey);
+            if (!$cfg || empty($cfg['prompt'])) {
+                Log::warning('No custom prompt found for slot', ['module' => $moduleKey, 'slot' => $slotKey]);
+                return [
+                    'status' => 'failed',
+                    'score' => 0,
+                    'reason' => 'Prompt konfigurasi tidak ditemukan untuk slot ini',
+                    'notes' => ['No prompt configured'],
+                    'failed' => [$slotKey]
+                ];
+            }
 
-        if (empty($checksSpecKeyed)) {
-            return ['status'=>'passed','score'=>100,'checks'=>[],'failed'=>[],'notes'=>['No rules']];
-        }
+            // PDF auto-pass (manual review required)
+            if (preg_match('/\.pdf(\?.*)?$/i', $imageUrl)) {
+                return [
+                    'status' => 'passed',
+                    'score' => 100,
+                    'reason' => 'PDF file - manual review required',
+                    'notes' => ['PDF auto-pass'],
+                    'failed' => []
+                ];
+            }
 
-        // PDF heuristik
-        if (preg_match('/\.pdf(\?.*)?$/i', $imageUrl)) {
-            $checks = collect(array_keys($checksSpecKeyed))->map(fn($id) => [
-                'id'=>$id,'passed'=>true,'confidence'=>1.0,'reason'=>'pdf-auto-pass'
-            ])->all();
-            return ['status'=>'passed','score'=>100,'checks'=>$checks,'failed'=>[],'notes'=>['PDF auto-pass']];
-        }
+            // Use OpenAI service with custom prompt
+            $result = $this->openAIService->validatePhotoWithPrompt(
+                imagePath: $imageUrl,
+                customPrompt: $cfg['prompt'],
+                context: [
+                    'module' => $moduleKey,
+                    'slot' => $slotKey,
+                    'label' => $cfg['label'] ?? $slotKey
+                ]
+            );
 
-        if (!$this->openAIService) {
-            $checks = collect(array_keys($checksSpecKeyed))->map(fn($id) => [
-                'id'=>$id,'passed'=>true,'confidence'=>1.0,'reason'=>'ai-disabled'
-            ])->all();
-            return ['status'=>'passed','score'=>100,'checks'=>$checks,'failed'=>[],'notes'=>null];
-        }
-
-        // Payload AI harus indexed array
-        $checksPayload = collect($checksSpecKeyed)->map(function ($cfg, $id) {
-            $cfg = (array) $cfg; $cfg['id'] = $cfg['id'] ?? $id; return $cfg;
-        })->values()->all();
-
-        $res = $this->openAIService->analyzeImageChecks($imageUrl, $checksPayload, [
-            'module' => strtoupper($moduleKey),
-            'slot'   => $slotKey,
-        ]);
-
-        // Jika AI tak balikan per-check → lulus dengan warning agar tidak nge-block
-        if (empty($res['checks'])) {
-            $checks = collect(array_keys($checksSpecKeyed))->map(fn($id) => [
-                'id'=>$id,'passed'=>true,'confidence'=>0.7,'reason'=>'no-ai-checks'
-            ])->all();
+            // Convert to expected format for compatibility
             return [
-                'status'=>'passed','score'=>70,'checks'=>$checks,'failed'=>[],
-                'notes'=>['AI tidak mengembalikan hasil per-cek; melewati dengan peringatan.']
+                'status' => $result['passed'] ? 'passed' : 'failed',
+                'score' => round($result['confidence'] * 100), // Convert to percentage
+                'reason' => $result['reason'],
+                'notes' => [$result['reason']],
+                'failed' => $result['passed'] ? [] : [$slotKey],
+                'checks' => [
+                    [
+                        'id' => $slotKey,
+                        'passed' => $result['passed'],
+                        'confidence' => $result['confidence'],
+                        'reason' => $result['reason']
+                    ]
+                ]
+            ];
+
+        } catch (Exception $e) {
+            Log::error('AI validation with prompt failed', [
+                'module' => $moduleKey,
+                'slot' => $slotKey,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'status' => 'failed',
+                'score' => 0,
+                'reason' => 'AI validation error: ' . $e->getMessage(),
+                'notes' => ['AI validation error'],
+                'failed' => [$slotKey]
             ];
         }
-
-        $checks = collect($res['checks'])->map(function ($c) {
-            return [
-                'id'         => (string) ($c['id'] ?? ''),
-                'passed'     => (bool)   ($c['passed'] ?? false),
-                'confidence' => (float)  ($c['confidence'] ?? 0),
-                'reason'     => (string) ($c['reason'] ?? ''),
-            ];
-        })->values()->all();
-
-        $failed = collect($checks)->where('passed', false)->pluck('id')->values()->all();
-        $status = empty($failed) ? 'passed' : 'failed';
-        $score  = count($checks) ? round(collect($checks)->avg('confidence') * 100) : 0;
-
-        $notes  = $res['notes'] ?? null;
-        if (is_string($notes)) $notes = [$notes];
-
-        return compact('status','score','checks','failed','notes');
-    }
-
-
-
-    /** Susun kalimat ringkas dari daftar id cek yang gagal */
-    private function composeFailedMessage(array $checksSpec, array $failedIds): string
-    {
-        $labels = collect($checksSpec)->keyBy('id')->map(fn($c) => $c['label'] ?? ($c['id'] ?? ''));
-        $failedLabels = collect($failedIds)->map(fn($id) => (string) ($labels[$id] ?? $id))->values()->all();
-        return 'Cek wajib belum terpenuhi: ' . implode(', ', $failedLabels);
     }
 
     private function handlePhotoRejection(PhotoApproval $pa, string $by, string $reason): void
@@ -814,11 +803,6 @@ class PhotoApprovalService
         }
     }
 
-    /* ===================== (Legacy) =====================
-     * Method lama di code kamu seperti processAIValidation()/runAIValidation
-     * sebenarnya sudah tergantikan oleh handleUploadAndValidate + runAiChecks.
-     * Kalau masih ada yang manggil, disarankan dihapus atau diarahkan ke flow baru.
-     * ==================================================== */
 
     // --- LEGACY STUB: supaya tidak memutus pemanggil lama ---
     public function processAIValidation(string $reffId, string $module, string $photoField, string $photoUrl, ?int $uploadedBy = null): PhotoApproval

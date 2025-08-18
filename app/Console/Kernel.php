@@ -11,29 +11,15 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // Daily report at 8:00 AM Jakarta time
-        $schedule->command('aergas:daily-report')
-                 ->dailyAt('08:00')
-                 ->timezone('Asia/Jakarta');
-
-        // SLA check every hour during working hours
-        $schedule->command('aergas:check-sla')
-                 ->hourly()
-                 ->between('06:00', '22:00')
-                 ->timezone('Asia/Jakarta');
-
-        // Weekly summary report (Mondays at 9:00 AM)
-        $schedule->command('aergas:weekly-report')
-                 ->weeklyOn(1, '09:00')
-                 ->timezone('Asia/Jakarta');
-
-        // Cleanup tasks
+        // Essential cleanup tasks only
         $schedule->command('sanctum:prune-expired --hours=24')->daily();
 
+        // Cleanup old audit logs (keep 90 days)
         $schedule->call(function () {
             \App\Models\AuditLog::where('created_at', '<', now()->subDays(90))->delete();
         })->daily()->at('03:00');
 
+        // Cleanup old notifications (keep 30 days)
         $schedule->call(function () {
             \App\Models\Notification::where('created_at', '<', now()->subDays(30))->delete();
         })->daily()->at('03:30');

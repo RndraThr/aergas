@@ -449,7 +449,7 @@
     <div class="login-container">
         <div class="logo-container">
             <img src="{{ asset('assets/AERGAS_PNG.png') }}" alt="AERGAS Logo" class="logo">
-            <div class="system-subtitle">Gas Installation Management System</div>
+            <div class="system-subtitle">AI-Enabled Reporting for Gas Infrastructure</div>
         </div>
 
         <form class="login-form" id="loginForm" method="POST" action="{{ route('login.post') }}">

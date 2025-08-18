@@ -1,4 +1,4 @@
-{{-- resources/views/sk/show.blade.php --}}
+{{-- resources/views/sk/show.blade.php - UPDATED --}}
 @extends('layouts.app')
 
 @section('title', 'Detail SK - AERGAS')
@@ -20,7 +20,9 @@
       <p class="text-gray-600 mt-1">Reff ID: <b>{{ $sk->reff_id_pelanggan }}</b></p>
     </div>
     <div class="flex gap-2">
-      <a href="{{ route('sk.edit',$sk->id) }}" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Edit</a>
+      @if($sk->status === 'draft')
+        <a href="{{ route('sk.edit',$sk->id) }}" class="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Edit</a>
+      @endif
       <a href="{{ route('sk.index') }}" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Kembali</a>
     </div>
   </div>
@@ -82,102 +84,134 @@
     @endphp
 
     @if($list->isEmpty())
-      <div class="text-gray-500 text-sm">Belum ada foto. Silakan upload di halaman Edit.</div>
+      <div class="text-center py-8">
+        <i class="fas fa-camera text-gray-300 text-4xl mb-3"></i>
+        <p class="text-gray-500 text-sm mb-4">Belum ada foto yang diupload</p>
+        @if($sk->status === 'draft')
+          <a href="{{ route('sk.edit',$sk->id) }}" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            Upload Foto
+          </a>
+        @endif
+      </div>
     @else
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         @foreach($list as $pa)
-          <div class="border rounded-lg p-4 space-y-3" x-data="paCard({{ $pa->id }})">
+          <div class="border rounded-lg p-4 space-y-3">
             <div class="flex items-start justify-between">
               <div>
                 <div class="text-xs text-gray-500">Slot</div>
                 <div class="font-medium">{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}</div>
               </div>
               <div>
-                <span class="px-2 py-0.5 rounded text-xs"
-                  :class="badgeClass('{{ $pa->ai_status }}')"
-                >{{ strtoupper($pa->ai_status ?? 'pending') }}</span>
+                <span class="px-2 py-0.5 rounded text-xs" :class="badgeClass('{{ $pa->ai_status }}')">
+                  {{ strtoupper($pa->ai_status ?? 'pending') }}
+                </span>
               </div>
             </div>
 
             @if($pa->photo_url)
               @php $isPdf = str_ends_with(Str::lower($pa->photo_url), '.pdf'); @endphp
               @if(!$isPdf)
-                <img src="{{ $pa->photo_url }}" class="w-full h-40 object-cover rounded border">
+                <img src="{{ $pa->photo_url }}" class="w-full h-40 object-cover rounded border" alt="Photo {{ $pa->photo_field_name }}">
               @else
                 <div class="w-full h-40 flex items-center justify-center bg-gray-50 rounded border">
-                  <span class="text-xs text-gray-600">PDF</span>
+                  <div class="text-center">
+                    <i class="fas fa-file-pdf text-red-500 text-2xl mb-2"></i>
+                    <div class="text-xs text-gray-600">PDF Document</div>
+                  </div>
                 </div>
               @endif
             @endif
 
-            <div class="text-xs">
-              <div class="text-gray-500">AI Notes</div>
-              <div class="text-gray-800">{{ $pa->ai_notes ?? '-' }}</div>
+            {{-- AI Score & Status --}}
+            <div class="flex items-center justify-between text-xs">
+              <div class="text-gray-500">
+                Score: <span class="font-medium">{{ $pa->ai_score ? number_format($pa->ai_score, 1) : '-' }}</span>
+              </div>
+              <div class="text-gray-500">
+                {{ $pa->ai_last_checked_at ? $pa->ai_last_checked_at->format('d/m H:i') : '-' }}
+              </div>
             </div>
 
+            {{-- AI Notes --}}
+            @if($pa->ai_notes)
+              <div class="text-xs">
+                <div class="text-gray-500 mb-1">AI Notes</div>
+                <div class="text-gray-800 bg-gray-50 p-2 rounded text-xs">{{ $pa->ai_notes }}</div>
+              </div>
+            @endif
+
+            {{-- AI Checks Detail --}}
             @if(is_array($pa->ai_checks) && count($pa->ai_checks))
               <div class="text-xs">
-                <div class="text-gray-500 mb-1">Checks</div>
+                <div class="text-gray-500 mb-1">Validasi Detail</div>
                 <ul class="space-y-1">
                   @foreach($pa->ai_checks as $c)
-                    <li class="flex items-center gap-2">
+                    <li class="flex items-center gap-2 text-xs">
                       @if(!empty($c['passed']))
-                        <span class="text-green-600">✓</span>
+                        <span class="text-green-600 text-sm">✓</span>
                       @else
-                        <span class="text-red-600">✗</span>
+                        <span class="text-red-600 text-sm">✗</span>
                       @endif
-                      <span>{{ $c['id'] ?? '-' }}</span>
+                      <span class="flex-1">{{ $c['id'] ?? '-' }}</span>
                       @if(isset($c['confidence']))
                         <span class="text-gray-400">({{ number_format($c['confidence']*100,0) }}%)</span>
                       @endif
-                      @if(!empty($c['reason']))
-                        <span class="text-gray-400">- {{ $c['reason'] }}</span>
-                      @endif
                     </li>
+                    @if(!empty($c['reason']) && $c['reason'] !== 'ok')
+                      <li class="text-gray-500 ml-6 text-xs">{{ $c['reason'] }}</li>
+                    @endif
                   @endforeach
                 </ul>
               </div>
             @endif
-
-            <div class="flex items-center justify-between pt-1">
-              <div class="text-xs text-gray-500">Terakhir dicek: {{ $pa->ai_last_checked_at ?? '-' }}</div>
-              <button type="button" @click="recheck"
-                      class="px-3 py-1.5 text-xs bg-gray-100 rounded hover:bg-gray-200">
-                Recheck
-              </button>
-            </div>
           </div>
         @endforeach
       </div>
     @endif
   </div>
+
+  {{-- Action Buttons for Status Management --}}
+  @if($sk->status !== 'completed' && $sk->status !== 'canceled')
+    <div class="bg-white rounded-xl card-shadow p-6">
+      <h3 class="font-semibold text-gray-800 mb-4">Aksi</h3>
+      <div class="flex gap-3">
+        @if($sk->status === 'ready_for_tracer')
+          <button class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+            Approve (Tracer)
+          </button>
+          <button class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+            Reject (Tracer)
+          </button>
+        @elseif($sk->status === 'tracer_approved')
+          <button class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+            Approve (CGP)
+          </button>
+          <button class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+            Reject (CGP)
+          </button>
+        @elseif($sk->status === 'cgp_approved')
+          <button class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            Schedule Installation
+          </button>
+        @endif
+      </div>
+    </div>
+  @endif
 </div>
 @endsection
 
 @push('scripts')
 <script>
-function skShow(){ return { init(){} } }
-function paCard(id){
+function skShow() {
   return {
-    async recheck(){
-      try{
-        const url = @json(route('sk.photos.recheck', ['sk'=>$sk->id,'photo'=>'__ID__'])).replace('__ID__', id);
-        const res = await fetch(url, { method:'POST', headers:{'Accept':'application/json','X-CSRF-TOKEN':@json(csrf_token())}});
-        const j = await res.json().catch(()=>({}));
-        if(!res.ok || j.success===false) throw new Error(j?.message || 'Gagal recheck');
-        window.showToast?.('Recheck berhasil.', 'success');
-        // reload supaya status/notes terupdate
-        window.location.reload();
-      }catch(e){
-        console.error(e);
-        window.showToast?.(e.message || 'Recheck gagal', 'error');
-      }
-    },
-    badgeClass(st){
-      st = (st||'').toLowerCase();
-      if(st==='passed') return 'bg-green-100 text-green-800';
-      if(st==='failed') return 'bg-red-100 text-red-800';
-      if(st==='pending') return 'bg-gray-100 text-gray-700';
+    init() {},
+
+    badgeClass(status) {
+      const st = (status || '').toLowerCase();
+      if (st === 'passed') return 'bg-green-100 text-green-800';
+      if (st === 'failed') return 'bg-red-100 text-red-800';
+      if (st === 'pending') return 'bg-gray-100 text-gray-700';
       return 'bg-blue-100 text-blue-800';
     }
   }

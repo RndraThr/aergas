@@ -24,10 +24,23 @@
           ['field'=>'pneumatic_start','label'=>'Foto Pneumatic START SK','accept'=>['image/*'],'required_objects'=>[]],
           ['field'=>'pneumatic_finish','label'=>'Foto Pneumatic FINISH SK','accept'=>['image/*'],'required_objects'=>[]],
           ['field'=>'valve','label'=>'Foto Valve SK','accept'=>['image/*'],'required_objects'=>[]],
-          ['field'=>'pipa_depan','label'=>'Foto Pipa Depan SK','accept'=>['image/*'],'required_objects'=>[]],
           ['field'=>'isometrik_scan','label'=>'Scan Isometrik SK (TTD lengkap)','accept'=>['image/*','application/pdf'],'required_objects'=>[]],
       ];
   }
+
+  $materialLabels = [
+      'panjang_pipa_gl_medium_m' => 'Panjang Pipa 1/2" GL Medium (meter)',
+      'qty_elbow_1_2_galvanis' => 'Elbow 1/2" Galvanis (Pcs)',
+      'qty_sockdraft_galvanis_1_2' => 'SockDraft Galvanis Dia 1/2" (Pcs)',
+      'qty_ball_valve_1_2' => 'Ball Valve 1/2" (Pcs)',
+      'qty_nipel_selang_1_2' => 'Nipel Selang 1/2" (Pcs)',
+      'qty_elbow_reduce_3_4_1_2' => 'Elbow Reduce 3/4" x 1/2" (Pcs)',
+      'qty_long_elbow_3_4_male_female' => 'Long Elbow 3/4" Male Female (Pcs)',
+      'qty_klem_pipa_1_2' => 'Klem Pipa 1/2" (Pcs)',
+      'qty_double_nipple_1_2' => 'Double Nipple 1/2" (Pcs)',
+      'qty_seal_tape' => 'Seal Tape (Pcs)',
+      'qty_tee_1_2' => 'Tee 1/2" (Pcs) - Opsional',
+  ];
 @endphp
 
 <div class="space-y-6" x-data="skCreate()" x-init="init()">
@@ -127,6 +140,148 @@
 
     <div class="space-y-4">
       <div class="flex items-center gap-3">
+        <i class="fas fa-clipboard-list text-orange-600"></i>
+        <h2 class="font-semibold text-gray-800">Daftar Material SK</h2>
+        <div class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+          Sesuai Isometrik
+        </div>
+      </div>
+
+      <div class="bg-gray-50 p-4 rounded border">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="lg:col-span-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['panjang_pipa_gl_medium_m'] }} <span class="text-red-500">*</span>
+            </label>
+            <input type="number" x-model="material.panjang_pipa_gl_medium_m" step="0.01" min="0" max="1000"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0.00" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['qty_elbow_1_2_galvanis'] }} <span class="text-red-500">*</span>
+            </label>
+            <input type="number" x-model="material.qty_elbow_1_2_galvanis" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['qty_sockdraft_galvanis_1_2'] }} <span class="text-red-500">*</span>
+            </label>
+            <input type="number" x-model="material.qty_sockdraft_galvanis_1_2" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['qty_ball_valve_1_2'] }} <span class="text-red-500">*</span>
+            </label>
+            <input type="number" x-model="material.qty_ball_valve_1_2" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['qty_nipel_selang_1_2'] }} <span class="text-red-500">*</span>
+            </label>
+            <input type="number" x-model="material.qty_nipel_selang_1_2" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['qty_elbow_reduce_3_4_1_2'] }} <span class="text-red-500">*</span>
+            </label>
+            <input type="number" x-model="material.qty_elbow_reduce_3_4_1_2" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['qty_long_elbow_3_4_male_female'] }} <span class="text-red-500">*</span>
+            </label>
+            <input type="number" x-model="material.qty_long_elbow_3_4_male_female" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['qty_klem_pipa_1_2'] }} <span class="text-red-500">*</span>
+            </label>
+            <input type="number" x-model="material.qty_klem_pipa_1_2" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['qty_double_nipple_1_2'] }} <span class="text-red-500">*</span>
+            </label>
+            <input type="number" x-model="material.qty_double_nipple_1_2" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['qty_seal_tape'] }} <span class="text-red-500">*</span>
+            </label>
+            <input type="number" x-model="material.qty_seal_tape" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {{ $materialLabels['qty_tee_1_2'] }}
+            </label>
+            <input type="number" x-model="material.qty_tee_1_2" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0">
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-white rounded border">
+          <div class="text-sm text-gray-600">
+            <div class="flex justify-between items-center">
+              <span class="font-medium">Total Fitting:</span>
+              <span class="font-bold" x-text="calculateTotalFitting()"></span>
+            </div>
+            <div class="flex justify-between items-center mt-1">
+              <span class="font-medium">Status Kelengkapan:</span>
+              <span :class="isMaterialComplete() ? 'text-green-600 font-bold' : 'text-red-600 font-bold'"
+                    x-text="isMaterialComplete() ? 'LENGKAP' : 'BELUM LENGKAP'"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-orange-50 border border-orange-200 p-3 rounded text-sm">
+        <div class="flex items-start">
+          <i class="fas fa-info-circle text-orange-600 mr-2 mt-0.5"></i>
+          <div>
+            <p class="font-medium text-orange-800 mb-1">Catatan Material:</p>
+            <ul class="text-orange-700 space-y-1">
+              <li>• Semua field bertanda (*) merah wajib diisi</li>
+              <li>• Field Tee 1/2" bersifat opsional</li>
+              <li>• Material harus sesuai dengan gambar isometrik SK</li>
+              <li>• Pastikan quantity sudah benar sebelum submit</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div class="flex items-center gap-3">
         <i class="fas fa-camera text-purple-600"></i>
         <h2 class="font-semibold text-gray-800">Upload Foto</h2>
         <template x-if="hasAiFailure">
@@ -167,16 +322,6 @@
                     Skor: <span x-text="formatScore(ai[ph.field])"></span>
                   </span>
                 </div>
-                <template x-if="(ai[ph.field].objects || []).length">
-                  <div class="mb-1">
-                    <span class="text-gray-600 font-medium">Objek terdeteksi:</span>
-                    <div class="mt-1">
-                      <template x-for="o in ai[ph.field].objects" :key="o">
-                        <span class="ml-1 px-2 py-0.5 bg-white border rounded inline-block mr-1 mb-1" x-text="o"></span>
-                      </template>
-                    </div>
-                  </div>
-                </template>
                 <template x-if="(ai[ph.field].messages || []).length">
                   <div>
                     <span class="text-gray-600 font-medium">Catatan:</span>
@@ -187,17 +332,6 @@
                     </ul>
                   </div>
                 </template>
-              </div>
-            </template>
-
-            <template x-if="(ph.required_objects || []).length">
-              <div class="mt-2 text-xs text-gray-500">
-                <span class="font-medium">Objek wajib:</span>
-                <div class="mt-1">
-                  <template x-for="obj in ph.required_objects" :key="obj">
-                    <span class="px-2 py-0.5 mr-1 mb-1 bg-gray-100 rounded border inline-block" x-text="obj"></span>
-                  </template>
-                </div>
               </div>
             </template>
 
@@ -248,7 +382,7 @@
         <i class="fas fa-arrow-left mr-2"></i>Batal
       </a>
       <button type="submit"
-              :disabled="submitting || !customer || !reff || !tanggal || hasAiFailure"
+              :disabled="submitting || !customer || !reff || !tanggal || hasAiFailure || !isMaterialComplete()"
               class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
         <template x-if="!submitting">
           <span><i class="fas fa-save mr-2"></i>Simpan</span>
@@ -259,13 +393,20 @@
       </button>
     </div>
 
-    <template x-if="hasAiFailure">
+    <template x-if="hasAiFailure || !isMaterialComplete()">
       <div class="bg-amber-50 border border-amber-200 p-4 rounded">
         <div class="flex items-start">
           <i class="fas fa-exclamation-triangle text-amber-600 mr-2 mt-0.5"></i>
           <div class="text-amber-800">
             <p class="font-medium">Perhatian!</p>
-            <p class="text-sm mt-1">Beberapa foto perlu diperbaiki sebelum dapat disimpan. Periksa hasil analisa AI di atas dan pastikan foto memenuhi kriteria yang diperlukan.</p>
+            <div class="text-sm mt-1">
+              <template x-if="hasAiFailure">
+                <p>Beberapa foto perlu diperbaiki sebelum dapat disimpan.</p>
+              </template>
+              <template x-if="!isMaterialComplete()">
+                <p>Data material belum lengkap. Pastikan semua field bertanda (*) sudah diisi.</p>
+              </template>
+            </div>
           </div>
         </div>
       </div>
@@ -285,6 +426,20 @@ function skCreate() {
     reffMsg: '',
     tanggal: new Date().toISOString().slice(0,10),
     notes: '',
+
+    material: {
+      panjang_pipa_gl_medium_m: '',
+      qty_elbow_1_2_galvanis: '',
+      qty_sockdraft_galvanis_1_2: '',
+      qty_ball_valve_1_2: '',
+      qty_nipel_selang_1_2: '',
+      qty_elbow_reduce_3_4_1_2: '',
+      qty_long_elbow_3_4_male_female: '',
+      qty_klem_pipa_1_2: '',
+      qty_double_nipple_1_2: '',
+      qty_seal_tape: '',
+      qty_tee_1_2: ''
+    },
 
     pickedFiles: {},
     previews: {},
@@ -320,6 +475,54 @@ function skCreate() {
       return s > 1 ? Math.round(s) + '%' : Math.round(s * 100) + '%';
     },
 
+    calculateTotalFitting() {
+      const values = Object.values(this.material);
+      const total = values.reduce((sum, val) => {
+        const num = Number(val) || 0;
+        return sum + num;
+      }, 0);
+      return total - (Number(this.material.panjang_pipa_gl_medium_m) || 0);
+    },
+
+    isMaterialComplete() {
+      const required = [
+        'panjang_pipa_gl_medium_m',
+        'qty_elbow_1_2_galvanis',
+        'qty_sockdraft_galvanis_1_2',
+        'qty_ball_valve_1_2',
+        'qty_nipel_selang_1_2',
+        'qty_elbow_reduce_3_4_1_2',
+        'qty_long_elbow_3_4_male_female',
+        'qty_klem_pipa_1_2',
+        'qty_double_nipple_1_2',
+        'qty_seal_tape'
+      ];
+
+      for (const field of required) {
+        const value = this.material[field];
+        if (field === 'panjang_pipa_gl_medium_m') {
+          if (!value || Number(value) <= 0) return false;
+        } else {
+          if (value === '' || value === null || Number(value) < 0) return false;
+        }
+      }
+      return true;
+    },
+
+    refreshAiFailureFlag() {
+      this.hasAiFailure = Object.values(this.ai).some(result => result && !result.passed);
+    },
+
+    clearPick(field) {
+      this.pickedFiles[field] = null;
+      this.previews[field] = null;
+      this.isPdfMap[field] = false;
+      this.uploadStatuses[field] = '';
+      this.ai[field] = null;
+      this.refreshAiFailureFlag();
+      document.getElementById(`inp_${field}`).value = '';
+    },
+
     async findCustomer() {
       this.customer = null;
       this.reffMsg = '';
@@ -352,206 +555,211 @@ function skCreate() {
     },
 
     async onPick(field, e) {
-      const file = e.target.files?.[0];
-      if (!file) return;
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-      if (!this.customer || !this.reff) {
-        alert('Silakan isi Reference ID dan cari customer terlebih dahulu sebelum upload foto.');
-        e.target.value = '';
-        return;
-      }
-
-      this.pickedFiles[field] = file;
-      this.isPdfMap[field] = (file.type === 'application/pdf');
-
-      if (!this.isPdfMap[field]) {
-        const reader = new FileReader();
-        reader.onload = () => this.$nextTick(() => {
-          this.previews[field] = reader.result;
-        });
-        reader.readAsDataURL(file);
-      } else {
-        this.previews[field] = null;
-      }
-
-      this.uploadStatuses[field] = 'Menganalisa…';
-      this.ai[field] = null;
-
-      if (this.isPdfMap[field]) {
-        this.ai[field] = {
-          passed: true,
-          score: null,
-          objects: [],
-          messages: ['Berkas PDF: cek manual/TTD']
-        };
-        this.refreshAiFailureFlag();
-        this.uploadStatuses[field] = 'AI: LULUS (PDF)';
-        return;
-      }
-
-      const fd = new FormData();
-      fd.append('_token', document.querySelector('input[name=_token]').value);
-      fd.append('slot_type', field);
-      fd.append('file', file);
-
-      try {
-        const res = await fetch(@json(route('sk.photos.precheck-generic')), {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: fd
-        });
-
-        const j = await res.json().catch(() => ({}));
-        if (!res.ok || !j?.success) {
-          throw new Error(j?.message || 'Precheck gagal');
+        if (!this.customer || !this.reff) {
+            alert('Silakan isi Reference ID dan cari customer terlebih dahulu sebelum upload foto.');
+            e.target.value = '';
+            return;
         }
 
-        this.ai[field] = {
-          passed: !!j.ai?.passed,
-          score: Number(j.ai?.score ?? 0),
-          objects: Array.isArray(j.ai?.objects) ? j.ai.objects : [],
-          messages: Array.isArray(j.ai?.messages) ? j.ai.messages : [],
-        };
+        this.pickedFiles[field] = file;
+        this.isPdfMap[field] = (file.type === 'application/pdf');
 
-        this.uploadStatuses[field] = this.ai[field].passed ? ( (j.warnings && j.warnings.length) ? 'AI: LULUS (warning)' : 'AI: LULUS' ) : 'AI: PERLU PERBAIKAN';
-
-      } catch (err) {
-        console.error('Precheck error', err);
-        this.ai[field] = {
-          passed: false,
-          score: null,
-          objects: [],
-          messages: ['Precheck gagal diproses: ' + (err.message || 'Unknown error')]
-        };
-        this.uploadStatuses[field] = 'Precheck gagal';
-      } finally {
-        this.refreshAiFailureFlag();
-      }
-    },
-
-    clearPick(field) {
-      delete this.pickedFiles[field];
-      delete this.previews[field];
-      delete this.isPdfMap[field];
-      delete this.ai[field];
-      this.uploadStatuses[field] = '';
-
-      const inp = document.getElementById(`inp_${field}`);
-      if (inp) inp.value = '';
-
-      this.refreshAiFailureFlag();
-    },
-
-    refreshAiFailureFlag() {
-      this.hasAiFailure = Object.entries(this.pickedFiles).some(([f]) => {
-        const a = this.ai[f];
-        return a && a.passed === false;
-      });
-    },
-
-    async onSubmit() {
-      if (!this.customer || !this.reff || !this.tanggal) {
-        this.reffMsg ||= 'Lengkapi Reference ID & cari pelanggan.';
-        return;
-      }
-
-      if (this.hasAiFailure) {
-        alert('Tidak dapat menyimpan karena ada foto yang perlu diperbaiki. Periksa hasil AI precheck.');
-        return;
-      }
-
-      this.submitting = true;
-      try {
-        const saveRes = await fetch(@json(route('sk.store')), {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value,
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: this.makeSaveFormData()
-        });
-
-        const saveJson = await saveRes.json().catch(() => ({}));
-        if (!saveRes.ok) {
-          throw new Error((saveJson && (saveJson.message || saveJson.error)) || 'Gagal menyimpan data SK');
+        if (!this.isPdfMap[field]) {
+            const reader = new FileReader();
+            reader.onload = () => this.$nextTick(() => {
+                this.previews[field] = reader.result;
+            });
+            reader.readAsDataURL(file);
+        } else {
+            this.previews[field] = null;
         }
 
-        const sk = saveJson.data ?? saveJson;
-        if (!sk?.id) {
-          throw new Error('Response tidak berisi ID SK');
+        this.uploadStatuses[field] = 'Menganalisa dengan AI...';
+        this.ai[field] = null;
+
+        if (this.isPdfMap[field]) {
+            this.ai[field] = {
+                passed: true,
+                score: null,
+                reason: 'PDF file - akan diperiksa manual',
+                messages: ['Berkas PDF: memerlukan pemeriksaan manual untuk kelengkapan tanda tangan']
+            };
+            this.refreshAiFailureFlag();
+            this.uploadStatuses[field] = 'AI: LULUS (PDF - Manual Review)';
+            return;
         }
-
-        await this.uploadAllPhotos(sk.id);
-
-        window.showToast?.('Data SK tersimpan. Foto yang dipilih sudah diunggah.', 'success') ||
-          alert('Data SK tersimpan. Foto terunggah.');
-        window.location.href = @json(route('sk.show', ['sk'=>'__ID__'])).replace('__ID__', sk.id);
-
-      } catch (e) {
-        console.error(e);
-        window.showToast?.(e.message || 'Terjadi kesalahan saat menyimpan', 'error') ||
-          alert(e.message || 'Terjadi kesalahan saat menyimpan');
-      } finally {
-        this.submitting = false;
-      }
-    },
-
-    makeSaveFormData() {
-      const fd = new FormData();
-      fd.append('_token', document.querySelector('input[name=_token]').value);
-      fd.append('reff_id_pelanggan', this.reff);
-      fd.append('tanggal_instalasi', this.tanggal);
-      if (this.notes) fd.append('notes', this.notes);
-      return fd;
-    },
-
-    async uploadAllPhotos(skId) {
-      const urlTpl = @json(route('sk.photos.upload', ['sk' => '__ID__']));
-      const url = urlTpl.replace('__ID__', skId);
-
-      for (const def of this.photoDefs) {
-        const file = this.pickedFiles[def.field];
-        if (!file) continue;
 
         const fd = new FormData();
         fd.append('_token', document.querySelector('input[name=_token]').value);
-        fd.append('slot_type', def.field);
+        fd.append('slot_type', field);
         fd.append('file', file);
 
-        const a = this.ai[def.field];
-        if (a) {
-          fd.append('ai_passed', a.passed ? '1' : '0');
-          if (a.score != null) fd.append('ai_score', a.score);
-          (a.objects || []).forEach(v => fd.append('ai_objects[]', v));
-          (a.messages || []).forEach(v => fd.append('ai_notes[]', v));
+        try {
+            const res = await fetch(@json(route('sk.photos.precheck-generic')), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: fd
+            });
+
+            const j = await res.json().catch(() => ({}));
+            if (!res.ok || !j?.success) {
+                throw new Error(j?.message || 'Validasi AI gagal');
+            }
+
+            this.ai[field] = {
+                passed: !!j.ai?.passed,
+                score: Number(j.ai?.score ?? 0),
+                reason: j.ai?.reason || 'Tidak ada keterangan',
+                messages: j.ai?.messages || [j.ai?.reason || 'Validasi selesai'],
+                confidence: j.ai?.confidence || 0,
+                objects: [],
+            };
+
+            if (this.ai[field].passed) {
+                const scoreText = this.ai[field].score ? ` (${Math.round(this.ai[field].score)}%)` : '';
+                this.uploadStatuses[field] = `AI: LULUS${scoreText}`;
+            } else {
+                this.uploadStatuses[field] = 'AI: DITOLAK - ' + this.ai[field].reason;
+            }
+
+            if (j.debug) {
+                console.log('AI Validation Debug:', {
+                    field: field,
+                    prompt: j.debug.prompt_used,
+                    response: j.debug.raw_response,
+                    result: this.ai[field]
+                });
+            }
+
+        } catch (err) {
+            console.error('AI Validation error', err);
+            this.ai[field] = {
+                passed: false,
+                score: 0,
+                reason: err.message || 'Terjadi kesalahan saat validasi AI',
+                messages: ['Validasi AI gagal: ' + (err.message || 'Unknown error')],
+                confidence: 0,
+                objects: [],
+            };
+            this.uploadStatuses[field] = 'AI: ERROR - ' + (err.message || 'Validasi gagal');
+        } finally {
+            this.refreshAiFailureFlag();
         }
+    },
+
+    async onSubmit() {
+        if (this.submitting) return;
+        if (!this.customer || !this.reff || !this.tanggal) {
+            alert('Silakan lengkapi data customer dan tanggal instalasi.');
+            return;
+        }
+        if (this.hasAiFailure) {
+            alert('Masih ada foto yang perlu diperbaiki. Silakan periksa hasil validasi AI.');
+            return;
+        }
+        if (!this.isMaterialComplete()) {
+            alert('Data material belum lengkap. Pastikan semua field bertanda (*) sudah diisi.');
+            return;
+        }
+
+        this.submitting = true;
 
         try {
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: fd
-          });
+            const formData = new FormData();
+            formData.append('_token', document.querySelector('input[name=_token]').value);
+            formData.append('reff_id_pelanggan', this.reff);
+            formData.append('tanggal_instalasi', this.tanggal);
+            if (this.notes) formData.append('notes', this.notes);
 
-          const j = await res.json().catch(() => ({}));
-          if (!res.ok || !(j && (j.success === true || j.photo_id))) {
-            throw new Error(j?.message || 'Gagal upload');
-          }
+            Object.keys(this.material).forEach(key => {
+                const value = this.material[key];
+                if (value !== '' && value !== null) {
+                    formData.append(key, value);
+                }
+            });
 
-          this.uploadStatuses[def.field] = '✓ uploaded';
+            const response = await fetch(@json(route('sk.store')), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
 
-        } catch (e) {
-          console.error('Upload gagal', def.field, e);
-          this.uploadStatuses[def.field] = '✗ gagal';
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Gagal menyimpan SK');
+            }
+
+            const skId = result.data?.id;
+            if (!skId) {
+                throw new Error('SK berhasil dibuat tapi ID tidak ditemukan');
+            }
+
+            await this.uploadAllPhotos(skId);
+
+            window.showToast?.('SK berhasil dibuat dan foto diupload!', 'success');
+            window.location.href = @json(route('sk.show', ['sk' => '__ID__'])).replace('__ID__', skId);
+
+        } catch (error) {
+            console.error('Submit error:', error);
+            alert('Gagal menyimpan SK: ' + (error.message || 'Unknown error'));
+        } finally {
+            this.submitting = false;
         }
-      }
+    },
+
+    async uploadAllPhotos(skId) {
+        const urlTpl = @json(route('sk.photos.upload', ['sk' => '__ID__']));
+        const url = urlTpl.replace('__ID__', skId);
+
+        for (const def of this.photoDefs) {
+            const file = this.pickedFiles[def.field];
+            if (!file) continue;
+
+            const fd = new FormData();
+            fd.append('_token', document.querySelector('input[name=_token]').value);
+            fd.append('slot_type', def.field);
+            fd.append('file', file);
+
+            const a = this.ai[def.field];
+            if (a) {
+                fd.append('ai_passed', a.passed ? '1' : '0');
+                if (a.score != null) fd.append('ai_score', a.score);
+                if (a.reason) fd.append('ai_reason', a.reason);
+                (a.messages || []).forEach(v => fd.append('ai_notes[]', v));
+            }
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: fd
+                });
+
+                const j = await res.json().catch(() => ({}));
+                if (!res.ok || !(j && (j.success === true || j.photo_id))) {
+                    throw new Error(j?.message || 'Gagal upload');
+                }
+
+                this.uploadStatuses[def.field] = '✓ Uploaded';
+
+            } catch (e) {
+                console.error('Upload gagal', def.field, e);
+                this.uploadStatuses[def.field] = '✗ Upload gagal';
+            }
+        }
     }
   }
 }
