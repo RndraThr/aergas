@@ -10,7 +10,14 @@ return [
 
     // File naming pattern
     'naming' => [
-        'pattern' => env('AERGAS_PHOTO_NAMING', 'reff_slot_ts'), // reff_slot_ts | reff_slot | ts_reff_slot_orig
+        'pattern' => env('AERGAS_PHOTO_NAMING', 'reff_slot_ts'),
+    ],
+
+    // AI Validation thresholds
+    'ai_thresholds' => [
+        'auto_pass_score' => 85,    // Score >= 85% = auto pass
+        'warning_score'   => 70,    // Score 70-84% = warning (masih bisa submit)
+        'reject_score'    => 50,    // Score < 50% = strong warning (tetap bisa submit tapi perlu review)
     ],
 
     // Module configurations
@@ -18,8 +25,9 @@ return [
 
         // ====================== SK MODULE ======================
         'SK' => [
-            'min_required_slots' => 5,
+            'min_required_slots' => 4,
             'replace_same_slot' => true,
+            'allow_submit_with_warnings' => true,  // KUNCI: izinkan submit meski ada warning
 
             'slots' => [
 
@@ -27,236 +35,115 @@ return [
                     'label' => 'Foto Pneumatic START SK',
                     'accept' => ['image/*'],
                     'required' => true,
-                    'prompt' => 'Analisis foto pneumatic test START ini dengan kriteria SPESIFIK:
+                    'prompt' => 'Analisis foto pneumatic test START dengan penilaian SKOR (0-100):
 
-                                YANG HARUS ADA:
-                                1. GAUGE/MANOMETER terlihat dengan angka yang dapat dibaca (tidak perlu 100% tajam, asalkan terlihat)
-                                2. FORM/PAPAN INFORMASI terlihat dalam foto (boleh sebagian)
-                                3. PIPA atau SAMBUNGAN pneumatic terlihat
-                                4. SETUP pneumatic test tampak terpasang dengan benar
-                                5. CAP AIR / WATERMARK kamera HP (tanggal, jam, lokasi, dll.) terlihat pada foto
+                                ELEMEN YANG DIPERIKSA:
+                                1. GAUGE/MANOMETER (30 poin) - Apakah terlihat dan dapat dibaca?
+                                2. FORM/PAPAN INFORMASI (25 poin) - Apakah ada dokumen/form terlihat?
+                                3. SETUP PNEUMATIC (20 poin) - Apakah peralatan terpasang dengan benar?
+                                4. WATERMARK KAMERA (15 poin) - Apakah ada cap waktu/lokasi dari HP?
+                                5. KUALITAS FOTO (10 poin) - Apakah foto cukup jelas untuk diverifikasi?
 
-                                EVALUASI:
-                                - Apakah gauge bulat dengan jarum terlihat? Jika ya = LULUS
-                                - Apakah ada form/papan bertuliskan informasi? Jika ya = LULUS
-                                - Apakah setup pneumatic tampak normal? Jika ya = LULUS
-                                - Apakah watermark kamera HP (pojok bawah) terlihat? Jika ya = LULUS
-                                - Jangan terlalu strict pada ketajaman - fokus pada VISIBILITY
+                                PANDUAN PENILAIAN:
+                                - 90-100: Semua elemen terlihat jelas dan lengkap
+                                - 75-89: Sebagian besar elemen ada, mungkin ada 1-2 yang kurang optimal
+                                - 60-74: Elemen utama ada tapi beberapa tidak jelas atau hilang
+                                - 40-59: Hanya sebagian elemen yang teridentifikasi
+                                - 0-39: Elemen penting tidak terlihat atau foto tidak sesuai
 
-                                INSTRUKSI FINAL:
-                                - Jika gauge terlihat + form ada + setup proper + watermark ada = TERIMA
-                                - Jika salah satu elemen utama tidak terlihat sama sekali = TOLAK dengan alasan spesifik
-                                - JANGAN tolak hanya karena "sedikit blur" jika objek masih dapat diidentifikasi
-
-                                Berikan penilaian yang PRAKTIS dan KONSISTEN.',
+                                BERIKAN SKOR REALISTIS berdasarkan apa yang benar-benar terlihat.
+                                JANGAN terlalu ketat - fokus pada IDENTIFIKASI OBJEK bukan kesempurnaan.',
                 ],
-
 
                 'pneumatic_finish' => [
                     'label' => 'Foto Pneumatic FINISH SK',
                     'accept' => ['image/*'],
                     'required' => true,
-                    'prompt' => 'Analisis foto pneumatic test FINISH ini dengan kriteria SPESIFIK:
+                    'prompt' => 'Analisis foto pneumatic test FINISH dengan penilaian SKOR (0-100):
 
-                                YANG HARUS ADA:
-                                1. GAUGE/MANOMETER terlihat dengan angka yang dapat dibaca (tidak perlu 100% tajam, asalkan terlihat)
-                                2. FORM/PAPAN INFORMASI terlihat dalam foto (boleh sebagian)
-                                3. PIPA atau SAMBUNGAN pneumatic terlihat
-                                4. SETUP pneumatic test tampak terpasang dengan benar
-                                5. CAP AIR / WATERMARK kamera HP (tanggal, jam, lokasi, dll.) terlihat pada foto
-                                6. Bagian "Finish Time" pada form harus TERISI (tidak boleh kosong)
+                                ELEMEN YANG DIPERIKSA:
+                                1. GAUGE/MANOMETER (25 poin) - Apakah terlihat dan dapat dibaca?
+                                2. FORM/PAPAN INFORMASI (25 poin) - Apakah ada dokumen/form terlihat?
+                                3. FINISH TIME TERISI (25 poin) - Apakah kolom waktu selesai sudah diisi?
+                                4. SETUP PNEUMATIC (15 poin) - Apakah peralatan masih terpasang?
+                                5. WATERMARK KAMERA (10 poin) - Apakah ada cap waktu/lokasi dari HP?
 
-                                EVALUASI:
-                                - Apakah gauge bulat dengan jarum terlihat? Jika ya = LULUS
-                                - Apakah ada form/papan bertuliskan informasi? Jika ya = LULUS
-                                - Apakah setup pneumatic tampak normal? Jika ya = LULUS
-                                - Apakah watermark kamera HP (pojok bawah) terlihat? Jika ya = LULUS
-                                - Apakah kolom Finish Time pada form terisi jam yang jelas? Jika ya = LULUS
-                                - Jangan terlalu strict pada ketajaman - fokus pada VISIBILITY
+                                PANDUAN PENILAIAN:
+                                - 90-100: Semua elemen ada, termasuk Finish Time terisi jelas
+                                - 75-89: Elemen utama ada, Finish Time mungkin ada tapi tidak terlalu jelas
+                                - 60-74: Sebagian besar ada tapi Finish Time kosong atau tidak jelas
+                                - 40-59: Elemen dasar ada tapi beberapa penting hilang
+                                - 0-39: Elemen kritis tidak ada atau foto tidak sesuai
 
-                                INSTRUKSI FINAL:
-                                - Jika gauge terlihat + form ada + setup proper + watermark ada + Finish Time terisi = TERIMA
-                                - Jika salah satu elemen utama tidak terlihat sama sekali = TOLAK dengan alasan spesifik
-                                - Jika Finish Time kosong = TOLAK dengan alasan "Finish Time tidak terisi"
-                                - JANGAN tolak hanya karena "sedikit blur" jika objek masih dapat diidentifikasi
-
-                                Berikan penilaian yang PRAKTIS dan KONSISTEN.',
+                                CATATAN: Finish Time kosong = maksimal skor 70
+                                BERIKAN SKOR OBJEKTIF berdasarkan kelengkapan yang terlihat.',
                 ],
-
 
                 'valve' => [
                     'label' => 'Foto Valve SK',
                     'accept' => ['image/*'],
                     'required' => true,
-                    'prompt' => 'Periksa foto valve gas ini dengan teliti:
+                    'prompt' => 'Analisis foto valve gas dengan penilaian SKOR (0-100):
 
-                                KRITERIA WAJIB:
-                                1. Valve gas terlihat dengan jelas (bukan samar atau tertutup)
-                                2. Handle/tuas valve terlihat dan dapat diidentifikasi
-                                3. Foto tidak blur - detail valve harus jelas
-                                4. Posisi valve (terbuka/tertutup) dapat dilihat
-                                5. Sambungan pipa ke valve terlihat
-                                6. CAP AIR / WATERMARK kamera HP (tanggal, jam, lokasi, dll.) terlihat pada foto
+                                ELEMEN YANG DIPERIKSA:
+                                1. HANDLE/TUAS VALVE (40 poin) - Apakah handle valve terlihat dan dapat diidentifikasi?
+                                2. BODY VALVE (30 poin) - Apakah badan valve terlihat jelas?
+                                3. SAMBUNGAN PIPA (20 poin) - Apakah koneksi ke pipa terlihat?
+                                4. KUALITAS FOTO (10 poin) - Apakah foto cukup jelas untuk verifikasi?
 
-                                INSTRUKSI:
-                                - Jika valve tidak terlihat jelas atau tertutup objek lain: TOLAK dengan alasan "valve tidak terlihat jelas"
-                                - Jika handle tidak terlihat: TOLAK dengan alasan "handle valve tidak terlihat"
-                                - Jika foto blur: TOLAK dengan alasan "foto tidak jelas"
-                                - Jika watermark kamera HP tidak ada: TOLAK dengan alasan "watermark kamera tidak ada"
-                                - Jika semua valve components + watermark terlihat jelas: TERIMA
+                                PANDUAN PENILAIAN:
+                                - 90-100: Handle jelas, valve utuh, sambungan terlihat, foto tajam
+                                - 75-89: Handle terlihat, valve dapat diidentifikasi, cukup jelas
+                                - 60-74: Handle sebagian terlihat atau valve agak blur tapi masih recognizable
+                                - 40-59: Valve terlihat tapi handle tidak jelas atau foto blur
+                                - 0-39: Valve tidak dapat diidentifikasi atau bukan foto valve
 
-                                Valve adalah komponen safety critical, jadi harus benar-benar jelas terlihat.',
+                                FOKUS: Handle tidak harus sempurna 100% terlihat, yang penting DAPAT DIIDENTIFIKASI sebagai valve.',
                 ],
-
 
                 'isometrik_scan' => [
                     'label' => 'Scan Isometrik SK (TTD Lengkap)',
                     'accept' => ['image/*', 'application/pdf'],
-                    'required' => true,
-                    'prompt' => 'Periksa dokumen isometrik SK ini dengan SANGAT TELITI:
+                    'required' => false,
+                    'prompt' => 'Analisis dokumen isometrik SK dengan penilaian SKOR (0-100):
 
-                                KRITERIA WAJIB:
-                                1. HARUS ADA 3 TANDA TANGAN:
-                                - Tanda tangan PIC (biasanya di kiri atau atas)
-                                - Tanda tangan PELANGGAN (biasanya di tengah)
-                                - Tanda tangan WASPANG (biasanya di kanan atau bawah)
-                                2. CAP AIR / WATERMARK kamera HP (tanggal, jam, lokasi, dll.) terlihat pada foto
+                                ELEMEN YANG DIPERIKSA:
+                                1. GAMBAR ISOMETRIK (30 poin) - Apakah ada diagram/gambar teknis terlihat?
+                                2. TANDA TANGAN PIC (25 poin) - Apakah ada TTD/paraf di area PIC?
+                                3. TANDA TANGAN PELANGGAN (25 poin) - Apakah ada TTD/paraf di area Pelanggan?
+                                4. TANDA TANGAN WASPANG (20 poin) - Apakah ada TTD/paraf di area Waspang?
 
-                                CARA PERIKSA:
-                                - Lihat seluruh dokumen, cari area tanda tangan
-                                - Hitung jumlah tanda tangan yang ADA (bukan kotak kosong)
-                                - Tanda tangan bisa berupa coretan tinta, nama tulis tangan, atau cap
-                                - Pastikan watermark kamera HP terlihat jelas di pojok foto
+                                PANDUAN PENILAIAN:
+                                - 90-100: Gambar jelas + 3 tanda tangan lengkap dan jelas
+                                - 75-89: Gambar ada + 2-3 tanda tangan terlihat (bisa berupa paraf/cap)
+                                - 60-74: Gambar ada + 1-2 tanda tangan teridentifikasi
+                                - 40-59: Dokumen terlihat tapi tanda tangan tidak jelas/tidak ada
+                                - 0-39: Bukan dokumen isometrik atau tidak dapat dibaca
 
-                                INSTRUKSI KETAT:
-                                - Jika hanya ada 2 tanda tangan atau kurang: TOLAK dengan alasan "tanda tangan tidak lengkap - harus ada 3 tanda tangan (PIC, PELANGGAN, WASPANG)"
-                                - Jika watermark kamera HP tidak ada: TOLAK dengan alasan "watermark kamera tidak ada"
-                                - Jika ada 3 tanda tangan yang jelas terisi + watermark terlihat: TERIMA
-                                - Jika dokumen tidak jelas atau tidak bisa dibaca: TOLAK dengan alasan "dokumen tidak jelas"
-                                - Jika ragu jumlah tanda tangan: TOLAK dengan alasan "tidak dapat memastikan kelengkapan tanda tangan"
-
-                                Ini dokumen legal penting - harus benar-benar ada 3 tanda tangan + watermark kamera HP!',
-                ],
-            ]
-
-        ],
-
-        // ====================== SR MODULE ======================
-        'SR' => [
-            'min_required_slots' => 5,
-            'replace_same_slot' => true,
-
-            'slots' => [
-
-                'pneumatic_start' => [
-                    'label' => 'Foto Pneumatic START SR',
-                    'accept' => ['image/*'],
-                    'required' => true,
-                    'prompt' => 'Periksa foto pneumatic test START untuk SR ini:
-
-KRITERIA WAJIB:
-1. Foto tidak blur - gauge harus bisa dibaca
-2. Pneumatic test equipment terlihat jelas
-3. Gauge/manometer menunjukkan tekanan awal
-4. Pipa atau sambungan yang akan ditest terlihat
-5. Setup test terlihat proper dan aman
-
-INSTRUKSI:
-- Jika equipment tidak terlihat jelas: TOLAK dengan alasan "equipment pneumatic tidak jelas"
-- Jika gauge tidak readable: TOLAK dengan alasan "gauge tidak dapat dibaca"
-- Jika foto blur: TOLAK dengan alasan "foto tidak jelas"
-- Jika setup terlihat tidak aman: TOLAK dengan alasan "setup tidak aman"
-- Jika semua kriteria OK: TERIMA',
+                                CATATAN: Tanda tangan bisa berupa coretan, paraf, cap, atau nama tulisan tangan.
+                                TIDAK harus 3 TTD sempurna untuk mendapat skor tinggi.',
                 ],
 
-                'pneumatic_finish' => [
-                    'label' => 'Foto Pneumatic FINISH SR',
-                    'accept' => ['image/*'],
-                    'required' => true,
-                    'prompt' => 'Periksa foto pneumatic test FINISH untuk SR ini:
-
-KRITERIA WAJIB:
-1. Foto tidak blur - hasil test harus jelas
-2. Gauge menunjukkan hasil akhir test
-3. Equipment masih terpasang dengan baik
-4. Tidak ada tanda kebocoran atau masalah
-5. Hasil test dapat diverifikasi
-
-INSTRUKSI:
-- Jika hasil test tidak jelas: TOLAK dengan alasan "hasil test tidak dapat diverifikasi"
-- Jika gauge tidak menunjukkan hasil yang clear: TOLAK dengan alasan "pembacaan gauge tidak jelas"
-- Jika terlihat ada kebocoran: TOLAK dengan alasan "terlihat ada masalah/kebocoran"
-- Jika foto blur: TOLAK dengan alasan "foto tidak jelas"
-- Jika hasil test jelas dan proper: TERIMA',
-                ],
-
-                'tapping_saddle' => [
-                    'label' => 'Foto Jenis Tapping (Saddle)',
-                    'accept' => ['image/*'],
-                    'required' => true,
-                    'prompt' => 'Periksa foto tapping saddle untuk SR ini:
-
-KRITERIA WAJIB:
-1. Tapping saddle terlihat dengan jelas
-2. Ukuran/size marking pada saddle dapat dibaca
-3. Pemasangan saddle terlihat proper dan rapi
-4. Foto tidak blur - detail saddle harus jelas
-5. Sambungan ke pipa utama terlihat
-
-INSTRUKSI:
-- Jika saddle tidak terlihat jelas: TOLAK dengan alasan "tapping saddle tidak terlihat jelas"
-- Jika size marking tidak dapat dibaca: TOLAK dengan alasan "ukuran saddle tidak dapat diverifikasi"
-- Jika pemasangan terlihat tidak proper: TOLAK dengan alasan "pemasangan saddle tidak proper"
-- Jika foto blur: TOLAK dengan alasan "foto tidak jelas"
-- Jika saddle terpasang dengan benar dan jelas: TERIMA',
-                ],
-
-                'kedalaman' => [
-                    'label' => 'Foto Kedalaman Galian',
-                    'accept' => ['image/*'],
-                    'required' => true,
-                    'prompt' => 'Periksa foto pengukuran kedalaman galian ini:
-
-KRITERIA WAJIB:
-1. Galian/lubang terlihat jelas
-2. Alat ukur (pita ukur/penggaris) terlihat dan dapat dibaca
-3. Kedalaman dapat diverifikasi dari alat ukur
-4. Foto tidak blur - angka pada alat ukur harus jelas
-5. Konteks galian untuk instalasi pipa terlihat
-
-INSTRUKSI:
-- Jika alat ukur tidak terlihat: TOLAK dengan alasan "alat ukur tidak terlihat"
-- Jika angka kedalaman tidak dapat dibaca: TOLAK dengan alasan "kedalaman tidak dapat diverifikasi"
-- Jika galian tidak terlihat jelas: TOLAK dengan alasan "galian tidak terlihat jelas"
-- Jika foto blur: TOLAK dengan alasan "foto tidak jelas"
-- Jika kedalaman dapat diverifikasi dengan jelas: TERIMA',
-                ],
-
-                'isometrik_scan' => [
-                    'label' => 'Scan Isometrik SR (TTD Lengkap)',
-                    'accept' => ['image/*', 'application/pdf'],
-                    'required' => true,
-                    'prompt' => 'Periksa dokumen isometrik SR ini dengan SANGAT TELITI:
-
-KRITERIA WAJIB - HARUS ADA 3 TANDA TANGAN:
-1. Tanda tangan PETUGAS SR (biasanya di kiri atau atas)
-2. Tanda tangan SUPERVISOR/TRACER (biasanya di tengah)
-3. Tanda tangan PELANGGAN (biasanya di kanan atau bawah)
-
-CARA PERIKSA:
-- Scan seluruh dokumen untuk area tanda tangan
-- Hitung jumlah tanda tangan yang BENAR-BENAR ADA
-- Tanda tangan bisa coretan tinta, tulisan tangan, atau cap
-
-INSTRUKSI KETAT:
-- Jika kurang dari 3 tanda tangan: TOLAK dengan alasan "tanda tangan tidak lengkap - harus ada 3 tanda tangan (petugas, supervisor, pelanggan)"
-- Jika ada 3 tanda tangan lengkap: TERIMA
-- Jika dokumen tidak dapat dibaca: TOLAK dengan alasan "dokumen tidak jelas"
-- Jika tidak yakin jumlah tanda tangan: TOLAK dengan alasan "tidak dapat memastikan kelengkapan tanda tangan"
-
-Dokumen hukum penting - 3 tanda tangan WAJIB!',
-                ],
             ],
+
+            // Warning messages berdasarkan score range
+            'score_messages' => [
+                'excellent' => 'Foto sangat baik dan memenuhi semua kriteria',
+                'good'      => 'Foto baik dan dapat diterima',
+                'warning'   => 'Foto dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
+                'poor'      => 'Foto masih dapat diproses namun sangat disarankan untuk diperbaiki',
+            ]
         ],
+
     ],
+
+    // Aliases untuk backward compatibility
+    'aliases' => [
+        'SK' => [
+            'foto_pneumatic_start_sk_url' => 'pneumatic_start',
+            'foto_pneumatic_finish_sk_url' => 'pneumatic_finish',
+            'foto_valve_sk_url' => 'valve',
+            'foto_isometrik_scan_sk_url' => 'isometrik_scan',
+        ]
+    ]
 ];

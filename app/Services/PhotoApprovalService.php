@@ -479,7 +479,7 @@ class PhotoApprovalService
                 'uploaded_at'   => now(),
                 'ai_status'     => $aiPassed ? 'passed' : 'failed',
                 'ai_score'      => ($aiScore ?? 0) / 100, // Store as decimal
-                'ai_checks'     => $aiChecks,
+                'ai_checks' => is_array($aiChecks) ? json_encode($aiChecks) : $aiChecks, // ✅ JSON string
                 'ai_notes'      => $aiReason, // CHANGED: Store reason instead of notes array
                 'ai_last_checked_at' => now(),
                 'photo_status'  => $photoStatus,

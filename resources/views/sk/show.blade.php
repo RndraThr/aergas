@@ -1,4 +1,4 @@
-{{-- resources/views/sk/show.blade.php - UPDATED --}}
+{{-- resources/views/sk/show.blade.php - FIXED PHOTO DISPLAY --}}
 @extends('layouts.app')
 
 @section('title', 'Detail SK - AERGAS')
@@ -109,18 +109,65 @@
               </div>
             </div>
 
+            {{-- FIXED: Photo Display with better URL handling and fallback --}}
             @if($pa->photo_url)
-              @php $isPdf = str_ends_with(Str::lower($pa->photo_url), '.pdf'); @endphp
+              @php
+                $photoUrl = $pa->photo_url;
+                $isPdf = str_ends_with(Str::lower($photoUrl), '.pdf');
+
+                // Convert Google Drive URLs to direct view format
+                if (strpos($photoUrl, 'drive.google.com') !== false) {
+                  // Extract file ID from various Google Drive URL formats
+                  if (preg_match('/\/file\/d\/([a-zA-Z0-9-_]+)/', $photoUrl, $matches)) {
+                    $fileId = $matches[1];
+                    $photoUrl = "https://drive.google.com/uc?export=view&id=" . $fileId;
+                  } elseif (preg_match('/id=([a-zA-Z0-9-_]+)/', $photoUrl, $matches)) {
+                    $fileId = $matches[1];
+                    $photoUrl = "https://drive.google.com/uc?export=view&id=" . $fileId;
+                  }
+                }
+              @endphp
+
               @if(!$isPdf)
-                <img src="{{ $pa->photo_url }}" class="w-full h-40 object-cover rounded border" alt="Photo {{ $pa->photo_field_name }}">
-              @else
-                <div class="w-full h-40 flex items-center justify-center bg-gray-50 rounded border">
-                  <div class="text-center">
-                    <i class="fas fa-file-pdf text-red-500 text-2xl mb-2"></i>
-                    <div class="text-xs text-gray-600">PDF Document</div>
+                <div class="relative group">
+                  <img src="{{ $photoUrl }}"
+                       class="w-full h-40 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
+                       alt="Photo {{ $pa->photo_field_name }}"
+                       loading="lazy"
+                       onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE2MCIgdmlld0JveD0iMCAwIDIwMCAxNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTYwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NSA3MEgxMDVWODBIOTVWNzBaIiBmaWxsPSIjOUI5Qjk1Ii8+CjxwYXRoIGQ9Ik03NS4yNSA5NC4yNUw5MS4yNSA3OC4yNUwxMDguNzUgOTUuNzVMMTI0Ljc1IDc5Ljc1TDE0NC4yNSA5OS4yNUgxNDQuMjVWMTEyLjc1SDU1Ljc1Vjk0LjI1SDc1LjI1WiIgZmlsbD0iIzlCOUI5NSIvPgo8dGV4dCB4PSIxMDAiIHk9IjEzNSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjNjc2Nzc0Ij5HYWdhbCBtZW11YXQgZm90bzwvdGV4dD4KPHN2Zz4K'; this.parentElement.querySelector('.error-overlay').style.display='block';"
+                       onclick="openImageModal('{{ $photoUrl }}', '{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}')">
+
+                  {{-- Overlay untuk zoom --}}
+                  <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <i class="fas fa-search-plus text-white text-xl"></i>
+                  </div>
+
+                  {{-- Error overlay (hidden by default) --}}
+                  <div class="error-overlay absolute inset-0 bg-gray-100 rounded border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-500" style="display: none;">
+                    <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                    <p class="text-xs text-center">Foto tidak dapat dimuat</p>
+                    <a href="{{ $pa->photo_url }}" target="_blank" class="text-xs text-blue-600 hover:underline mt-1">
+                      Buka di tab baru
+                    </a>
                   </div>
                 </div>
+              @else
+                {{-- PDF Display --}}
+                <div class="w-full h-40 flex flex-col items-center justify-center bg-gray-50 rounded border hover:bg-gray-100 transition-colors cursor-pointer"
+                     onclick="window.open('{{ $photoUrl }}', '_blank')">
+                  <i class="fas fa-file-pdf text-red-500 text-3xl mb-2"></i>
+                  <div class="text-xs text-gray-600 text-center">PDF Document</div>
+                  <div class="text-xs text-blue-600 mt-1">Klik untuk membuka</div>
+                </div>
               @endif
+            @else
+              {{-- No photo available --}}
+              <div class="w-full h-40 flex items-center justify-center bg-gray-50 rounded border">
+                <div class="text-center text-gray-400">
+                  <i class="fas fa-image text-2xl mb-2"></i>
+                  <div class="text-xs">Foto tidak tersedia</div>
+                </div>
+              </div>
             @endif
 
             {{-- AI Score & Status --}}
@@ -129,7 +176,7 @@
                 Score: <span class="font-medium">{{ $pa->ai_score ? number_format($pa->ai_score, 1) : '-' }}</span>
               </div>
               <div class="text-gray-500">
-                {{ $pa->ai_last_checked_at ? $pa->ai_last_checked_at->format('d/m H:i') : '-' }}
+                {{ $pa->ai_last_checked_at ? (is_string($pa->ai_last_checked_at) ? \Carbon\Carbon::parse($pa->ai_last_checked_at)->format('d/m H:i') : $pa->ai_last_checked_at->format('d/m H:i')) : '-' }}
               </div>
             </div>
 
@@ -199,6 +246,17 @@
     </div>
   @endif
 </div>
+
+{{-- Image Modal --}}
+<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center p-4" onclick="closeImageModal()">
+  <div class="relative max-w-4xl max-h-full">
+    <button onclick="closeImageModal()" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300 z-10">
+      <i class="fas fa-times"></i>
+    </button>
+    <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded">
+    <div id="modalTitle" class="absolute bottom-4 left-4 text-white bg-black bg-opacity-50 px-3 py-1 rounded"></div>
+  </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -216,5 +274,30 @@ function skShow() {
     }
   }
 }
+
+// Image modal functions
+function openImageModal(imageUrl, title) {
+  const modal = document.getElementById('imageModal');
+  const modalImage = document.getElementById('modalImage');
+  const modalTitle = document.getElementById('modalTitle');
+
+  modalImage.src = imageUrl;
+  modalTitle.textContent = title;
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeImageModal() {
+  const modal = document.getElementById('imageModal');
+  modal.classList.add('hidden');
+  document.body.style.overflow = 'auto';
+}
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeImageModal();
+  }
+});
 </script>
 @endpush

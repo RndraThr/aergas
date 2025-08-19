@@ -313,14 +313,22 @@
             </template>
 
             <template x-if="ai[ph.field]">
-              <div class="mt-3 text-xs border rounded p-2"
-                   :class="ai[ph.field].passed ? 'border-green-300 bg-green-50 text-green-700' : 'border-amber-300 bg-amber-50 text-amber-700'">
+            <div class="mt-3 text-xs border rounded p-2"
+                :class="{
+                    'border-green-300 bg-green-50 text-green-700': ai[ph.field].warning_level === 'excellent',
+                    'border-blue-300 bg-blue-50 text-blue-700': ai[ph.field].warning_level === 'good',
+                    'border-amber-300 bg-amber-50 text-amber-700': ai[ph.field].warning_level === 'warning',
+                    'border-red-300 bg-red-50 text-red-700': ai[ph.field].warning_level === 'poor'
+                }">
                 <div class="font-medium mb-1 flex items-center">
-                  <i :class="ai[ph.field].passed ? 'fas fa-check-circle text-green-600' : 'fas fa-exclamation-triangle text-amber-600'" class="mr-1"></i>
-                  Hasil AI: <span x-text="ai[ph.field].passed ? 'LULUS' : 'PERLU PERBAIKAN'" class="font-bold"></span>
-                  <span class="ml-2 text-gray-600" x-show="ai[ph.field]">
-                    Skor: <span x-text="formatScore(ai[ph.field])"></span>
-                  </span>
+                <i :class="{
+                    'fas fa-check-circle text-green-600': ai[ph.field].warning_level === 'excellent',
+                    'fas fa-thumbs-up text-blue-600': ai[ph.field].warning_level === 'good',
+                    'fas fa-exclamation-triangle text-amber-600': ai[ph.field].warning_level === 'warning',
+                    'fas fa-times-circle text-red-600': ai[ph.field].warning_level === 'poor'
+                    }" class="mr-1"></i>
+                Hasil AI: <span x-text="getWarningText(ai[ph.field].warning_level)" class="font-bold"></span>
+                <span class="ml-2 text-gray-600" x-text="`Skor: ${formatScore(ai[ph.field])}`"></span>
                 </div>
                 <template x-if="(ai[ph.field].messages || []).length">
                   <div>
@@ -447,7 +455,10 @@ function skCreate() {
     uploadStatuses: {},
 
     ai: {},
-    hasAiFailure: false,
+    // ✅ FIXED: Update variable names untuk warning system
+    hasWarnings: false,      // ← TAMBAH INI
+    hasPoorPhotos: false,    // ← TAMBAH INI
+    hasAiFailure: false,     // ← Keep untuk backward compatibility
 
     submitting: false,
 
@@ -473,6 +484,17 @@ function skCreate() {
       const s = Number(aiObj.score);
       if (!Number.isFinite(s)) return '—';
       return s > 1 ? Math.round(s) + '%' : Math.round(s * 100) + '%';
+    },
+
+    // ✅ FIXED: Add missing getWarningText function
+    getWarningText(warningLevel) {
+      switch(warningLevel) {
+        case 'excellent': return 'SANGAT BAIK';
+        case 'good': return 'BAIK';
+        case 'warning': return 'PERLU PERHATIAN';
+        case 'poor': return 'BUTUH PERBAIKAN';
+        default: return 'UNKNOWN';
+      }
     },
 
     calculateTotalFitting() {
@@ -509,8 +531,25 @@ function skCreate() {
       return true;
     },
 
+    // ✅ FIXED: Update function untuk warning system
+    refreshWarningFlag() {
+      // Hitung ada berapa foto dengan warning/poor
+      this.hasWarnings = Object.values(this.ai).some(result =>
+        result && ['warning', 'poor'].includes(result.warning_level)
+      );
+
+      // Hitung ada berapa foto dengan poor (butuh perhatian extra)
+      this.hasPoorPhotos = Object.values(this.ai).some(result =>
+        result && result.warning_level === 'poor'
+      );
+
+      // Keep legacy hasAiFailure untuk backward compatibility
+      this.hasAiFailure = this.hasPoorPhotos;
+    },
+
+    // Keep legacy function untuk backward compatibility
     refreshAiFailureFlag() {
-      this.hasAiFailure = Object.values(this.ai).some(result => result && !result.passed);
+      this.refreshWarningFlag();
     },
 
     clearPick(field) {
@@ -519,7 +558,7 @@ function skCreate() {
       this.isPdfMap[field] = false;
       this.uploadStatuses[field] = '';
       this.ai[field] = null;
-      this.refreshAiFailureFlag();
+      this.refreshWarningFlag(); // ✅ FIXED: Update call
       document.getElementById(`inp_${field}`).value = '';
     },
 
@@ -583,12 +622,13 @@ function skCreate() {
         if (this.isPdfMap[field]) {
             this.ai[field] = {
                 passed: true,
-                score: null,
+                score: 100,
+                warning_level: 'excellent',
                 reason: 'PDF file - akan diperiksa manual',
                 messages: ['Berkas PDF: memerlukan pemeriksaan manual untuk kelengkapan tanda tangan']
             };
-            this.refreshAiFailureFlag();
-            this.uploadStatuses[field] = 'AI: LULUS (PDF - Manual Review)';
+            this.refreshWarningFlag();
+            this.uploadStatuses[field] = 'AI: SANGAT BAIK (PDF - Manual Review)';
             return;
         }
 
@@ -608,25 +648,27 @@ function skCreate() {
             });
 
             const j = await res.json().catch(() => ({}));
-            if (!res.ok || !j?.success) {
+
+            if (!res.ok) {
                 throw new Error(j?.message || 'Validasi AI gagal');
             }
+
+            // ✅ FIXED: Better handling untuk warning_level
+            const warningLevel = j.warning_level || this.determineWarningLevel(j.ai?.score || 0);
 
             this.ai[field] = {
                 passed: !!j.ai?.passed,
                 score: Number(j.ai?.score ?? 0),
+                warning_level: warningLevel,
                 reason: j.ai?.reason || 'Tidak ada keterangan',
                 messages: j.ai?.messages || [j.ai?.reason || 'Validasi selesai'],
                 confidence: j.ai?.confidence || 0,
                 objects: [],
             };
 
-            if (this.ai[field].passed) {
-                const scoreText = this.ai[field].score ? ` (${Math.round(this.ai[field].score)}%)` : '';
-                this.uploadStatuses[field] = `AI: LULUS${scoreText}`;
-            } else {
-                this.uploadStatuses[field] = 'AI: DITOLAK - ' + this.ai[field].reason;
-            }
+            // Update status message berdasarkan warning level
+            const scoreText = this.ai[field].score ? ` (${Math.round(this.ai[field].score)}%)` : '';
+            this.uploadStatuses[field] = `AI: ${this.getWarningText(warningLevel)}${scoreText}`;
 
             if (j.debug) {
                 console.log('AI Validation Debug:', {
@@ -642,6 +684,7 @@ function skCreate() {
             this.ai[field] = {
                 passed: false,
                 score: 0,
+                warning_level: 'poor',
                 reason: err.message || 'Terjadi kesalahan saat validasi AI',
                 messages: ['Validasi AI gagal: ' + (err.message || 'Unknown error')],
                 confidence: 0,
@@ -649,8 +692,16 @@ function skCreate() {
             };
             this.uploadStatuses[field] = 'AI: ERROR - ' + (err.message || 'Validasi gagal');
         } finally {
-            this.refreshAiFailureFlag();
+            this.refreshWarningFlag();
         }
+    },
+
+    // ✅ ADD: Helper function untuk determine warning level di frontend
+    determineWarningLevel(score) {
+        if (score >= 85) return 'excellent';
+        if (score >= 70) return 'good';
+        if (score >= 50) return 'warning';
+        return 'poor';
     },
 
     async onSubmit() {
@@ -659,13 +710,24 @@ function skCreate() {
             alert('Silakan lengkapi data customer dan tanggal instalasi.');
             return;
         }
-        if (this.hasAiFailure) {
-            alert('Masih ada foto yang perlu diperbaiki. Silakan periksa hasil validasi AI.');
-            return;
-        }
         if (!this.isMaterialComplete()) {
             alert('Data material belum lengkap. Pastikan semua field bertanda (*) sudah diisi.');
             return;
+        }
+
+        // ✅ FIXED: Warning confirmation system
+        if (this.hasPoorPhotos) {
+            const confirmed = confirm(
+                'Ada foto dengan kualitas yang memerlukan perhatian khusus. ' +
+                'Foto akan tetap diproses dan akan direview oleh tim. Lanjutkan?'
+            );
+            if (!confirmed) return;
+        } else if (this.hasWarnings) {
+            const confirmed = confirm(
+                'Ada beberapa foto yang perlu perhatian. ' +
+                'Foto akan tetap diproses normal. Lanjutkan?'
+            );
+            if (!confirmed) return;
         }
 
         this.submitting = true;

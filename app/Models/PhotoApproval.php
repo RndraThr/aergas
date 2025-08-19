@@ -23,6 +23,8 @@ class PhotoApproval extends Model
         'updated_at'           => 'datetime',
         'photo_status'         => 'string',
         'module_name'          => 'string',
+        'ai_checks'            => 'array',
+        'ai_score'             => 'decimal:2',
     ];
 
     // --------- Relations ---------

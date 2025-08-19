@@ -133,8 +133,11 @@ class FileUploadService
         try {
             $payload = [
                 'reff_id_pelanggan' => $reffId,
-                'module_name'       => $moduleLower,   // konsisten dengan photo_approvals
+                'module_name'       => $moduleLower,
                 'photo_field_name'  => $fieldName,
+                'original_filename' => $file->getClientOriginalName(), // ✅ ADD THIS
+                'stored_filename'   => $targetName,                    // ✅ ADD THIS TOO
+                'file_path'         => $finalPath,                     // ✅ ADD THIS TOO
                 'storage_disk'      => $usedDisk,
                 'path'              => $finalPath,
                 'url'               => $publicUrl,
