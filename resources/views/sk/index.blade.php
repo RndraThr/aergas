@@ -1,4 +1,4 @@
-{{-- resources/views/sk/index.blade.php - CLEANED --}}
+{{-- resources/views/sk/index.blade.php - UPDATED WITH CREATED BY --}}
 @extends('layouts.app')
 
 @section('title', 'Data SK - AERGAS')
@@ -26,7 +26,7 @@
     <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
       <div class="md:col-span-4">
         <input type="text" name="q" value="{{ request('q') }}"
-               placeholder="Cari Reff ID, Nomor SK, atau Status..."
+               placeholder="Cari Reff ID, Customer, atau Status..."
                class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
       </div>
       <div>
@@ -83,7 +83,7 @@
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reff ID</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nomor SK</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
           <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
@@ -101,7 +101,20 @@
             <td class="px-4 py-3 text-sm text-gray-700">
               {{ $row->calonPelanggan->nama_pelanggan ?? '-' }}
             </td>
-            <td class="px-4 py-3 text-sm text-gray-700">{{ $row->nomor_sk ?? '-' }}</td>
+            <td class="px-4 py-3 text-sm text-gray-700">
+              @if($row->createdBy)
+                <div class="flex items-center">
+                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                    <span class="text-xs font-medium text-blue-600">
+                      {{ strtoupper(substr($row->createdBy->name, 0, 1)) }}
+                    </span>
+                  </div>
+                  <span class="text-sm">{{ $row->createdBy->name }}</span>
+                </div>
+              @else
+                <span class="text-gray-400 text-sm">-</span>
+              @endif
+            </td>
             <td class="px-4 py-3 text-sm text-gray-700">
               {{ $row->tanggal_instalasi ? $row->tanggal_instalasi->format('d/m/Y') : '-' }}
             </td>

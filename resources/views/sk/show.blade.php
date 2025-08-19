@@ -1,16 +1,15 @@
-{{-- resources/views/sk/show.blade.php - FIXED PHOTO DISPLAY --}}
 @extends('layouts.app')
 
 @section('title', 'Detail SK - AERGAS')
 
 @section('content')
 @php
-  /** @var \App\Models\SkData $sk */
   $sk->loadMissing(['calonPelanggan','photoApprovals']);
   $cfgSlots = (array) (config('aergas_photos.modules.SK.slots') ?? []);
-  // Map slot -> label agar kartu foto ada judul yang konsisten
   $slotLabels = [];
-  foreach ($cfgSlots as $k => $r) { $slotLabels[$k] = $r['label'] ?? $k; }
+  foreach ($cfgSlots as $k => $r) {
+    $slotLabels[$k] = $r['label'] ?? $k;
+  }
 @endphp
 
 <div class="space-y-6" x-data="skShow()" x-init="init()">
@@ -27,16 +26,26 @@
     </div>
   </div>
 
-  {{-- Ringkasan --}}
   <div class="bg-white rounded-xl card-shadow p-6">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div>
-        <div class="text-xs text-gray-500">Nomor SK</div>
-        <div class="font-medium">{{ $sk->nomor_sk ?? '-' }}</div>
+        <div class="text-xs text-gray-500">Created By</div>
+        @if($sk->createdBy)
+          <div class="flex items-center mt-1">
+            <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+              <span class="text-xs font-medium text-blue-600">
+                {{ strtoupper(substr($sk->createdBy->name, 0, 1)) }}
+              </span>
+            </div>
+            <span class="font-medium">{{ $sk->createdBy->name }}</span>
+          </div>
+        @else
+          <div class="font-medium text-gray-400">-</div>
+        @endif
       </div>
       <div>
         <div class="text-xs text-gray-500">Tanggal Instalasi</div>
-        <div class="font-medium">{{ $sk->tanggal_instalasi ?? '-' }}</div>
+        <div class="font-medium">{{ $sk->tanggal_instalasi ? $sk->tanggal_instalasi->format('d/m/Y') : '-' }}</div>
       </div>
       <div>
         <div class="text-xs text-gray-500">Status</div>
@@ -53,33 +62,110 @@
         ">{{ strtoupper($sk->status) }}</span>
       </div>
       <div>
-        <div class="text-xs text-gray-500">AI Overall</div>
-        <div class="font-medium">{{ $sk->ai_overall_status ?? '-' }}</div>
+        <div class="text-xs text-gray-500">Created At</div>
+        <div class="font-medium">{{ $sk->created_at ? $sk->created_at->format('d/m/Y H:i') : '-' }}</div>
       </div>
     </div>
   </div>
 
-  {{-- Customer --}}
   @if($sk->calonPelanggan)
     <div class="bg-white rounded-xl card-shadow p-6">
       <h2 class="font-semibold mb-3 text-gray-800">Customer</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div><div class="text-xs text-gray-500">Nama</div><div class="font-medium">{{ $sk->calonPelanggan->nama_pelanggan }}</div></div>
-        <div><div class="text-xs text-gray-500">Telepon</div><div class="font-medium">{{ $sk->calonPelanggan->no_telepon ?? '-' }}</div></div>
-        <div><div class="text-xs text-gray-500">Alamat</div><div class="font-medium">{{ $sk->calonPelanggan->alamat ?? '-' }}</div></div>
+        <div>
+          <div class="text-xs text-gray-500">Nama</div>
+          <div class="font-medium">{{ $sk->calonPelanggan->nama_pelanggan }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500">Telepon</div>
+          <div class="font-medium">{{ $sk->calonPelanggan->no_telepon ?? '-' }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500">Alamat</div>
+          <div class="font-medium">{{ $sk->calonPelanggan->alamat ?? '-' }}</div>
+        </div>
       </div>
     </div>
   @endif
 
-  {{-- Foto & Status AI --}}
-  <div class="bg-white rounded-xl card-shadow p-6 space-y-4">
-    <div class="flex items-center gap-3">
-      <i class="fas fa-images text-purple-600"></i>
-      <h2 class="font-semibold text-gray-800">Foto & Validasi AI</h2>
+  <div class="bg-white rounded-xl card-shadow p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <i class="fas fa-clipboard-list text-orange-600"></i>
+      <h2 class="font-semibold text-gray-800">Material SK</h2>
     </div>
 
     @php
-      /** @var \Illuminate\Support\Collection $list */
+      $materialLabels = [
+        'panjang_pipa_gl_medium_m' => 'Panjang Pipa 1/2" GL Medium (meter)',
+        'qty_elbow_1_2_galvanis' => 'Elbow 1/2" Galvanis (Pcs)',
+        'qty_sockdraft_galvanis_1_2' => 'SockDraft Galvanis Dia 1/2" (Pcs)',
+        'qty_ball_valve_1_2' => 'Ball Valve 1/2" (Pcs)',
+        'qty_nipel_selang_1_2' => 'Nipel Selang 1/2" (Pcs)',
+        'qty_elbow_reduce_3_4_1_2' => 'Elbow Reduce 3/4" x 1/2" (Pcs)',
+        'qty_long_elbow_3_4_male_female' => 'Long Elbow 3/4" Male Female (Pcs)',
+        'qty_klem_pipa_1_2' => 'Klem Pipa 1/2" (Pcs)',
+        'qty_double_nipple_1_2' => 'Double Nipple 1/2" (Pcs)',
+        'qty_seal_tape' => 'Seal Tape (Pcs)',
+        'qty_tee_1_2' => 'Tee 1/2" (Pcs)',
+      ];
+
+      $materialData = [];
+      $totalFitting = 0;
+      foreach($materialLabels as $field => $label) {
+        $value = $sk->$field ?? 0;
+        if($value > 0) {
+          $materialData[] = ['label' => $label, 'value' => $value, 'field' => $field];
+          if($field !== 'panjang_pipa_gl_medium_m') {
+            $totalFitting += $value;
+          }
+        }
+      }
+    @endphp
+
+    @if(empty($materialData))
+      <div class="text-center py-6">
+        <i class="fas fa-box-open text-gray-300 text-3xl mb-3"></i>
+        <p class="text-gray-500 text-sm">Belum ada data material</p>
+      </div>
+    @else
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        @foreach($materialData as $material)
+          <div class="bg-gray-50 p-4 rounded-lg border">
+            <div class="text-xs text-gray-500 mb-1">{{ $material['label'] }}</div>
+            <div class="font-bold text-lg text-gray-800">
+              {{ $material['value'] }}
+              @if($material['field'] === 'panjang_pipa_gl_medium_m')
+                <span class="text-sm font-normal text-gray-600">meter</span>
+              @else
+                <span class="text-sm font-normal text-gray-600">pcs</span>
+              @endif
+            </div>
+          </div>
+        @endforeach
+      </div>
+
+      <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div class="flex justify-between items-center">
+          <span class="font-medium text-blue-800">Total Fitting:</span>
+          <span class="font-bold text-blue-900 text-lg">{{ $totalFitting }} pcs</span>
+        </div>
+        @if($sk->panjang_pipa_gl_medium_m)
+          <div class="flex justify-between items-center mt-2">
+            <span class="font-medium text-blue-800">Total Pipa:</span>
+            <span class="font-bold text-blue-900 text-lg">{{ $sk->panjang_pipa_gl_medium_m }} meter</span>
+          </div>
+        @endif
+      </div>
+    @endif
+  </div>
+
+  <div class="bg-white rounded-xl card-shadow p-6 space-y-4">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-images text-purple-600"></i>
+      <h2 class="font-semibold text-gray-800">Dokumentasi Foto</h2>
+    </div>
+
+    @php
       $list = $sk->photoApprovals->sortBy('photo_field_name')->values();
     @endphp
 
@@ -102,152 +188,71 @@
                 <div class="text-xs text-gray-500">Slot</div>
                 <div class="font-medium">{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}</div>
               </div>
-              <div>
-                <span class="px-2 py-0.5 rounded text-xs" :class="badgeClass('{{ $pa->ai_status }}')">
-                  {{ strtoupper($pa->ai_status ?? 'pending') }}
-                </span>
+              <div class="text-xs text-gray-500">
+                {{ $pa->created_at ? $pa->created_at->format('d/m H:i') : '-' }}
               </div>
             </div>
 
-            {{-- FIXED: Photo Display with better URL handling and fallback --}}
             @if($pa->photo_url)
               @php
-                $photoUrl = $pa->photo_url;
-                $isPdf = str_ends_with(Str::lower($photoUrl), '.pdf');
+                $originalUrl = $pa->photo_url;
+                $photoUrl = $originalUrl;
+                $isPdf = str_ends_with(Str::lower($originalUrl), '.pdf');
 
-                // Convert Google Drive URLs to direct view format
-                if (strpos($photoUrl, 'drive.google.com') !== false) {
-                  // Extract file ID from various Google Drive URL formats
-                  if (preg_match('/\/file\/d\/([a-zA-Z0-9-_]+)/', $photoUrl, $matches)) {
-                    $fileId = $matches[1];
-                    $photoUrl = "https://drive.google.com/uc?export=view&id=" . $fileId;
-                  } elseif (preg_match('/id=([a-zA-Z0-9-_]+)/', $photoUrl, $matches)) {
-                    $fileId = $matches[1];
-                    $photoUrl = "https://drive.google.com/uc?export=view&id=" . $fileId;
-                  }
+                if (strpos($originalUrl, 'drive.google.com') !== false && preg_match('/\/file\/d\/([a-zA-Z0-9-_]+)/', $originalUrl, $matches)) {
+                  $fileId = $matches[1];
+                  $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}=w800";
                 }
               @endphp
 
               @if(!$isPdf)
                 <div class="relative group">
                   <img src="{{ $photoUrl }}"
-                       class="w-full h-40 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
+                       class="w-full h-48 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
                        alt="Photo {{ $pa->photo_field_name }}"
                        loading="lazy"
-                       onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE2MCIgdmlld0JveD0iMCAwIDIwMCAxNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTYwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik05NSA3MEgxMDVWODBIOTVWNzBaIiBmaWxsPSIjOUI5Qjk1Ii8+CjxwYXRoIGQ9Ik03NS4yNSA5NC4yNUw5MS4yNSA3OC4yNUwxMDguNzUgOTUuNzVMMTI0Ljc1IDc5Ljc1TDE0NC4yNSA5OS4yNUgxNDQuMjVWMTEyLjc1SDU1Ljc1Vjk0LjI1SDc1LjI1WiIgZmlsbD0iIzlCOUI5NSIvPgo8dGV4dCB4PSIxMDAiIHk9IjEzNSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjNjc2Nzc0Ij5HYWdhbCBtZW11YXQgZm90bzwvdGV4dD4KPHN2Zz4K'; this.parentElement.querySelector('.error-overlay').style.display='block';"
+                       onerror="this.onerror=null; this.src='{{ $originalUrl }}'; if(this.onerror) this.style.display='none'; this.nextElementSibling.style.display='block';"
                        onclick="openImageModal('{{ $photoUrl }}', '{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}')">
 
-                  {{-- Overlay untuk zoom --}}
                   <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <i class="fas fa-search-plus text-white text-xl"></i>
                   </div>
 
-                  {{-- Error overlay (hidden by default) --}}
-                  <div class="error-overlay absolute inset-0 bg-gray-100 rounded border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-500" style="display: none;">
-                    <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
-                    <p class="text-xs text-center">Foto tidak dapat dimuat</p>
-                    <a href="{{ $pa->photo_url }}" target="_blank" class="text-xs text-blue-600 hover:underline mt-1">
+                  <div class="w-full h-48 bg-gray-100 rounded border-2 border-dashed border-gray-300 flex-col items-center justify-center text-gray-500 hidden">
+                    <i class="fas fa-image text-3xl mb-2"></i>
+                    <p class="text-xs text-center mb-2">Foto tidak dapat dimuat</p>
+                    <a href="{{ $originalUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline">
                       Buka di tab baru
                     </a>
                   </div>
                 </div>
               @else
-                {{-- PDF Display --}}
-                <div class="w-full h-40 flex flex-col items-center justify-center bg-gray-50 rounded border hover:bg-gray-100 transition-colors cursor-pointer"
-                     onclick="window.open('{{ $photoUrl }}', '_blank')">
-                  <i class="fas fa-file-pdf text-red-500 text-3xl mb-2"></i>
-                  <div class="text-xs text-gray-600 text-center">PDF Document</div>
+                <div class="w-full h-48 flex flex-col items-center justify-center bg-gray-50 rounded border hover:bg-gray-100 transition-colors cursor-pointer"
+                     onclick="window.open('{{ $originalUrl }}', '_blank')">
+                  <i class="fas fa-file-pdf text-red-500 text-4xl mb-3"></i>
+                  <div class="text-sm text-gray-600 text-center font-medium">PDF Document</div>
                   <div class="text-xs text-blue-600 mt-1">Klik untuk membuka</div>
                 </div>
               @endif
             @else
-              {{-- No photo available --}}
-              <div class="w-full h-40 flex items-center justify-center bg-gray-50 rounded border">
+              <div class="w-full h-48 flex items-center justify-center bg-gray-50 rounded border">
                 <div class="text-center text-gray-400">
-                  <i class="fas fa-image text-2xl mb-2"></i>
+                  <i class="fas fa-image text-3xl mb-2"></i>
                   <div class="text-xs">Foto tidak tersedia</div>
                 </div>
               </div>
             @endif
 
-            {{-- AI Score & Status --}}
-            <div class="flex items-center justify-between text-xs">
-              <div class="text-gray-500">
-                Score: <span class="font-medium">{{ $pa->ai_score ? number_format($pa->ai_score, 1) : '-' }}</span>
-              </div>
-              <div class="text-gray-500">
-                {{ $pa->ai_last_checked_at ? (is_string($pa->ai_last_checked_at) ? \Carbon\Carbon::parse($pa->ai_last_checked_at)->format('d/m H:i') : $pa->ai_last_checked_at->format('d/m H:i')) : '-' }}
-              </div>
+            <div class="text-xs text-gray-500 text-center">
+              {{ $pa->photo_field_name }}
             </div>
-
-            {{-- AI Notes --}}
-            @if($pa->ai_notes)
-              <div class="text-xs">
-                <div class="text-gray-500 mb-1">AI Notes</div>
-                <div class="text-gray-800 bg-gray-50 p-2 rounded text-xs">{{ $pa->ai_notes }}</div>
-              </div>
-            @endif
-
-            {{-- AI Checks Detail --}}
-            @if(is_array($pa->ai_checks) && count($pa->ai_checks))
-              <div class="text-xs">
-                <div class="text-gray-500 mb-1">Validasi Detail</div>
-                <ul class="space-y-1">
-                  @foreach($pa->ai_checks as $c)
-                    <li class="flex items-center gap-2 text-xs">
-                      @if(!empty($c['passed']))
-                        <span class="text-green-600 text-sm">✓</span>
-                      @else
-                        <span class="text-red-600 text-sm">✗</span>
-                      @endif
-                      <span class="flex-1">{{ $c['id'] ?? '-' }}</span>
-                      @if(isset($c['confidence']))
-                        <span class="text-gray-400">({{ number_format($c['confidence']*100,0) }}%)</span>
-                      @endif
-                    </li>
-                    @if(!empty($c['reason']) && $c['reason'] !== 'ok')
-                      <li class="text-gray-500 ml-6 text-xs">{{ $c['reason'] }}</li>
-                    @endif
-                  @endforeach
-                </ul>
-              </div>
-            @endif
           </div>
         @endforeach
       </div>
     @endif
   </div>
-
-  {{-- Action Buttons for Status Management --}}
-  @if($sk->status !== 'completed' && $sk->status !== 'canceled')
-    <div class="bg-white rounded-xl card-shadow p-6">
-      <h3 class="font-semibold text-gray-800 mb-4">Aksi</h3>
-      <div class="flex gap-3">
-        @if($sk->status === 'ready_for_tracer')
-          <button class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-            Approve (Tracer)
-          </button>
-          <button class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-            Reject (Tracer)
-          </button>
-        @elseif($sk->status === 'tracer_approved')
-          <button class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-            Approve (CGP)
-          </button>
-          <button class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-            Reject (CGP)
-          </button>
-        @elseif($sk->status === 'cgp_approved')
-          <button class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            Schedule Installation
-          </button>
-        @endif
-      </div>
-    </div>
-  @endif
 </div>
 
-{{-- Image Modal --}}
 <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center p-4" onclick="closeImageModal()">
   <div class="relative max-w-4xl max-h-full">
     <button onclick="closeImageModal()" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300 z-10">
@@ -263,19 +268,10 @@
 <script>
 function skShow() {
   return {
-    init() {},
-
-    badgeClass(status) {
-      const st = (status || '').toLowerCase();
-      if (st === 'passed') return 'bg-green-100 text-green-800';
-      if (st === 'failed') return 'bg-red-100 text-red-800';
-      if (st === 'pending') return 'bg-gray-100 text-gray-700';
-      return 'bg-blue-100 text-blue-800';
-    }
+    init() {}
   }
 }
 
-// Image modal functions
 function openImageModal(imageUrl, title) {
   const modal = document.getElementById('imageModal');
   const modalImage = document.getElementById('modalImage');
@@ -293,7 +289,6 @@ function closeImageModal() {
   document.body.style.overflow = 'auto';
 }
 
-// Close modal with Escape key
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     closeImageModal();
