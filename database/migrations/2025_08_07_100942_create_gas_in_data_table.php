@@ -6,40 +6,54 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up()
     {
         Schema::create('gas_in_data', function (Blueprint $table) {
+            $table->engine = 'InnoDB';
             $table->id();
+
             $table->string('reff_id_pelanggan', 50);
+            $table->foreign('reff_id_pelanggan', 'fk_gasin_reff_pelanggan')
+              ->references('reff_id_pelanggan')->on('calon_pelanggan')
+              ->cascadeOnDelete();
 
-            // Gas In Form Fields
-            $table->string('ba_gas_in_url', 500)->nullable();
-            $table->string('foto_bubble_test_sk_url', 500)->nullable();
-            $table->string('foto_regulator_url', 500)->nullable();
-            $table->string('foto_kompor_menyala_url', 500)->nullable();
+            $table->enum('status', [
+                'draft',
+                'ready_for_tracer',
+                'tracer_approved',
+                'tracer_rejected',
+                'cgp_approved',
+                'cgp_rejected',
+                'approved_scheduled',
+                'completed',
+                'canceled',
+            ])->default('draft')->index();
 
-            // Approval System
-            $table->unsignedBigInteger('tracer_approved_by')->nullable();
+            $table->date('tanggal_gas_in')->nullable();
+            $table->text('notes')->nullable();
+
+            $table->enum('ai_overall_status', ['pending','passed','flagged'])->default('pending')->index();
+            $table->timestamp('ai_checked_at')->nullable();
+
             $table->timestamp('tracer_approved_at')->nullable();
-            $table->unsignedBigInteger('cgp_approved_by')->nullable();
+            $table->unsignedBigInteger('tracer_approved_by')->nullable();
+            $table->foreign('tracer_approved_by', 'fk_gasin_tracer_by')->references('id')->on('users')->nullOnDelete();
+            $table->text('tracer_notes')->nullable();
+
             $table->timestamp('cgp_approved_at')->nullable();
-            $table->enum('overall_photo_status', [
-                'draft', 'ai_validation', 'tracer_review',
-                'cgp_review', 'completed', 'rejected'
-            ])->default('draft');
-            $table->enum('module_status', [
-                'not_started', 'draft', 'ai_validation',
-                'tracer_review', 'cgp_review', 'completed', 'rejected'
-            ])->default('not_started');
+            $table->unsignedBigInteger('cgp_approved_by')->nullable();
+            $table->foreign('cgp_approved_by', 'fk_gasin_cgp_by')->references('id')->on('users')->nullOnDelete();
+            $table->text('cgp_notes')->nullable();
+
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
+            $table->foreign('created_by', 'fk_gasin_created_by')->references('id')->on('users')->nullOnDelete();
+            $table->foreign('updated_by', 'fk_gasin_updated_by')->references('id')->on('users')->nullOnDelete();
 
             $table->timestamps();
+            $table->softDeletes();
 
-            $table->foreign('reff_id_pelanggan')->references('reff_id_pelanggan')->on('calon_pelanggan')->onDelete('cascade');
-            $table->foreign('tracer_approved_by')->references('id')->on('users')->onDelete('set null');
-            $table->foreign('cgp_approved_by')->references('id')->on('users')->onDelete('set null');
+            $table->index(['reff_id_pelanggan', 'status'], 'idx_gasin_reff_status');
         });
     }
 

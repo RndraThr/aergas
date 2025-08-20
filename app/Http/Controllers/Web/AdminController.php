@@ -425,11 +425,6 @@ class AdminController extends Controller
                 'completed'  => SrData::where('module_status','completed')->count(),
                 'in_progress'=> SrData::whereIn('module_status',['draft','ai_validation','tracer_review','cgp_review'])->count(),
             ],
-            'mgrt' => [
-                'total'      => MgrtData::count(),
-                'completed'  => MgrtData::where('module_status','completed')->count(),
-                'in_progress'=> MgrtData::whereIn('module_status',['draft','ai_validation','tracer_review','cgp_review'])->count(),
-            ],
             'gas_in' => [
                 'total'      => GasInData::count(),
                 'completed'  => GasInData::where('module_status','completed')->count(),

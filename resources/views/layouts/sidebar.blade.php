@@ -90,12 +90,12 @@
                 </a>
                 @endif
 
-                @if(in_array(auth()->user()->role, ['sr', 'tracer', 'admin']))
+                @if(in_array(auth()->user()->role, ['sr', 'tracer', 'admin', 'super_admin']))
                 <!-- SR Data -->
                 <a href="{{ route('sr.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('sr.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-route mr-3 text-lg {{ request()->routeIs('sr.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
-                    SR (Service Route)
+                    <i class="fas fa-house-user mr-3 text-lg {{ request()->routeIs('sr.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    SR Form
                     @if(request()->routeIs('sr.*'))
                         <div class="ml-auto">
                             <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
@@ -104,23 +104,17 @@
                 </a>
                 @endif
 
-                @if(in_array(auth()->user()->role, ['mgrt', 'tracer', 'admin']))
-                <!-- MGRT Data -->
-                <a href="#"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-400 cursor-not-allowed">
-                    <i class="fas fa-tachometer-alt mr-3 text-lg text-gray-300"></i>
-                    MGRT (Gas Meter)
-                    <span class="ml-auto text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Soon</span>
-                </a>
-                @endif
-
-                @if(in_array(auth()->user()->role, ['gas_in', 'tracer', 'admin']))
+                @if(in_array(auth()->user()->role, ['gas_in', 'tracer', 'admin', 'super_admin']))
                 <!-- Gas In Data -->
-                <a href="#"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-400 cursor-not-allowed">
-                    <i class="fas fa-gas-pump mr-3 text-lg text-gray-300"></i>
-                    Gas In (Commissioning)
-                    <span class="ml-auto text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Soon</span>
+                <a href="{{ route('gas-in.index') }}"
+                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('gas-in.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                    <i class="fas fa-gas-pump mr-3 text-lg {{ request()->routeIs('gas-in.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    Gas In Form
+                    @if(request()->routeIs('gas-in.*'))
+                        <div class="ml-auto">
+                            <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
+                        </div>
+                    @endif
                 </a>
                 @endif
 

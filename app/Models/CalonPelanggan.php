@@ -30,7 +30,6 @@ class CalonPelanggan extends Model
      * ========================= */
     public function skData(): HasOne { return $this->hasOne(SkData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
     public function srData(): HasOne { return $this->hasOne(SrData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
-    public function mgrtData(): HasOne { return $this->hasOne(MgrtData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
     public function gasInData(): HasOne { return $this->hasOne(GasInData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
     public function jalurPipaData(): HasOne { return $this->hasOne(JalurPipaData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
     public function penyambunganPipaData(): HasOne { return $this->hasOne(PenyambunganPipaData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
@@ -116,9 +115,7 @@ class CalonPelanggan extends Model
             'sk' => in_array($this->status, ['validated','in_progress','lanjut'], true),
             'sr' => ($this->skData?->module_status === 'completed'),
             'gas_in' => ($this->skData?->module_status === 'completed') && ($this->srData?->module_status === 'completed'),
-            'mgrt' => true,            // TODO: pasang rule bila sudah final
-            'jalur_pipa' => true,      // TODO
-            'penyambungan' => true,    // TODO / atau cek jalur pipa selesai
+            'jalur_pipa' => true,
             default => false,
         };
     }

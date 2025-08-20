@@ -12,11 +12,11 @@ class UserSeeder extends Seeder
     {
         $users = [
             [
-                'username' => 'superadmin',
-                'email' => 'superadmin@aergas.com',
-                'password' => Hash::make('password'),
-                'name' => 'Super Admin',
-                'full_name' => 'Super Administrator AERGAS',
+                'username' => 'Rendra',
+                'email' => 'rendrabtuharea@gmail.com',
+                'password' => Hash::make('Rendra123'),
+                'name' => 'Rendra',
+                'full_name' => 'Rendra Tuharea',
                 'role' => 'super_admin',
                 'is_active' => true,
             ],

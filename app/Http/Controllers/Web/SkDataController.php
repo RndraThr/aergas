@@ -260,6 +260,12 @@ class SkDataController extends Controller
 
         $svc = $this->photoSvc ?? app(PhotoApprovalService::class);
 
+        // TAMBAH: Meta data untuk customer name
+        $meta = [];
+        if ($sk->calonPelanggan) {
+            $meta['customer_name'] = $sk->calonPelanggan->nama_pelanggan;
+        }
+
         $res = $svc->storeWithoutAi(
             module: 'SK',
             reffId: $sk->reff_id_pelanggan,
@@ -272,7 +278,8 @@ class SkDataController extends Controller
                 'ai_score'   => $r->input('ai_score'),
                 'ai_reason'  => $r->input('ai_reason'),
                 'ai_notes'   => $r->input('ai_notes', []),
-            ]
+            ],
+            meta: $meta // TAMBAH parameter meta
         );
 
         $this->recalcSkStatus($sk);
@@ -281,7 +288,7 @@ class SkDataController extends Controller
             'success'   => true,
             'photo_id'  => $res['photo_id'] ?? null,
             'filename'  => $targetName,
-            'message'   => 'Upload berhasil dengan hasil AI precheck',
+            'message'   => 'Upload berhasil, foto lama telah diganti', // UBAH pesan
             'ai_result' => [
                 'passed' => (bool) $r->boolean('ai_passed'),
                 'reason' => $r->input('ai_reason', 'No reason provided'),

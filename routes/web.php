@@ -14,7 +14,7 @@ use App\Http\Controllers\Web\PhotoApprovalController;
 use App\Http\Controllers\Web\NotificationController;
 use App\Http\Controllers\Web\GudangController;
 use App\Http\Controllers\Web\ImportController;
-
+use App\Http\Controllers\Web\GasInDataController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -157,41 +157,85 @@ Route::middleware('auth')->group(function () {
     */
     Route::prefix('sr')->name('sr.')->middleware('role:sr,tracer,admin')->group(function () {
         Route::get('/', [SrDataController::class, 'index'])->name('index');
+
+        Route::get('/create', [SrDataController::class, 'create'])->name('create');
         Route::post('/', [SrDataController::class, 'store'])->name('store');
 
-        Route::get('{sr}', [SrDataController::class, 'show'])->whereNumber('sr')->name('show');
-        Route::put('{sr}', [SrDataController::class, 'update'])->whereNumber('sr')->name('update');
-        Route::delete('{sr}', [SrDataController::class, 'destroy'])->whereNumber('sr')->name('destroy');
+        Route::get('/{sr}', [SrDataController::class, 'show'])->whereNumber('sr')->name('show');
+        Route::get('/{sr}/edit', [SrDataController::class, 'edit'])->whereNumber('sr')->name('edit');
+        Route::put('/{sr}', [SrDataController::class, 'update'])->whereNumber('sr')->name('update');
+        Route::delete('/{sr}', [SrDataController::class, 'destroy'])->whereNumber('sr')->name('destroy');
 
-        // Foto (upload realtime + recheck)
-        Route::post('{sr}/photos', [SrDataController::class, 'uploadAndValidate'])->whereNumber('sr')->name('photos.upload');
-        Route::post('{sr}/photos/{photo}/recheck', [SrDataController::class, 'recheck'])
-            ->whereNumber('sr')->whereNumber('photo')->name('photos.recheck');
+        Route::post('/photos/precheck-generic', [SrDataController::class, 'precheckGeneric'])
+            ->name('photos.precheck-generic');
 
-        // Status kesiapan AI
-        Route::get('{sr}/ready-status', [SrDataController::class, 'readyStatus'])->whereNumber('sr')->name('ready-status');
+        Route::post('/{sr}/photos', [SrDataController::class, 'uploadAndValidate'])
+            ->whereNumber('sr')->name('photos.upload');
 
-        // Workflow approvals
-        Route::post('{sr}/approve-tracer', [SrDataController::class, 'approveTracer'])->whereNumber('sr')->name('approve-tracer');
-        Route::post('{sr}/reject-tracer',  [SrDataController::class, 'rejectTracer'])->whereNumber('sr')->name('reject-tracer');
-        Route::post('{sr}/approve-cgp',    [SrDataController::class, 'approveCgp'])->whereNumber('sr')->name('approve-cgp');
-        Route::post('{sr}/reject-cgp',     [SrDataController::class, 'rejectCgp'])->whereNumber('sr')->name('reject-cgp');
+        Route::get('/{sr}/ready-status', [SrDataController::class, 'readyStatus'])
+            ->whereNumber('sr')->name('ready-status');
 
-        // Penjadwalan & selesai
-        Route::post('{sr}/schedule', [SrDataController::class, 'schedule'])->whereNumber('sr')->name('schedule');
-        Route::post('{sr}/complete', [SrDataController::class, 'complete'])->whereNumber('sr')->name('complete');
+        Route::post('/{sr}/approve-tracer', [SrDataController::class, 'approveTracer'])
+            ->whereNumber('sr')->name('approve-tracer');
+        Route::post('/{sr}/reject-tracer', [SrDataController::class, 'rejectTracer'])
+            ->whereNumber('sr')->name('reject-tracer');
 
-        Route::post('/sk/photos/precheck-generic', [SkDataController::class, 'precheckGeneric'])
-            ->name('sk.photos.precheck-generic'); // untuk halaman create (belum punya {sk})
+        Route::post('/{sr}/approve-cgp', [SrDataController::class, 'approveCgp'])
+            ->whereNumber('sr')->name('approve-cgp');
+        Route::post('/{sr}/reject-cgp', [SrDataController::class, 'rejectCgp'])
+            ->whereNumber('sr')->name('reject-cgp');
 
-        Route::post('/sk/{sk}/photos/precheck', [SkDataController::class, 'precheck'])
-            ->whereNumber('sk')->name('sk.photos.precheck');
+        Route::post('/{sr}/schedule', [SrDataController::class, 'schedule'])
+            ->whereNumber('sr')->name('schedule');
+        Route::post('/{sr}/complete', [SrDataController::class, 'complete'])
+            ->whereNumber('sr')->name('complete');
 
-        // (Opsional) akses by reff
-        Route::get('by-reff/{reffId}', function (string $reffId) {
-            $rec = \App\Models\SrData::where('reff_id_pelanggan', $reffId)->firstOrFail();
-            return redirect()->route('sr.show', $rec->id);
-        })->where('reffId', '[A-Z0-9\-]+')->name('by-reff');
+        Route::get('/by-reff/{reffId}', [SrDataController::class, 'redirectByReff'])
+            ->where('reffId', '[A-Za-z0-9\-]+')->name('by-reff');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Gas In (pakai implicit model binding ID numerik)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('gas-in')->name('gas-in.')->middleware('role:gas_in,tracer,admin, super_admin')->group(function () {
+        Route::get('/', [GasInDataController::class, 'index'])->name('index');
+
+        Route::get('/create', [GasInDataController::class, 'create'])->name('create');
+        Route::post('/', [GasInDataController::class, 'store'])->name('store');
+
+        Route::get('/{gasIn}', [GasInDataController::class, 'show'])->whereNumber('gasIn')->name('show');
+        Route::get('/{gasIn}/edit', [GasInDataController::class, 'edit'])->whereNumber('gasIn')->name('edit');
+        Route::put('/{gasIn}', [GasInDataController::class, 'update'])->whereNumber('gasIn')->name('update');
+        Route::delete('/{gasIn}', [GasInDataController::class, 'destroy'])->whereNumber('gasIn')->name('destroy');
+
+        Route::post('/photos/precheck-generic', [GasInDataController::class, 'precheckGeneric'])
+            ->name('photos.precheck-generic');
+
+        Route::post('/{gasIn}/photos', [GasInDataController::class, 'uploadAndValidate'])
+            ->whereNumber('gasIn')->name('photos.upload');
+
+        Route::get('/{gasIn}/ready-status', [GasInDataController::class, 'readyStatus'])
+            ->whereNumber('gasIn')->name('ready-status');
+
+        Route::post('/{gasIn}/approve-tracer', [GasInDataController::class, 'approveTracer'])
+            ->whereNumber('gasIn')->name('approve-tracer');
+        Route::post('/{gasIn}/reject-tracer', [GasInDataController::class, 'rejectTracer'])
+            ->whereNumber('gasIn')->name('reject-tracer');
+
+        Route::post('/{gasIn}/approve-cgp', [GasInDataController::class, 'approveCgp'])
+            ->whereNumber('gasIn')->name('approve-cgp');
+        Route::post('/{gasIn}/reject-cgp', [GasInDataController::class, 'rejectCgp'])
+            ->whereNumber('gasIn')->name('reject-cgp');
+
+        Route::post('/{gasIn}/schedule', [GasInDataController::class, 'schedule'])
+            ->whereNumber('gasIn')->name('schedule');
+        Route::post('/{gasIn}/complete', [GasInDataController::class, 'complete'])
+            ->whereNumber('gasIn')->name('complete');
+
+        Route::get('/by-reff/{reffId}', [GasInDataController::class, 'redirectByReff'])
+            ->where('reffId', '[A-Za-z0-9\-]+')->name('by-reff');
     });
 
     /*

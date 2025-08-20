@@ -8,6 +8,9 @@ use App\Models\User;
 use App\Models\AuditLog;
 use App\Models\SrData; // perbaiki case (bukan SRData)
 use App\Models\SkData;
+use App\Models\GasInData;
+use App\Models\JalurPipaData;
+use App\Models\PenyambunganPipaData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -421,8 +424,20 @@ class PhotoApprovalService
         $replaceSameSlot = (bool) ($cfg['modules'][$moduleKey]['replace_same_slot'] ?? true);
         $uploader = $this->uploader ?? app(\App\Services\FileUploadService::class);
         if ($replaceSameSlot) {
-            try { $uploader->deleteExistingPhoto($reffId, $moduleKey, $slotKey); }
-            catch (\Throwable $e) { Log::info('deleteExistingPhoto non-fatal', ['err' => $e->getMessage()]); }
+            try {
+                // GANTI BAGIAN INI:
+                PhotoApproval::where([
+                    'reff_id_pelanggan' => $reffId,
+                    'module_name' => $moduleSlug,
+                    'photo_field_name' => $slotKey,
+                ])->delete();
+
+                // Hapus file fisik
+                $uploader->deleteExistingPhoto($reffId, $moduleKey, $slotKey);
+            }
+            catch (\Throwable $e) {
+                Log::info('deleteExistingPhoto non-fatal', ['err' => $e->getMessage()]);
+            }
         }
 
         // 3) Upload ke Drive (pakai nama target bila diberikan)
@@ -515,7 +530,6 @@ class PhotoApprovalService
         if ($aiPassed) {
             try { $this->notificationService->notifyTracerPhotoPending($reffId, $moduleSlug); } catch (\Throwable) {}
         } else {
-            try { $this->handlePhotoRejection($pa, 'Precheck', $rejection ?? 'AI gagal'); } catch (\Throwable) {}
         }
 
         return [
@@ -765,10 +779,9 @@ class PhotoApprovalService
         return match (strtolower($moduleSlug)) {
             'sk'           => SkData::class,
             'sr'           => SrData::class,
-            'mgrt'         => \App\Models\MgrtData::class,
-            'gas_in'       => \App\Models\GasInData::class,
-            'jalur_pipa'   => \App\Models\JalurPipaData::class,
-            'penyambungan' => \App\Models\PenyambunganPipaData::class,
+            'gas_in'       => GasInData::class,
+            'jalur_pipa'   => JalurPipaData::class,
+            'penyambungan' => PenyambunganPipaData::class,
             default        => null,
         };
     }

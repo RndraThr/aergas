@@ -8,267 +8,304 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Schema;
-
+use Illuminate\Support\Str;
+use App\Services\OpenAIService;
+use App\Services\PhotoRuleEvaluator;
 use App\Models\SrData;
-use App\Models\FileStorage;
-use App\Models\PhotoApproval;
 use App\Services\PhotoApprovalService;
 
 class SrDataController extends Controller
 {
-    /** LIST */
+    public function __construct(
+        private ?PhotoApprovalService $photoSvc = null,
+    ) {}
+
     public function index(Request $r)
     {
-        $q = SrData::query()
-            ->with(['calonPelanggan'])
-            ->when($r->status, fn($qq) => $qq->where('status', $r->status))
-            ->when($r->search, function ($qq) use ($r) {
-                $s = trim((string)$r->search);
-                $qq->where(function ($w) use ($s) {
-                    $w->where('reff_id_pelanggan', 'like', "%$s%")
-                      ->orWhere('nomor_sr', 'like', "%$s%");
-                });
-            })
-            ->orderByDesc('id');
+        $q = SrData::with('calonPelanggan')->latest('id');
 
-        return response()->json($q->paginate((int) $r->get('per_page', 15)));
+        if ($r->filled('q')) {
+            $term = trim((string) $r->get('q'));
+            $q->where(function($w) use ($term) {
+                $w->where('reff_id_pelanggan','like',"%{$term}%")
+                  ->orWhere('status','like',"%{$term}%");
+            });
+        }
+
+        $sr = $q->paginate((int) $r->get('per_page', 15))->withQueryString();
+
+        if ($r->wantsJson() || $r->ajax()) {
+            return response()->json($sr);
+        }
+
+        return view('sr.index', compact('sr'));
     }
 
-    /** DETAIL */
-    public function show(SrData $sr)
+    public function create()
+    {
+        $photoDefs = $this->buildPhotoDefs('SR');
+        return view('sr.create', compact('photoDefs'));
+    }
+
+    public function edit(SrData $sr)
     {
         $sr->load(['calonPelanggan','photoApprovals','files']);
-        return response()->json($sr);
+        $photoDefs = $this->buildPhotoDefs('SR');
+        return view('sr.edit', compact('sr','photoDefs'));
     }
 
-    /** CREATE */
+    public function show(Request $r, SrData $sr)
+    {
+        $sr->load(['calonPelanggan', 'photoApprovals', 'files']);
+
+        if ($r->wantsJson() || $r->ajax()) {
+            return response()->json($sr);
+        }
+
+        return view('sr.show', compact('sr'));
+    }
+
     public function store(Request $r)
     {
-        // opsi tapping sesuai config
-        $opsiTapping = ['63x20','90x20','63x32','180x90','180x63','125x63','90x63','180x32','125x32','90x32'];
+        $materialRules = (new SrData())->getMaterialValidationRules();
 
-        $v = Validator::make($r->all(), [
-            'reff_id_pelanggan'         => ['required','string','max:50', Rule::exists('calon_pelanggan','reff_id_pelanggan')],
-            'notes'                     => ['nullable','string'],
+        $v = Validator::make($r->all(), array_merge([
+            'reff_id_pelanggan' => ['required','string','max:50', Rule::exists('calon_pelanggan','reff_id_pelanggan')],
+            'tanggal_pemasangan' => ['required','date'],
+            'notes' => ['nullable','string'],
+        ], $materialRules));
 
-            // field manual SR (opsional saat create – bisa diwajibkan kalau mau)
-            'jenis_tapping'             => ['nullable', Rule::in($opsiTapping)],
-            'panjang_pipa_pe_m'         => ['nullable','numeric','min:0'],
-            'panjang_casing_crossing_m' => ['nullable','numeric','min:0'],
-        ]);
-        if ($v->fails()) return response()->json(['errors'=>$v->errors()], 422);
+        if ($v->fails()) {
+            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+        }
 
         $data = $v->validated();
-        $data['status']     = SrData::STATUS_DRAFT;
+        $data['status'] = SrData::STATUS_DRAFT;
         $data['created_by'] = Auth::id();
         $data['updated_by'] = Auth::id();
 
-        $sr = SrData::create([
-            'reff_id_pelanggan' => $data['reff_id_pelanggan'],
-            'notes'             => $data['notes'] ?? null,
-            'status'            => $data['status'],
-            'created_by'        => $data['created_by'],
-            'updated_by'        => $data['updated_by'],
-        ]);
-
-        // set field manual jika kolom ada
-        $this->setIfColumnExists($sr, 'jenis_tapping',               $data['jenis_tapping'] ?? null);
-        $this->setIfColumnExists($sr, 'panjang_pipa_pe_m',           $data['panjang_pipa_pe_m'] ?? null);
-        $this->setIfColumnExists($sr, 'panjang_casing_crossing_m',   $data['panjang_casing_crossing_m'] ?? null);
-
-        // fallback ke kolom lama bila tersedia (kompatibilitas)
-        $this->setIfColumnExists($sr, 'panjang_pipa_pe',             $data['panjang_pipa_pe_m'] ?? null);
-        $this->setIfColumnExists($sr, 'panjang_casing_crossing_sr',  $data['panjang_casing_crossing_m'] ?? null);
-
-        $sr->save();
-
+        $sr = SrData::create($data);
         $this->audit('create', $sr, [], $sr->toArray());
-        return response()->json($sr, 201);
+
+        return response()->json(['success'=>true,'data'=>$sr], 201);
     }
 
-    /** UPDATE */
     public function update(Request $r, SrData $sr)
     {
-        if ($sr->status === SrData::STATUS_COMPLETED) {
-            return response()->json(['message' => 'Record sudah completed.'], 422);
+        if ($sr->status !== SrData::STATUS_DRAFT) {
+            return response()->json([
+                'success'=>false,
+                'message'=>'Hanya boleh edit saat status draft.'
+            ], 422);
         }
 
-        $opsiTapping = ['63x20','90x20','63x32','180x90','180x63','125x63','90x63','180x32','125x32','90x32'];
+        $materialRules = $sr->getMaterialValidationRules();
 
-        $v = Validator::make($r->all(), [
-            'notes'                     => ['nullable','string'],
-            'tanggal_pemasangan'        => ['nullable','date'],
+        $v = Validator::make($r->all(), array_merge([
+            'tanggal_pemasangan' => ['nullable','date'],
+            'notes' => ['nullable','string'],
+        ], $materialRules));
 
-            // field manual (pakai nama baru + fallback)
-            'jenis_tapping'             => ['nullable', Rule::in($opsiTapping)],
-            'panjang_pipa_pe_m'         => ['nullable','numeric','min:0'],
-            'panjang_casing_crossing_m' => ['nullable','numeric','min:0'],
-
-            // nama lama (tetap diterima kalau FE lama masih kirim)
-            'panjang_pipa_pe'           => ['nullable','numeric','min:0'],
-            'panjang_casing_crossing_sr'=> ['nullable','numeric','min:0'],
-        ]);
-        if ($v->fails()) return response()->json(['errors'=>$v->errors()], 422);
+        if ($v->fails()) {
+            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+        }
 
         $old = $sr->getOriginal();
-
-        $sr->notes = $r->input('notes', $sr->notes);
-        $this->setIfColumnExists($sr, 'tanggal_pemasangan', $r->input('tanggal_pemasangan'));
-
-        // set nama baru bila ada
-        $this->setIfColumnExists($sr, 'jenis_tapping',               $r->input('jenis_tapping'));
-        $this->setIfColumnExists($sr, 'panjang_pipa_pe_m',           $r->input('panjang_pipa_pe_m'));
-        $this->setIfColumnExists($sr, 'panjang_casing_crossing_m',   $r->input('panjang_casing_crossing_m'));
-
-        // fallback ke kolom lama
-        if (is_null($sr->panjang_pipa_pe_m ?? null)) {
-            $this->setIfColumnExists($sr, 'panjang_pipa_pe_m', $r->input('panjang_pipa_pe'));
-        }
-        if (is_null($sr->panjang_casing_crossing_m ?? null)) {
-            $this->setIfColumnExists($sr, 'panjang_casing_crossing_m', $r->input('panjang_casing_crossing_sr'));
-        }
-        // kalau kolom lama memang yang dipakai:
-        $this->setIfColumnExists($sr, 'panjang_pipa_pe',             $r->input('panjang_pipa_pe_m', $r->input('panjang_pipa_pe')));
-        $this->setIfColumnExists($sr, 'panjang_casing_crossing_sr',  $r->input('panjang_casing_crossing_m', $r->input('panjang_casing_crossing_sr')));
-
+        $sr->fill($v->validated());
         $sr->updated_by = Auth::id();
         $sr->save();
 
         $this->audit('update', $sr, $old, $sr->toArray());
-        return response()->json($sr);
+        return response()->json(['success'=>true,'data'=>$sr]);
     }
 
-    /** DELETE */
     public function destroy(SrData $sr)
     {
         $old = $sr->toArray();
         $sr->delete();
         $this->audit('delete', $sr, $old, []);
-        return response()->json(['deleted' => true]);
+        return response()->json(['success'=>true, 'deleted'=>true]);
     }
 
-    /**
-     * UPLOAD + AI VALIDATE (pakai PhotoApprovalService + config)
-     * FE kirim: file, slot_type (boleh alias; service akan map ke slot kanonik)
-     */
-    public function uploadAndValidate(Request $r, SrData $sr, PhotoApprovalService $svc)
+    public function redirectByReff(string $reffId)
+    {
+        try {
+            $normalizedReff = strtoupper(trim($reffId));
+            $sr = SrData::where('reff_id_pelanggan', $normalizedReff)->first();
+
+            if (!$sr && ctype_digit($normalizedReff)) {
+                $sr = SrData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$normalizedReff])->first();
+            }
+
+            if (!$sr) {
+                return redirect()->route('sr.index')
+                    ->with('error', "SR dengan Reference ID '{$reffId}' tidak ditemukan.");
+            }
+
+            return redirect()->route('sr.show', $sr->id);
+
+        } catch (\Exception $e) {
+            Log::error('SR redirectByReff failed', [
+                'reff_id' => $reffId,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->route('sr.index')
+                ->with('error', 'Terjadi kesalahan saat mencari SR.');
+        }
+    }
+
+    public function precheckGeneric(Request $r)
     {
         $v = Validator::make($r->all(), [
             'file'      => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:10240'],
             'slot_type' => ['required','string','max:100'],
+            'module'    => ['nullable','in:SR'],
         ]);
-        if ($v->fails()) return response()->json(['errors'=>$v->errors()], 422);
+        if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
 
-        $slot = $r->input('slot_type');
+        $module    = (string) $r->input('module', 'SR');
+        $slotInput = (string) $r->input('slot_type');
 
-        // Service akan:
-        // - map alias → slot key,
-        // - cek "requires.fields" dari config (contoh: tapping_saddle butuh jenis_tapping),
-        // - upload (Drive/lokal), panggil AI, evaluasi rules config,
-        // - simpan PhotoApproval, recalc status SR.
-        $res  = $svc->handleUploadAndValidate(
-            'SR',
-            $sr->reff_id_pelanggan,
-            $slot,
-            $r->file('file'),
-            Auth::id()
-        );
+        $cfgAll     = config('aergas_photos') ?: [];
+        $moduleKey  = strtoupper($module);
+        $slotCfg    = (array) (data_get($cfgAll, "modules.$moduleKey.slots.$slotInput") ?? []);
 
-        if (empty($res['success'])) {
-            return response()->json($res, 422);
+        if (!$slotCfg) {
+            return response()->json(['success'=>false,'message'=>"Slot tidak dikenal: {$slotInput}"], 422);
         }
 
-        return response()->json($res, 201);
+        $customPrompt = $slotCfg['prompt'] ?? null;
+        if (!$customPrompt) {
+            return response()->json([
+                'success' => false,
+                'message' => "Prompt validasi tidak dikonfigurasi untuk slot: {$slotInput}"
+            ], 422);
+        }
+
+        try {
+            $openAIService = app(OpenAIService::class);
+
+            $result = $openAIService->validatePhotoWithPrompt(
+                imagePath: $r->file('file')->getRealPath(),
+                customPrompt: $customPrompt,
+                context: [
+                    'module' => $moduleKey,
+                    'slot' => $slotInput,
+                    'label' => $slotCfg['label'] ?? $slotInput
+                ]
+            );
+
+            return response()->json([
+                'success' => true,
+                'ai' => [
+                    'passed'     => $result['passed'],
+                    'score'      => $result['confidence'] * 100,
+                    'reason'     => $result['reason'],
+                    'messages'   => [$result['reason']],
+                    'objects'    => [],
+                    'rules'      => [$slotInput],
+                    'confidence' => $result['confidence'],
+                ],
+                'message' => $result['passed']
+                    ? 'Validasi AI berhasil - foto diterima'
+                    : 'Validasi AI gagal - ' . $result['reason'],
+                'debug' => [
+                    'prompt_used' => $customPrompt,
+                    'raw_response' => $result['raw_response'] ?? null,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Photo precheck failed', [
+                'slot' => $slotInput,
+                'module' => $moduleKey,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi AI gagal: ' . $e->getMessage(),
+                'ai' => [
+                    'passed' => false,
+                    'score' => 0,
+                    'reason' => 'Error during AI validation',
+                    'messages' => ['Terjadi kesalahan saat validasi AI'],
+                    'objects' => [],
+                    'rules' => [$slotInput],
+                ]
+            ], 500);
+        }
     }
 
-    /** RECHECK FOTO (tetap sederhana; bisa dipindah ke service jika mau) */
-    public function recheck(Request $r, SrData $sr, FileStorage $photo)
+    public function uploadAndValidate(Request $r, SrData $sr)
     {
-        if ($photo->sr_data_id !== $sr->id) {
-            return response()->json(['message' => 'Foto tidak sesuai record SR.'], 404);
-        }
+        $v = Validator::make($r->all(), [
+            'file'       => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:10240'],
+            'slot_type'  => ['required','string','max:100'],
+            'ai_passed'  => ['nullable','boolean'],
+            'ai_score'   => ['nullable','numeric'],
+            'ai_reason'  => ['nullable','string'],
+            'ai_notes'   => ['nullable','array'],
+        ]);
+        if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
 
-        // slot dari tag kedua
-        $slot = collect($photo->tags ?? [])->first(fn($t) => $t !== 'sr_foto') ?? 'lainnya';
+        $slotParam = (string) $r->input('slot_type');
+        $slotSlug  = Str::slug($slotParam, '_');
 
-        // Jika kamu sudah punya method recheck di service, lebih baik panggil service di sini.
-        // Untuk sekarang, pakai jalur simpel (AI langsung):
-        try {
-            // kalau drive_file_id kosong, gunakan path lokal
-            $ai = [
-                'status' => 'passed',
-                'score'  => 1.0,
-                'checks' => [],
-                'notes'  => null,
-            ];
+        $ext  = strtolower($r->file('file')->getClientOriginalExtension() ?: $r->file('file')->extension());
+        $ts   = now()->format('Ymd_His');
+        $targetName = "{$sr->reff_id_pelanggan}_{$slotSlug}_{$ts}.{$ext}";
 
-            // Kalau kamu sudah punya OpenAIService di container:
-            if (app()->bound(\App\Services\OpenAIService::class)) {
-                $openAI = app(\App\Services\OpenAIService::class);
+        $svc = $this->photoSvc ?? app(PhotoApprovalService::class);
 
-                // normalisasi input: gunakan file lokal
-                $fullpath = Storage::disk($photo->storage_disk ?? 'public')->path($photo->storage_path ?? '');
-                $aiRaw = $openAI->validatePhoto($fullpath, $slot, 'SR');
-
-                // mapping sederhana
-                $ai = [
-                    'status' => !empty($aiRaw['validation_passed']) ? 'passed' : 'failed',
-                    'score'  => $aiRaw['confidence'] ?? null,
-                    'checks' => $aiRaw['checks'] ?? [],
-                    'notes'  => $aiRaw['rejection_reason'] ?? null,
-                ];
-            }
-        } catch (\Throwable $e) {
-            Log::warning('AI recheck SR error: '.$e->getMessage());
-        }
-
-        PhotoApproval::updateOrCreate(
-            ['sr_data_id' => $sr->id, 'file_storage_id' => $photo->id],
-            [
-                'slot_type'          => $slot,
-                'ai_status'          => $ai['status'],
-                'ai_score'           => $ai['score'] ?? null,
-                'ai_checks'          => $ai['checks'] ?? [],
-                'ai_notes'           => $ai['notes'] ?? null,
-                'ai_last_checked_at' => now(),
+        $res = $svc->storeWithoutAi(
+            module: 'SR',
+            reffId: $sr->reff_id_pelanggan,
+            slotIncoming: $slotParam,
+            file: $r->file('file'),
+            uploadedBy: Auth::id(),
+            targetFileName: $targetName,
+            precheck: [
+                'ai_passed'  => (bool) $r->boolean('ai_passed'),
+                'ai_score'   => $r->input('ai_score'),
+                'ai_reason'  => $r->input('ai_reason'),
+                'ai_notes'   => $r->input('ai_notes', []),
             ]
         );
 
-        $photo->ai_status = $ai['status'];
-        $photo->save();
-
-        $old = $sr->getOriginal();
-        $sr->recomputeAiOverallStatus();
-        if ($sr->status === SrData::STATUS_DRAFT && $sr->isAllPhotosPassed()) {
-            $sr->status = SrData::STATUS_READY_FOR_TRACER;
-        }
-        $sr->save();
-        $this->audit('update', $sr, $old, $sr->toArray());
+        $this->recalcSrStatus($sr);
 
         return response()->json([
-            'ai_status' => $ai['status'],
-            'ai_checks' => $ai['checks'] ?? [],
-            'ai_notes'  => $ai['notes'] ?? null,
-            'sr'        => $sr->only(['id','status','ai_overall_status']),
-        ]);
+            'success'   => true,
+            'photo_id'  => $res['photo_id'] ?? null,
+            'filename'  => $targetName,
+            'message'   => 'Upload berhasil dengan hasil AI precheck',
+            'ai_result' => [
+                'passed' => (bool) $r->boolean('ai_passed'),
+                'reason' => $r->input('ai_reason', 'No reason provided'),
+                'score'  => $r->input('ai_score', 0),
+            ]
+        ], 201);
     }
 
-    /** READY STATUS */
     public function readyStatus(SrData $sr)
     {
         return response()->json([
             'all_passed' => $sr->isAllPhotosPassed(),
-            'ai_overall' => $sr->ai_overall_status,
-            'status'     => $sr->status,
+            'material_complete' => $sr->isMaterialComplete(),
+            'can_submit' => $sr->canSubmit(),
+            'ai_overall' => $sr->ai_overall_status ?? null,
+            'status' => $sr->status,
+            'material_summary' => $sr->material_summary,
         ]);
     }
 
-    /** APPROVALS */
     public function approveTracer(Request $r, SrData $sr)
     {
-        if (!$sr->canApproveTracer()) return response()->json(['message' => 'Belum siap untuk approval tracer.'], 422);
+        if (!$sr->canApproveTracer()) {
+            return response()->json(['success'=>false,'message' => 'Belum siap untuk approval tracer.'], 422);
+        }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_TRACER_APPROVED;
         $sr->tracer_approved_at = now();
@@ -276,23 +313,27 @@ class SrDataController extends Controller
         $sr->tracer_notes = $r->input('notes');
         $sr->save();
         $this->audit('approve', $sr, $old, $sr->toArray());
-        return response()->json($sr);
+        return response()->json(['success'=>true,'data'=>$sr]);
     }
 
     public function rejectTracer(Request $r, SrData $sr)
     {
-        if ($sr->status !== SrData::STATUS_READY_FOR_TRACER) return response()->json(['message'=>'Status tidak valid'], 422);
+        if ($sr->status !== SrData::STATUS_READY_FOR_TRACER) {
+            return response()->json(['success'=>false,'message' => 'Status tidak valid untuk reject tracer.'], 422);
+        }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_TRACER_REJECTED;
         $sr->tracer_notes = $r->input('notes');
         $sr->save();
         $this->audit('reject', $sr, $old, $sr->toArray());
-        return response()->json($sr);
+        return response()->json(['success'=>true,'data'=>$sr]);
     }
 
     public function approveCgp(Request $r, SrData $sr)
     {
-        if (!$sr->canApproveCgp()) return response()->json(['message' => 'Belum siap untuk approval CGP.'], 422);
+        if (!$sr->canApproveCgp()) {
+            return response()->json(['success'=>false,'message' => 'Belum siap untuk approval CGP.'], 422);
+        }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_CGP_APPROVED;
         $sr->cgp_approved_at = now();
@@ -300,84 +341,98 @@ class SrDataController extends Controller
         $sr->cgp_notes = $r->input('notes');
         $sr->save();
         $this->audit('approve', $sr, $old, $sr->toArray());
-        return response()->json($sr);
+        return response()->json(['success'=>true,'data'=>$sr]);
     }
 
     public function rejectCgp(Request $r, SrData $sr)
     {
-        if ($sr->status !== SrData::STATUS_TRACER_APPROVED) return response()->json(['message'=>'Status tidak valid'], 422);
+        if ($sr->status !== SrData::STATUS_TRACER_APPROVED) {
+            return response()->json(['success'=>false,'message' => 'Status tidak valid untuk reject CGP.'], 422);
+        }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_CGP_REJECTED;
         $sr->cgp_notes = $r->input('notes');
         $sr->save();
         $this->audit('reject', $sr, $old, $sr->toArray());
-        return response()->json($sr);
+        return response()->json(['success'=>true,'data'=>$sr]);
     }
 
-    /** SCHEDULE & COMPLETE */
     public function schedule(Request $r, SrData $sr)
     {
-        if (!$sr->canSchedule()) return response()->json(['message' => 'Belum bisa dijadwalkan.'], 422);
+        if (!$sr->canSchedule()) {
+            return response()->json(['success'=>false,'message' => 'Belum bisa dijadwalkan.'], 422);
+        }
 
         $v = Validator::make($r->all(), [
-            'tanggal_pemasangan'         => ['required','date'],
-            'nomor_sr'                   => ['nullable','string','max:100','unique:sr_data,nomor_sr'],
-
-            // boleh isi/update field manual saat schedule
-            'jenis_tapping'              => ['nullable', Rule::in(['63x20','90x20','63x32','180x90','180x63','125x63','90x63','180x32','125x32','90x32'])],
-            'panjang_pipa_pe_m'          => ['nullable','numeric','min:0'],
-            'panjang_casing_crossing_m'  => ['nullable','numeric','min:0'],
-
-            // fallback nama lama
-            'panjang_pipa_pe'            => ['nullable','numeric','min:0'],
-            'panjang_casing_crossing_sr' => ['nullable','numeric','min:0'],
+            'tanggal_pemasangan' => ['required','date'],
         ]);
-        if ($v->fails()) return response()->json(['errors'=>$v->errors()], 422);
+        if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
 
         $old = $sr->getOriginal();
-
-        $sr->tanggal_pemasangan = $r->input('tanggal_pemasangan');
-        if (!$sr->nomor_sr) $sr->nomor_sr = $this->makeNomor('SR');
+        $sr->fill($v->validated());
         $sr->status = SrData::STATUS_SCHEDULED;
-
-        // set manual fields
-        $this->setIfColumnExists($sr, 'jenis_tapping',               $r->input('jenis_tapping'));
-        $this->setIfColumnExists($sr, 'panjang_pipa_pe_m',           $r->input('panjang_pipa_pe_m', $r->input('panjang_pipa_pe')));
-        $this->setIfColumnExists($sr, 'panjang_casing_crossing_m',   $r->input('panjang_casing_crossing_m', $r->input('panjang_casing_crossing_sr')));
-        // fallback nama lama
-        $this->setIfColumnExists($sr, 'panjang_pipa_pe',             $r->input('panjang_pipa_pe', $r->input('panjang_pipa_pe_m')));
-        $this->setIfColumnExists($sr, 'panjang_casing_crossing_sr',  $r->input('panjang_casing_crossing_sr', $r->input('panjang_casing_crossing_m')));
-
         $sr->save();
 
         $this->audit('update', $sr, $old, $sr->toArray());
-        return response()->json($sr);
+        return response()->json(['success'=>true,'data'=>$sr]);
     }
 
     public function complete(Request $r, SrData $sr)
     {
-        if (!$sr->canComplete()) return response()->json(['message' => 'Belum bisa diselesaikan.'], 422);
+        if (!$sr->canComplete()) {
+            return response()->json(['success'=>false,'message' => 'Belum bisa diselesaikan.'], 422);
+        }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_COMPLETED;
         $sr->save();
         $this->audit('update', $sr, $old, $sr->toArray());
-        return response()->json($sr);
+        return response()->json(['success'=>true,'data'=>$sr]);
     }
 
-    /* ================= Helpers ================= */
-
-    private function makeNomor(string $prefix): string
+    private function buildPhotoDefs(string $module): array
     {
-        return sprintf('%s-%s-%04d', strtoupper($prefix), now()->format('Ym'), random_int(1, 9999));
+        $cfgAll    = config('aergas_photos') ?: [];
+        $moduleKey = strtoupper((string) $module);
+        $cfgSlots  = (array) (
+            data_get($cfgAll, "modules.$moduleKey.slots")
+            ?? data_get($cfgAll, 'modules.'.strtolower($module).'.slots', [])
+        );
+
+        $defs = [];
+        foreach ($cfgSlots as $key => $rule) {
+            $accept = $rule['accept'] ?? ['image/*'];
+            if (is_string($accept)) $accept = [$accept];
+
+            $checks = collect($rule['checks'] ?? [])
+                ->map(fn($c) => $c['label'] ?? $c['id'] ?? '')
+                ->filter()->values()->all();
+
+            $defs[] = [
+                'field' => $key,
+                'label' => $rule['label'] ?? $key,
+                'accept' => $accept,
+                'required_objects' => $checks,
+            ];
+        }
+        return $defs;
     }
 
-    /**
-     * Set attribute hanya jika kolom ada di tabel (hindari SQL error saat kolom belum dimigrasi)
-     */
-    private function setIfColumnExists(SrData $sr, string $column, $value): void
+    private function recalcSrStatus(SrData $sr): void
     {
-        if (!is_null($value) && Schema::hasColumn($sr->getTable(), $column)) {
-            $sr->setAttribute($column, $value);
+        try {
+            if (method_exists($sr, 'syncModuleStatusFromPhotos')) {
+                $sr->syncModuleStatusFromPhotos();
+            } else {
+                if (method_exists($sr, 'recomputeAiOverallStatus')) {
+                    $sr->recomputeAiOverallStatus();
+                }
+                if ($sr->status === SrData::STATUS_DRAFT && $sr->canSubmit()) {
+                    $sr->status = SrData::STATUS_READY_FOR_TRACER;
+                    $sr->save();
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::info('recalcSrStatus soft-failed', ['err' => $e->getMessage()]);
         }
     }
 

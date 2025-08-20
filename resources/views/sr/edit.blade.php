@@ -1,0 +1,555 @@
+@extends('layouts.app')
+
+@section('title', 'Edit SR - AERGAS')
+
+@section('content')
+@php
+  $cfgSlots = (array) (config('aergas_photos.modules.SR.slots') ?? []);
+  $photoDefs = [];
+  foreach ($cfgSlots as $key => $rule) {
+    $accept = $rule['accept'] ?? ['image/*'];
+    if (is_string($accept)) $accept = [$accept];
+    $checks = collect($rule['checks'] ?? [])->map(fn($c) => $c['label'] ?? $c['id'] ?? '')->filter()->values()->all();
+    $photoDefs[] = [
+      'field' => $key,
+      'label' => $rule['label'] ?? $key,
+      'accept' => $accept,
+      'required_objects' => $checks,
+    ];
+  }
+
+  $materialLabels = $sr->getMaterialLabels();
+  $tappingOptions = ['63x20','90x20','63x32','180x90','180x63','125x63','90x63','180x32','125x32','90x32'];
+@endphp
+
+<div class="space-y-6" x-data="srEdit()" x-init="init()">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-800">Edit SR</h1>
+      <p class="text-gray-600 mt-1">Reff ID: <b>{{ $sr->reff_id_pelanggan }}</b></p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{{ route('sr.show',$sr->id) }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Detail</a>
+      <a href="{{ route('sr.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Kembali</a>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl card-shadow p-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <div class="text-xs text-gray-500">Created By</div>
+        @if($sr->createdBy)
+          <div class="flex items-center mt-1">
+            <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+              <span class="text-xs font-medium text-blue-600">
+                {{ strtoupper(substr($sr->createdBy->name, 0, 1)) }}
+              </span>
+            </div>
+            <span class="font-medium">{{ $sr->createdBy->name }}</span>
+          </div>
+        @else
+          <div class="font-medium text-gray-400">-</div>
+        @endif
+      </div>
+      <div>
+        <div class="text-xs text-gray-500">Tanggal Pemasangan</div>
+        <div class="font-medium">{{ $sr->tanggal_pemasangan ? $sr->tanggal_pemasangan->format('d/m/Y') : '-' }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-500">Status</div>
+        <span class="px-2 py-0.5 rounded text-xs
+          @class([
+            'bg-gray-100 text-gray-700' => $sr->status === 'draft',
+            'bg-blue-100 text-blue-800' => $sr->status === 'ready_for_tracer',
+            'bg-yellow-100 text-yellow-800' => $sr->status === 'scheduled',
+            'bg-purple-100 text-purple-800' => $sr->status === 'tracer_approved',
+            'bg-amber-100 text-amber-800' => $sr->status === 'cgp_approved',
+            'bg-red-100 text-red-800' => str_contains($sr->status,'rejected'),
+            'bg-green-100 text-green-800' => $sr->status === 'completed',
+          ])
+        ">{{ strtoupper($sr->status) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <form @submit.prevent="updateMaterial" class="bg-white rounded-xl card-shadow p-6 space-y-4">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-clipboard-list text-orange-600"></i>
+      <h2 class="font-semibold text-gray-800">Edit Material SR</h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Tapping</label>
+        <select x-model="jenisTapping" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
+          <option value="">Pilih Jenis Tapping</option>
+          @foreach($tappingOptions as $option)
+            <option value="{{ $option }}">{{ $option }}</option>
+          @endforeach
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Panjang Pipa PE (meter)</label>
+        <input type="number" x-model="panjangPipaPe" step="0.01" min="0" max="1000"
+               class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+               placeholder="0.00">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Panjang Casing Crossing (meter)</label>
+        <input type="number" x-model="panjangCasingCrossing" step="0.01" min="0" max="100"
+               class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+               placeholder="0.00">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      @foreach($sr->getRequiredMaterialItems() as $field => $value)
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            {{ $materialLabels[$field] ?? $field }} <span class="text-red-500">*</span>
+          </label>
+          @if(str_contains($field, 'panjang_'))
+            <input type="number" x-model="material.{{ $field }}" step="0.01" min="0" max="1000"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0.00" required>
+          @else
+            <input type="number" x-model="material.{{ $field }}" min="0" max="100"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                   placeholder="0" required>
+          @endif
+        </div>
+      @endforeach
+    </div>
+
+    <div class="mt-4 p-3 bg-white rounded border">
+      <div class="text-sm text-gray-600">
+        <div class="flex justify-between items-center">
+          <span class="font-medium">Total Items:</span>
+          <span class="font-bold" x-text="calculateTotalItems()"></span>
+        </div>
+        <div class="flex justify-between items-center mt-1">
+          <span class="font-medium">Total Lengths:</span>
+          <span class="font-bold" x-text="calculateTotalLengths()"></span>
+        </div>
+        <div class="flex justify-between items-center mt-1">
+          <span class="font-medium">Status Kelengkapan:</span>
+          <span :class="isMaterialComplete() ? 'text-green-600 font-bold' : 'text-red-600 font-bold'"
+                x-text="isMaterialComplete() ? 'LENGKAP' : 'BELUM LENGKAP'"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 pt-4">
+      <button type="submit"
+              :disabled="updating || !isMaterialComplete()"
+              class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+        <span x-show="!updating"><i class="fas fa-save mr-2"></i>Update Material</span>
+        <span x-show="updating"><i class="fas fa-spinner fa-spin mr-2"></i>Updating...</span>
+      </button>
+    </div>
+
+    <div class="bg-orange-50 border border-orange-200 p-3 rounded text-sm">
+      <div class="flex items-start">
+        <i class="fas fa-info-circle text-orange-600 mr-2 mt-0.5"></i>
+        <div>
+          <p class="font-medium text-orange-800 mb-1">Catatan Material:</p>
+          <ul class="text-orange-700 space-y-1">
+            <li>• Semua field bertanda (*) merah wajib diisi</li>
+            <li>• Material harus sesuai dengan gambar isometrik SR</li>
+            <li>• Hanya bisa edit saat status DRAFT</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="bg-white rounded-xl card-shadow p-6 space-y-4">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-camera text-purple-600"></i>
+      <h2 class="font-semibold text-gray-800">Upload / Re-upload Foto</h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      @foreach ($photoDefs as $ph)
+        <div class="border rounded-lg p-4" x-data="slotUploader('{{ $ph['field'] }}')">
+          <label class="block text-sm font-medium text-gray-700 mb-2">{{ $ph['label'] }}</label>
+
+          <template x-if="!preview">
+            <div class="h-32 flex items-center justify-center bg-gray-50 rounded border-dashed border text-gray-400">Tidak ada file</div>
+          </template>
+          <template x-if="preview && !isPdf">
+            <img :src="preview" class="h-32 w-full object-cover rounded">
+          </template>
+          <template x-if="isPdf">
+            <div class="h-32 flex items-center justify-center bg-gray-50 rounded border">
+              <span class="text-xs text-gray-600">PDF terpilih</span>
+            </div>
+          </template>
+
+          <template x-if="ai">
+            <div class="mt-3 text-xs border rounded p-2"
+                :class="{
+                    'border-green-300 bg-green-50 text-green-700': ai.warning_level === 'excellent',
+                    'border-blue-300 bg-blue-50 text-blue-700': ai.warning_level === 'good',
+                    'border-amber-300 bg-amber-50 text-amber-700': ai.warning_level === 'warning',
+                    'border-red-300 bg-red-50 text-red-700': ai.warning_level === 'poor'
+                }">
+              <div class="font-medium mb-1 flex items-center">
+                <i :class="{
+                    'fas fa-check-circle text-green-600': ai.warning_level === 'excellent',
+                    'fas fa-thumbs-up text-blue-600': ai.warning_level === 'good',
+                    'fas fa-exclamation-triangle text-amber-600': ai.warning_level === 'warning',
+                    'fas fa-times-circle text-red-600': ai.warning_level === 'poor'
+                    }" class="mr-1"></i>
+                Hasil AI: <span x-text="getWarningText(ai.warning_level)" class="font-bold"></span>
+                <span class="ml-2 text-gray-600" x-text="`Skor: ${formatScore(ai)}`"></span>
+              </div>
+              <template x-if="(ai.messages || []).length">
+                <div>
+                  <span class="text-gray-600 font-medium">Catatan:</span>
+                  <ul class="list-disc ml-4 mt-1">
+                    <template x-for="m in ai.messages" :key="m">
+                      <li x-text="m"></li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <div class="flex items-center gap-2 mt-3">
+            <input class="hidden" type="file"
+                   :id="`file_${@js($ph['field'])}`"
+                   accept="{{ implode(',', (array) $ph['accept']) }}"
+                   @change="onPick($event)">
+            <label :for="`file_${@js($ph['field'])}`" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded cursor-pointer text-sm">
+              <i class="fas fa-folder-open mr-1"></i>Pilih
+            </label>
+
+            <button type="button" @click="clearPick" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm">
+              <i class="fas fa-trash mr-1"></i>Hapus
+            </button>
+
+            <button type="button" @click="upload" :disabled="!file || uploading"
+                    class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm">
+              <span x-show="!uploading"><i class="fas fa-upload mr-1"></i>Upload</span>
+              <span x-show="uploading"><i class="fas fa-spinner fa-spin mr-1"></i>Uploading…</span>
+            </button>
+          </div>
+
+          <div class="text-xs mt-2"
+               :class="statusMsg?.includes('✓') ? 'text-green-600' :
+                      statusMsg?.includes('✗') ? 'text-red-600' : 'text-gray-500'"
+               x-text="statusMsg"></div>
+
+          @if(!empty($ph['required_objects']))
+            <div class="mt-2 text-xs text-gray-500">
+              Objek wajib:
+              @foreach($ph['required_objects'] as $obj)
+                <span class="px-2 py-0.5 mr-1 mb-1 bg-gray-100 rounded border inline-block">{{ $obj }}</span>
+              @endforeach
+            </div>
+          @endif
+        </div>
+      @endforeach
+    </div>
+
+    <div class="bg-blue-50 border border-blue-200 p-3 rounded text-sm">
+      <div class="flex items-start">
+        <i class="fas fa-info-circle text-blue-600 mr-2 mt-0.5"></i>
+        <div>
+          <p class="font-medium text-blue-800 mb-1">Catatan Upload:</p>
+          <ul class="text-blue-700 space-y-1">
+            <li>• Format: JPG/PNG/WEBP untuk foto, PDF untuk dokumen Isometrik</li>
+            <li>• Maksimal 10 MB per file</li>
+            <li>• Foto akan dianalisa otomatis menggunakan AI</li>
+            <li>• Pastikan objek yang diperlukan terlihat jelas dalam foto</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+@endsection
+
+@push('scripts')
+<script>
+function srEdit() {
+  return {
+    material: {
+      qty_tapping_saddle: @json($sr->qty_tapping_saddle ?? ''),
+      qty_coupler_20mm: @json($sr->qty_coupler_20mm ?? ''),
+      panjang_pipa_pe_20mm_m: @json($sr->panjang_pipa_pe_20mm_m ?? ''),
+      qty_elbow_90x20: @json($sr->qty_elbow_90x20 ?? ''),
+      qty_transition_fitting: @json($sr->qty_transition_fitting ?? ''),
+      panjang_pondasi_tiang_sr_m: @json($sr->panjang_pondasi_tiang_sr_m ?? ''),
+      panjang_pipa_galvanize_3_4_m: @json($sr->panjang_pipa_galvanize_3_4_m ?? ''),
+      qty_klem_pipa: @json($sr->qty_klem_pipa ?? ''),
+      qty_ball_valve_3_4: @json($sr->qty_ball_valve_3_4 ?? ''),
+      qty_double_nipple_3_4: @json($sr->qty_double_nipple_3_4 ?? ''),
+      qty_long_elbow_3_4: @json($sr->qty_long_elbow_3_4 ?? ''),
+      qty_regulator_service: @json($sr->qty_regulator_service ?? ''),
+      qty_coupling_mgrt: @json($sr->qty_coupling_mgrt ?? ''),
+      qty_meter_gas_rumah_tangga: @json($sr->qty_meter_gas_rumah_tangga ?? ''),
+      panjang_casing_1_inch_m: @json($sr->panjang_casing_1_inch_m ?? ''),
+      qty_sealtape: @json($sr->qty_sealtape ?? '')
+    },
+    jenisTapping: @json($sr->jenis_tapping ?? ''),
+    panjangPipaPe: @json($sr->panjang_pipa_pe_m ?? ''),
+    panjangCasingCrossing: @json($sr->panjang_casing_crossing_m ?? ''),
+    updating: false,
+
+    init() {},
+
+    calculateTotalItems() {
+      const itemFields = ['qty_tapping_saddle', 'qty_coupler_20mm', 'qty_elbow_90x20', 'qty_transition_fitting', 'qty_klem_pipa', 'qty_ball_valve_3_4', 'qty_double_nipple_3_4', 'qty_long_elbow_3_4', 'qty_regulator_service', 'qty_coupling_mgrt', 'qty_meter_gas_rumah_tangga', 'qty_sealtape'];
+      const total = itemFields.reduce((sum, field) => {
+        return sum + (Number(this.material[field]) || 0);
+      }, 0);
+      return total + ' pcs';
+    },
+
+    calculateTotalLengths() {
+      const lengthFields = ['panjang_pipa_pe_20mm_m', 'panjang_pondasi_tiang_sr_m', 'panjang_pipa_galvanize_3_4_m', 'panjang_casing_1_inch_m'];
+      const total = lengthFields.reduce((sum, field) => {
+        return sum + (Number(this.material[field]) || 0);
+      }, 0);
+      return total.toFixed(2) + ' meter';
+    },
+
+    isMaterialComplete() {
+      const required = Object.keys(this.material);
+      for (const field of required) {
+        const value = this.material[field];
+        if (field.includes('panjang_')) {
+          if (!value || Number(value) <= 0) return false;
+        } else {
+          if (value === '' || value === null || Number(value) < 0) return false;
+        }
+      }
+      return true;
+    },
+
+    async updateMaterial() {
+      if (this.updating || !this.isMaterialComplete()) return;
+
+      this.updating = true;
+
+      try {
+        const formData = new FormData();
+        formData.append('_token', @json(csrf_token()));
+        formData.append('_method', 'PUT');
+
+        Object.keys(this.material).forEach(key => {
+          const value = this.material[key];
+          if (value !== '' && value !== null) {
+            formData.append(key, value);
+          }
+        });
+
+        if (this.jenisTapping) formData.append('jenis_tapping', this.jenisTapping);
+        if (this.panjangPipaPe) formData.append('panjang_pipa_pe_m', this.panjangPipaPe);
+        if (this.panjangCasingCrossing) formData.append('panjang_casing_crossing_m', this.panjangCasingCrossing);
+
+        const response = await fetch(@json(route('sr.update', $sr->id)), {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: formData
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || 'Gagal update material');
+        }
+
+        window.showToast?.('Material berhasil diupdate!', 'success');
+
+      } catch (error) {
+        console.error('Update error:', error);
+        window.showToast?.(error.message || 'Gagal update material', 'error');
+      } finally {
+        this.updating = false;
+      }
+    }
+  }
+}
+
+function slotUploader(slot) {
+  return {
+    file: null,
+    preview: null,
+    isPdf: false,
+    uploading: false,
+    statusMsg: '',
+    ai: null,
+
+    formatScore(aiObj) {
+      if (!aiObj) return '—';
+      const s = Number(aiObj.score);
+      if (!Number.isFinite(s)) return '—';
+      return s > 1 ? Math.round(s) + '%' : Math.round(s * 100) + '%';
+    },
+
+    getWarningText(warningLevel) {
+      switch(warningLevel) {
+        case 'excellent': return 'SANGAT BAIK';
+        case 'good': return 'BAIK';
+        case 'warning': return 'PERLU PERHATIAN';
+        case 'poor': return 'BUTUH PERBAIKAN';
+        default: return 'UNKNOWN';
+      }
+    },
+
+    determineWarningLevel(score) {
+      if (score >= 85) return 'excellent';
+      if (score >= 70) return 'good';
+      if (score >= 50) return 'warning';
+      return 'poor';
+    },
+
+    onPick(e) {
+      const f = e.target.files?.[0];
+      if (!f) return;
+
+      this.file = f;
+      this.isPdf = (f.type === 'application/pdf');
+      this.statusMsg = '';
+      this.ai = null;
+
+      if (!this.isPdf) {
+        const r = new FileReader();
+        r.onload = () => this.preview = r.result;
+        r.readAsDataURL(f);
+      } else {
+        this.preview = null;
+      }
+
+      this.precheck();
+    },
+
+    clearPick() {
+      this.file = null;
+      this.preview = null;
+      this.isPdf = false;
+      this.statusMsg = '';
+      this.ai = null;
+      document.getElementById(`file_${slot}`).value = '';
+    },
+
+    async precheck() {
+      if (!this.file) return;
+
+      this.statusMsg = 'Menganalisa dengan AI...';
+
+      if (this.isPdf) {
+        this.ai = {
+          passed: true,
+          score: 100,
+          warning_level: 'excellent',
+          reason: 'PDF file - akan diperiksa manual',
+          messages: ['Berkas PDF: memerlukan pemeriksaan manual untuk kelengkapan tanda tangan']
+        };
+        this.statusMsg = 'AI: SANGAT BAIK (PDF - Manual Review)';
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('_token', @json(csrf_token()));
+      fd.append('slot_type', slot);
+      fd.append('file', this.file);
+
+      try {
+        const res = await fetch(@json(route('sr.photos.precheck-generic')), {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: fd
+        });
+
+        const j = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(j?.message || 'Validasi AI gagal');
+        }
+
+        const warningLevel = j.warning_level || this.determineWarningLevel(j.ai?.score || 0);
+
+        this.ai = {
+          passed: !!j.ai?.passed,
+          score: Number(j.ai?.score ?? 0),
+          warning_level: warningLevel,
+          reason: j.ai?.reason || 'Tidak ada keterangan',
+          messages: j.ai?.messages || [j.ai?.reason || 'Validasi selesai'],
+          confidence: j.ai?.confidence || 0,
+        };
+
+        const scoreText = this.ai.score ? ` (${Math.round(this.ai.score)}%)` : '';
+        this.statusMsg = `AI: ${this.getWarningText(warningLevel)}${scoreText}`;
+
+      } catch (err) {
+        console.error('AI Validation error', err);
+        this.ai = {
+          passed: false,
+          score: 0,
+          warning_level: 'poor',
+          reason: err.message || 'Terjadi kesalahan saat validasi AI',
+          messages: ['Validasi AI gagal: ' + (err.message || 'Unknown error')],
+          confidence: 0,
+        };
+        this.statusMsg = 'AI: ERROR - ' + (err.message || 'Validasi gagal');
+      }
+    },
+
+    async upload() {
+      if (!this.file) return;
+      this.uploading = true;
+
+      try {
+        const url = @json(route('sr.photos.upload', ['sr'=>$sr->id]));
+        const fd = new FormData();
+        fd.append('_token', @json(csrf_token()));
+        fd.append('slot_type', slot);
+        fd.append('file', this.file);
+
+        if (this.ai) {
+          fd.append('ai_passed', this.ai.passed ? '1' : '0');
+          if (this.ai.score != null) fd.append('ai_score', this.ai.score);
+          if (this.ai.reason) fd.append('ai_reason', this.ai.reason);
+          (this.ai.messages || []).forEach(v => fd.append('ai_notes[]', v));
+        }
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: fd
+        });
+
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !(j && (j.success === true || j.photo_id))) {
+          throw new Error(j?.message || 'Gagal upload');
+        }
+
+        this.statusMsg = '✓ Upload berhasil';
+        window.showToast?.('Upload berhasil & divalidasi AI.', 'success');
+
+      } catch (e) {
+        console.error(e);
+        this.statusMsg = '✗ Upload gagal';
+        window.showToast?.(e.message || 'Upload gagal', 'error');
+      } finally {
+        this.uploading = false;
+      }
+    }
+  }
+}
+</script>
+@endpush
