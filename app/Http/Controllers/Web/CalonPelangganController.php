@@ -250,6 +250,17 @@ class CalonPelangganController extends Controller
         }
     }
 
+    private function calculateProgressPercentage($customer): int
+    {
+        $steps = ['validasi', 'sk', 'sr', 'gas_in', 'jalur_pipa', 'penyambungan', 'done'];
+        $currentIndex = array_search($customer->progress_status, $steps);
+
+        if ($currentIndex === false) return 0;
+        if ($customer->progress_status === 'done') return 100;
+
+        return round(($currentIndex / (count($steps) - 1)) * 100);
+    }
+
     /**
      * Show form for editing customer
      */

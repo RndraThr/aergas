@@ -9,7 +9,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-3xl font-bold text-gray-800">Data SK</h1>
-      <p class="text-gray-600 mt-1">Daftar Sambungan Konsumen</p>
+      <p class="text-gray-600 mt-1">Daftar Sambungan Kompor</p>
     </div>
     <div class="flex gap-2">
       <a href="{{ route('sk.index') }}" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200">

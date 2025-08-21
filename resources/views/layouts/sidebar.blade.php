@@ -203,26 +203,26 @@
                 </a>
 
                 @if(auth()->user()->role === 'super_admin' || auth()->user()->role === 'admin')
-                <!-- Divider -->
-                <div class="border-t border-gray-200 my-4"></div>
-                <div class="px-3 mb-2">
-                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">SYSTEM</span>
-                </div>
+                    <!-- Divider -->
+                    <div class="border-t border-gray-200 my-4"></div>
+                    <div class="px-3 mb-2">
+                        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">SYSTEM</span>
+                    </div>
 
-                <!-- System Admin -->
-                <a href="#"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                    <i class="fas fa-cogs mr-3 text-lg text-gray-400 group-hover:text-gray-600"></i>
-                    System Settings
-                </a>
+                    <!-- System Settings -->
+                    <a href="{{ route('admin.settings') }}"
+                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('admin.settings') ? 'bg-aergas-orange text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <i class="fas fa-cogs mr-3 text-lg {{ request()->routeIs('admin.settings') ? 'text-white' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        System Settings
+                    </a>
 
-                <!-- User Management -->
-                <a href="#"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                    <i class="fas fa-users-cog mr-3 text-lg text-gray-400 group-hover:text-gray-600"></i>
-                    User Management
-                </a>
-                @endif
+                    <!-- User Management -->
+                    <a href="{{ route('admin.users') }}"
+                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('admin.users*') ? 'bg-aergas-orange text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <i class="fas fa-users-cog mr-3 text-lg {{ request()->routeIs('admin.users*') ? 'text-white' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        User Management
+                    </a>
+                    @endif
             </div>
 
             <!-- Bottom Section -->

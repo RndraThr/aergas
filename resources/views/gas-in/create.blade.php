@@ -100,7 +100,7 @@
    <div class="space-y-4">
      <div class="flex items-center gap-3">
        <i class="fas fa-gas-pump text-green-600"></i>
-       <h2 class="font-semibold text-gray-800">Informasi Gas In (Commissioning)</h2>
+       <h2 class="font-semibold text-gray-800">Informasi Gas In</h2>
      </div>
 
      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -119,7 +119,7 @@
        <div class="md:col-span-2">
          <label class="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
          <textarea x-model="notes" rows="3" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                   placeholder="Catatan commissioning atau keterangan (opsional)"></textarea>
+                   placeholder="Catatan Gas In atau keterangan (opsional)"></textarea>
        </div>
      </div>
    </div>
@@ -127,7 +127,7 @@
    <div class="space-y-4">
      <div class="flex items-center gap-3">
        <i class="fas fa-camera text-purple-600"></i>
-       <h2 class="font-semibold text-gray-800">Upload Foto Commissioning</h2>
+       <h2 class="font-semibold text-gray-800">Upload Foto Gas In</h2>
        <template x-if="hasAiFailure">
          <div class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
            <i class="fas fa-exclamation-triangle mr-1"></i>

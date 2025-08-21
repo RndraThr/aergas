@@ -3,18 +3,9 @@
 @section('title', 'Data Pelanggan - AERGAS')
 @section('page-title', 'Data Pelanggan')
 
-@section('breadcrumb')
-    <li class="flex items-center">
-        <a href="{{ route('dashboard') }}" class="text-gray-500 hover:text-gray-700">Dashboard</a>
-        <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
-    </li>
-    <li class="text-gray-900 font-medium">Data Pelanggan</li>
-@endsection
-
 @section('content')
 <div class="space-y-6" x-data="customersData()">
 
-    <!-- Header Actions -->
     <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-4 lg:space-y-0">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Data Pelanggan</h1>
@@ -22,12 +13,18 @@
         </div>
 
         <div class="flex items-center space-x-3">
-            @if(in_array(auth()->user()->role, ['admin', 'tracer']))
+            @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
                 <button @click="exportData()"
                         class="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
                     <i class="fas fa-download"></i>
                     <span>Export</span>
                 </button>
+
+                <a href="{{ route('imports.calon-pelanggan.form') }}"
+                   class="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                    <i class="fas fa-file-excel"></i>
+                    <span>Import Excel</span>
+                </a>
 
                 <a href="{{ route('customers.create') }}"
                    class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-aergas-navy to-aergas-orange text-white rounded-lg hover:shadow-lg transition-all duration-300">
@@ -38,7 +35,6 @@
         </div>
     </div>
 
-    <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <x-stat-card
             title="Total Pelanggan"
@@ -66,16 +62,14 @@
         />
         <x-stat-card
             title="Batal"
-            :value="$stats['cancelled_customers'] ?? 0"
+            :value="($stats['total_customers'] ?? 0) - ($stats['active_customers'] ?? 0) - ($stats['completed_customers'] ?? 0) - ($stats['pending_validation'] ?? 0)"
             icon="fas fa-times-circle"
             color="red"
         />
     </div>
 
-    <!-- Filters & Search -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <!-- Search -->
             <div class="md:col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Cari Pelanggan</label>
                 <div class="relative">
@@ -88,7 +82,6 @@
                 </div>
             </div>
 
-            <!-- Status Filter -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
                 <select x-model="filters.status" @change="fetchCustomers()"
@@ -102,7 +95,6 @@
                 </select>
             </div>
 
-            <!-- Progress Filter -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Progress</label>
                 <select x-model="filters.progress_status" @change="fetchCustomers()"
@@ -111,7 +103,6 @@
                     <option value="validasi">Validasi</option>
                     <option value="sk">SK</option>
                     <option value="sr">SR</option>
-                    <option value="mgrt">MGRT</option>
                     <option value="gas_in">Gas In</option>
                     <option value="jalur_pipa">Jalur Pipa</option>
                     <option value="penyambungan">Penyambungan</option>
@@ -121,7 +112,6 @@
             </div>
         </div>
 
-        <!-- Quick Filters -->
         <div class="mt-4 flex flex-wrap gap-2">
             <button @click="setQuickFilter('today')"
                     :class="quickFilter === 'today' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
@@ -150,9 +140,7 @@
         </div>
     </div>
 
-    <!-- Table -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <!-- Table Header -->
         <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-gray-900">
@@ -173,13 +161,11 @@
             </div>
         </div>
 
-        <!-- Loading State -->
         <div x-show="loading" class="p-8 text-center">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-aergas-orange mx-auto"></div>
             <p class="text-gray-500 mt-2">Loading customers...</p>
         </div>
 
-        <!-- Table Content -->
         <div x-show="!loading" class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -211,16 +197,14 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     <template x-for="customer in customers" :key="customer.reff_id_pelanggan">
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <!-- Reff ID -->
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="font-medium text-gray-900" x-text="customer.reff_id_pelanggan"></div>
                             </td>
 
-                            <!-- Customer Info -->
                             <td class="px-6 py-4">
                                 <div class="flex items-center">
                                     <div class="w-10 h-10 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-full flex items-center justify-center text-white font-medium mr-3">
-                                        <span x-text="customer.nama_pelanggan.charAt(0).toUpperCase()"></span>
+                                        <span x-text="customer.nama_pelanggan ? customer.nama_pelanggan.charAt(0).toUpperCase() : 'U'"></span>
                                     </div>
                                     <div>
                                         <div class="text-sm font-medium text-gray-900" x-text="customer.nama_pelanggan"></div>
@@ -229,13 +213,11 @@
                                 </div>
                             </td>
 
-                            <!-- Contact -->
                             <td class="px-6 py-4">
                                 <div class="text-sm text-gray-900" x-text="customer.no_telepon"></div>
                                 <div class="text-sm text-gray-500" x-text="customer.wilayah_area || '-'"></div>
                             </td>
 
-                            <!-- Status -->
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span :class="{
                                     'bg-green-100 text-green-800': customer.status === 'validated' || customer.status === 'lanjut',
@@ -248,7 +230,6 @@
                                 </span>
                             </td>
 
-                            <!-- Progress -->
                             <td class="px-6 py-4">
                                 <div class="flex items-center">
                                     <div class="flex-1">
@@ -264,12 +245,10 @@
                                 </div>
                             </td>
 
-                            <!-- Registration Date -->
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <div x-text="new Date(customer.tanggal_registrasi).toLocaleDateString('id-ID')"></div>
+                                <div x-text="customer.tanggal_registrasi ? new Date(customer.tanggal_registrasi).toLocaleDateString('id-ID') : '-'"></div>
                             </td>
 
-                            <!-- Actions -->
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex items-center space-x-2">
                                     <a :href="'/customers/' + customer.reff_id_pelanggan"
@@ -277,14 +256,13 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
 
-                                    @if(in_array(auth()->user()->role, ['admin', 'tracer']))
+                                    @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
                                         <a :href="'/customers/' + customer.reff_id_pelanggan + '/edit'"
                                            class="text-blue-600 hover:text-blue-800 transition-colors">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                     @endif
 
-                                    <!-- Quick Actions Dropdown -->
                                     <div class="relative" x-data="{ open: false }">
                                         <button @click="open = !open"
                                                 class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -298,7 +276,7 @@
                                                     <a :href="getModuleUrl(customer.next_available_module, customer.reff_id_pelanggan)"
                                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                                         <i class="fas fa-play mr-2"></i>
-                                                        <span x-text="'Start ' + customer.next_available_module.toUpperCase()"></span>
+                                                        <span x-text="'Start ' + (customer.next_available_module || '').toUpperCase()"></span>
                                                     </a>
                                                 </template>
 
@@ -324,12 +302,11 @@
                 </tbody>
             </table>
 
-            <!-- Empty State -->
             <div x-show="customers.length === 0" class="text-center py-12">
                 <i class="fas fa-users text-4xl text-gray-300 mb-4"></i>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No customers found</h3>
                 <p class="text-gray-500 mb-6">Try adjusting your search or filter criteria.</p>
-                @if(in_array(auth()->user()->role, ['admin', 'tracer']))
+                @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
                     <a href="{{ route('customers.create') }}"
                        class="inline-flex items-center px-4 py-2 bg-aergas-orange text-white rounded-lg hover:bg-aergas-navy transition-colors">
                         <i class="fas fa-plus mr-2"></i>
@@ -339,17 +316,16 @@
             </div>
         </div>
 
-        <!-- Pagination -->
         <div x-show="pagination.total > 0" class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
             <div class="flex items-center justify-between">
                 <div class="flex items-center">
                     <span class="text-sm text-gray-700">
                         Showing
-                        <span class="font-medium" x-text="pagination.from"></span>
+                        <span class="font-medium" x-text="pagination.from || 0"></span>
                         to
-                        <span class="font-medium" x-text="pagination.to"></span>
+                        <span class="font-medium" x-text="pagination.to || 0"></span>
                         of
-                        <span class="font-medium" x-text="pagination.total"></span>
+                        <span class="font-medium" x-text="pagination.total || 0"></span>
                         results
                     </span>
                 </div>
@@ -400,8 +376,8 @@ function customersData() {
             search: '',
             status: '',
             progress_status: '',
-            date_from: '',
-            date_to: ''
+            kelurahan: '',
+            padukuhan: ''
         },
 
         sorting: {
@@ -413,7 +389,27 @@ function customersData() {
         loading: false,
 
         init() {
-            // Initialize any additional setup
+            this.addProgressPercentage();
+        },
+
+        addProgressPercentage() {
+            this.customers.forEach(customer => {
+                customer.progress_percentage = this.calculateProgressPercentage(customer.progress_status);
+                customer.next_available_module = this.getNextAvailableModule(customer);
+            });
+        },
+
+        calculateProgressPercentage(progressStatus) {
+            const steps = ['validasi', 'sk', 'sr', 'gas_in', 'jalur_pipa', 'penyambungan', 'done'];
+            const currentIndex = steps.indexOf(progressStatus);
+            if (currentIndex === -1) return 0;
+            if (progressStatus === 'done') return 100;
+            return Math.round((currentIndex / (steps.length - 1)) * 100);
+        },
+
+        getNextAvailableModule(customer) {
+            const modules = ['sk', 'sr', 'gas_in'];
+            return modules[0];
         },
 
         async fetchCustomers() {
@@ -425,7 +421,8 @@ function customersData() {
                     sort_by: this.sorting.field,
                     sort_direction: this.sorting.direction,
                     per_page: this.pagination.per_page,
-                    page: this.pagination.current_page
+                    page: this.pagination.current_page,
+                    ajax: 1
                 });
 
                 const response = await fetch(`{{ route('customers.index') }}?${params}`, {
@@ -438,7 +435,7 @@ function customersData() {
                 const data = await response.json();
 
                 if (data.success) {
-                    this.customers = data.data.data;
+                    this.customers = data.data.data || [];
                     this.pagination = {
                         current_page: data.data.current_page,
                         last_page: data.data.last_page,
@@ -447,6 +444,7 @@ function customersData() {
                         from: data.data.from,
                         to: data.data.to
                     };
+                    this.addProgressPercentage();
                 }
             } catch (error) {
                 console.error('Error fetching customers:', error);
@@ -484,7 +482,7 @@ function customersData() {
                     this.filters.status = 'pending';
                     break;
                 case 'active':
-                    this.filters.status = 'in_progress';
+                    this.filters.status = 'lanjut';
                     break;
             }
 
@@ -496,8 +494,8 @@ function customersData() {
                 search: '',
                 status: '',
                 progress_status: '',
-                date_from: '',
-                date_to: ''
+                kelurahan: '',
+                padukuhan: ''
             };
             this.quickFilter = '';
             this.fetchCustomers();
@@ -505,12 +503,9 @@ function customersData() {
 
         getModuleUrl(module, reffId) {
             const moduleRoutes = {
-                'sk': '/sk/create?reff_id=' + reffId,
-                'sr': '/sr?reff_id=' + reffId,
-                'mgrt': '#', // Coming soon
-                'gas_in': '#', // Coming soon
-                'jalur_pipa': '#', // Coming soon
-                'penyambungan': '#' // Coming soon
+                'sk': `/sk/create?reff_id=${reffId}`,
+                'sr': `/sr/create?reff_id=${reffId}`,
+                'gas_in': `/gas-in/create?reff_id=${reffId}`
             };
             return moduleRoutes[module] || '#';
         },
@@ -523,9 +518,13 @@ function customersData() {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': window.csrfToken
                     },
-                    body: JSON.stringify({ status: 'validated' })
+                    body: JSON.stringify({
+                        status: 'validated',
+                        progress_status: 'sk'
+                    })
                 });
 
                 if (response.ok) {
@@ -543,7 +542,6 @@ function customersData() {
             window.showToast('info', 'Export feature coming soon');
         },
 
-        // Pagination methods
         get paginationPages() {
             const pages = [];
             const current = this.pagination.current_page;

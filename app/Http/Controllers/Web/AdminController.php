@@ -142,6 +142,61 @@ class AdminController extends Controller
         }
     }
 
+    public function settings()
+    {
+        return view('admin.settings');
+    }
+
+    public function usersIndex()
+    {
+        return view('admin.users');
+    }
+
+    public function getUser(int $id): JsonResponse
+    {
+        try {
+            $user = User::findOrFail($id);
+            return response()->json(['success' => true, 'data' => $user]);
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => 'User not found'], 404);
+        }
+    }
+
+    public function deleteUser(Request $request, int $id): JsonResponse
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->role === 'super_admin') {
+            return response()->json(['success' => false, 'message' => 'Cannot delete super admin'], 403);
+        }
+
+        if ($user->id === $request->user()->id) {
+            return response()->json(['success' => false, 'message' => 'Cannot delete your own account'], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'delete',
+                'model_type' => 'User',
+                'model_id' => $user->id,
+                'old_values' => $user->toArray(),
+                'description' => "Deleted user: {$user->username}",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            $user->delete();
+            DB::commit();
+
+            return response()->json(['success' => true, 'message' => 'User deleted successfully']);
+        } catch (Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Error deleting user'], 500);
+        }
+    }
+
     /**
      * Update existing user
      */

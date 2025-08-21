@@ -3,22 +3,9 @@
 @section('title', 'Tambah Pelanggan - AERGAS')
 @section('page-title', 'Tambah Pelanggan')
 
-@section('breadcrumb')
-    <li class="flex items-center">
-        <a href="{{ route('dashboard') }}" class="text-gray-500 hover:text-gray-700">Dashboard</a>
-        <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
-    </li>
-    <li class="flex items-center">
-        <a href="{{ route('customers.index') }}" class="text-gray-500 hover:text-gray-700">Data Pelanggan</a>
-        <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
-    </li>
-    <li class="text-gray-900 font-medium">Tambah Pelanggan</li>
-@endsection
-
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6" x-data="customerCreateData()">
 
-    <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Tambah Pelanggan Baru</h1>
@@ -32,11 +19,9 @@
         </a>
     </div>
 
-    <!-- Form -->
     <form @submit.prevent="submitForm()" class="space-y-6">
         @csrf
 
-        <!-- Basic Information -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center mb-6">
                 <div class="w-10 h-10 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-lg flex items-center justify-center mr-3">
@@ -49,7 +34,6 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Reference ID -->
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Reference ID <span class="text-red-500">*</span>
@@ -72,7 +56,6 @@
                     </div>
                 </div>
 
-                <!-- Customer Name -->
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Nama Pelanggan <span class="text-red-500">*</span>
@@ -86,7 +69,6 @@
                     <div x-show="errors.nama_pelanggan" class="mt-1 text-sm text-red-600" x-text="errors.nama_pelanggan"></div>
                 </div>
 
-                <!-- Phone Number -->
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Nomor Telepon <span class="text-red-500">*</span>
@@ -100,7 +82,6 @@
                     <div x-show="errors.no_telepon" class="mt-1 text-sm text-red-600" x-text="errors.no_telepon"></div>
                 </div>
 
-                <!-- Customer Type -->
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Pelanggan</label>
                     <select x-model="form.jenis_pelanggan"
@@ -111,16 +92,6 @@
                     </select>
                 </div>
 
-                <!-- Area -->
-                <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Wilayah Area</label>
-                    <input type="text"
-                           x-model="form.wilayah_area"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
-                           placeholder="Jakarta Selatan, Bekasi, dll">
-                </div>
-
-                <!-- Address -->
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Alamat Lengkap <span class="text-red-500">*</span>
@@ -134,7 +105,6 @@
                     <div x-show="errors.alamat" class="mt-1 text-sm text-red-600" x-text="errors.alamat"></div>
                 </div>
 
-                <!-- Notes -->
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Keterangan</label>
                     <textarea x-model="form.keterangan"
@@ -145,7 +115,6 @@
             </div>
         </div>
 
-        <!-- Registration Summary -->
         <div class="bg-gradient-to-r from-aergas-navy/5 to-aergas-orange/5 rounded-xl p-6 border border-aergas-orange/20">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Ringkasan Registrasi</h3>
 
@@ -179,7 +148,6 @@
             </div>
         </div>
 
-        <!-- Form Actions -->
         <div class="flex items-center justify-between space-x-4">
             <button type="button"
                     @click="resetForm()"
@@ -188,16 +156,6 @@
             </button>
 
             <div class="flex items-center space-x-3">
-                <button type="button"
-                        @click="saveAsDraft()"
-                        :disabled="submitting"
-                        class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50">
-                    <span x-show="!submitting">Simpan Draft</span>
-                    <span x-show="submitting">
-                        <i class="fas fa-spinner animate-spin mr-2"></i>Menyimpan...
-                    </span>
-                </button>
-
                 <button type="submit"
                         :disabled="submitting || !formValid"
                         class="px-6 py-2 bg-gradient-to-r from-aergas-navy to-aergas-orange text-white rounded-lg hover:shadow-lg transition-all duration-300 disabled:opacity-50">
@@ -220,7 +178,6 @@ function customerCreateData() {
             nama_pelanggan: '',
             alamat: '',
             no_telepon: '',
-            wilayah_area: '',
             jenis_pelanggan: 'residensial',
             keterangan: ''
         },
@@ -256,17 +213,21 @@ function customerCreateData() {
                     }
                 });
 
-                const data = await response.json();
-
                 if (response.status === 404) {
                     this.reffIdAvailable = true;
                     this.errors.reff_id_pelanggan = '';
-                } else if (data.success) {
-                    this.reffIdAvailable = false;
-                    this.errors.reff_id_pelanggan = 'Reference ID sudah digunakan';
+                } else {
+                    const data = await response.json();
+                    if (data.exists) {
+                        this.reffIdAvailable = false;
+                        this.errors.reff_id_pelanggan = 'Reference ID sudah digunakan';
+                    } else {
+                        this.reffIdAvailable = true;
+                        this.errors.reff_id_pelanggan = '';
+                    }
                 }
             } catch (error) {
-                this.reffIdAvailable = true; // Assume available if validation fails
+                this.reffIdAvailable = true;
             } finally {
                 this.validatingReffId = false;
             }
@@ -294,9 +255,8 @@ function customerCreateData() {
                 if (data.success) {
                     window.showToast('success', 'Pelanggan berhasil didaftarkan!');
 
-                    // Redirect to customer detail or back to index
                     setTimeout(() => {
-                        window.location.href = `{{ route('customers.index') }}`;
+                        window.location.href = data.data ? `/customers/${data.data.reff_id_pelanggan}` : '{{ route('customers.index') }}';
                     }, 1500);
                 } else {
                     if (data.errors) {
@@ -313,19 +273,6 @@ function customerCreateData() {
             }
         },
 
-        async saveAsDraft() {
-            this.submitting = true;
-
-            try {
-                // For now, just show a message
-                window.showToast('info', 'Draft feature coming soon');
-            } catch (error) {
-                window.showToast('error', 'Gagal menyimpan draft');
-            } finally {
-                this.submitting = false;
-            }
-        },
-
         resetForm() {
             if (confirm('Apakah Anda yakin ingin mengosongkan form?')) {
                 this.form = {
@@ -333,7 +280,6 @@ function customerCreateData() {
                     nama_pelanggan: '',
                     alamat: '',
                     no_telepon: '',
-                    wilayah_area: '',
                     jenis_pelanggan: 'residensial',
                     keterangan: ''
                 };

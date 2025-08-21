@@ -1,5 +1,5 @@
 <?php
-// config/aergas_photos.php - Complete configuration for SK & SR
+// config/aergas_photos.php - Complete configuration with GAS_IN module
 
 return [
     // File upload limits
@@ -192,24 +192,20 @@ return [
                     'label' => 'Foto Jenis Tapping',
                     'accept' => ['image/*'],
                     'required' => true,
-                    'requires' => ['jenis_tapping'],
-                    'prompt' => 'Analisis foto jenis tapping dengan penilaian SKOR (0-100):
+                    'prompt' => 'Analisis foto tapping dengan penilaian SKOR (0-100):
 
                                 ELEMEN YANG DIPERIKSA:
-                                1. TAPPING SADDLE TERLIHAT (40 poin) - Apakah komponen tapping saddle dapat diidentifikasi?
-                                2. UKURAN/MARKING (30 poin) - Apakah ada marking ukuran atau label yang terlihat?
-                                3. POSISI TAPPING (20 poin) - Apakah posisi tapping pada pipa utama terlihat?
-                                4. KUALITAS FOTO (10 poin) - Apakah foto cukup jelas untuk verifikasi?
+                                1. OBJEK TAPPING TERLIHAT (60 poin) - Apakah ada komponen tapping yang dapat diidentifikasi?
+                                2. KUALITAS FOTO (40 poin) - Apakah foto tidak blur dan cukup jelas?
 
                                 PANDUAN PENILAIAN:
-                                - 90-100: Tapping saddle jelas, ukuran/marking terlihat, posisi tepat
-                                - 75-89: Tapping teridentifikasi, sebagian marking ada, posisi cukup jelas
-                                - 60-74: Tapping dapat dikenali tapi detail kurang jelas
-                                - 40-59: Tapping terlihat tapi informasi detail minim
-                                - 0-39: Tapping tidak dapat diidentifikasi atau foto tidak sesuai
+                                - 90-100: Objek tapping sangat jelas, foto tajam dan terang
+                                - 75-89: Objek tapping teridentifikasi, foto cukup jelas
+                                - 60-74: Objek tapping dapat dikenali meskipun agak blur
+                                - 40-59: Ada objek yang mungkin tapping tapi tidak terlalu jelas
+                                - 0-39: Tidak ada objek tapping yang dapat diidentifikasi atau foto sangat blur
 
-                                VALIDASI JENIS: Cocokkan dengan jenis tapping yang dipilih di form.
-                                KONTEKS: Pastikan ukuran sesuai dengan standar (63x20, 90x20, dll).',
+                                FOKUS UTAMA: Foto tidak blur dan ada objek yang dapat diidentifikasi sebagai bagian dari tapping.',
                 ],
 
                 'kedalaman' => [
@@ -265,19 +261,17 @@ return [
                     'prompt' => 'Analisis foto pondasi dengan penilaian SKOR (0-100):
 
                                 ELEMEN YANG DIPERIKSA:
-                                1. STRUKTUR PONDASI (40 poin) - Apakah struktur pondasi/tiang terlihat jelas?
-                                2. MATERIAL PONDASI (30 poin) - Apakah jenis material pondasi dapat diidentifikasi?
-                                3. PEMASANGAN (20 poin) - Apakah posisi dan pemasangan terlihat proper?
-                                4. KUALITAS FOTO (10 poin) - Apakah foto cukup jelas untuk dokumentasi?
+                                1. OBJEK PONDASI TERLIHAT (60 poin) - Apakah struktur pondasi/tiang dapat diidentifikasi?
+                                2. KUALITAS FOTO (40 poin) - Apakah foto tidak blur dan cukup jelas?
 
                                 PANDUAN PENILAIAN:
-                                - 90-100: Pondasi jelas, material teridentifikasi, pemasangan proper
-                                - 75-89: Pondasi terlihat, sebagian detail material/pemasangan ada
-                                - 60-74: Pondasi dapat dikenali tapi detail kurang optimal
-                                - 40-59: Struktur terlihat tapi detail konstruksi tidak jelas
-                                - 0-39: Pondasi tidak dapat diidentifikasi atau foto tidak sesuai
+                                - 90-100: Pondasi sangat jelas terlihat, foto tajam dan terang
+                                - 75-89: Pondasi teridentifikasi dengan baik, foto cukup jelas
+                                - 60-74: Pondasi dapat dikenali meskipun agak blur
+                                - 40-59: Ada struktur yang mungkin pondasi tapi tidak terlalu jelas
+                                - 0-39: Tidak ada struktur pondasi yang dapat diidentifikasi atau foto sangat blur
 
-                                FOKUS: Dokumentasi struktur pendukung untuk sistem gas.',
+                                FOKUS UTAMA: Foto tidak blur dan ada objek yang dapat diidentifikasi sebagai pondasi.',
                 ],
 
                 'isometrik_scan' => [
@@ -313,6 +307,118 @@ return [
             ]
         ],
 
+        // ====================== GAS_IN MODULE ======================
+        'GAS_IN' => [
+            'min_required_slots' => 4,
+            'replace_same_slot' => true,
+            'allow_submit_with_warnings' => true,
+
+            'slots' => [
+
+                'ba_gas_in' => [
+                    'label' => 'Berita Acara Gas In',
+                    'accept' => ['image/*', 'application/pdf'],
+                    'required' => true,
+                    'prompt' => 'Analisis dokumen Berita Acara Gas In dengan penilaian SKOR (0-100):
+
+                                ELEMEN YANG DIPERIKSA:
+                                1. HEADER/JUDUL DOKUMEN (25 poin) - Apakah ada judul "Berita Acara" atau "Gas In"?
+                                2. TANDA TANGAN PETUGAS (25 poin) - Apakah ada TTD/paraf petugas gas in?
+                                3. TANDA TANGAN PELANGGAN (25 poin) - Apakah ada TTD/paraf pelanggan?
+                                4. DATA TEKNIS (15 poin) - Apakah ada data teknis (pressure, flow, dll)?
+                                5. TANGGAL/WAKTU (10 poin) - Apakah ada informasi tanggal Gas In?
+
+                                PANDUAN PENILAIAN:
+                                - 90-100: Semua elemen lengkap, dokumen resmi dengan TTD lengkap
+                                - 75-89: Dokumen ada, sebagian besar TTD dan data teknis terisi
+                                - 60-74: Dokumen teridentifikasi, beberapa TTD atau data ada
+                                - 40-59: Dokumen Gas In terlihat tapi informasi minim
+                                - 0-39: Bukan dokumen Gas In atau tidak dapat dibaca
+
+                                CATATAN: TTD bisa berupa tanda tangan, paraf, cap, atau nama tertulis.
+                                FOKUS: Kelengkapan dokumen untuk validasi Gas In.',
+                ],
+
+                'foto_bubble_test' => [
+                    'label' => 'Foto Bubble Test (Uji Kebocoran)',
+                    'accept' => ['image/*'],
+                    'required' => true,
+                    'prompt' => 'Analisis foto bubble test dengan penilaian SKOR (0-100):
+
+                                ELEMEN YANG DIPERIKSA:
+                                1. SABUN/CAIRAN UJI (30 poin) - Apakah terlihat cairan sabun atau foam?
+                                2. AREA SAMBUNGAN (30 poin) - Apakah sambungan pipa/fitting terlihat?
+                                3. TANGAN/ALAT APLIKATOR (20 poin) - Apakah terlihat tangan/kuas yang mengaplikasikan?
+                                4. KONDISI HASIL UJI (20 poin) - Apakah hasilnya dapat dinilai (gelembung/tidak)?
+
+                                PANDUAN PENILAIAN:
+                                - 90-100: Cairan sabun jelas, sambungan terlihat, proses aplikasi obvious
+                                - 75-89: Foam/sabun teridentifikasi, area sambungan cukup jelas
+                                - 60-74: Ada cairan di area sambungan yang kemungkinan bubble test
+                                - 40-59: Area sambungan terlihat tapi bubble test tidak jelas
+                                - 0-39: Tidak ada indikasi bubble test atau foto tidak sesuai
+
+                                FOKUS: Dokumentasi proses pengujian kebocoran pada sambungan.
+                                HASIL: Tidak ada gelembung = bagus (tidak bocor).',
+                ],
+
+                'foto_regulator' => [
+                    'label' => 'Foto Regulator Service',
+                    'accept' => ['image/*'],
+                    'required' => true,
+                    'prompt' => 'Analisis foto regulator service dengan penilaian SKOR (0-100):
+
+                                ELEMEN YANG DIPERIKSA:
+                                1. BODY REGULATOR (35 poin) - Apakah housing/body regulator dapat diidentifikasi?
+                                2. INLET/OUTLET CONNECTION (25 poin) - Apakah sambungan input/output terlihat?
+                                3. PRESSURE GAUGE (25 poin) - Apakah ada gauge/manometer terpasang?
+                                4. LABEL/MARKING (15 poin) - Apakah ada label teknis atau brand terlihat?
+
+                                PANDUAN PENILAIAN:
+                                - 90-100: Regulator jelas, sambungan terlihat, gauge terpasang, marking ada
+                                - 75-89: Regulator teridentifikasi, sebagian besar komponen terlihat
+                                - 60-74: Regulator dapat dikenali, beberapa detail kurang jelas
+                                - 40-59: Ada perangkat yang kemungkinan regulator tapi tidak jelas
+                                - 0-39: Regulator tidak dapat diidentifikasi atau foto tidak sesuai
+
+                                FOKUS: Regulator yang sudah terpasang dan siap beroperasi.
+                                KONTEKS: Bagian dari sistem gas service yang sudah di-commission.',
+                ],
+
+                'foto_kompor_menyala' => [
+                    'label' => 'Foto Kompor Menyala',
+                    'accept' => ['image/*'],
+                    'required' => true,
+                    'prompt' => 'Analisis foto kompor menyala dengan penilaian SKOR (0-100):
+
+                                ELEMEN YANG DIPERIKSA:
+                                1. API/FLAME TERLIHAT (40 poin) - Apakah ada nyala api yang dapat dilihat?
+                                2. BURNER/TUNGKU KOMPOR (30 poin) - Apakah kompor/burner terlihat jelas?
+                                3. WARNA API (20 poin) - Apakah warna api dapat dinilai (biru = bagus)?
+                                4. KONTEKS DAPUR (10 poin) - Apakah terlihat di lingkungan dapur/rumah?
+
+                                PANDUAN PENILAIAN:
+                                - 90-100: Api jelas menyala biru, kompor teridentifikasi, konteks jelas
+                                - 75-89: Api terlihat, kompor dapat dikenali, warna cukup jelas
+                                - 60-74: Ada nyala api tapi tidak terlalu jelas atau warna kurang optimal
+                                - 40-59: Kompor terlihat tapi api tidak jelas atau tidak ada
+                                - 0-39: Tidak ada api atau bukan foto kompor
+
+                                FOKUS: Bukti bahwa gas sudah mengalir dan dapat digunakan untuk memasak.
+                                TARGET: Api biru yang stabil menandakan gas service berhasil.
+                                SAFETY: Pastikan tidak ada indikasi bahaya atau instalasi yang salah.',
+                ],
+
+            ],
+
+            'score_messages' => [
+                'excellent' => 'Foto sangat baik dan memenuhi semua kriteria Gas In',
+                'good'      => 'Foto baik dan dapat diterima untuk Gas In',
+                'warning'   => 'Foto dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
+                'poor'      => 'Foto masih dapat diproses namun sangat disarankan untuk diperbaiki',
+            ]
+        ],
+
     ],
 
     // Aliases untuk backward compatibility
@@ -331,6 +437,12 @@ return [
             'foto_mgrt_url' => 'mgrt',
             'foto_pondasi_url' => 'pondasi',
             'foto_isometrik_scan_sr_url' => 'isometrik_scan',
+        ],
+        'GAS_IN' => [
+            'ba_gas_in_url' => 'ba_gas_in',
+            'foto_bubble_test_sk_url' => 'foto_bubble_test',
+            'foto_regulator_url' => 'foto_regulator',
+            'foto_kompor_menyala_url' => 'foto_kompor_menyala',
         ]
     ]
 ];

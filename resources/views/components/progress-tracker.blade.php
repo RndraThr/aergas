@@ -16,25 +16,19 @@
         ],
         'sk' => [
             'label' => 'SK',
-            'description' => 'Stove installation',
+            'description' => 'Sambungan Kompor ',
             'icon' => 'fas fa-fire',
             'color' => 'green'
         ],
         'sr' => [
             'label' => 'SR',
-            'description' => 'Service route connection',
+            'description' => 'Sambungan Rumah',
             'icon' => 'fas fa-route',
             'color' => 'yellow'
         ],
-        'mgrt' => [
-            'label' => 'MGRT',
-            'description' => 'Gas meter installation',
-            'icon' => 'fas fa-tachometer-alt',
-            'color' => 'purple'
-        ],
         'gas_in' => [
             'label' => 'Gas In',
-            'description' => 'Gas commissioning',
+            'description' => 'Gas In',
             'icon' => 'fas fa-gas-pump',
             'color' => 'red'
         ],

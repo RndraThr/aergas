@@ -256,7 +256,7 @@
                             <a href="{{ route('gas-in.create') }}" class="focus:outline-none">
                                 <span class="absolute inset-0" aria-hidden="true"></span>
                                 <p class="text-sm font-medium text-gray-900">Gas In</p>
-                                <p class="text-sm text-gray-500">Gas commissioning</p>
+                                <p class="text-sm text-gray-500">Gas In</p>
                             </a>
                         </div>
                     </div>

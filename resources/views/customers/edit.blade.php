@@ -3,26 +3,9 @@
 @section('title', 'Edit Pelanggan - AERGAS')
 @section('page-title', 'Edit Pelanggan')
 
-@section('breadcrumb')
-    <li class="flex items-center">
-        <a href="{{ route('dashboard') }}" class="text-gray-500 hover:text-gray-700">Dashboard</a>
-        <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
-    </li>
-    <li class="flex items-center">
-        <a href="{{ route('customers.index') }}" class="text-gray-500 hover:text-gray-700">Data Pelanggan</a>
-        <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
-    </li>
-    <li class="flex items-center">
-        <a href="{{ route('customers.show', $customer->reff_id_pelanggan) }}" class="text-gray-500 hover:text-gray-700">{{ $customer->reff_id_pelanggan }}</a>
-        <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
-    </li>
-    <li class="text-gray-900 font-medium">Edit</li>
-@endsection
-
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6" x-data="customerEditData()">
 
-    <!-- Header -->
     <div class="flex items-center justify-between">
         <div class="flex items-center space-x-4">
             <div class="w-12 h-12 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-xl flex items-center justify-center text-white text-lg font-bold">
@@ -49,7 +32,6 @@
         </div>
     </div>
 
-    <!-- Current Status Alert -->
     <div class="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
         <div class="flex items-center space-x-3">
             <i class="fas fa-info-circle text-blue-600"></i>
@@ -57,18 +39,16 @@
                 <div class="font-medium text-blue-900">Status Pelanggan Saat Ini</div>
                 <div class="text-sm text-blue-700">
                     Status: <span class="font-medium">{{ ucfirst($customer->status) }}</span> |
-                    Progress: <span class="font-medium">{{ ucfirst($customer->progress_status) }}</span> ({{ $customer->progress_percentage }}%)
+                    Progress: <span class="font-medium">{{ ucfirst($customer->progress_status) }}</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Form -->
     <form @submit.prevent="submitForm()" class="space-y-6">
         @csrf
         @method('PUT')
 
-        <!-- Basic Information -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center mb-6">
                 <div class="w-10 h-10 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-lg flex items-center justify-center mr-3">
@@ -81,7 +61,6 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Reference ID (Read Only) -->
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Reference ID</label>
                     <input type="text"
@@ -91,7 +70,6 @@
                     <p class="mt-1 text-xs text-gray-500">Reference ID tidak dapat diubah</p>
                 </div>
 
-                <!-- Customer Name -->
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Nama Pelanggan <span class="text-red-500">*</span>
@@ -104,7 +82,6 @@
                     <div x-show="errors.nama_pelanggan" class="mt-1 text-sm text-red-600" x-text="errors.nama_pelanggan"></div>
                 </div>
 
-                <!-- Phone Number -->
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Nomor Telepon <span class="text-red-500">*</span>
@@ -117,7 +94,6 @@
                     <div x-show="errors.no_telepon" class="mt-1 text-sm text-red-600" x-text="errors.no_telepon"></div>
                 </div>
 
-                <!-- Customer Type -->
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Pelanggan</label>
                     <select x-model="form.jenis_pelanggan"
@@ -128,16 +104,6 @@
                     </select>
                 </div>
 
-                <!-- Area -->
-                <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Wilayah Area</label>
-                    <input type="text"
-                           x-model="form.wilayah_area"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
-                           placeholder="Jakarta Selatan, Bekasi, dll">
-                </div>
-
-                <!-- Address -->
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Alamat Lengkap <span class="text-red-500">*</span>
@@ -150,7 +116,6 @@
                     <div x-show="errors.alamat" class="mt-1 text-sm text-red-600" x-text="errors.alamat"></div>
                 </div>
 
-                <!-- Notes -->
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Keterangan</label>
                     <textarea x-model="form.keterangan"
@@ -161,8 +126,7 @@
             </div>
         </div>
 
-        <!-- Status Management -->
-        @if(auth()->user()->role === 'admin' || auth()->user()->role === 'tracer')
+        @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center mb-6">
                 <div class="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center mr-3">
@@ -175,7 +139,6 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Status -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Status Pelanggan</label>
                     <select x-model="form.status"
@@ -189,7 +152,6 @@
                     <p class="mt-1 text-xs text-gray-500">Status workflow pelanggan</p>
                 </div>
 
-                <!-- Progress -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Progress Status</label>
                     <select x-model="form.progress_status"
@@ -197,7 +159,6 @@
                         <option value="validasi">Validasi</option>
                         <option value="sk">SK</option>
                         <option value="sr">SR</option>
-                        <option value="mgrt">MGRT</option>
                         <option value="gas_in">Gas In</option>
                         <option value="jalur_pipa">Jalur Pipa</option>
                         <option value="penyambungan">Penyambungan</option>
@@ -208,7 +169,6 @@
                 </div>
             </div>
 
-            <!-- Status Change Warning -->
             <div x-show="form.status !== '{{ $customer->status }}' || form.progress_status !== '{{ $customer->progress_status }}'"
                  class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div class="flex items-start space-x-2">
@@ -222,7 +182,6 @@
         </div>
         @endif
 
-        <!-- Change Log -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center mb-4">
                 <div class="w-10 h-10 bg-gray-500 rounded-lg flex items-center justify-center mr-3">
@@ -241,7 +200,6 @@
             </div>
         </div>
 
-        <!-- Form Actions -->
         <div class="flex items-center justify-between space-x-4">
             <div class="flex items-center space-x-3">
                 <button type="button"
@@ -276,26 +234,24 @@
 <script>
 function customerEditData() {
     return {
-        originalForm: @json([
-            'nama_pelanggan' => $customer->nama_pelanggan,
-            'alamat' => $customer->alamat,
-            'no_telepon' => $customer->no_telepon,
-            'wilayah_area' => $customer->wilayah_area,
-            'jenis_pelanggan' => $customer->jenis_pelanggan ?? 'residensial',
-            'keterangan' => $customer->keterangan,
-            'status' => $customer->status,
-            'progress_status' => $customer->progress_status
-        ]),
+        originalForm: {
+            nama_pelanggan: @json($customer->nama_pelanggan),
+            alamat: @json($customer->alamat),
+            no_telepon: @json($customer->no_telepon),
+            jenis_pelanggan: @json($customer->jenis_pelanggan ?? 'residensial'),
+            keterangan: @json($customer->keterangan ?? ''),
+            status: @json($customer->status),
+            progress_status: @json($customer->progress_status)
+        },
 
         form: {
-            nama_pelanggan: '{{ $customer->nama_pelanggan }}',
-            alamat: '{{ $customer->alamat }}',
-            no_telepon: '{{ $customer->no_telepon }}',
-            wilayah_area: '{{ $customer->wilayah_area }}',
-            jenis_pelanggan: '{{ $customer->jenis_pelanggan ?? 'residensial' }}',
-            keterangan: '{{ $customer->keterangan }}',
-            status: '{{ $customer->status }}',
-            progress_status: '{{ $customer->progress_status }}'
+            nama_pelanggan: @json($customer->nama_pelanggan),
+            alamat: @json($customer->alamat),
+            no_telepon: @json($customer->no_telepon),
+            jenis_pelanggan: @json($customer->jenis_pelanggan ?? 'residensial'),
+            keterangan: @json($customer->keterangan ?? ''),
+            status: @json($customer->status),
+            progress_status: @json($customer->progress_status)
         },
 
         errors: {},
@@ -305,9 +261,24 @@ function customerEditData() {
             return JSON.stringify(this.form) !== JSON.stringify(this.originalForm);
         },
 
+        resetForm() {
+            this.form = { ...this.originalForm };
+            this.errors = {};
+        },
+
+        confirmCancel() {
+            if (this.hasChanges) {
+                if (confirm('Ada perubahan yang belum disimpan. Yakin ingin membatalkan?')) {
+                    window.location.href = '{{ route("customers.index") }}';
+                }
+            } else {
+                window.location.href = '{{ route("customers.index") }}';
+            }
+        },
+
         async submitForm() {
             if (!this.hasChanges) {
-                window.showToast('info', 'Tidak ada perubahan untuk disimpan');
+                this.showNotification('Tidak ada perubahan yang perlu disimpan', 'info');
                 return;
             }
 
@@ -315,71 +286,81 @@ function customerEditData() {
             this.errors = {};
 
             try {
-                const response = await fetch('{{ route('customers.update', $customer->reff_id_pelanggan) }}', {
+                const response = await fetch('{{ route("customers.update", $customer->reff_id_pelanggan) }}', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': window.csrfToken
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
                     },
                     body: JSON.stringify(this.form)
                 });
 
-                const data = await response.json();
+                const result = await response.json();
 
-                if (data.success) {
-                    window.showToast('success', 'Data pelanggan berhasil diperbarui!');
-
-                    // Update original form to reflect changes
+                if (response.ok) {
+                    this.showNotification('Data pelanggan berhasil diperbarui!', 'success');
                     this.originalForm = { ...this.form };
 
-                    // Redirect back to detail page
                     setTimeout(() => {
-                        window.location.href = '{{ route('customers.show', $customer->reff_id_pelanggan) }}';
+                        window.location.href = '{{ route("customers.show", $customer->reff_id_pelanggan) }}';
                     }, 1500);
                 } else {
-                    if (data.errors) {
-                        this.errors = data.errors;
+                    if (result.errors) {
+                        this.errors = result.errors;
                     } else {
-                        window.showToast('error', data.message || 'Gagal memperbarui data pelanggan');
+                        this.showNotification(result.message || 'Terjadi kesalahan saat menyimpan data', 'error');
                     }
                 }
             } catch (error) {
-                console.error('Error updating customer:', error);
-                window.showToast('error', 'Terjadi kesalahan saat memperbarui data');
+                console.error('Error:', error);
+                this.showNotification('Terjadi kesalahan jaringan', 'error');
             } finally {
                 this.submitting = false;
             }
         },
 
-        resetForm() {
-            if (confirm('Reset semua perubahan?')) {
-                this.form = { ...this.originalForm };
-                this.errors = {};
-                window.showToast('info', 'Form telah direset');
-            }
-        },
+        showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 px-4 py-3 rounded-lg text-white shadow-lg transform transition-transform duration-300 translate-x-full`;
 
-        confirmCancel() {
-            if (this.hasChanges) {
-                if (confirm('Ada perubahan yang belum disimpan. Yakin ingin keluar?')) {
-                    window.location.href = '{{ route('customers.show', $customer->reff_id_pelanggan) }}';
-                }
-            } else {
-                window.location.href = '{{ route('customers.show', $customer->reff_id_pelanggan) }}';
+            switch (type) {
+                case 'success':
+                    notification.className += ' bg-green-500';
+                    break;
+                case 'error':
+                    notification.className += ' bg-red-500';
+                    break;
+                case 'warning':
+                    notification.className += ' bg-yellow-500';
+                    break;
+                default:
+                    notification.className += ' bg-blue-500';
             }
+
+            notification.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+
+            requestAnimationFrame(() => {
+                notification.classList.remove('translate-x-full');
+            });
+
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
         }
-    }
+    };
 }
-
-// Warn before leaving if there are unsaved changes
-window.addEventListener('beforeunload', function(e) {
-    const data = Alpine.store('customerEdit');
-    if (data && data.hasChanges) {
-        e.preventDefault();
-        e.returnValue = '';
-    }
-});
 </script>
 @endpush
+
 @endsection
