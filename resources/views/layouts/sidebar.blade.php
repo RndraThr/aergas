@@ -172,7 +172,7 @@
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">MANAGEMENT</span>
                 </div>
 
-                @if(in_array(auth()->user()->role, ['admin', 'gudang', 'tracer']))
+                {{-- @if(in_array(auth()->user()->role, ['admin', 'gudang', 'tracer']))
                 <!-- Gudang Data -->
                 <a href="{{ route('gudang.items') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('gudang.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -184,7 +184,7 @@
                         </div>
                     @endif
                 </a>
-                @endif
+                @endif --}}
 
                 <!-- File Manager -->
                 <a href="#"
