@@ -362,7 +362,7 @@
         <i class="fas fa-arrow-left mr-2"></i>Batal
       </a>
       <button type="submit"
-              :disabled="submitting || !customer || !reff || !tanggal || hasAiFailure || !isMaterialComplete()"
+              :disabled="submitting || !customer || !reff || !tanggal || !isMaterialComplete()"
               class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
         <template x-if="!submitting">
           <span><i class="fas fa-save mr-2"></i>Simpan</span>
@@ -373,7 +373,7 @@
       </button>
     </div>
 
-    <template x-if="hasAiFailure || !isMaterialComplete()">
+    {{-- <template x-if="hasAiFailure || !isMaterialComplete()">
       <div class="bg-amber-50 border border-amber-200 p-4 rounded">
         <div class="flex items-start">
           <i class="fas fa-exclamation-triangle text-amber-600 mr-2 mt-0.5"></i>
@@ -390,6 +390,25 @@
           </div>
         </div>
       </div>
+    </template> --}}
+
+    <template x-if="hasPoorPhotos || !isMaterialComplete()">
+    <div class="bg-amber-50 border border-amber-200 p-4 rounded">
+        <div class="flex items-start">
+        <i class="fas fa-exclamation-triangle text-amber-600 mr-2 mt-0.5"></i>
+        <div class="text-amber-800">
+            <p class="font-medium">Perhatian!</p>
+            <div class="text-sm mt-1">
+            <template x-if="hasPoorPhotos">
+                <p>Beberapa foto berkualitas rendah akan tetap diproses dan direview manual oleh tim.</p>
+            </template>
+            <template x-if="!isMaterialComplete()">
+                <p>Data material belum lengkap. Pastikan semua field bertanda (*) sudah diisi.</p>
+            </template>
+            </div>
+        </div>
+        </div>
+    </div>
     </template>
   </form>
 </div>
@@ -437,7 +456,7 @@ function srCreate() {
     ai: {},
     hasWarnings: false,
     hasPoorPhotos: false,
-    hasAiFailure: false,
+    // hasAiFailure: false,
 
     submitting: false,
 
