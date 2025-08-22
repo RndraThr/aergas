@@ -104,7 +104,15 @@ class AdminController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success'=>false,'message'=>'Validation error','errors'=>$validator->errors()], 422);
+            Log::error('User creation validation failed', [
+                'errors' => $validator->errors()->toArray(),
+                'data' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
         DB::beginTransaction();

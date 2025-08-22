@@ -263,15 +263,23 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
                                     <input type="text"
                                            x-model="form.name"
+                                           @input="clearFieldError('name')"
                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
                                            required>
+                                    <p x-show="getFieldError('name')"
+                                       x-text="getFieldError('name')"
+                                       class="text-xs text-red-600 mt-1"></p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                                     <input type="text"
                                            x-model="form.full_name"
+                                           @input="clearFieldError('full_name')"
                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
                                            required>
+                                    <p x-show="getFieldError('full_name')"
+                                       x-text="getFieldError('full_name')"
+                                       class="text-xs text-red-600 mt-1"></p>
                                 </div>
                             </div>
 
@@ -279,21 +287,30 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
                                 <input type="text"
                                        x-model="form.username"
+                                       @input="clearFieldError('username')"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
                                        required>
+                                <p x-show="getFieldError('username')"
+                                   x-text="getFieldError('username')"
+                                   class="text-xs text-red-600 mt-1"></p>
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                                 <input type="email"
                                        x-model="form.email"
+                                       @input="clearFieldError('email')"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
                                        required>
+                                <p x-show="getFieldError('email')"
+                                   x-text="getFieldError('email')"
+                                   class="text-xs text-red-600 mt-1"></p>
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
                                 <select x-model="form.role"
+                                        @change="clearFieldError('role')"
                                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
                                         required>
                                     <option value="">Select Role</option>
@@ -304,6 +321,9 @@
                                     <option value="tracer">Tracer</option>
                                     <option value="pic">PIC</option>
                                 </select>
+                                <p x-show="getFieldError('role')"
+                                   x-text="getFieldError('role')"
+                                   class="text-xs text-red-600 mt-1"></p>
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -311,16 +331,56 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
                                     <input type="password"
                                            x-model="form.password"
+                                           @input="validatePasswordField(); clearFieldError('password')"
                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
                                            :required="!editingUser">
+
+                                    <div x-show="!editingUser || form.password.length > 0" class="mt-2 space-y-1">
+                                        <div class="flex items-center space-x-2">
+                                            <i :class="passwordChecks.length ? 'fas fa-check text-green-500' : 'fas fa-times text-red-500'" class="text-xs"></i>
+                                            <span class="text-xs" :class="passwordChecks.length ? 'text-green-600' : 'text-red-600'">
+                                                At least 6 characters
+                                            </span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <i :class="passwordChecks.hasLetter ? 'fas fa-check text-green-500' : 'fas fa-times text-red-500'" class="text-xs"></i>
+                                            <span class="text-xs" :class="passwordChecks.hasLetter ? 'text-green-600' : 'text-red-600'">
+                                                Contains at least one letter
+                                            </span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <i :class="passwordChecks.hasNumber ? 'fas fa-check text-green-500' : 'fas fa-times text-red-500'" class="text-xs"></i>
+                                            <span class="text-xs" :class="passwordChecks.hasNumber ? 'text-green-600' : 'text-red-600'">
+                                                Contains at least one number
+                                            </span>
+                                        </div>
+                                    </div>
+
                                     <p class="text-xs text-gray-500 mt-1" x-show="editingUser">Leave blank to keep current password</p>
+                                    <p x-show="getFieldError('password')"
+                                       x-text="getFieldError('password')"
+                                       class="text-xs text-red-600 mt-1"></p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
                                     <input type="password"
                                            x-model="form.password_confirmation"
+                                           @input="validatePasswordConfirmation(); clearFieldError('password_confirmation')"
                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
                                            :required="form.password.length > 0">
+
+                                    <div x-show="form.password_confirmation.length > 0" class="mt-2">
+                                        <div class="flex items-center space-x-2">
+                                            <i :class="passwordChecks.confirmation ? 'fas fa-check text-green-500' : 'fas fa-times text-red-500'" class="text-xs"></i>
+                                            <span class="text-xs" :class="passwordChecks.confirmation ? 'text-green-600' : 'text-red-600'">
+                                                Passwords match
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <p x-show="getFieldError('password_confirmation')"
+                                       x-text="getFieldError('password_confirmation')"
+                                       class="text-xs text-red-600 mt-1"></p>
                                 </div>
                             </div>
 
@@ -335,7 +395,7 @@
 
                     <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                         <button type="submit"
-                                :disabled="submitting"
+                                :disabled="submitting || !canSubmitForm()"
                                 class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-aergas-orange text-base font-medium text-white hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-aergas-orange sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50">
                             <i class="fas fa-spinner animate-spin mr-2" x-show="submitting"></i>
                             <span x-text="submitting ? 'Saving...' : (editingUser ? 'Update' : 'Create')"></span>
@@ -363,6 +423,13 @@ function userManagement() {
         submitting: false,
         showModal: false,
         editingUser: null,
+        fieldErrors: {},
+        passwordChecks: {
+            length: false,
+            hasLetter: false,
+            hasNumber: false,
+            confirmation: false
+        },
 
         filters: {
             search: '',
@@ -416,7 +483,6 @@ function userManagement() {
                     this.stats = result.stats || {};
                 }
             } catch (error) {
-                console.error('Error loading users:', error);
                 window.showToast('error', 'Failed to load users');
             } finally {
                 this.loading = false;
@@ -470,6 +536,12 @@ function userManagement() {
         },
 
         async saveUser() {
+            const validationErrors = this.validateForm();
+            if (validationErrors.length > 0) {
+                window.showToast('error', validationErrors[0]);
+                return;
+            }
+
             this.submitting = true;
             try {
                 const url = this.editingUser
@@ -478,6 +550,12 @@ function userManagement() {
 
                 const method = this.editingUser ? 'PUT' : 'POST';
 
+                const formData = { ...this.form };
+                if (this.editingUser && !formData.password) {
+                    delete formData.password;
+                    delete formData.password_confirmation;
+                }
+
                 const response = await fetch(url, {
                     method: method,
                     headers: {
@@ -485,7 +563,7 @@ function userManagement() {
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': window.csrfToken
                     },
-                    body: JSON.stringify(this.form)
+                    body: JSON.stringify(formData)
                 });
 
                 const result = await response.json();
@@ -495,19 +573,171 @@ function userManagement() {
                     this.closeModal();
                     this.loadUsers();
                 } else {
-                    if (result.errors) {
-                        const firstError = Object.values(result.errors)[0][0];
-                        window.showToast('error', firstError);
-                    } else {
-                        window.showToast('error', result.message || 'An error occurred');
-                    }
+                    this.handleValidationErrors(result);
                 }
             } catch (error) {
-                console.error('Error saving user:', error);
-                window.showToast('error', 'Failed to save user');
+                window.showToast('error', 'Network error. Please check your connection and try again.');
             } finally {
                 this.submitting = false;
             }
+        },
+
+        validatePasswordField() {
+            this.passwordChecks.length = this.form.password.length >= 6;
+            this.passwordChecks.hasLetter = /[a-zA-Z]/.test(this.form.password);
+            this.passwordChecks.hasNumber = /\d/.test(this.form.password);
+        },
+
+        validatePasswordConfirmation() {
+            this.passwordChecks.confirmation = this.form.password === this.form.password_confirmation;
+        },
+
+        canSubmitForm() {
+            if (!this.editingUser) {
+                return this.passwordChecks.length &&
+                       this.passwordChecks.hasLetter &&
+                       this.passwordChecks.hasNumber &&
+                       this.passwordChecks.confirmation;
+            }
+
+            if (this.form.password) {
+                return this.passwordChecks.length &&
+                       this.passwordChecks.hasLetter &&
+                       this.passwordChecks.hasNumber &&
+                       this.passwordChecks.confirmation;
+            }
+
+            return true;
+        },
+
+        validateForm() {
+            const errors = [];
+            this.fieldErrors = {};
+
+            if (!this.form.name || this.form.name.trim().length < 2) {
+                errors.push('Name must be at least 2 characters long');
+                this.fieldErrors.name = 'Name must be at least 2 characters long';
+            }
+
+            if (!this.form.full_name || this.form.full_name.trim().length < 2) {
+                errors.push('Full name must be at least 2 characters long');
+                this.fieldErrors.full_name = 'Full name must be at least 2 characters long';
+            }
+
+            if (!this.form.username || this.form.username.trim().length < 3) {
+                errors.push('Username must be at least 3 characters long');
+                this.fieldErrors.username = 'Username must be at least 3 characters long';
+            }
+
+            const usernameRegex = /^[a-zA-Z0-9_]+$/;
+            if (this.form.username && !usernameRegex.test(this.form.username)) {
+                errors.push('Username can only contain letters, numbers, and underscores');
+                this.fieldErrors.username = 'Username can only contain letters, numbers, and underscores';
+            }
+
+            if (!this.form.email || !this.isValidEmail(this.form.email)) {
+                errors.push('Please enter a valid email address');
+                this.fieldErrors.email = 'Please enter a valid email address';
+            }
+
+            const validRoles = ['admin', 'sk', 'sr', 'gas_in', 'tracer', 'pic'];
+            if (!this.form.role || !validRoles.includes(this.form.role)) {
+                errors.push('Please select a valid role');
+                this.fieldErrors.role = 'Please select a valid role';
+            }
+
+            if (!this.editingUser) {
+                if (!this.form.password || this.form.password.length < 6) {
+                    errors.push('Password must be at least 6 characters long');
+                    this.fieldErrors.password = 'Password must be at least 6 characters long';
+                }
+
+                if (this.form.password !== this.form.password_confirmation) {
+                    errors.push('Password confirmation does not match');
+                    this.fieldErrors.password_confirmation = 'Password confirmation does not match';
+                }
+            }
+
+            if (this.editingUser && this.form.password) {
+                if (this.form.password.length < 6) {
+                    errors.push('Password must be at least 6 characters long');
+                    this.fieldErrors.password = 'Password must be at least 6 characters long';
+                }
+
+                if (this.form.password !== this.form.password_confirmation) {
+                    errors.push('Password confirmation does not match');
+                    this.fieldErrors.password_confirmation = 'Password confirmation does not match';
+                }
+            }
+
+            if (this.form.password && this.form.password.length >= 6) {
+                if (!this.isStrongPassword(this.form.password)) {
+                    errors.push('Password should contain at least one letter and one number');
+                    this.fieldErrors.password = 'Password should contain at least one letter and one number';
+                }
+            }
+
+            return errors;
+        },
+
+        getFieldError(field) {
+            return this.fieldErrors[field] || '';
+        },
+
+        clearFieldError(field) {
+            if (this.fieldErrors[field]) {
+                delete this.fieldErrors[field];
+            }
+        },
+
+        isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        },
+
+        isStrongPassword(password) {
+            const hasLetter = /[a-zA-Z]/.test(password);
+            const hasNumber = /\d/.test(password);
+            return hasLetter && hasNumber;
+        },
+
+        handleValidationErrors(result) {
+            if (result.errors) {
+                this.fieldErrors = {};
+                Object.keys(result.errors).forEach(field => {
+                    this.fieldErrors[field] = result.errors[field][0];
+                });
+
+                const allErrors = [];
+                Object.keys(result.errors).forEach(field => {
+                    result.errors[field].forEach(error => {
+                        allErrors.push(error);
+                    });
+                });
+
+                if (allErrors.length > 0) {
+                    window.showToast('error', allErrors[0]);
+                }
+
+                this.highlightFieldErrors(result.errors);
+            } else {
+                window.showToast('error', result.message || 'Validation failed. Please check your input.');
+            }
+        },
+
+        highlightFieldErrors(errors) {
+            document.querySelectorAll('.border-red-500').forEach(el => {
+                el.classList.remove('border-red-500');
+                el.classList.add('border-gray-300');
+            });
+
+            Object.keys(errors).forEach(fieldName => {
+                const field = document.querySelector(`input[x-model="form.${fieldName}"], select[x-model="form.${fieldName}"]`);
+                if (field) {
+                    field.classList.remove('border-gray-300');
+                    field.classList.add('border-red-500');
+                }
+            });
         },
 
         async toggleUserStatus(user) {
@@ -531,7 +761,6 @@ function userManagement() {
                         window.showToast('error', result.message || 'Failed to update user status');
                     }
                 } catch (error) {
-                    console.error('Error toggling user status:', error);
                     window.showToast('error', 'Failed to update user status');
                 }
             }
@@ -558,7 +787,6 @@ function userManagement() {
                         window.showToast('error', result.message || 'Failed to delete user');
                     }
                 } catch (error) {
-                    console.error('Error deleting user:', error);
                     window.showToast('error', 'Failed to delete user');
                 }
             }
@@ -568,6 +796,7 @@ function userManagement() {
             this.showModal = false;
             this.editingUser = null;
             this.resetForm();
+            this.clearAllFieldErrors();
         },
 
         resetForm() {
@@ -581,6 +810,20 @@ function userManagement() {
                 role: '',
                 is_active: true
             };
+            this.passwordChecks = {
+                length: false,
+                hasLetter: false,
+                hasNumber: false,
+                confirmation: false
+            };
+        },
+
+        clearAllFieldErrors() {
+            this.fieldErrors = {};
+            document.querySelectorAll('.border-red-500').forEach(el => {
+                el.classList.remove('border-red-500');
+                el.classList.add('border-gray-300');
+            });
         },
 
         getRoleBadgeClass(role) {
