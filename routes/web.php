@@ -175,32 +175,32 @@ Route::middleware('auth')->group(function () {
        Route::post('/test', [NotificationController::class, 'createTestNotification'])->name('test');
    });
 
-   Route::prefix('gudang')->name('gudang.')->middleware('role:admin,gudang,tracer,super_admin')->group(function () {
-       Route::get('items', [GudangController::class, 'items'])->name('items.index');
-       Route::post('items', [GudangController::class, 'itemStore'])->name('items.store');
-       Route::put('items/{item}', [GudangController::class, 'itemUpdate'])->whereNumber('item')->name('items.update');
-       Route::post('items/{item}/toggle', [GudangController::class, 'itemToggle'])->whereNumber('item')->name('items.toggle');
+//    Route::prefix('gudang')->name('gudang.')->middleware('role:admin,gudang,tracer,super_admin')->group(function () {
+//        Route::get('items', [GudangController::class, 'items'])->name('items.index');
+//        Route::post('items', [GudangController::class, 'itemStore'])->name('items.store');
+//        Route::put('items/{item}', [GudangController::class, 'itemUpdate'])->whereNumber('item')->name('items.update');
+//        Route::post('items/{item}/toggle', [GudangController::class, 'itemToggle'])->whereNumber('item')->name('items.toggle');
 
-       Route::get('stock', [GudangController::class, 'stock'])->name('stock.index');
+//        Route::get('stock', [GudangController::class, 'stock'])->name('stock.index');
 
-       Route::get('transactions', [GudangController::class, 'transactions'])->name('tx.index');
-       Route::post('transactions', [GudangController::class, 'txStore'])->name('tx.store');
-       Route::post('transactions/in', [GudangController::class, 'txIn'])->name('tx.in');
-       Route::post('transactions/out', [GudangController::class, 'txOut'])->name('tx.out');
-       Route::post('transactions/return', [GudangController::class, 'txReturn'])->name('tx.return');
-       Route::post('transactions/reject', [GudangController::class, 'txReject'])->name('tx.reject');
-       Route::post('transactions/installed', [GudangController::class, 'txInstalled'])->name('tx.installed');
+//        Route::get('transactions', [GudangController::class, 'transactions'])->name('tx.index');
+//        Route::post('transactions', [GudangController::class, 'txStore'])->name('tx.store');
+//        Route::post('transactions/in', [GudangController::class, 'txIn'])->name('tx.in');
+//        Route::post('transactions/out', [GudangController::class, 'txOut'])->name('tx.out');
+//        Route::post('transactions/return', [GudangController::class, 'txReturn'])->name('tx.return');
+//        Route::post('transactions/reject', [GudangController::class, 'txReject'])->name('tx.reject');
+//        Route::post('transactions/installed', [GudangController::class, 'txInstalled'])->name('tx.installed');
 
-       Route::get('material-requests', [GudangController::class, 'mrIndex'])->name('mr.index');
-       Route::get('material-requests/{mr}', [GudangController::class, 'mrShow'])->whereNumber('mr')->name('mr.show');
-       Route::post('material-requests', [GudangController::class, 'mrStore'])->name('mr.store');
-       Route::post('material-requests/{mr}/items', [GudangController::class, 'mrAddItem'])->whereNumber('mr')->name('mr.items.add');
-       Route::post('material-requests/{mr}/submit', [GudangController::class, 'mrSubmit'])->whereNumber('mr')->name('mr.submit');
-       Route::post('material-requests/{mr}/approve', [GudangController::class, 'mrApprove'])->whereNumber('mr')->name('mr.approve');
-       Route::post('material-requests/{mr}/issue', [GudangController::class, 'mrIssue'])->whereNumber('mr')->name('mr.issue');
-       Route::post('material-requests/{mr}/return', [GudangController::class, 'mrReturn'])->whereNumber('mr')->name('mr.return');
-       Route::post('material-requests/{mr}/reject', [GudangController::class, 'mrReject'])->whereNumber('mr')->name('mr.reject');
-   });
+//        Route::get('material-requests', [GudangController::class, 'mrIndex'])->name('mr.index');
+//        Route::get('material-requests/{mr}', [GudangController::class, 'mrShow'])->whereNumber('mr')->name('mr.show');
+//        Route::post('material-requests', [GudangController::class, 'mrStore'])->name('mr.store');
+//        Route::post('material-requests/{mr}/items', [GudangController::class, 'mrAddItem'])->whereNumber('mr')->name('mr.items.add');
+//        Route::post('material-requests/{mr}/submit', [GudangController::class, 'mrSubmit'])->whereNumber('mr')->name('mr.submit');
+//        Route::post('material-requests/{mr}/approve', [GudangController::class, 'mrApprove'])->whereNumber('mr')->name('mr.approve');
+//        Route::post('material-requests/{mr}/issue', [GudangController::class, 'mrIssue'])->whereNumber('mr')->name('mr.issue');
+//        Route::post('material-requests/{mr}/return', [GudangController::class, 'mrReturn'])->whereNumber('mr')->name('mr.return');
+//        Route::post('material-requests/{mr}/reject', [GudangController::class, 'mrReject'])->whereNumber('mr')->name('mr.reject');
+//    });
 
    Route::prefix('imports')->name('imports.')->middleware('role:admin,super_admin,tracer')->group(function () {
        Route::get('/calon-pelanggan', [ImportController::class, 'formCalonPelanggan'])->name('calon-pelanggan.form');
