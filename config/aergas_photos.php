@@ -261,7 +261,7 @@ return [
                     'prompt' => 'Analisis foto pondasi dengan penilaian SKOR (0-100):
 
                                 ELEMEN YANG DIPERIKSA:
-                                1. OBJEK PONDASI TERLIHAT (60 poin) - Apakah struktur pondasi/tiang dapat diidentifikasi?
+                                1. "Gambar ini menampilkan sebuah pipa berwarna kuning yang berdiri tegak.Bagian bawah pipa tersebut tertancap atau menempel pada pondasi berbentuk balok berwarna abu-abu. Pondasi terlihat kokoh dan berfungsi sebagai penopang pipa kuning agar tetap berdiri. Abaikan latar belakang."
                                 2. KUALITAS FOTO (40 poin) - Apakah foto tidak blur dan cukup jelas?
 
                                 PANDUAN PENILAIAN:
