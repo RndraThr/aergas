@@ -261,7 +261,7 @@ return [
                     'prompt' => 'Analisis foto pondasi dengan penilaian SKOR (0-100):
 
                                 ELEMEN YANG DIPERIKSA:
-                                1. "Gambar ini menampilkan sebuah pipa berwarna kuning yang berdiri tegak.Bagian bawah pipa tersebut tertancap atau menempel pada pondasi berbentuk balok berwarna abu-abu. Pondasi terlihat kokoh dan berfungsi sebagai penopang pipa kuning agar tetap berdiri. Abaikan latar belakang."
+                                1. "Gambar ini menampilkan sebuah pipa berwarna kuning yang berdiri tegak.Bagian bawah pipa tersebut tertancap atau menempel pada pondasi berbentuk balok berwarna abu-abu. Pondasi terlihat kokoh dan berfungsi sebagai penopang pipa kuning agar tetap berdiri. fokuskan pada pondasi itu sendiri, bukan keseluruhan pipa." (60 poin) -
                                 2. KUALITAS FOTO (40 poin) - Apakah foto tidak blur dan cukup jelas?
 
                                 PANDUAN PENILAIAN:
