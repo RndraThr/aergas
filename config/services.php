@@ -49,12 +49,28 @@ return [
         'timeout' => 30,
     ],
 
+    // 'google_drive' => [
+    //     'client_id' => env('GOOGLE_DRIVE_CLIENT_ID'),
+    //     'client_secret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
+    //     'refresh_token' => env('GOOGLE_DRIVE_REFRESH_TOKEN'),
+    //     'folder_id' => env('GOOGLE_DRIVE_FOLDER_ID'),
+    //     'service_account_json' => env('GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON'),
+    // ],
+
     'google_drive' => [
+        'enabled' => env('GOOGLE_DRIVE_ENABLED', true),
+
+        // Service Account (Recommended - never expires)
+        'service_account_json' => env('GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON'),
+
+        // OAuth Credentials (Fallback)
         'client_id' => env('GOOGLE_DRIVE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
         'refresh_token' => env('GOOGLE_DRIVE_REFRESH_TOKEN'),
+
+        // Drive Settings
         'folder_id' => env('GOOGLE_DRIVE_FOLDER_ID'),
-        'service_account_json' => env('GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON'),
+        'supports_all_drives' => env('GOOGLE_DRIVE_SUPPORTS_ALL_DRIVES', true),
     ],
 
     'google_sheets' => [
@@ -63,7 +79,7 @@ return [
     ],
 
     'aergas' => [
-        'photo_max_size' => env('AERGAS_PHOTO_MAX_SIZE', 10485760), // 10MB
+        'photo_max_size' => env('MAX_FILE_SIZE', 10485760), // 10MB
         'allowed_mime_types' => [
             'image/jpeg', 'image/png', 'image/jpg',
             'image/gif', 'image/webp', 'application/pdf'

@@ -39,22 +39,22 @@ Route::middleware('auth')->group(function () {
    Route::get('/dashboard/installation-trend', [DashboardController::class, 'getInstallationTrend'])->name('dashboard.installation-trend');
    Route::get('/dashboard/activity-metrics', [DashboardController::class, 'getActivityMetrics'])->name('dashboard.activity-metrics');
 
-   Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->group(function () {
-       Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
-       Route::get('/users', [AdminController::class, 'usersIndex'])->name('users');
+Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+    Route::get('/users', [AdminController::class, 'usersIndex'])->name('users');
 
-       Route::prefix('api')->name('api.')->group(function () {
-           Route::get('/users', [AdminController::class, 'getUsers'])->name('users');
-           Route::post('/users', [AdminController::class, 'createUser'])->name('users.create');
-           Route::get('/users/{id}', [AdminController::class, 'getUser'])->whereNumber('id')->name('users.show');
-           Route::put('/users/{id}', [AdminController::class, 'updateUser'])->whereNumber('id')->name('users.update');
-           Route::patch('/users/{id}/toggle', [AdminController::class, 'toggleUserStatus'])->whereNumber('id')->name('users.toggle');
-           Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->whereNumber('id')->name('users.delete');
-           Route::get('/system-stats', [AdminController::class, 'getSystemStats'])->name('system-stats');
-           Route::get('/test-integrations', [AdminController::class, 'testIntegrations'])->name('test-integrations');
-           Route::get('/google-drive-stats', [AdminController::class, 'getGoogleDriveStats'])->name('google-drive-stats');
-       });
-   });
+    Route::prefix('api')->name('api.')->group(function () {
+        Route::get('/users', [AdminController::class, 'getUsers'])->name('users');
+        Route::post('/users', [AdminController::class, 'createUser'])->name('users.create');
+        Route::get('/users/{id}', [AdminController::class, 'getUser'])->whereNumber('id')->name('users.show');
+        Route::put('/users/{id}', [AdminController::class, 'updateUser'])->whereNumber('id')->name('users.update');
+        Route::patch('/users/{id}/toggle', [AdminController::class, 'toggleUserStatus'])->whereNumber('id')->name('users.toggle');
+        Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->whereNumber('id')->name('users.delete');
+        Route::get('/system-stats', [AdminController::class, 'getSystemStats'])->name('system-stats');
+        Route::get('/test-integrations', [AdminController::class, 'testIntegrations'])->name('test-integrations');
+        Route::get('/google-drive-stats', [AdminController::class, 'getGoogleDriveStats'])->name('google-drive-stats');
+    });
+});
 
    Route::prefix('customers')->name('customers.')->group(function () {
        Route::get('/', [CalonPelangganController::class, 'index'])->name('index');
@@ -139,7 +139,6 @@ Route::middleware('auth')->group(function () {
        Route::post('/{gasIn}/photos', [GasInDataController::class, 'uploadAndValidate'])->whereNumber('gasIn')->name('photos.upload');
        Route::get('/{gasIn}/ready-status', [GasInDataController::class, 'readyStatus'])->whereNumber('gasIn')->name('ready-status');
 
-
        Route::post('/{gasIn}/photos/draft', [SkDataController::class, 'uploadDraft'])->whereNumber('gasIn')->name('photos.upload-draft');
        Route::post('/{gasIn}/approve-tracer', [GasInDataController::class, 'approveTracer'])->whereNumber('gasIn')->name('approve-tracer');
        Route::post('/{gasIn}/reject-tracer', [GasInDataController::class, 'rejectTracer'])->whereNumber('gasIn')->name('reject-tracer');
@@ -180,33 +179,6 @@ Route::middleware('auth')->group(function () {
        Route::post('/test', [NotificationController::class, 'createTestNotification'])->name('test');
    });
 
-//    Route::prefix('gudang')->name('gudang.')->middleware('role:admin,gudang,tracer,super_admin')->group(function () {
-//        Route::get('items', [GudangController::class, 'items'])->name('items.index');
-//        Route::post('items', [GudangController::class, 'itemStore'])->name('items.store');
-//        Route::put('items/{item}', [GudangController::class, 'itemUpdate'])->whereNumber('item')->name('items.update');
-//        Route::post('items/{item}/toggle', [GudangController::class, 'itemToggle'])->whereNumber('item')->name('items.toggle');
-
-//        Route::get('stock', [GudangController::class, 'stock'])->name('stock.index');
-
-//        Route::get('transactions', [GudangController::class, 'transactions'])->name('tx.index');
-//        Route::post('transactions', [GudangController::class, 'txStore'])->name('tx.store');
-//        Route::post('transactions/in', [GudangController::class, 'txIn'])->name('tx.in');
-//        Route::post('transactions/out', [GudangController::class, 'txOut'])->name('tx.out');
-//        Route::post('transactions/return', [GudangController::class, 'txReturn'])->name('tx.return');
-//        Route::post('transactions/reject', [GudangController::class, 'txReject'])->name('tx.reject');
-//        Route::post('transactions/installed', [GudangController::class, 'txInstalled'])->name('tx.installed');
-
-//        Route::get('material-requests', [GudangController::class, 'mrIndex'])->name('mr.index');
-//        Route::get('material-requests/{mr}', [GudangController::class, 'mrShow'])->whereNumber('mr')->name('mr.show');
-//        Route::post('material-requests', [GudangController::class, 'mrStore'])->name('mr.store');
-//        Route::post('material-requests/{mr}/items', [GudangController::class, 'mrAddItem'])->whereNumber('mr')->name('mr.items.add');
-//        Route::post('material-requests/{mr}/submit', [GudangController::class, 'mrSubmit'])->whereNumber('mr')->name('mr.submit');
-//        Route::post('material-requests/{mr}/approve', [GudangController::class, 'mrApprove'])->whereNumber('mr')->name('mr.approve');
-//        Route::post('material-requests/{mr}/issue', [GudangController::class, 'mrIssue'])->whereNumber('mr')->name('mr.issue');
-//        Route::post('material-requests/{mr}/return', [GudangController::class, 'mrReturn'])->whereNumber('mr')->name('mr.return');
-//        Route::post('material-requests/{mr}/reject', [GudangController::class, 'mrReject'])->whereNumber('mr')->name('mr.reject');
-//    });
-
    Route::prefix('imports')->name('imports.')->middleware('role:admin,super_admin,tracer')->group(function () {
        Route::get('/calon-pelanggan', [ImportController::class, 'formCalonPelanggan'])->name('calon-pelanggan.form');
        Route::get('/calon-pelanggan/template', [ImportController::class, 'downloadTemplateCalonPelanggan'])->name('calon-pelanggan.template');
@@ -222,5 +194,14 @@ if (app()->environment(['local', 'development'])) {
            'user' => Auth::user(),
            'session_id' => session()->getId(),
        ]);
+   });
+
+   Route::get('/test-gdrive', function() {
+       try {
+           $service = new \App\Services\GoogleDriveService();
+           return response()->json($service->testConnection());
+       } catch (Exception $e) {
+           return response()->json(['error' => $e->getMessage()]);
+       }
    });
 }

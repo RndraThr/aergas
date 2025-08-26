@@ -23,6 +23,11 @@ class Kernel extends ConsoleKernel
         $schedule->call(function () {
             \App\Models\Notification::where('created_at', '<', now()->subDays(30))->delete();
         })->daily()->at('03:30');
+
+        $schedule->command('google-drive:keep-alive')
+        ->weekly()
+        ->mondays()
+        ->at('02:00');
     }
 
     /**
