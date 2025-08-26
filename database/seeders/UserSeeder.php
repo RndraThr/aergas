@@ -14,7 +14,7 @@ class UserSeeder extends Seeder
             [
                 'username' => 'Rendra',
                 'email' => 'rendrabtuharea@gmail.com',
-                'password' => Hash::make('Rendra123'),
+                'password' => Hash::make('Rennn123!#'),
                 'name' => 'Rendra',
                 'full_name' => 'Rendra Tuharea',
                 'role' => 'super_admin',
@@ -38,6 +38,8 @@ class UserSeeder extends Seeder
                 'role' => 'tracer',
                 'is_active' => true,
             ],
+
+            // SK Personnel
             [
                 'username' => 'sk001',
                 'email' => 'sk001@aergas.com',
@@ -56,6 +58,54 @@ class UserSeeder extends Seeder
                 'role' => 'sk',
                 'is_active' => true,
             ],
+            // New SK Personnel
+            [
+                'username' => 'selamet',
+                'email' => 'selamet@aergas.com',
+                'password' => Hash::make('aergas_selamet'),
+                'name' => 'Selamet',
+                'full_name' => 'Selamet',
+                'role' => 'sk',
+                'is_active' => true,
+            ],
+            [
+                'username' => 'jaya',
+                'email' => 'jaya@aergas.com',
+                'password' => Hash::make('aergas_jaya'),
+                'name' => 'Jaya',
+                'full_name' => 'Jaya',
+                'role' => 'sk',
+                'is_active' => true,
+            ],
+            [
+                'username' => 'aya',
+                'email' => 'aya@aergas.com',
+                'password' => Hash::make('aergas_aya'),
+                'name' => 'Aya',
+                'full_name' => 'Aya',
+                'role' => 'sk',
+                'is_active' => true,
+            ],
+            [
+                'username' => 'sugi',
+                'email' => 'sugi@aergas.com',
+                'password' => Hash::make('aergas_sugi'),
+                'name' => 'Sugi',
+                'full_name' => 'Sugi',
+                'role' => 'sk',
+                'is_active' => true,
+            ],
+            [
+                'username' => 'buyung',
+                'email' => 'buyung@aergas.com',
+                'password' => Hash::make('aergas_buyung'),
+                'name' => 'Buyung',
+                'full_name' => 'Buyung',
+                'role' => 'sk',
+                'is_active' => true,
+            ],
+
+            // SR Personnel
             [
                 'username' => 'sr001',
                 'email' => 'sr001@aergas.com',
@@ -74,6 +124,17 @@ class UserSeeder extends Seeder
                 'role' => 'sr',
                 'is_active' => true,
             ],
+            // New SR Personnel
+            [
+                'username' => 'lepek',
+                'email' => 'lepek@aergas.com',
+                'password' => Hash::make('aergas_lepek'),
+                'name' => 'Lepek',
+                'full_name' => 'Lepek',
+                'role' => 'sr',
+                'is_active' => true,
+            ],
+
             [
                 'username' => 'mgrt001',
                 'email' => 'mgrt001@aergas.com',
@@ -83,6 +144,8 @@ class UserSeeder extends Seeder
                 'role' => 'mgrt',
                 'is_active' => true,
             ],
+
+            // Gas In Personnel
             [
                 'username' => 'gasin001',
                 'email' => 'gasin001@aergas.com',
@@ -92,6 +155,17 @@ class UserSeeder extends Seeder
                 'role' => 'gas_in',
                 'is_active' => true,
             ],
+            // New Gas In Personnel
+            [
+                'username' => 'jidan',
+                'email' => 'jidan@aergas.com',
+                'password' => Hash::make('aergas_jidan'),
+                'name' => 'Jidan',
+                'full_name' => 'Jidan',
+                'role' => 'gas_in',
+                'is_active' => true,
+            ],
+
             [
                 'username' => 'pic001',
                 'email' => 'pic001@aergas.com',
