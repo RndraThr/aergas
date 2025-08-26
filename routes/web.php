@@ -21,7 +21,7 @@ Route::get('/', function () {
 });
 
 Route::pattern('id', '[0-9]+');
-
+Route::get('/auth/check', [AuthController::class, 'check'])->name('auth.check');
 Route::middleware('guest')->group(function () {
    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
    Route::post('/login', [AuthController::class, 'login'])->name('login.post');
@@ -33,7 +33,6 @@ Route::middleware('auth')->group(function () {
    Route::get('/me', [AuthController::class, 'me'])->name('auth.me');
    Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
    Route::post('/change-password', [AuthController::class, 'changePassword'])->name('password.change');
-   Route::get('/auth/check', [AuthController::class, 'check'])->name('auth.check');
 
    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
    Route::get('/dashboard/data', [DashboardController::class, 'getData'])->name('dashboard.data');
@@ -88,6 +87,8 @@ Route::middleware('auth')->group(function () {
        Route::post('/{sk}/photos', [SkDataController::class, 'uploadAndValidate'])->whereNumber('sk')->name('photos.upload');
        Route::get('/{sk}/ready-status', [SkDataController::class, 'readyStatus'])->whereNumber('sk')->name('ready-status');
 
+       Route::post('/{sk}/photos/draft', [SkDataController::class, 'uploadDraft'])->whereNumber('sk')->name('photos.upload-draft');
+
        Route::post('/{sk}/approve-tracer', [SkDataController::class, 'approveTracer'])->whereNumber('sk')->name('approve-tracer');
        Route::post('/{sk}/reject-tracer', [SkDataController::class, 'rejectTracer'])->whereNumber('sk')->name('reject-tracer');
        Route::post('/{sk}/approve-cgp', [SkDataController::class, 'approveCgp'])->whereNumber('sk')->name('approve-cgp');
@@ -111,6 +112,8 @@ Route::middleware('auth')->group(function () {
        Route::post('/photos/precheck-generic', [SrDataController::class, 'precheckGeneric'])->name('photos.precheck-generic');
        Route::post('/{sr}/photos', [SrDataController::class, 'uploadAndValidate'])->whereNumber('sr')->name('photos.upload');
        Route::get('/{sr}/ready-status', [SrDataController::class, 'readyStatus'])->whereNumber('sr')->name('ready-status');
+
+       Route::post('/{sr}/photos/draft', [SkDataController::class, 'uploadDraft'])->whereNumber('sr')->name('photos.upload-draft');
 
        Route::post('/{sr}/approve-tracer', [SrDataController::class, 'approveTracer'])->whereNumber('sr')->name('approve-tracer');
        Route::post('/{sr}/reject-tracer', [SrDataController::class, 'rejectTracer'])->whereNumber('sr')->name('reject-tracer');
@@ -136,6 +139,8 @@ Route::middleware('auth')->group(function () {
        Route::post('/{gasIn}/photos', [GasInDataController::class, 'uploadAndValidate'])->whereNumber('gasIn')->name('photos.upload');
        Route::get('/{gasIn}/ready-status', [GasInDataController::class, 'readyStatus'])->whereNumber('gasIn')->name('ready-status');
 
+
+       Route::post('/{gasIn}/photos/draft', [SkDataController::class, 'uploadDraft'])->whereNumber('gasIn')->name('photos.upload-draft');
        Route::post('/{gasIn}/approve-tracer', [GasInDataController::class, 'approveTracer'])->whereNumber('gasIn')->name('approve-tracer');
        Route::post('/{gasIn}/reject-tracer', [GasInDataController::class, 'rejectTracer'])->whereNumber('gasIn')->name('reject-tracer');
        Route::post('/{gasIn}/approve-cgp', [GasInDataController::class, 'approveCgp'])->whereNumber('gasIn')->name('approve-cgp');

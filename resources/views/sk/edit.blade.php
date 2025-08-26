@@ -9,12 +9,10 @@
   foreach ($cfgSlots as $key => $rule) {
     $accept = $rule['accept'] ?? ['image/*'];
     if (is_string($accept)) $accept = [$accept];
-    $checks = collect($rule['checks'] ?? [])->map(fn($c) => $c['label'] ?? $c['id'] ?? '')->filter()->values()->all();
     $photoDefs[] = [
       'field' => $key,
       'label' => $rule['label'] ?? $key,
       'accept' => $accept,
-      'required_objects' => $checks,
     ];
   }
 @endphp
@@ -184,37 +182,6 @@
             </div>
           </template>
 
-          <template x-if="ai">
-            <div class="mt-3 text-xs border rounded p-2"
-                :class="{
-                    'border-green-300 bg-green-50 text-green-700': ai.warning_level === 'excellent',
-                    'border-blue-300 bg-blue-50 text-blue-700': ai.warning_level === 'good',
-                    'border-amber-300 bg-amber-50 text-amber-700': ai.warning_level === 'warning',
-                    'border-red-300 bg-red-50 text-red-700': ai.warning_level === 'poor'
-                }">
-              <div class="font-medium mb-1 flex items-center">
-                <i :class="{
-                    'fas fa-check-circle text-green-600': ai.warning_level === 'excellent',
-                    'fas fa-thumbs-up text-blue-600': ai.warning_level === 'good',
-                    'fas fa-exclamation-triangle text-amber-600': ai.warning_level === 'warning',
-                    'fas fa-times-circle text-red-600': ai.warning_level === 'poor'
-                    }" class="mr-1"></i>
-                Hasil AI: <span x-text="getWarningText(ai.warning_level)" class="font-bold"></span>
-                <span class="ml-2 text-gray-600" x-text="`Skor: ${formatScore(ai)}`"></span>
-              </div>
-              <template x-if="(ai.messages || []).length">
-                <div>
-                  <span class="text-gray-600 font-medium">Catatan:</span>
-                  <ul class="list-disc ml-4 mt-1">
-                    <template x-for="m in ai.messages" :key="m">
-                      <li x-text="m"></li>
-                    </template>
-                  </ul>
-                </div>
-              </template>
-            </div>
-          </template>
-
           <div class="flex items-center gap-2 mt-3">
             <input class="hidden" type="file"
                    :id="`file_${@js($ph['field'])}`"
@@ -239,15 +206,6 @@
                :class="statusMsg?.includes('✓') ? 'text-green-600' :
                       statusMsg?.includes('✗') ? 'text-red-600' : 'text-gray-500'"
                x-text="statusMsg"></div>
-
-          @if(!empty($ph['required_objects']))
-            <div class="mt-2 text-xs text-gray-500">
-              Objek wajib:
-              @foreach($ph['required_objects'] as $obj)
-                <span class="px-2 py-0.5 mr-1 mb-1 bg-gray-100 rounded border inline-block">{{ $obj }}</span>
-              @endforeach
-            </div>
-          @endif
         </div>
       @endforeach
     </div>
@@ -260,8 +218,8 @@
           <ul class="text-blue-700 space-y-1">
             <li>• Format: JPG/PNG/WEBP untuk foto, PDF untuk dokumen Isometrik</li>
             <li>• Maksimal 10 MB per file</li>
-            <li>• Foto akan dianalisa otomatis menggunakan AI</li>
-            <li>• Pastikan objek yang diperlukan terlihat jelas dalam foto</li>
+            <li>• Foto akan disimpan sebagai draft dan dianalisa AI saat proses approval</li>
+            <li>• Pastikan foto sudah jelas dan sesuai dengan yang diminta</li>
           </ul>
         </div>
       </div>
@@ -376,31 +334,6 @@ function slotUploader(slot) {
     isPdf: false,
     uploading: false,
     statusMsg: '',
-    ai: null,
-
-    formatScore(aiObj) {
-      if (!aiObj) return '—';
-      const s = Number(aiObj.score);
-      if (!Number.isFinite(s)) return '—';
-      return s > 1 ? Math.round(s) + '%' : Math.round(s * 100) + '%';
-    },
-
-    getWarningText(warningLevel) {
-      switch(warningLevel) {
-        case 'excellent': return 'SANGAT BAIK';
-        case 'good': return 'BAIK';
-        case 'warning': return 'PERLU PERHATIAN';
-        case 'poor': return 'BUTUH PERBAIKAN';
-        default: return 'UNKNOWN';
-      }
-    },
-
-    determineWarningLevel(score) {
-      if (score >= 85) return 'excellent';
-      if (score >= 70) return 'good';
-      if (score >= 50) return 'warning';
-      return 'poor';
-    },
 
     onPick(e) {
       const f = e.target.files?.[0];
@@ -409,7 +342,6 @@ function slotUploader(slot) {
       this.file = f;
       this.isPdf = (f.type === 'application/pdf');
       this.statusMsg = '';
-      this.ai = null;
 
       if (!this.isPdf) {
         const r = new FileReader();
@@ -419,7 +351,7 @@ function slotUploader(slot) {
         this.preview = null;
       }
 
-      this.precheck();
+      this.statusMsg = 'File siap untuk diupload';
     },
 
     clearPick() {
@@ -427,74 +359,7 @@ function slotUploader(slot) {
       this.preview = null;
       this.isPdf = false;
       this.statusMsg = '';
-      this.ai = null;
       document.getElementById(`file_${slot}`).value = '';
-    },
-
-    async precheck() {
-      if (!this.file) return;
-
-      this.statusMsg = 'Menganalisa dengan AI...';
-
-      if (this.isPdf) {
-        this.ai = {
-          passed: true,
-          score: 100,
-          warning_level: 'excellent',
-          reason: 'PDF file - akan diperiksa manual',
-          messages: ['Berkas PDF: memerlukan pemeriksaan manual untuk kelengkapan tanda tangan']
-        };
-        this.statusMsg = 'AI: SANGAT BAIK (PDF - Manual Review)';
-        return;
-      }
-
-      const fd = new FormData();
-      fd.append('_token', @json(csrf_token()));
-      fd.append('slot_type', slot);
-      fd.append('file', this.file);
-
-      try {
-        const res = await fetch(@json(route('sk.photos.precheck-generic')), {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: fd
-        });
-
-        const j = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-          throw new Error(j?.message || 'Validasi AI gagal');
-        }
-
-        const warningLevel = j.warning_level || this.determineWarningLevel(j.ai?.score || 0);
-
-        this.ai = {
-          passed: !!j.ai?.passed,
-          score: Number(j.ai?.score ?? 0),
-          warning_level: warningLevel,
-          reason: j.ai?.reason || 'Tidak ada keterangan',
-          messages: j.ai?.messages || [j.ai?.reason || 'Validasi selesai'],
-          confidence: j.ai?.confidence || 0,
-        };
-
-        const scoreText = this.ai.score ? ` (${Math.round(this.ai.score)}%)` : '';
-        this.statusMsg = `AI: ${this.getWarningText(warningLevel)}${scoreText}`;
-
-      } catch (err) {
-        console.error('AI Validation error', err);
-        this.ai = {
-          passed: false,
-          score: 0,
-          warning_level: 'poor',
-          reason: err.message || 'Terjadi kesalahan saat validasi AI',
-          messages: ['Validasi AI gagal: ' + (err.message || 'Unknown error')],
-          confidence: 0,
-        };
-        this.statusMsg = 'AI: ERROR - ' + (err.message || 'Validasi gagal');
-      }
     },
 
     async upload() {
@@ -502,18 +367,11 @@ function slotUploader(slot) {
       this.uploading = true;
 
       try {
-        const url = @json(route('sk.photos.upload', ['sk'=>$sk->id]));
+        const url = @json(route('sk.photos.upload-draft', ['sk'=>$sk->id]));
         const fd = new FormData();
         fd.append('_token', @json(csrf_token()));
         fd.append('slot_type', slot);
         fd.append('file', this.file);
-
-        if (this.ai) {
-          fd.append('ai_passed', this.ai.passed ? '1' : '0');
-          if (this.ai.score != null) fd.append('ai_score', this.ai.score);
-          if (this.ai.reason) fd.append('ai_reason', this.ai.reason);
-          (this.ai.messages || []).forEach(v => fd.append('ai_notes[]', v));
-        }
 
         const res = await fetch(url, {
           method: 'POST',
@@ -530,7 +388,7 @@ function slotUploader(slot) {
         }
 
         this.statusMsg = '✓ Upload berhasil';
-        window.showToast?.('Upload berhasil & divalidasi AI.', 'success');
+        window.showToast?.('Upload berhasil tersimpan sebagai draft.', 'success');
 
       } catch (e) {
         console.error(e);

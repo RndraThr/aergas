@@ -11,20 +11,18 @@
  foreach ($cfgSlots as $key => $rule) {
      $accept = $rule['accept'] ?? ['image/*'];
      if (is_string($accept)) $accept = [$accept];
-     $checks = collect($rule['checks'] ?? [])->map(fn($c) => $c['label'] ?? $c['id'] ?? '')->filter()->values()->all();
      $photoDefs[] = [
          'field' => $key,
          'label' => $rule['label'] ?? $key,
          'accept' => $accept,
-         'required_objects' => $checks,
      ];
  }
  if (empty($photoDefs)) {
      $photoDefs = [
-         ['field'=>'ba_gas_in','label'=>'Berita Acara Gas In','accept'=>['image/*','application/pdf'],'required_objects'=>[]],
-         ['field'=>'foto_bubble_test','label'=>'Foto Bubble Test (Uji Kebocoran)','accept'=>['image/*'],'required_objects'=>[]],
-         ['field'=>'foto_regulator','label'=>'Foto Regulator Service','accept'=>['image/*'],'required_objects'=>[]],
-         ['field'=>'foto_kompor_menyala','label'=>'Foto Kompor Menyala','accept'=>['image/*'],'required_objects'=>[]],
+         ['field'=>'ba_gas_in','label'=>'Berita Acara Gas In','accept'=>['image/*','application/pdf']],
+         ['field'=>'foto_bubble_test','label'=>'Foto Bubble Test (Uji Kebocoran)','accept'=>['image/*']],
+         ['field'=>'foto_regulator','label'=>'Foto Regulator Service','accept'=>['image/*']],
+         ['field'=>'foto_kompor_menyala','label'=>'Foto Kompor Menyala','accept'=>['image/*']],
      ];
  }
 @endphp
@@ -128,18 +126,11 @@
      <div class="flex items-center gap-3">
        <i class="fas fa-camera text-purple-600"></i>
        <h2 class="font-semibold text-gray-800">Upload Foto Gas In</h2>
-       <template x-if="hasAiFailure">
-         <div class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-           <i class="fas fa-exclamation-triangle mr-1"></i>
-           Ada foto yang perlu diperbaiki
-         </div>
-       </template>
      </div>
 
      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
        <template x-for="ph in photoDefs" :key="ph.field">
-         <div class="border rounded-lg p-4"
-              :class="ai[ph.field] && !ai[ph.field].passed ? 'border-amber-300 bg-amber-50' : ''">
+         <div class="border rounded-lg p-4">
            <label class="block text-sm font-medium text-gray-700 mb-2" x-text="ph.label"></label>
 
            <template x-if="!previews[ph.field]">
@@ -153,37 +144,6 @@
            <template x-if="isPdf(ph.field)">
              <div class="h-32 flex items-center justify-center bg-gray-50 rounded border">
                <span class="text-xs text-gray-600">PDF terpilih</span>
-             </div>
-           </template>
-
-           <template x-if="ai[ph.field]">
-           <div class="mt-3 text-xs border rounded p-2"
-               :class="{
-                   'border-green-300 bg-green-50 text-green-700': ai[ph.field].warning_level === 'excellent',
-                   'border-blue-300 bg-blue-50 text-blue-700': ai[ph.field].warning_level === 'good',
-                   'border-amber-300 bg-amber-50 text-amber-700': ai[ph.field].warning_level === 'warning',
-                   'border-red-300 bg-red-50 text-red-700': ai[ph.field].warning_level === 'poor'
-               }">
-               <div class="font-medium mb-1 flex items-center">
-               <i :class="{
-                   'fas fa-check-circle text-green-600': ai[ph.field].warning_level === 'excellent',
-                   'fas fa-thumbs-up text-blue-600': ai[ph.field].warning_level === 'good',
-                   'fas fa-exclamation-triangle text-amber-600': ai[ph.field].warning_level === 'warning',
-                   'fas fa-times-circle text-red-600': ai[ph.field].warning_level === 'poor'
-                   }" class="mr-1"></i>
-               Hasil AI: <span x-text="getWarningText(ai[ph.field].warning_level)" class="font-bold"></span>
-               <span class="ml-2 text-gray-600" x-text="`Skor: ${formatScore(ai[ph.field])}`"></span>
-               </div>
-               <template x-if="(ai[ph.field].messages || []).length">
-                 <div>
-                   <span class="text-gray-600 font-medium">Catatan:</span>
-                   <ul class="list-disc ml-4 mt-1">
-                     <template x-for="m in ai[ph.field].messages" :key="m">
-                       <li x-text="m"></li>
-                     </template>
-                   </ul>
-                 </div>
-               </template>
              </div>
            </template>
 
@@ -203,11 +163,7 @@
                <i class="fas fa-trash mr-1"></i>Hapus
              </button>
 
-             <span class="text-xs flex-1"
-                   :class="uploadStatuses[ph.field]?.includes('AI: LULUS') ? 'text-green-600' :
-                          uploadStatuses[ph.field]?.includes('PERBAIKAN') ? 'text-amber-600' :
-                          uploadStatuses[ph.field]?.includes('gagal') ? 'text-red-600' : 'text-gray-500'"
-                   x-text="uploadStatuses[ph.field] || ''"></span>
+             <span class="text-xs flex-1 text-gray-500" x-text="uploadStatuses[ph.field] || ''"></span>
            </div>
          </div>
        </template>
@@ -221,7 +177,7 @@
            <ul class="text-blue-700 space-y-1">
              <li>• Format: JPG/PNG/WEBP untuk foto, PDF untuk Berita Acara</li>
              <li>• Maksimal 10 MB per file</li>
-             <li>• Foto akan dianalisa otomatis menggunakan AI</li>
+             <li>• Foto akan disimpan sebagai draft dan dianalisa AI saat proses approval</li>
              <li>• Pastikan objek yang diperlukan terlihat jelas dalam foto</li>
            </ul>
          </div>
@@ -244,39 +200,6 @@
        </template>
      </button>
    </div>
-
-   {{-- <template x-if="hasAiFailure">
-     <div class="bg-amber-50 border border-amber-200 p-4 rounded">
-       <div class="flex items-start">
-         <i class="fas fa-exclamation-triangle text-amber-600 mr-2 mt-0.5"></i>
-         <div class="text-amber-800">
-           <p class="font-medium">Perhatian!</p>
-           <div class="text-sm mt-1">
-             <p>Beberapa foto perlu diperbaiki sebelum dapat disimpan.</p>
-           </div>
-         </div>
-       </div>
-     </div>
-   </template> --}}
-
-   <template x-if="hasPoorPhotos || !isMaterialComplete()">
-    <div class="bg-amber-50 border border-amber-200 p-4 rounded">
-        <div class="flex items-start">
-        <i class="fas fa-exclamation-triangle text-amber-600 mr-2 mt-0.5"></i>
-        <div class="text-amber-800">
-            <p class="font-medium">Perhatian!</p>
-            <div class="text-sm mt-1">
-            <template x-if="hasPoorPhotos">
-                <p>Beberapa foto berkualitas rendah akan tetap diproses dan direview manual oleh tim.</p>
-            </template>
-            <template x-if="!isMaterialComplete()">
-                <p>Data material belum lengkap. Pastikan semua field bertanda (*) sudah diisi.</p>
-            </template>
-            </div>
-        </div>
-        </div>
-    </div>
-    </template>
  </form>
 </div>
 @endsection
@@ -298,11 +221,6 @@ function gasInCreate() {
    isPdfMap: {},
    uploadStatuses: {},
 
-   ai: {},
-   hasWarnings: false,
-   hasPoorPhotos: false,
-//    hasAiFailure: false,
-
    submitting: false,
 
    init() {
@@ -322,42 +240,11 @@ function gasInCreate() {
      return this.customer ? 'text-green-600' : 'text-red-600';
    },
 
-   formatScore(aiObj) {
-     if (!aiObj) return '—';
-     const s = Number(aiObj.score);
-     if (!Number.isFinite(s)) return '—';
-     return s > 1 ? Math.round(s) + '%' : Math.round(s * 100) + '%';
-   },
-
-   getWarningText(warningLevel) {
-     switch(warningLevel) {
-       case 'excellent': return 'SANGAT BAIK';
-       case 'good': return 'BAIK';
-       case 'warning': return 'PERLU PERHATIAN';
-       case 'poor': return 'BUTUH PERBAIKAN';
-       default: return 'UNKNOWN';
-     }
-   },
-
-   refreshWarningFlag() {
-     this.hasWarnings = Object.values(this.ai).some(result =>
-       result && ['warning', 'poor'].includes(result.warning_level)
-     );
-
-     this.hasPoorPhotos = Object.values(this.ai).some(result =>
-       result && result.warning_level === 'poor'
-     );
-
-     this.hasAiFailure = this.hasPoorPhotos;
-   },
-
    clearPick(field) {
      this.pickedFiles[field] = null;
      this.previews[field] = null;
      this.isPdfMap[field] = false;
      this.uploadStatuses[field] = '';
-     this.ai[field] = null;
-     this.refreshWarningFlag();
      document.getElementById(`inp_${field}`).value = '';
    },
 
@@ -392,220 +279,114 @@ function gasInCreate() {
      }
    },
 
-   async onPick(field, e) {
-       const file = e.target.files?.[0];
-       if (!file) return;
+   onPick(field, e) {
+     const file = e.target.files?.[0];
+     if (!file) return;
 
-       if (!this.customer || !this.reff) {
-           alert('Silakan isi Reference ID dan cari customer terlebih dahulu sebelum upload foto.');
-           e.target.value = '';
-           return;
-       }
+     if (!this.customer || !this.reff) {
+       alert('Silakan isi Reference ID dan cari customer terlebih dahulu sebelum upload foto.');
+       e.target.value = '';
+       return;
+     }
 
-       this.pickedFiles[field] = file;
-       this.isPdfMap[field] = (file.type === 'application/pdf');
+     this.pickedFiles[field] = file;
+     this.isPdfMap[field] = (file.type === 'application/pdf');
 
-       if (!this.isPdfMap[field]) {
-           const reader = new FileReader();
-           reader.onload = () => this.$nextTick(() => {
-               this.previews[field] = reader.result;
-           });
-           reader.readAsDataURL(file);
-       } else {
-           this.previews[field] = null;
-       }
+     if (!this.isPdfMap[field]) {
+       const reader = new FileReader();
+       reader.onload = () => this.previews[field] = reader.result;
+       reader.readAsDataURL(file);
+     } else {
+       this.previews[field] = null;
+     }
 
-       this.uploadStatuses[field] = 'Menganalisa dengan AI...';
-       this.ai[field] = null;
-
-       if (this.isPdfMap[field]) {
-           this.ai[field] = {
-               passed: true,
-               score: 100,
-               warning_level: 'excellent',
-               reason: 'PDF file - akan diperiksa manual',
-               messages: ['Berkas PDF: memerlukan pemeriksaan manual untuk kelengkapan tanda tangan']
-           };
-           this.refreshWarningFlag();
-           this.uploadStatuses[field] = 'AI: SANGAT BAIK (PDF - Manual Review)';
-           return;
-       }
-
-       const fd = new FormData();
-       fd.append('_token', document.querySelector('input[name=_token]').value);
-       fd.append('slot_type', field);
-       fd.append('file', file);
-
-       try {
-           const res = await fetch(@json(route('gas-in.photos.precheck-generic')), {
-               method: 'POST',
-               headers: {
-                   'Accept': 'application/json',
-                   'X-Requested-With': 'XMLHttpRequest'
-               },
-               body: fd
-           });
-
-           const j = await res.json().catch(() => ({}));
-
-           if (!res.ok) {
-               throw new Error(j?.message || 'Validasi AI gagal');
-           }
-
-           const warningLevel = j.warning_level || this.determineWarningLevel(j.ai?.score || 0);
-
-           this.ai[field] = {
-               passed: !!j.ai?.passed,
-               score: Number(j.ai?.score ?? 0),
-               warning_level: warningLevel,
-               reason: j.ai?.reason || 'Tidak ada keterangan',
-               messages: j.ai?.messages || [j.ai?.reason || 'Validasi selesai'],
-               confidence: j.ai?.confidence || 0,
-               objects: [],
-           };
-
-           const scoreText = this.ai[field].score ? ` (${Math.round(this.ai[field].score)}%)` : '';
-           this.uploadStatuses[field] = `AI: ${this.getWarningText(warningLevel)}${scoreText}`;
-
-           if (j.debug) {
-               console.log('AI Validation Debug:', {
-                   field: field,
-                   prompt: j.debug.prompt_used,
-                   response: j.debug.raw_response,
-                   result: this.ai[field]
-               });
-           }
-
-       } catch (err) {
-           console.error('AI Validation error', err);
-           this.ai[field] = {
-               passed: false,
-               score: 0,
-               warning_level: 'poor',
-               reason: err.message || 'Terjadi kesalahan saat validasi AI',
-               messages: ['Validasi AI gagal: ' + (err.message || 'Unknown error')],
-               confidence: 0,
-               objects: [],
-           };
-           this.uploadStatuses[field] = 'AI: ERROR - ' + (err.message || 'Validasi gagal');
-       } finally {
-           this.refreshWarningFlag();
-       }
-   },
-
-   determineWarningLevel(score) {
-       if (score >= 85) return 'excellent';
-       if (score >= 70) return 'good';
-       if (score >= 50) return 'warning';
-       return 'poor';
+     this.uploadStatuses[field] = 'File siap untuk diupload';
    },
 
    async onSubmit() {
-       if (this.submitting) return;
-       if (!this.customer || !this.reff || !this.tanggal) {
-           alert('Silakan lengkapi data customer dan tanggal gas in.');
-           return;
+     if (this.submitting) return;
+     if (!this.customer || !this.reff || !this.tanggal) {
+       alert('Silakan lengkapi data customer dan tanggal gas in.');
+       return;
+     }
+
+     this.submitting = true;
+
+     try {
+       const formData = new FormData();
+       formData.append('_token', document.querySelector('input[name=_token]').value);
+       formData.append('reff_id_pelanggan', this.reff);
+       formData.append('tanggal_gas_in', this.tanggal);
+       if (this.notes) formData.append('notes', this.notes);
+
+       const response = await fetch(@json(route('gas-in.store')), {
+         method: 'POST',
+         headers: {
+           'Accept': 'application/json',
+           'X-Requested-With': 'XMLHttpRequest'
+         },
+         body: formData
+       });
+
+       const result = await response.json().catch(() => ({}));
+
+       if (!response.ok || !result.success) {
+         throw new Error(result.message || 'Gagal menyimpan Gas In');
        }
 
-       if (this.hasPoorPhotos) {
-           const confirmed = confirm(
-               'Ada foto dengan kualitas yang memerlukan perhatian khusus. ' +
-               'Foto akan tetap diproses dan akan direview oleh tim. Lanjutkan?'
-           );
-           if (!confirmed) return;
-       } else if (this.hasWarnings) {
-           const confirmed = confirm(
-               'Ada beberapa foto yang perlu perhatian. ' +
-               'Foto akan tetap diproses normal. Lanjutkan?'
-           );
-           if (!confirmed) return;
+       const gasInId = result.data?.id;
+       if (!gasInId) {
+         throw new Error('Gas In berhasil dibuat tapi ID tidak ditemukan');
        }
 
-       this.submitting = true;
+       await this.uploadAllPhotos(gasInId);
 
-       try {
-           const formData = new FormData();
-           formData.append('_token', document.querySelector('input[name=_token]').value);
-           formData.append('reff_id_pelanggan', this.reff);
-           formData.append('tanggal_gas_in', this.tanggal);
-           if (this.notes) formData.append('notes', this.notes);
+       window.showToast?.('Gas In berhasil dibuat dan foto diupload!', 'success');
+       window.location.href = @json(route('gas-in.show', ['gasIn' => '__ID__'])).replace('__ID__', gasInId);
 
-           const response = await fetch(@json(route('gas-in.store')), {
-               method: 'POST',
-               headers: {
-                   'Accept': 'application/json',
-                   'X-Requested-With': 'XMLHttpRequest'
-               },
-               body: formData
-           });
-
-           const result = await response.json().catch(() => ({}));
-
-           if (!response.ok || !result.success) {
-               throw new Error(result.message || 'Gagal menyimpan Gas In');
-           }
-
-           const gasInId = result.data?.id;
-           if (!gasInId) {
-               throw new Error('Gas In berhasil dibuat tapi ID tidak ditemukan');
-           }
-
-           await this.uploadAllPhotos(gasInId);
-
-           window.showToast?.('Gas In berhasil dibuat dan foto diupload!', 'success');
-           window.location.href = @json(route('gas-in.show', ['gasIn' => '__ID__'])).replace('__ID__', gasInId);
-
-       } catch (error) {
-           console.error('Submit error:', error);
-           alert('Gagal menyimpan Gas In: ' + (error.message || 'Unknown error'));
-       } finally {
-           this.submitting = false;
-       }
+     } catch (error) {
+       console.error('Submit error:', error);
+       alert('Gagal menyimpan Gas In: ' + (error.message || 'Unknown error'));
+     } finally {
+       this.submitting = false;
+     }
    },
 
    async uploadAllPhotos(gasInId) {
-       const urlTpl = @json(route('gas-in.photos.upload', ['gasIn' => '__ID__']));
-       const url = urlTpl.replace('__ID__', gasInId);
+     const urlTpl = @json(route('gas-in.photos.upload-draft', ['gasIn' => '__ID__']));
+     const url = urlTpl.replace('__ID__', gasInId);
 
-       for (const def of this.photoDefs) {
-           const file = this.pickedFiles[def.field];
-           if (!file) continue;
+     for (const def of this.photoDefs) {
+       const file = this.pickedFiles[def.field];
+       if (!file) continue;
 
-           const fd = new FormData();
-           fd.append('_token', document.querySelector('input[name=_token]').value);
-           fd.append('slot_type', def.field);
-           fd.append('file', file);
+       const fd = new FormData();
+       fd.append('_token', document.querySelector('input[name=_token]').value);
+       fd.append('slot_type', def.field);
+       fd.append('file', file);
 
-           const a = this.ai[def.field];
-           if (a) {
-               fd.append('ai_passed', a.passed ? '1' : '0');
-               if (a.score != null) fd.append('ai_score', a.score);
-               if (a.reason) fd.append('ai_reason', a.reason);
-               (a.messages || []).forEach(v => fd.append('ai_notes[]', v));
-           }
+       try {
+         const res = await fetch(url, {
+           method: 'POST',
+           headers: {
+             'Accept': 'application/json',
+             'X-Requested-With': 'XMLHttpRequest'
+           },
+           body: fd
+         });
 
-           try {
-               const res = await fetch(url, {
-                   method: 'POST',
-                   headers: {
-                       'Accept': 'application/json',
-                       'X-Requested-With': 'XMLHttpRequest'
-                   },
-                   body: fd
-               });
+         const j = await res.json().catch(() => ({}));
+         if (!res.ok || !(j && (j.success === true || j.photo_id))) {
+           throw new Error(j?.message || 'Gagal upload');
+         }
 
-               const j = await res.json().catch(() => ({}));
-               if (!res.ok || !(j && (j.success === true || j.photo_id))) {
-                   throw new Error(j?.message || 'Gagal upload');
-               }
+         this.uploadStatuses[def.field] = '✓ Uploaded';
 
-               this.uploadStatuses[def.field] = '✓ Uploaded';
-
-           } catch (e) {
-               console.error('Upload gagal', def.field, e);
-               this.uploadStatuses[def.field] = '✗ Upload gagal';
-           }
+       } catch (e) {
+         console.error('Upload gagal', def.field, e);
+         this.uploadStatuses[def.field] = '✗ Upload gagal';
        }
+     }
    }
  }
 }

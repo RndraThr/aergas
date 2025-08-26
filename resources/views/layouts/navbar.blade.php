@@ -56,9 +56,12 @@
               </a>
             </div>
             <div class="py-1 border-t">
-              <button onclick="appLogout()" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">
-                <i class="fa-solid fa-arrow-right-from-bracket mr-2"></i> Logout
-              </button>
+            <form method="POST" action="{{ route('logout') }}" class="w-full">
+                @csrf
+                <button type="submit" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">
+                    <i class="fa-solid fa-arrow-right-from-bracket mr-2"></i> Logout
+                </button>
+            </form>
             </div>
           </div>
         </div>

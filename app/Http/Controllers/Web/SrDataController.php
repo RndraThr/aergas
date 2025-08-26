@@ -238,6 +238,48 @@ class SrDataController extends Controller
         }
     }
 
+    public function uploadDraft(Request $r, SrData $sr)
+    {
+        $v = Validator::make($r->all(), [
+            'file' => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:10240'],
+            'slot_type' => ['required','string','max:100'],
+        ]);
+
+        if ($v->fails()) {
+            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+        }
+
+        $slotParam = $r->input('slot_type');
+        $slotSlug = Str::slug($slotParam, '_');
+        $ext = strtolower($r->file('file')->getClientOriginalExtension() ?: $r->file('file')->extension());
+        $ts = now()->format('Ymd_His');
+        $targetName = "{$sr->reff_id_pelanggan}_{$slotSlug}_{$ts}.{$ext}";
+
+        $svc = $this->photoSvc ?? app(PhotoApprovalService::class);
+
+        $meta = [];
+        if ($sr->calonPelanggan) {
+            $meta['customer_name'] = $sr->calonPelanggan->nama_pelanggan;
+        }
+
+        $res = $svc->uploadDraftOnly(
+            module: 'SR',
+            reffId: $sr->reff_id_pelanggan,
+            slotIncoming: $slotParam,
+            file: $r->file('file'),
+            uploadedBy: Auth::id(),
+            targetFileName: $targetName,
+            meta: $meta
+        );
+
+        return response()->json([
+            'success' => true,
+            'photo_id' => $res['photo_id'] ?? null,
+            'filename' => $targetName,
+            'message' => 'Upload berhasil tersimpan sebagai draft'
+        ], 201);
+    }
+
     public function uploadAndValidate(Request $r, SrData $sr)
     {
         $v = Validator::make($r->all(), [

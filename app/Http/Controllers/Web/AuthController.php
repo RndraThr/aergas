@@ -80,21 +80,30 @@ class AuthController extends Controller
             $remember = $request->boolean('remember', false);
 
             if (Auth::attempt($credentials, $remember)) {
-                // Regenerate session for security
                 $request->session()->regenerate();
 
-                // Update last login
-                $user->update(['last_login' => now()]);
+                // CEK DULU sebelum update last_login
+                $isFirstLogin = $user->last_login === null;
 
-                // Log successful login
-                Log::info('User logged in', [
+                // DEBUG: Log untuk troubleshooting
+                Log::info('Login debug', [
                     'user_id' => $user->id,
                     'username' => $user->username,
                     'role' => $user->role,
-                    'ip' => $request->ip(),
-                    'user_agent' => $request->userAgent()
+                    'last_login_before' => $user->last_login,
+                    'is_first_login' => $isFirstLogin,
                 ]);
 
+                // BARU update last_login
+                $user->update(['last_login' => now()]);
+
+                // DEBUG: Log redirect URL
+                $redirectUrl = $this->getRedirectUrl($user->role, $isFirstLogin);
+                Log::info('Redirect URL', [
+                    'url' => $redirectUrl,
+                    'role' => $user->role,
+                    'is_first_login' => $isFirstLogin
+                ]);
                 return response()->json([
                     'success' => true,
                     'message' => 'Login berhasil',
@@ -105,9 +114,10 @@ class AuthController extends Controller
                         'email' => $user->email,
                         'role' => $user->role,
                         'full_name' => $user->full_name,
-                        'last_login' => $user->last_login
+                        'last_login' => $user->last_login,
+                        'redirect' => $redirectUrl
                     ],
-                    'redirect' => $this->getRedirectUrl($user->role)
+                    'redirect' => $this->getRedirectUrl($user->role, $isFirstLogin) // Pass flag
                 ]);
             }
 
@@ -183,13 +193,7 @@ class AuthController extends Controller
         }
     }
 
-    /**
-     * Log the user out (Invalidate the session).
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function logout(Request $request): JsonResponse
+    public function logout(Request $request)
     {
         try {
             $user = Auth::user();
@@ -206,16 +210,20 @@ class AuthController extends Controller
 
             // Logout user
             Auth::logout();
-
-            // Invalidate session
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Logout berhasil',
-                'redirect' => '/login'
-            ]);
+            // Check if AJAX request
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Logout berhasil',
+                    'redirect' => '/login'
+                ]);
+            }
+
+            // Direct redirect for non-AJAX
+            return redirect('/login')->with('success', 'Logout berhasil');
 
         } catch (\Exception $e) {
             Log::error('Logout error', [
@@ -223,10 +231,14 @@ class AuthController extends Controller
                 'user_id' => Auth::id()
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat logout'
-            ], 500);
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat logout'
+                ], 500);
+            }
+
+            return redirect('/login')->with('error', 'Terjadi kesalahan saat logout');
         }
     }
 
@@ -238,16 +250,12 @@ class AuthController extends Controller
     public function check(): JsonResponse
     {
         return response()->json([
+            'success' => true,
             'authenticated' => Auth::check(),
-            'user' => Auth::user()
+            'user' => Auth::check() ? Auth::user() : null
         ]);
     }
 
-    /**
-     * Show login form
-     *
-     * @return \Illuminate\View\View
-     */
     public function showLoginForm()
     {
         // If already logged in, redirect to dashboard
@@ -264,15 +272,29 @@ class AuthController extends Controller
      * @param string $role
      * @return string
      */
-    private function getRedirectUrl(string $role): string
+    // private function getRedirectUrl(string $role): string
+    // {
+    //     return match($role) {
+    //         'super_admin', 'admin' => '/dashboard',
+    //         'tracer' => '/dashboard',
+    //         'sk' => '/sk',
+    //         'sr' => '/sr',
+    //         'mgrt' => '/mgrt',
+    //         'gas_in' => '/gas-in',
+    //         'pic' => '/dashboard',
+    //         default => '/dashboard'
+    //     };
+    // }
+
+    private function getRedirectUrl(string $role, bool $isFirstLogin = false): string
     {
+        // Untuk role tertentu, selalu arahkan ke create
         return match($role) {
+            'sk' => '/sk/create',
+            'sr' => '/sr/create',
+            'gas_in' => '/gas-in/create',
             'super_admin', 'admin' => '/dashboard',
             'tracer' => '/dashboard',
-            'sk' => '/sk',
-            'sr' => '/sr',
-            'mgrt' => '/mgrt',
-            'gas_in' => '/gas-in',
             'pic' => '/dashboard',
             default => '/dashboard'
         };

@@ -192,6 +192,108 @@ class PhotoApprovalService
         ];
     }
 
+    public function uploadDraftOnly(
+        string $module,
+        string $reffId,
+        string $slotIncoming,
+        UploadedFile $file,
+        int $uploadedBy,
+        ?string $targetFileName = null,
+        array $meta = []
+    ): array {
+        $moduleKey = strtoupper($module);
+        $moduleSlug = strtolower($moduleKey);
+
+        $cfg = (array) config('aergas_photos', []);
+        $aliases = (array) ($cfg['aliases'][$moduleKey] ?? []);
+        $slotKey = $aliases[$slotIncoming] ?? $slotIncoming;
+
+        $slotCfg = $cfg['modules'][$moduleKey]['slots'][$slotKey] ?? null;
+        if (!$slotCfg) {
+            return ['success' => false, 'message' => "Slot tidak dikenal: {$slotIncoming} → {$slotKey}"];
+        }
+
+        $replaceSameSlot = (bool) ($cfg['modules'][$moduleKey]['replace_same_slot'] ?? true);
+        $uploader = $this->uploader ?? app(FileUploadService::class);
+
+        if ($replaceSameSlot) {
+            try {
+                $uploader->deleteExistingPhoto($reffId, $moduleKey, $slotKey);
+            } catch (\Throwable $e) {
+                Log::info('deleteExistingPhoto non-fatal', ['err' => $e->getMessage()]);
+            }
+        }
+
+        $customerName = $meta['customer_name'] ?? $this->getCustomerName($reffId);
+        $up = $uploader->uploadPhoto(
+            file: $file,
+            reffId: $reffId,
+            module: $moduleKey,
+            fieldName: $slotKey,
+            uploadedBy: $uploadedBy,
+            customerName: $customerName,
+            options: ['target_name' => $targetFileName]
+        );
+
+        if (!$up || empty($up['url'])) {
+            return ['success' => false, 'message' => 'Upload gagal'];
+        }
+
+        $pa = PhotoApproval::updateOrCreate(
+            [
+                'reff_id_pelanggan' => $reffId,
+                'module_name' => $moduleSlug,
+                'photo_field_name' => $slotKey,
+            ],
+            [
+                'photo_url' => $up['url'] ?? '',
+                'storage_disk' => $up['disk'] ?? config('filesystems.default', 'public'),
+                'storage_path' => $up['path'] ?? '',
+                'drive_file_id' => $up['drive_file_id'] ?? null,
+                'drive_link' => $up['drive_link'] ?? null,
+                'uploaded_by' => $uploadedBy,
+                'uploaded_at' => now(),
+                'ai_status' => 'pending',
+                'photo_status' => 'draft',
+                'ai_score' => null,
+                'ai_checks' => null,
+                'ai_notes' => null,
+                'ai_last_checked_at' => null,
+                'rejection_reason' => null,
+            ]
+        );
+
+        if (!empty($up['file_storage_id'])) {
+            try {
+                $fs = \App\Models\FileStorage::find($up['file_storage_id']);
+                if ($fs) {
+                    $fs->ai_status = 'pending';
+                    $fs->save();
+                }
+            } catch (\Throwable $e) {
+                Log::warning('file_storage update ai_status failed: '.$e->getMessage());
+            }
+        }
+
+        $this->createAuditLog($uploadedBy, 'draft_uploaded', 'PhotoApproval', $pa->id, $reffId, [
+            'module' => $moduleKey,
+            'slot' => $slotKey,
+            'status' => 'draft',
+            'filename' => $targetFileName,
+        ]);
+
+        return [
+            'success' => true,
+            'photo_id' => $pa->id,
+            'url' => $up['url'] ?? '',
+            'disk' => $up['disk'] ?? null,
+            'path' => $up['path'] ?? null,
+            'drive_file_id' => $up['drive_file_id'] ?? null,
+            'drive_link' => $up['drive_link'] ?? null,
+            'filename' => $targetFileName,
+        ];
+    }
+
     /* =============================================
      |    APPROVAL FLOW (TRACER & CGP) – tetap
      * ===========================================*/

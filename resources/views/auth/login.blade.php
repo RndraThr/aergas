@@ -497,10 +497,8 @@
     </div>
 
     <script>
-        // CSRF Token Setup
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-        // Password Toggle
         const togglePassword = document.getElementById('togglePassword');
         const passwordField = document.getElementById('password');
         const toggleIcon = togglePassword.querySelector('i');
@@ -518,7 +516,6 @@
             }
         });
 
-        // Form Submission
         const loginForm = document.getElementById('loginForm');
         const loginBtn = document.getElementById('loginBtn');
         const errorMessage = document.getElementById('errorMessage');
@@ -526,7 +523,6 @@
         loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            // Show loading state
             loginBtn.classList.add('loading');
             hideError();
 
@@ -551,11 +547,10 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // Show success and redirect
                     showSuccess('Login successful! Redirecting...');
 
                     setTimeout(() => {
-                        window.location.href = '{{ route("dashboard") }}';
+                        window.location.href = result.redirect || '/dashboard';
                     }, 1500);
                 } else {
                     showError(result.message || 'Login failed. Please try again.');
@@ -586,12 +581,10 @@
             errorMessage.style.display = 'block';
         }
 
-        // Auto-focus on first input
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('username').focus();
         });
 
-        // Input animations
         const inputs = document.querySelectorAll('.form-input');
         inputs.forEach(input => {
             input.addEventListener('focus', function() {
@@ -605,16 +598,13 @@
             });
         });
 
-        // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && e.ctrlKey) {
                 loginForm.dispatchEvent(new Event('submit'));
             }
         });
 
-        // Check if already logged in
         window.addEventListener('load', function() {
-            // Check authentication via Laravel session
             fetch('{{ route("auth.check") }}', {
                 headers: {
                     'Accept': 'application/json',
@@ -623,14 +613,36 @@
             })
             .then(response => response.json())
             .then(result => {
-                if (result.success && result.authenticated) {
-                    window.location.href = '{{ route("dashboard") }}';
+                if (result.success && result.authenticated && result.user) {
+                    const role = result.user.role;
+                    let redirectUrl = '/dashboard';
+
+                    switch(role) {
+                        case 'sk':
+                            redirectUrl = '/sk/create';
+                            break;
+                        case 'sr':
+                            redirectUrl = '/sr/create';
+                            break;
+                        case 'gas_in':
+                            redirectUrl = '/gas-in/create';
+                            break;
+                        case 'super_admin':
+                        case 'admin':
+                        case 'tracer':
+                        case 'pic':
+                        default:
+                            redirectUrl = '/dashboard';
+                            break;
+                    }
+
+                    window.location.href = redirectUrl;
                 }
             })
             .catch(() => {
-                // Continue with login page
+
             });
         });
-    </script>
+        </script>
 </body>
 </html>

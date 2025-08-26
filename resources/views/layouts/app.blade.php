@@ -407,6 +407,24 @@
         // CSRF Token setup for AJAX requests
         window.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     </script>
+    <script>
+        function appLogout() {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route("logout") }}';
+
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = '{{ csrf_token() }}';
+
+            form.appendChild(csrfToken);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
+
+
 
     @stack('scripts')
 </body>
