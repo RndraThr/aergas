@@ -6,6 +6,7 @@ use Google\Client as GoogleClient;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use App\Services\NotificationService;
 
 class KeepGoogleTokenAliveCommand extends Command
 {
@@ -20,35 +21,70 @@ class KeepGoogleTokenAliveCommand extends Command
             $client->setClientSecret(config('services.google_drive.client_secret'));
 
             $refreshToken = config('services.google_drive.refresh_token');
-
             if (!$refreshToken) {
                 $this->error('No refresh token configured');
                 return 1;
             }
 
-            // Refresh the token
+            // Coba refresh token
             $accessToken = $client->fetchAccessTokenWithRefreshToken($refreshToken);
 
             if (isset($accessToken['error'])) {
-                $this->error('Token refresh failed: ' . $accessToken['error']);
+                // Log error dan kirim notifikasi
                 Log::error('Google Drive token refresh failed', $accessToken);
 
-                // Send notification to admin (implementasikan sesuai kebutuhan)
-                // $this->notifyAdmin('Google Drive token expired');
+                // Kirim notifikasi ke admin
+                $this->notifyAdminTokenExpired($accessToken);
 
                 return 1;
             }
 
-            $this->info('Token refreshed successfully');
-            Log::info('Google Drive token kept alive successfully');
+            // Jika ada refresh token baru, update .env
+            if (isset($accessToken['refresh_token'])) {
+                $this->updateRefreshTokenInEnv($accessToken['refresh_token']);
+            }
 
+            Log::info('Google Drive token refreshed successfully');
             return 0;
 
         } catch (Exception $e) {
-            $this->error('Keep alive failed: ' . $e->getMessage());
             Log::error('Google Drive keep alive failed', ['error' => $e->getMessage()]);
 
+            // Notifikasi admin
+            $this->notifyAdminTokenExpired(['error' => $e->getMessage()]);
+
             return 1;
+        }
+    }
+
+    private function updateRefreshTokenInEnv(string $newToken)
+    {
+        $envFile = base_path('.env');
+        $envContent = file_get_contents($envFile);
+
+        $pattern = '/^GOOGLE_DRIVE_REFRESH_TOKEN=.*/m';
+        $replacement = 'GOOGLE_DRIVE_REFRESH_TOKEN=' . $newToken;
+
+        $newContent = preg_replace($pattern, $replacement, $envContent);
+        file_put_contents($envFile, $newContent);
+
+        Log::info('Google Drive refresh token updated in .env');
+    }
+
+    private function notifyAdminTokenExpired(array $error)
+    {
+        // Kirim notifikasi ke admin
+        try {
+            app(NotificationService::class)->createNotification([
+                'user_id' => 1, // admin user ID
+                'type' => 'system_alert',
+                'title' => 'Google Drive Token Expired',
+                'message' => 'Google Drive refresh token expired. Manual renewal required.',
+                'priority' => 'urgent',
+                'data' => $error
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to send token expiry notification', ['error' => $e->getMessage()]);
         }
     }
 }

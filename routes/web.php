@@ -10,9 +10,10 @@ use App\Http\Controllers\Web\{
    SrDataController,
    PhotoApprovalController,
    NotificationController,
-   GudangController,
    ImportController,
    GasInDataController,
+   JalurPipaDataController,
+   PenyambunganPipaDataController,
    AdminController
 };
 
@@ -22,6 +23,7 @@ Route::get('/', function () {
 
 Route::pattern('id', '[0-9]+');
 Route::get('/auth/check', [AuthController::class, 'check'])->name('auth.check');
+
 Route::middleware('guest')->group(function () {
    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
    Route::post('/login', [AuthController::class, 'login'])->name('login.post');
@@ -39,23 +41,25 @@ Route::middleware('auth')->group(function () {
    Route::get('/dashboard/installation-trend', [DashboardController::class, 'getInstallationTrend'])->name('dashboard.installation-trend');
    Route::get('/dashboard/activity-metrics', [DashboardController::class, 'getActivityMetrics'])->name('dashboard.activity-metrics');
 
-Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
-    Route::get('/users', [AdminController::class, 'usersIndex'])->name('users');
+   // Admin Routes
+   Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->group(function () {
+       Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+       Route::get('/users', [AdminController::class, 'usersIndex'])->name('users');
 
-    Route::prefix('api')->name('api.')->group(function () {
-        Route::get('/users', [AdminController::class, 'getUsers'])->name('users');
-        Route::post('/users', [AdminController::class, 'createUser'])->name('users.create');
-        Route::get('/users/{id}', [AdminController::class, 'getUser'])->whereNumber('id')->name('users.show');
-        Route::put('/users/{id}', [AdminController::class, 'updateUser'])->whereNumber('id')->name('users.update');
-        Route::patch('/users/{id}/toggle', [AdminController::class, 'toggleUserStatus'])->whereNumber('id')->name('users.toggle');
-        Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->whereNumber('id')->name('users.delete');
-        Route::get('/system-stats', [AdminController::class, 'getSystemStats'])->name('system-stats');
-        Route::get('/test-integrations', [AdminController::class, 'testIntegrations'])->name('test-integrations');
-        Route::get('/google-drive-stats', [AdminController::class, 'getGoogleDriveStats'])->name('google-drive-stats');
-    });
-});
+       Route::prefix('api')->name('api.')->group(function () {
+           Route::get('/users', [AdminController::class, 'getUsers'])->name('users');
+           Route::post('/users', [AdminController::class, 'createUser'])->name('users.create');
+           Route::get('/users/{id}', [AdminController::class, 'getUser'])->whereNumber('id')->name('users.show');
+           Route::put('/users/{id}', [AdminController::class, 'updateUser'])->whereNumber('id')->name('users.update');
+           Route::patch('/users/{id}/toggle', [AdminController::class, 'toggleUserStatus'])->whereNumber('id')->name('users.toggle');
+           Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->whereNumber('id')->name('users.delete');
+           Route::get('/system-stats', [AdminController::class, 'getSystemStats'])->name('system-stats');
+           Route::get('/test-integrations', [AdminController::class, 'testIntegrations'])->name('test-integrations');
+           Route::get('/google-drive-stats', [AdminController::class, 'getGoogleDriveStats'])->name('google-drive-stats');
+       });
+   });
 
+   // Customer Routes
    Route::prefix('customers')->name('customers.')->group(function () {
        Route::get('/', [CalonPelangganController::class, 'index'])->name('index');
        Route::get('/stats/json', [CalonPelangganController::class, 'getStats'])->name('stats');
@@ -74,6 +78,7 @@ Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->
        });
    });
 
+   // SK Module Routes
    Route::prefix('sk')->name('sk.')->middleware('role:sk,tracer,admin,super_admin')->group(function () {
        Route::get('/', [SkDataController::class, 'index'])->name('index');
        Route::get('/create', [SkDataController::class, 'create'])->name('create');
@@ -83,12 +88,13 @@ Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->
        Route::put('/{sk}', [SkDataController::class, 'update'])->whereNumber('sk')->name('update');
        Route::delete('/{sk}', [SkDataController::class, 'destroy'])->whereNumber('sk')->name('destroy');
 
+       // Photo Management
        Route::post('/photos/precheck-generic', [SkDataController::class, 'precheckGeneric'])->name('photos.precheck-generic');
        Route::post('/{sk}/photos', [SkDataController::class, 'uploadAndValidate'])->whereNumber('sk')->name('photos.upload');
+       Route::post('/{sk}/photos/draft', [SkDataController::class, 'uploadDraft'])->whereNumber('sk')->name('photos.upload-draft');
        Route::get('/{sk}/ready-status', [SkDataController::class, 'readyStatus'])->whereNumber('sk')->name('ready-status');
 
-       Route::post('/{sk}/photos/draft', [SkDataController::class, 'uploadDraft'])->whereNumber('sk')->name('photos.upload-draft');
-
+       // Workflow Actions
        Route::post('/{sk}/approve-tracer', [SkDataController::class, 'approveTracer'])->whereNumber('sk')->name('approve-tracer');
        Route::post('/{sk}/reject-tracer', [SkDataController::class, 'rejectTracer'])->whereNumber('sk')->name('reject-tracer');
        Route::post('/{sk}/approve-cgp', [SkDataController::class, 'approveCgp'])->whereNumber('sk')->name('approve-cgp');
@@ -96,10 +102,12 @@ Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->
        Route::post('/{sk}/schedule', [SkDataController::class, 'schedule'])->whereNumber('sk')->name('schedule');
        Route::post('/{sk}/complete', [SkDataController::class, 'complete'])->whereNumber('sk')->name('complete');
 
+       // Find by Reference ID
        Route::get('/by-reff/{reffId}', [SkDataController::class, 'redirectByReff'])
            ->where('reffId', '[A-Za-z0-9\-]+')->name('by-reff');
    });
 
+   // SR Module Routes
    Route::prefix('sr')->name('sr.')->middleware('role:sr,tracer,admin,super_admin')->group(function () {
        Route::get('/', [SrDataController::class, 'index'])->name('index');
        Route::get('/create', [SrDataController::class, 'create'])->name('create');
@@ -109,12 +117,13 @@ Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->
        Route::put('/{sr}', [SrDataController::class, 'update'])->whereNumber('sr')->name('update');
        Route::delete('/{sr}', [SrDataController::class, 'destroy'])->whereNumber('sr')->name('destroy');
 
+       // Photo Management - DIPERBAIKI: gunakan SrDataController
        Route::post('/photos/precheck-generic', [SrDataController::class, 'precheckGeneric'])->name('photos.precheck-generic');
        Route::post('/{sr}/photos', [SrDataController::class, 'uploadAndValidate'])->whereNumber('sr')->name('photos.upload');
+       Route::post('/{sr}/photos/draft', [SrDataController::class, 'uploadDraft'])->whereNumber('sr')->name('photos.upload-draft');
        Route::get('/{sr}/ready-status', [SrDataController::class, 'readyStatus'])->whereNumber('sr')->name('ready-status');
 
-       Route::post('/{sr}/photos/draft', [SkDataController::class, 'uploadDraft'])->whereNumber('sr')->name('photos.upload-draft');
-
+       // Workflow Actions
        Route::post('/{sr}/approve-tracer', [SrDataController::class, 'approveTracer'])->whereNumber('sr')->name('approve-tracer');
        Route::post('/{sr}/reject-tracer', [SrDataController::class, 'rejectTracer'])->whereNumber('sr')->name('reject-tracer');
        Route::post('/{sr}/approve-cgp', [SrDataController::class, 'approveCgp'])->whereNumber('sr')->name('approve-cgp');
@@ -122,10 +131,12 @@ Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->
        Route::post('/{sr}/schedule', [SrDataController::class, 'schedule'])->whereNumber('sr')->name('schedule');
        Route::post('/{sr}/complete', [SrDataController::class, 'complete'])->whereNumber('sr')->name('complete');
 
+       // Find by Reference ID
        Route::get('/by-reff/{reffId}', [SrDataController::class, 'redirectByReff'])
            ->where('reffId', '[A-Za-z0-9\-]+')->name('by-reff');
    });
 
+   // Gas In Module Routes
    Route::prefix('gas-in')->name('gas-in.')->middleware('role:gas_in,tracer,admin,super_admin')->group(function () {
        Route::get('/', [GasInDataController::class, 'index'])->name('index');
        Route::get('/create', [GasInDataController::class, 'create'])->name('create');
@@ -135,11 +146,13 @@ Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->
        Route::put('/{gasIn}', [GasInDataController::class, 'update'])->whereNumber('gasIn')->name('update');
        Route::delete('/{gasIn}', [GasInDataController::class, 'destroy'])->whereNumber('gasIn')->name('destroy');
 
+       // Photo Management - DIPERBAIKI: gunakan GasInDataController
        Route::post('/photos/precheck-generic', [GasInDataController::class, 'precheckGeneric'])->name('photos.precheck-generic');
        Route::post('/{gasIn}/photos', [GasInDataController::class, 'uploadAndValidate'])->whereNumber('gasIn')->name('photos.upload');
+       Route::post('/{gasIn}/photos/draft', [GasInDataController::class, 'uploadDraft'])->whereNumber('gasIn')->name('photos.upload-draft');
        Route::get('/{gasIn}/ready-status', [GasInDataController::class, 'readyStatus'])->whereNumber('gasIn')->name('ready-status');
 
-       Route::post('/{gasIn}/photos/draft', [SkDataController::class, 'uploadDraft'])->whereNumber('gasIn')->name('photos.upload-draft');
+       // Workflow Actions
        Route::post('/{gasIn}/approve-tracer', [GasInDataController::class, 'approveTracer'])->whereNumber('gasIn')->name('approve-tracer');
        Route::post('/{gasIn}/reject-tracer', [GasInDataController::class, 'rejectTracer'])->whereNumber('gasIn')->name('reject-tracer');
        Route::post('/{gasIn}/approve-cgp', [GasInDataController::class, 'approveCgp'])->whereNumber('gasIn')->name('approve-cgp');
@@ -147,18 +160,77 @@ Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->
        Route::post('/{gasIn}/schedule', [GasInDataController::class, 'schedule'])->whereNumber('gasIn')->name('schedule');
        Route::post('/{gasIn}/complete', [GasInDataController::class, 'complete'])->whereNumber('gasIn')->name('complete');
 
+       // Find by Reference ID
        Route::get('/by-reff/{reffId}', [GasInDataController::class, 'redirectByReff'])
            ->where('reffId', '[A-Za-z0-9\-]+')->name('by-reff');
    });
 
+   // Jalur Pipa Module Routes - BARU DITAMBAHKAN
+//    Route::prefix('jalur-pipa')->name('jalur-pipa.')->middleware('role:jalur_pipa,tracer,admin,super_admin')->group(function () {
+//        Route::get('/', [JalurPipaDataController::class, 'index'])->name('index');
+//        Route::get('/create', [JalurPipaDataController::class, 'create'])->name('create');
+//        Route::post('/', [JalurPipaDataController::class, 'store'])->name('store');
+//        Route::get('/{jalurPipa}', [JalurPipaDataController::class, 'show'])->whereNumber('jalurPipa')->name('show');
+//        Route::get('/{jalurPipa}/edit', [JalurPipaDataController::class, 'edit'])->whereNumber('jalurPipa')->name('edit');
+//        Route::put('/{jalurPipa}', [JalurPipaDataController::class, 'update'])->whereNumber('jalurPipa')->name('update');
+//        Route::delete('/{jalurPipa}', [JalurPipaDataController::class, 'destroy'])->whereNumber('jalurPipa')->name('destroy');
+
+//        // Photo Management
+//        Route::post('/photos/precheck-generic', [JalurPipaDataController::class, 'precheckGeneric'])->name('photos.precheck-generic');
+//        Route::post('/{jalurPipa}/photos', [JalurPipaDataController::class, 'uploadAndValidate'])->whereNumber('jalurPipa')->name('photos.upload');
+//        Route::post('/{jalurPipa}/photos/draft', [JalurPipaDataController::class, 'uploadDraft'])->whereNumber('jalurPipa')->name('photos.upload-draft');
+//        Route::get('/{jalurPipa}/ready-status', [JalurPipaDataController::class, 'readyStatus'])->whereNumber('jalurPipa')->name('ready-status');
+
+//        // Workflow Actions
+//        Route::post('/{jalurPipa}/approve-tracer', [JalurPipaDataController::class, 'approveTracer'])->whereNumber('jalurPipa')->name('approve-tracer');
+//        Route::post('/{jalurPipa}/reject-tracer', [JalurPipaDataController::class, 'rejectTracer'])->whereNumber('jalurPipa')->name('reject-tracer');
+//        Route::post('/{jalurPipa}/approve-cgp', [JalurPipaDataController::class, 'approveCgp'])->whereNumber('jalurPipa')->name('approve-cgp');
+//        Route::post('/{jalurPipa}/reject-cgp', [JalurPipaDataController::class, 'rejectCgp'])->whereNumber('jalurPipa')->name('reject-cgp');
+//        Route::post('/{jalurPipa}/schedule', [JalurPipaDataController::class, 'schedule'])->whereNumber('jalurPipa')->name('schedule');
+//        Route::post('/{jalurPipa}/complete', [JalurPipaDataController::class, 'complete'])->whereNumber('jalurPipa')->name('complete');
+
+//        // Find by Reference ID
+//        Route::get('/by-reff/{reffId}', [JalurPipaDataController::class, 'redirectByReff'])
+//            ->where('reffId', '[A-Za-z0-9\-]+')->name('by-reff');
+//    });
+
+//    // Penyambungan Module Routes - BARU DITAMBAHKAN
+//    Route::prefix('penyambungan')->name('penyambungan.')->middleware('role:penyambungan,tracer,admin,super_admin')->group(function () {
+//        Route::get('/', [PenyambunganPipaDataController::class, 'index'])->name('index');
+//        Route::get('/create', [PenyambunganPipaDataController::class, 'create'])->name('create');
+//        Route::post('/', [PenyambunganPipaDataController::class, 'store'])->name('store');
+//        Route::get('/{penyambungan}', [PenyambunganPipaDataController::class, 'show'])->whereNumber('penyambungan')->name('show');
+//        Route::get('/{penyambungan}/edit', [PenyambunganPipaDataController::class, 'edit'])->whereNumber('penyambungan')->name('edit');
+//        Route::put('/{penyambungan}', [PenyambunganPipaDataController::class, 'update'])->whereNumber('penyambungan')->name('update');
+//        Route::delete('/{penyambungan}', [PenyambunganPipaDataController::class, 'destroy'])->whereNumber('penyambungan')->name('destroy');
+
+//        // Photo Management
+//        Route::post('/photos/precheck-generic', [PenyambunganPipaDataController::class, 'precheckGeneric'])->name('photos.precheck-generic');
+//        Route::post('/{penyambungan}/photos', [PenyambunganPipaDataController::class, 'uploadAndValidate'])->whereNumber('penyambungan')->name('photos.upload');
+//        Route::post('/{penyambungan}/photos/draft', [PenyambunganPipaDataController::class, 'uploadDraft'])->whereNumber('penyambungan')->name('photos.upload-draft');
+//        Route::get('/{penyambungan}/ready-status', [PenyambunganPipaDataController::class, 'readyStatus'])->whereNumber('penyambungan')->name('ready-status');
+
+//        // Workflow Actions
+//        Route::post('/{penyambungan}/approve-tracer', [PenyambunganPipaDataController::class, 'approveTracer'])->whereNumber('penyambungan')->name('approve-tracer');
+//        Route::post('/{penyambungan}/reject-tracer', [PenyambunganPipaDataController::class, 'rejectTracer'])->whereNumber('penyambungan')->name('reject-tracer');
+//        Route::post('/{penyambungan}/approve-cgp', [PenyambunganPipaDataController::class, 'approveCgp'])->whereNumber('penyambungan')->name('approve-cgp');
+//        Route::post('/{penyambungan}/reject-cgp', [PenyambunganPipaDataController::class, 'rejectCgp'])->whereNumber('penyambungan')->name('reject-cgp');
+//        Route::post('/{penyambungan}/schedule', [PenyambunganPipaDataController::class, 'schedule'])->whereNumber('penyambungan')->name('schedule');
+//        Route::post('/{penyambungan}/complete', [PenyambunganPipaDataController::class, 'complete'])->whereNumber('penyambungan')->name('complete');
+
+//        // Find by Reference ID
+//        Route::get('/by-reff/{reffId}', [PenyambunganPipaDataController::class, 'redirectByReff'])
+//            ->where('reffId', '[A-Za-z0-9\-]+')->name('by-reff');
+//    });
+
+   // Photo Approval Management Routes
    Route::prefix('photo-approvals')->name('photos.')->middleware('role:tracer,admin,super_admin')->group(function () {
        Route::get('/', [PhotoApprovalController::class, 'index'])->name('index');
        Route::get('/stats', [PhotoApprovalController::class, 'getStats'])->name('stats');
        Route::get('/pending', [PhotoApprovalController::class, 'getPendingApprovals'])->name('pending');
-       Route::get('/report/summary', [PhotoApprovalController::class, 'getSummaryReport'])->name('summary');
-       Route::get('/export/excel', [PhotoApprovalController::class, 'exportToExcel'])->name('export');
        Route::get('/{id}', [PhotoApprovalController::class, 'show'])->whereNumber('id')->name('show');
 
+       // Approval Actions
        Route::post('/{id}/tracer/approve', [PhotoApprovalController::class, 'approveByTracer'])->whereNumber('id')->name('tracer.approve');
        Route::post('/{id}/tracer/reject', [PhotoApprovalController::class, 'rejectByTracer'])->whereNumber('id')->name('tracer.reject');
        Route::post('/{id}/cgp/approve', [PhotoApprovalController::class, 'approveByCgp'])->whereNumber('id')->name('cgp.approve');
@@ -166,6 +238,7 @@ Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->
        Route::post('/batch', [PhotoApprovalController::class, 'batchApprove'])->name('batch');
    });
 
+   // Notification Routes
    Route::prefix('notifications')->name('notifications.')->group(function () {
        Route::get('/', [NotificationController::class, 'index'])->name('index');
        Route::get('/types', [NotificationController::class, 'getNotificationTypes'])->name('types');
@@ -175,18 +248,23 @@ Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->
        Route::post('/read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
        Route::delete('/{id}', [NotificationController::class, 'destroy'])->whereNumber('id')->name('destroy');
        Route::post('/bulk-delete', [NotificationController::class, 'bulkDelete'])->name('bulk-delete');
-       Route::post('/mark-type', [NotificationController::class, 'markAsReadByType'])->name('mark-type');
-       Route::post('/test', [NotificationController::class, 'createTestNotification'])->name('test');
+       Route::post('/bulk-mark-read', [NotificationController::class, 'bulkMarkAsRead'])->name('bulk-mark-read');
+
+       // Development only
+       Route::post('/test', [NotificationController::class, 'createTestNotification'])
+           ->name('test')
+           ->middleware('env:local,development');
    });
 
+   // Import/Export Routes
    Route::prefix('imports')->name('imports.')->middleware('role:admin,super_admin,tracer')->group(function () {
        Route::get('/calon-pelanggan', [ImportController::class, 'formCalonPelanggan'])->name('calon-pelanggan.form');
-       Route::get('/calon-pelanggan/template', [ImportController::class, 'downloadTemplateCalonPelanggan'])->name('calon-pelanggan.template');
        Route::post('/calon-pelanggan', [ImportController::class, 'importCalonPelanggan'])->name('calon-pelanggan.import');
        Route::get('/report', [ImportController::class, 'downloadReport'])->name('report.download');
    });
 });
 
+// Development Routes
 if (app()->environment(['local', 'development'])) {
    Route::get('/test-auth', function () {
        return response()->json([

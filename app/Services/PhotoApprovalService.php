@@ -858,8 +858,7 @@ class PhotoApprovalService
 
             $next = [
                 'sk' => 'sr',
-                'sr' => 'mgrt',
-                'mgrt' => 'gas_in',
+                'sr' => 'gas_in',
                 'gas_in' => 'jalur_pipa',
                 'jalur_pipa' => 'penyambungan',
                 'penyambungan' => 'done',

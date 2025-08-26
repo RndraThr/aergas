@@ -27,7 +27,7 @@ class NotificationController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('auth'),
-            new Middleware('role:super_admin,admin,sk,sr,gas_in,validasi,tracer,mgrt,pic'),
+            new Middleware('role:super_admin,admin,sk,sr,gas_in,validasi,tracer,pic'),
         ];
     }
 

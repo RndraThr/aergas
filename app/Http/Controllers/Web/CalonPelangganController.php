@@ -119,8 +119,7 @@ class CalonPelangganController extends Controller
     {
         try {
             $customer = CalonPelanggan::with([
-                'skData.photoApprovals', 'srData.photoApprovals',
-                'mgrtData.photoApprovals', 'gasInData.photoApprovals',
+                'skData.photoApprovals', 'srData.photoApprovals','gasInData.photoApprovals',
                 'jalurPipaData.photoApprovals', 'penyambunganPipaData.photoApprovals',
                 'baBatalData', 'photoApprovals.tracerUser', 'photoApprovals.cgpUser',
                 'auditLogs.user'
@@ -173,7 +172,7 @@ class CalonPelangganController extends Controller
             'jenis_pelanggan'  => 'nullable|in:residensial,komersial,industri',
             'keterangan'       => 'nullable|string|max:500',
             'status'           => 'sometimes|in:pending,validated,in_progress,lanjut,batal',
-            'progress_status'  => 'sometimes|in:validasi,sk,sr,mgrt,gas_in,jalur_pipa,penyambungan,done,batal',
+            'progress_status'  => 'sometimes|in:validasi,sk,sr,gas_in,jalur_pipa,penyambungan,done,batal',
             'email'            => 'nullable|email',
         ]);
 
@@ -292,7 +291,7 @@ class CalonPelangganController extends Controller
                 'alamat'          => 'sometimes|string|max:1000',
                 'no_telepon'      => 'sometimes|string|max:20|regex:/^[0-9+\-\s]+$/',
                 'status'          => 'sometimes|in:pending,validated,in_progress,lanjut,batal',
-                'progress_status' => 'sometimes|in:validasi,sk,sr,mgrt,gas_in,jalur_pipa,penyambungan,done,batal',
+                'progress_status' => 'sometimes|in:validasi,sk,sr,gas_in,jalur_pipa,penyambungan,done,batal',
                 'kelurahan'       => 'nullable|string|max:120',
                 'padukuhan'       => 'nullable|string|max:120',
                 'jenis_pelanggan' => 'nullable|in:residensial,komersial,industri',
@@ -436,7 +435,7 @@ class CalonPelangganController extends Controller
 
     private function getModuleCompletionStatus(CalonPelanggan $customer): array
     {
-        $modules = ['sk', 'sr', 'mgrt', 'gas_in', 'jalur_pipa', 'penyambungan'];
+        $modules = ['sk', 'sr', 'gas_in', 'jalur_pipa', 'penyambungan'];
         $status = [];
 
         foreach ($modules as $module) {

@@ -8,7 +8,6 @@ use App\Models\CalonPelanggan;
 use App\Models\PhotoApproval;
 use App\Models\SkData;
 use App\Models\SrData;
-use App\Models\MgrtData;
 use App\Models\GasInData;
 use App\Models\FileStorage;
 use App\Models\AuditLog;
@@ -99,7 +98,7 @@ class AdminController extends Controller
             'password'  => 'required|string|min:6|confirmed',
             'name'      => 'required|string|max:255',
             'full_name' => 'required|string|max:255',
-            'role'      => 'required|in:super_admin,admin,sk,sr,mgrt,gas_in,pic,tracer',
+            'role'      => 'required|in:super_admin,admin,sk,sr,gas_in,pic,tracer',
             'is_active' => 'boolean',
         ]);
 
@@ -222,7 +221,7 @@ class AdminController extends Controller
             'password'  => 'sometimes|string|min:6|confirmed',
             'name'      => 'sometimes|string|max:255',
             'full_name' => 'sometimes|string|max:255',
-            'role'      => 'sometimes|in:super_admin,admin,sk,sr,mgrt,gas_in,pic,tracer',
+            'role'      => 'sometimes|in:super_admin,admin,sk,sr,gas_in,pic,tracer',
             'is_active' => 'sometimes|boolean',
         ]);
 

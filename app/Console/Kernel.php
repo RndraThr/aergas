@@ -3,6 +3,7 @@ namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Illuminate\Support\Facades\Log;
 
 class Kernel extends ConsoleKernel
 {
@@ -24,10 +25,20 @@ class Kernel extends ConsoleKernel
             \App\Models\Notification::where('created_at', '<', now()->subDays(30))->delete();
         })->daily()->at('03:30');
 
+        // Refresh Google Drive token setiap 6 jam (lebih aman)
         $schedule->command('google-drive:keep-alive')
-        ->weekly()
-        ->mondays()
-        ->at('02:00');
+                ->everySixHours()
+                ->withoutOverlapping()
+                ->onFailure(function () {
+                    // Kirim alert ke admin jika gagal
+                    Log::emergency('Google Drive token refresh failed in scheduler');
+                });
+
+        // Backup refresh setiap hari
+        $schedule->command('google-drive:refresh-token')
+                ->daily()
+                ->at('01:00')
+                ->withoutOverlapping();
     }
 
     /**

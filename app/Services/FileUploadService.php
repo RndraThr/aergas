@@ -141,6 +141,7 @@ class FileUploadService
                 'storage_disk'      => $usedDisk,
                 'path'              => $finalPath,
                 'url'               => $publicUrl,
+                'file_size'         => $bytes,
                 'mime_type'         => $mime,
                 'size_bytes'        => $bytes,
                 'uploaded_by'       => $uploadedBy,
