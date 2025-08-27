@@ -28,7 +28,12 @@ Route::middleware('guest')->group(function () {
    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
    Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 });
-
+Route::prefix('imports')->name('imports.')->middleware('role:admin,super_admin,tracer')->group(function () {
+            Route::get('/calon-pelanggan', [ImportController::class, 'formCalonPelanggan'])->name('calon-pelanggan.form');
+            Route::get('/calon-pelanggan/template', [ImportController::class, 'downloadTemplateCalonPelanggan'])->name('calon-pelanggan.template'); // TAMBAH INI
+            Route::post('/calon-pelanggan', [ImportController::class, 'importCalonPelanggan'])->name('calon-pelanggan.import');
+            Route::get('/report', [ImportController::class, 'downloadReport'])->name('report.download');
+        });
 Route::middleware('auth')->group(function () {
 
    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');

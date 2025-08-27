@@ -56,4 +56,49 @@ class ImportController extends Controller
             'Content-Type' => 'application/json'
         ]);
     }
+
+    public function downloadTemplateCalonPelanggan()
+    {
+        $templateData = [
+            [
+                'ID Reff',
+                'Nama',
+                'Alamat',
+                'RT',
+                'RW',
+                'Nomor Ponsel',
+                'Kelurahan',
+                'Padukuhan'
+            ],
+            [
+                'ABC001',
+                'John Doe',
+                'Jl. Malioboro No. 123',
+                '01',
+                '02',
+                '08123456789',
+                'Caturtunggal',
+                'Mrican'
+            ]
+        ];
+
+        return Excel::download(new class($templateData) implements
+            \Maatwebsite\Excel\Concerns\FromArray,
+            \Maatwebsite\Excel\Concerns\WithHeadings
+        {
+            private $data;
+
+            public function __construct($data) {
+                $this->data = $data;
+            }
+
+            public function array(): array {
+                return array_slice($this->data, 1);
+            }
+
+            public function headings(): array {
+                return $this->data[0];
+            }
+        }, 'template_import_calon_pelanggan.xlsx');
+    }
 }
