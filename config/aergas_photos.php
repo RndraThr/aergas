@@ -208,28 +208,6 @@ return [
                                 FOKUS UTAMA: Foto tidak blur dan ada objek yang dapat diidentifikasi sebagai bagian dari tapping.',
                 ],
 
-                'kedalaman' => [
-                    'label' => 'Foto Kedalaman',
-                    'accept' => ['image/*'],
-                    'required' => false,
-                    'prompt' => 'Analisis foto pengukuran kedalaman dengan penilaian SKOR (0-100):
-
-                                ELEMEN YANG DIPERIKSA:
-                                1. ALAT UKUR TERLIHAT (35 poin) - Apakah meteran/penggaris/alat ukur terlihat?
-                                2. ANGKA PENGUKURAN (35 poin) - Apakah nilai kedalaman dapat dibaca?
-                                3. GALIAN/LUBANG (20 poin) - Apakah area galian/lubang terlihat jelas?
-                                4. KUALITAS FOTO (10 poin) - Apakah foto cukup terang dan fokus?
-
-                                PANDUAN PENILAIAN:
-                                - 90-100: Alat ukur jelas, angka terbaca dengan baik, konteks galian terlihat
-                                - 75-89: Alat ukur ada, angka dapat dibaca meski tidak sempurna
-                                - 60-74: Alat ukur terlihat tapi angka agak sulit dibaca
-                                - 40-59: Ada upaya pengukuran tapi hasil tidak jelas
-                                - 0-39: Tidak ada alat ukur atau tidak dapat mengidentifikasi pengukuran
-
-                                FOKUS: Bukti pengukuran kedalaman yang dapat diverifikasi.',
-                ],
-
                 'mgrt' => [
                     'label' => 'Foto MGRT',
                     'accept' => ['image/*'],
@@ -433,7 +411,6 @@ return [
             'foto_pneumatic_start_sr_url' => 'pneumatic_start',
             'foto_pneumatic_finish_sr_url' => 'pneumatic_finish',
             'foto_jenis_tapping_url' => 'jenis_tapping',
-            'foto_kedalaman_url' => 'kedalaman',
             'foto_mgrt_url' => 'mgrt',
             'foto_pondasi_url' => 'pondasi',
             'foto_isometrik_scan_sr_url' => 'isometrik_scan',

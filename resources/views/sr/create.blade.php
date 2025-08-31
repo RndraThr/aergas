@@ -22,7 +22,6 @@
           ['field'=>'pneumatic_start','label'=>'Foto Pneumatic START SR','accept'=>['image/*']],
           ['field'=>'pneumatic_finish','label'=>'Foto Pneumatic FINISH SR','accept'=>['image/*']],
           ['field'=>'jenis_tapping','label'=>'Foto Jenis Tapping','accept'=>['image/*']],
-          ['field'=>'kedalaman','label'=>'Foto Kedalaman','accept'=>['image/*']],
           ['field'=>'mgrt','label'=>'Foto MGRT','accept'=>['image/*']],
           ['field'=>'pondasi','label'=>'Foto Pondasi','accept'=>['image/*']],
           ['field'=>'isometrik_scan','label'=>'Scan Isometrik SR (TTD lengkap)','accept'=>['image/*','application/pdf']],

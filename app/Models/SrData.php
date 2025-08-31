@@ -72,7 +72,7 @@ class SrData extends BaseModuleModel
 
     public function getRequiredPhotos(): array
     {
-        return ['pneumatic_start', 'pneumatic_finish', 'jenis_tapping', 'kedalaman', 'mgrt', 'pondasi', 'isometrik_scan'];
+        return ['pneumatic_start', 'pneumatic_finish', 'jenis_tapping', 'mgrt', 'pondasi', 'isometrik_scan'];
     }
 
     public function getCasts(): array
