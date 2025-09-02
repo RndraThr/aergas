@@ -20,13 +20,11 @@
                     <span>Export</span>
                 </button>
 
-                {{-- TODO: Implement import functionality
-                <a href="#"
+                <a href="#" onclick="alert('Fitur import akan segera tersedia')"
                    class="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
                     <i class="fas fa-file-excel"></i>
                     <span>Import Excel</span>
                 </a>
-                --}}
 
                 <a href="{{ route('customers.create') }}"
                    class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-aergas-navy to-aergas-orange text-white rounded-lg hover:shadow-lg transition-all duration-300">

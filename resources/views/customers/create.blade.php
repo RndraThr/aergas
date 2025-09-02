@@ -221,12 +221,23 @@ function customerCreateData() {
         reffIdAvailable: false,
 
         get formValid() {
-            return this.form.reff_id_pelanggan &&
+            const valid = this.form.reff_id_pelanggan &&
                    this.form.nama_pelanggan &&
                    this.form.alamat &&
                    this.form.no_telepon &&
                    this.reffIdAvailable &&
                    Object.keys(this.errors).length === 0;
+            console.log('Form validation:', {
+                reff_id: !!this.form.reff_id_pelanggan,
+                nama: !!this.form.nama_pelanggan,
+                alamat: !!this.form.alamat,
+                telepon: !!this.form.no_telepon,
+                reffAvailable: this.reffIdAvailable,
+                noErrors: Object.keys(this.errors).length === 0,
+                errors: this.errors,
+                valid: valid
+            });
+            return valid;
         },
 
         async validateReffId() {
@@ -239,7 +250,7 @@ function customerCreateData() {
             this.errors.reff_id_pelanggan = '';
 
             try {
-                const response = await fetch(`{{ route('customers.validate-reff', '') }}/${this.form.reff_id_pelanggan}`, {
+                const response = await fetch(`/customers/validate-reff/${this.form.reff_id_pelanggan}`, {
                     headers: {
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': window.csrfToken
@@ -267,10 +278,15 @@ function customerCreateData() {
         },
 
         async submitForm() {
-            if (!this.formValid) return;
+            console.log('Submit form called, formValid:', this.formValid);
+            if (!this.formValid) {
+                console.log('Form not valid, aborting submit');
+                return;
+            }
 
             this.submitting = true;
             this.errors = {};
+            console.log('Submitting form data:', this.form);
 
             try {
                 const response = await fetch('{{ route('customers.store') }}', {
@@ -284,6 +300,7 @@ function customerCreateData() {
                 });
 
                 const data = await response.json();
+                console.log('Response data:', data);
 
                 if (data.success) {
                     window.showToast('success', 'Pelanggan berhasil didaftarkan!');
