@@ -22,7 +22,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('auth'),
-            new Middleware('role:admin,super_admin'),
+            new Middleware('role:admin,tracer,super_admin'),
         ];
     }
 
@@ -54,7 +54,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
             // Filter berdasarkan status
             $status = $request->get('status');
-            
+
             if ($status === 'sk_ready') {
                 // SK photos pending CGP approval
                 $query->whereHas('photoApprovals', function($q) {
@@ -115,7 +115,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
                 'status_filter' => $request->get('status'),
                 'search_filter' => $request->get('search')
             ]);
-            
+
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
@@ -424,7 +424,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
             // This will be implemented with actual Telegram service
             // $this->notificationService->sendTelegram($message);
-            
+
         } catch (Exception $e) {
             Log::error('Failed to send CGP rejection notification: ' . $e->getMessage());
         }

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Models\CalonPelanggan;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class CheckCustomerValidated
 {
@@ -18,13 +19,13 @@ class CheckCustomerValidated
     public function handle(Request $request, Closure $next, string $module = null): Response
     {
         // Skip validation for super admins and admins
-        if (in_array(auth()->user()->role ?? '', ['super_admin', 'admin'])) {
+        if (in_array(Auth::user()->role ?? '', ['super_admin', 'admin'])) {
             return $next($request);
         }
 
         // Extract reff_id from route parameters
         $reffId = null;
-        
+
         // Try common route parameter names
         foreach (['reffId', 'reff_id_pelanggan', 'id', 'sk', 'sr', 'gasIn'] as $param) {
             if ($request->route($param)) {
@@ -56,21 +57,21 @@ class CheckCustomerValidated
 
         // Find customer
         $customer = CalonPelanggan::where('reff_id_pelanggan', $reffId)->first();
-        
+
         if (!$customer) {
             Log::warning('Customer not found for validation check', [
                 'reff_id' => $reffId,
                 'route' => $request->route()->getName(),
-                'user' => auth()->id()
+                'user' => Auth::id()
             ]);
-            
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Pelanggan tidak ditemukan'
                 ], 404);
             }
-            
+
             return redirect()->route('customers.index')
                            ->with('error', 'Pelanggan tidak ditemukan');
         }
@@ -81,7 +82,7 @@ class CheckCustomerValidated
                 'reff_id' => $reffId,
                 'customer_status' => $customer->status,
                 'route' => $request->route()->getName(),
-                'user' => auth()->id()
+                'user' => Auth::id()
             ]);
 
             if ($request->expectsJson()) {
@@ -91,7 +92,7 @@ class CheckCustomerValidated
                     'redirect' => route('customers.show', $customer->reff_id_pelanggan)
                 ], 422);
             }
-            
+
             return redirect()->route('customers.show', $customer->reff_id_pelanggan)
                            ->with('warning', 'Pelanggan belum divalidasi. Silakan hubungi admin atau tracer untuk validasi.');
         }
@@ -104,7 +105,7 @@ class CheckCustomerValidated
                 'customer_status' => $customer->status,
                 'progress_status' => $customer->progress_status,
                 'route' => $request->route()->getName(),
-                'user' => auth()->id()
+                'user' => Auth::id()
             ]);
 
             if ($request->expectsJson()) {
@@ -114,7 +115,7 @@ class CheckCustomerValidated
                     'redirect' => route('customers.show', $customer->reff_id_pelanggan)
                 ], 422);
             }
-            
+
             return redirect()->route('customers.show', $customer->reff_id_pelanggan)
                            ->with('warning', "Belum bisa mengakses modul {$module}. Selesaikan modul sebelumnya terlebih dahulu.");
         }
