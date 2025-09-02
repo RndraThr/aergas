@@ -138,7 +138,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Informasi Pelanggan</h3>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-500">Reference ID</label>
                         <div class="mt-1 text-sm text-gray-900">{{ $customer->reff_id_pelanggan }}</div>
@@ -160,22 +160,34 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-500">Wilayah Area</label>
-                        <div class="mt-1 text-sm text-gray-900">{{ $customer->wilayah_area ?? '-' }}</div>
+                        <label class="block text-sm font-medium text-gray-500">Kelurahan</label>
+                        <div class="mt-1 text-sm text-gray-900">{{ $customer->kelurahan ?: 'Belum diisi' }}</div>
                     </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">Padukuhan/Dusun</label>
+                        <div class="mt-1 text-sm text-gray-900">{{ $customer->padukuhan ?: 'Belum diisi' }}</div>
+                    </div>
+
+                    @if($customer->email)
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">Email</label>
+                        <div class="mt-1 text-sm text-gray-900">{{ $customer->email }}</div>
+                    </div>
+                    @endif
 
                     <div>
                         <label class="block text-sm font-medium text-gray-500">Tanggal Registrasi</label>
                         <div class="mt-1 text-sm text-gray-900">{{ $customer->tanggal_registrasi ? $customer->tanggal_registrasi->format('d/m/Y H:i') : '-' }}</div>
                     </div>
 
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-2 lg:col-span-3">
                         <label class="block text-sm font-medium text-gray-500">Alamat</label>
                         <div class="mt-1 text-sm text-gray-900">{{ $customer->alamat }}</div>
                     </div>
 
                     @if($customer->keterangan)
-                        <div class="md:col-span-2">
+                        <div class="md:col-span-2 lg:col-span-3">
                             <label class="block text-sm font-medium text-gray-500">Keterangan</label>
                             <div class="mt-1 text-sm text-gray-900">{{ $customer->keterangan }}</div>
                         </div>

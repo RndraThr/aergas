@@ -79,9 +79,9 @@
                        </div>
                        <div>
                            <span class="text-gray-600 text-sm font-medium">
-                               @if(auth()->user()->role === 'tracer'||'super_admin')
+                               @if(in_array(auth()->user()->role, ['tracer', 'super_admin']))
                                    Pending Review
-                               @elseif(auth()->user()->role === 'admin, super_admin')
+                               @elseif(in_array(auth()->user()->role, ['admin', 'super_admin']))
                                    CGP Review
                                @else
                                    Progress
@@ -118,6 +118,96 @@
                        <span class="font-medium" x-text="(data.photos?.approval_rate || 0) + '%'">0%</span>
                        <span class="text-gray-500 ml-1">approval rate</span>
                    </div>
+               </div>
+           </div>
+       </div>
+   </div>
+
+   <!-- Module Status Cards -->
+   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+           <div class="flex items-center justify-between mb-4">
+               <div class="flex items-center space-x-3">
+                   <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+                       <i class="fas fa-fire text-white"></i>
+                   </div>
+                   <h3 class="text-lg font-semibold text-gray-900">SK Module</h3>
+               </div>
+           </div>
+           <div class="space-y-3">
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Total SK:</span>
+                   <span class="font-medium" x-text="data.modules?.sk?.total || 0">0</span>
+               </div>
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Draft:</span>
+                   <span class="text-gray-500" x-text="data.modules?.sk?.draft || 0">0</span>
+               </div>
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Ready for Review:</span>
+                   <span class="text-blue-600" x-text="data.modules?.sk?.ready || 0">0</span>
+               </div>
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Completed:</span>
+                   <span class="text-green-600 font-semibold" x-text="data.modules?.sk?.completed || 0">0</span>
+               </div>
+           </div>
+       </div>
+
+       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+           <div class="flex items-center justify-between mb-4">
+               <div class="flex items-center space-x-3">
+                   <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                       <i class="fas fa-route text-white"></i>
+                   </div>
+                   <h3 class="text-lg font-semibold text-gray-900">SR Module</h3>
+               </div>
+           </div>
+           <div class="space-y-3">
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Total SR:</span>
+                   <span class="font-medium" x-text="data.modules?.sr?.total || 0">0</span>
+               </div>
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Draft:</span>
+                   <span class="text-gray-500" x-text="data.modules?.sr?.draft || 0">0</span>
+               </div>
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Ready for Review:</span>
+                   <span class="text-blue-600" x-text="data.modules?.sr?.ready || 0">0</span>
+               </div>
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Completed:</span>
+                   <span class="text-green-600 font-semibold" x-text="data.modules?.sr?.completed || 0">0</span>
+               </div>
+           </div>
+       </div>
+
+       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
+           <div class="flex items-center justify-between mb-4">
+               <div class="flex items-center space-x-3">
+                   <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                       <i class="fas fa-gas-pump text-white"></i>
+                   </div>
+                   <h3 class="text-lg font-semibold text-gray-900">Gas In Module</h3>
+               </div>
+           </div>
+           <div class="space-y-3">
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Total Gas In:</span>
+                   <span class="font-medium" x-text="data.modules?.gas_in?.total || 0">0</span>
+               </div>
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Draft:</span>
+                   <span class="text-gray-500" x-text="data.modules?.gas_in?.draft || 0">0</span>
+               </div>
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Ready for Review:</span>
+                   <span class="text-blue-600" x-text="data.modules?.gas_in?.ready || 0">0</span>
+               </div>
+               <div class="flex justify-between text-sm">
+                   <span class="text-gray-600">Completed:</span>
+                   <span class="text-green-600 font-semibold" x-text="data.modules?.gas_in?.completed || 0">0</span>
                </div>
            </div>
        </div>
@@ -336,7 +426,7 @@
        </div>
    </div>
 
-   @if(auth()->user()->role === 'tracer'||'super_admin')
+   @if(in_array(auth()->user()->role, ['tracer', 'super_admin']))
    <div class="bg-gradient-to-r from-aergas-navy/5 to-aergas-orange/5 rounded-xl p-6 border border-aergas-orange/20">
        <h3 class="text-lg font-semibold text-gray-900 mb-4">Tracer Dashboard</h3>
        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -356,7 +446,7 @@
    </div>
    @endif
 
-   @if(auth()->user()->role === 'admin'||'super_admin')
+   @if(in_array(auth()->user()->role, ['admin', 'super_admin']))
    <div class="bg-gradient-to-r from-aergas-navy/5 to-aergas-orange/5 rounded-xl p-6 border border-aergas-orange/20">
        <h3 class="text-lg font-semibold text-gray-900 mb-4">Admin Dashboard</h3>
        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -402,6 +492,7 @@ function dashboardData() {
         chartModule: 'all',
         chartLoading: false,
         installationChart: null,
+        chartUpdateTimeout: null,
 
         init() {
             this.loadData();
@@ -472,10 +563,15 @@ function dashboardData() {
             const canvas = document.getElementById('installationChart');
             if (!canvas) return;
 
+            // Create a simple empty chart first
             const ctx = canvas.getContext('2d');
 
             if (this.installationChart) {
-                this.installationChart.destroy();
+                try {
+                    this.installationChart.destroy();
+                } catch (e) {
+                    console.warn('Chart destroy error during init:', e);
+                }
                 this.installationChart = null;
             }
 
@@ -489,7 +585,7 @@ function dashboardData() {
                     responsive: true,
                     maintainAspectRatio: false,
                     animation: {
-                        duration: 0
+                        duration: 0 // Disable animations completely
                     },
                     interaction: {
                         mode: 'index',
@@ -522,16 +618,27 @@ function dashboardData() {
                             },
                             beginAtZero: true
                         }
-                    },
-                    onResize: () => {}
+                    }
                 }
             });
 
+            // Load chart data after initialization
             this.updateChart();
         },
 
         async updateChart() {
-            if (!this.installationChart || this.chartLoading) return;
+            // Debounce chart updates to prevent rapid successive calls
+            if (this.chartUpdateTimeout) {
+                clearTimeout(this.chartUpdateTimeout);
+            }
+            
+            this.chartUpdateTimeout = setTimeout(() => {
+                this.performChartUpdate();
+            }, 300);
+        },
+
+        async performChartUpdate() {
+            if (this.chartLoading) return;
 
             this.chartLoading = true;
 
@@ -554,21 +661,118 @@ function dashboardData() {
                 const result = await response.json();
                 console.log('Chart data received:', result);
 
-                if (result.success && this.installationChart && result.data) {
-                    const chartData = {
-                        labels: Array.isArray(result.data.labels) ? result.data.labels : [],
-                        datasets: Array.isArray(result.data.datasets) ? result.data.datasets : []
-                    };
-
-                    console.log('Processed chart data:', chartData);
-
-                    this.installationChart.data = chartData;
-                    this.installationChart.update('none');
+                if (result.success && result.data) {
+                    // Always recreate chart instead of updating to avoid stack overflow
+                    this.recreateChart(result.data);
                 }
             } catch (error) {
                 console.error('Error updating chart:', error);
+                window.showToast && window.showToast('error', 'Failed to update chart');
             } finally {
                 this.chartLoading = false;
+            }
+        },
+
+        recreateChart(chartData) {
+            try {
+                // Safely destroy existing chart
+                if (this.installationChart) {
+                    try {
+                        this.installationChart.destroy();
+                    } catch (destroyError) {
+                        console.warn('Chart destroy error (ignoring):', destroyError);
+                    }
+                    this.installationChart = null;
+                }
+
+                // Validate and sanitize chart data
+                const labels = Array.isArray(chartData.labels) ? chartData.labels : [];
+                const datasets = Array.isArray(chartData.datasets) ? chartData.datasets : [];
+                
+                // Ensure all datasets have proper data arrays and required properties
+                const validatedDatasets = datasets.map(dataset => {
+                    const validatedDataset = {
+                        label: dataset.label || 'Unknown',
+                        data: Array.isArray(dataset.data) ? dataset.data : [],
+                        type: dataset.type || 'bar',
+                        backgroundColor: dataset.backgroundColor || 'rgba(59, 130, 246, 0.8)',
+                        borderColor: dataset.borderColor || '#3B82F6',
+                        borderWidth: dataset.borderWidth || 1
+                    };
+                    
+                    // Add additional properties for line charts
+                    if (dataset.type === 'line') {
+                        validatedDataset.fill = dataset.fill !== undefined ? dataset.fill : false;
+                        validatedDataset.tension = dataset.tension || 0.4;
+                        validatedDataset.pointBackgroundColor = dataset.pointBackgroundColor || dataset.borderColor;
+                        validatedDataset.pointBorderColor = dataset.pointBorderColor || '#fff';
+                        validatedDataset.pointBorderWidth = dataset.pointBorderWidth || 2;
+                        validatedDataset.pointRadius = dataset.pointRadius || 4;
+                    }
+                    
+                    return validatedDataset;
+                });
+
+                // Create new chart with validated data
+                const canvas = document.getElementById('installationChart');
+                if (!canvas) {
+                    console.error('Chart canvas not found');
+                    return;
+                }
+
+                const ctx = canvas.getContext('2d');
+                
+                this.installationChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: validatedDatasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 0 // Disable animations to prevent issues
+                        },
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#fff',
+                                cornerRadius: 8,
+                            }
+                        },
+                        scales: {
+                            x: {
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Time Period'
+                                }
+                            },
+                            y: {
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Installations'
+                                },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+
+                console.log('Chart recreated successfully');
+            } catch (error) {
+                console.error('Error recreating chart:', error);
+                this.installationChart = null;
             }
         }
     }

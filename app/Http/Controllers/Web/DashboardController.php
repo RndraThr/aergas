@@ -85,7 +85,7 @@ class DashboardController extends Controller implements HasMiddleware
         $base = CalonPelanggan::query();
         $this->applyFilters($base, $from, $to, $kelurahan, $padukuhan);
 
-        $workflowLabels = ['validasi', 'sk', 'sr', 'gas_in', 'jalur_pipa', 'penyambungan', 'done', 'batal'];
+        $workflowLabels = ['validasi', 'sk', 'sr', 'gas_in', 'done', 'batal'];
         $progressCounts = [];
 
         foreach ($workflowLabels as $status) {
@@ -95,21 +95,21 @@ class DashboardController extends Controller implements HasMiddleware
         $moduleData = [
             'sk' => [
                 'total' => SkData::count(),
-                'draft' => SkData::where('status', SkData::STATUS_DRAFT)->count(),
-                'ready' => SkData::where('status', SkData::STATUS_READY_FOR_TRACER)->count(),
-                'completed' => SkData::where('status', SkData::STATUS_COMPLETED)->count(),
+                'draft' => SkData::where('module_status', 'draft')->count(),
+                'ready' => SkData::where('module_status', 'tracer_review')->count(),
+                'completed' => SkData::where('module_status', 'completed')->count(),
             ],
             'sr' => [
                 'total' => SrData::count(),
-                'draft' => SrData::where('status', SrData::STATUS_DRAFT)->count(),
-                'ready' => SrData::where('status', SrData::STATUS_READY_FOR_TRACER)->count(),
-                'completed' => SrData::where('status', SrData::STATUS_COMPLETED)->count(),
+                'draft' => SrData::where('module_status', 'draft')->count(),
+                'ready' => SrData::where('module_status', 'tracer_review')->count(),
+                'completed' => SrData::where('module_status', 'completed')->count(),
             ],
             'gas_in' => [
                 'total' => GasInData::count(),
-                'draft' => GasInData::where('status', GasInData::STATUS_DRAFT)->count(),
-                'ready' => GasInData::where('status', GasInData::STATUS_READY_FOR_TRACER)->count(),
-                'completed' => GasInData::where('status', GasInData::STATUS_COMPLETED)->count(),
+                'draft' => GasInData::where('module_status', 'draft')->count(),
+                'ready' => GasInData::where('module_status', 'tracer_review')->count(),
+                'completed' => GasInData::where('module_status', 'completed')->count(),
             ],
         ];
 
@@ -191,7 +191,7 @@ class DashboardController extends Controller implements HasMiddleware
     $base = CalonPelanggan::query();
     $this->applyFilters($base, $from, $to, $kelurahan, $padukuhan);
 
-    $progressSteps = ['validasi', 'sk', 'sr', 'gas_in', 'jalur_pipa', 'penyambungan', 'done'];
+    $progressSteps = ['validasi', 'sk', 'sr', 'gas_in', 'done'];
     $flow = [];
 
     foreach ($progressSteps as $step) {

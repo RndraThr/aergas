@@ -217,7 +217,7 @@
 
                             <td class="px-6 py-4">
                                 <div class="text-sm text-gray-900" x-text="customer.no_telepon"></div>
-                                <div class="text-sm text-gray-500" x-text="customer.wilayah_area || '-'"></div>
+                                <div class="text-sm text-gray-500" x-text="customer.kelurahan || 'Belum diisi'"></div>
                             </td>
 
                             <td class="px-6 py-4 whitespace-nowrap">
