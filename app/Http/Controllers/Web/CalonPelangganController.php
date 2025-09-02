@@ -179,7 +179,7 @@ class CalonPelangganController extends Controller
             ],
             'nama_pelanggan'   => 'required|string|max:255',
             'alamat'           => 'required|string|max:1000',
-            'no_telepon'       => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
+            'no_telepon'       => 'required|string|max:20|regex:/^[0-9+\-\s]+$/',
             'kelurahan'        => 'nullable|string|max:120',
             'padukuhan'        => 'nullable|string|max:120',
             'jenis_pelanggan'  => 'nullable|in:residensial,komersial,industri',

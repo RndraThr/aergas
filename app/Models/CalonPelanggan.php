@@ -67,7 +67,7 @@ class CalonPelanggan extends Model
     }
 
     protected $fillable = [
-        'reff_id_pelanggan','nama_pelanggan','alamat','no_telepon',
+        'reff_id_pelanggan','nama_pelanggan','alamat','no_telepon','email',
         'kelurahan','padukuhan','status','progress_status','jenis_pelanggan','keterangan',
         'tanggal_registrasi','validated_at','validated_by','validation_notes',
     ];

@@ -83,6 +83,36 @@
                 </div>
 
                 <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email"
+                           x-model="form.email"
+                           :class="errors.email ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           placeholder="email@example.com">
+                    <div x-show="errors.email" class="mt-1 text-sm text-red-600" x-text="errors.email"></div>
+                </div>
+
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Kelurahan</label>
+                    <input type="text"
+                           x-model="form.kelurahan"
+                           :class="errors.kelurahan ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           placeholder="Nama kelurahan">
+                    <div x-show="errors.kelurahan" class="mt-1 text-sm text-red-600" x-text="errors.kelurahan"></div>
+                </div>
+
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Padukuhan/Dusun</label>
+                    <input type="text"
+                           x-model="form.padukuhan"
+                           :class="errors.padukuhan ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           placeholder="Nama padukuhan/dusun">
+                    <div x-show="errors.padukuhan" class="mt-1 text-sm text-red-600" x-text="errors.padukuhan"></div>
+                </div>
+
+                <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Pelanggan</label>
                     <select x-model="form.jenis_pelanggan"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
@@ -178,6 +208,9 @@ function customerCreateData() {
             nama_pelanggan: '',
             alamat: '',
             no_telepon: '',
+            email: '',
+            kelurahan: '',
+            padukuhan: '',
             jenis_pelanggan: 'residensial',
             keterangan: ''
         },
@@ -280,6 +313,9 @@ function customerCreateData() {
                     nama_pelanggan: '',
                     alamat: '',
                     no_telepon: '',
+                    email: '',
+                    kelurahan: '',
+                    padukuhan: '',
                     jenis_pelanggan: 'residensial',
                     keterangan: ''
                 };
