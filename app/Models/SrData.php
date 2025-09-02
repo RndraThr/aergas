@@ -293,8 +293,6 @@ class SrData extends BaseModuleModel
             'jenis_tapping' => 'Jenis Tapping',
             'no_seri_mgrt' => 'No Seri MGRT',
             'merk_brand_mgrt' => 'Merk/Brand MGRT',
-            'panjang_pipa_pe_m' => 'Panjang Pipa PE (meter)',
-            'panjang_casing_crossing_m' => 'Panjang Casing Crossing (meter)',
         ];
     }
 
