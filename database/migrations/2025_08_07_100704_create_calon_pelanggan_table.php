@@ -18,8 +18,7 @@ return new class extends Migration
             $table->string('no_telepon', 20);
             $table->enum('status', ['validated', 'in_progress', 'lanjut', 'batal', 'pending'])->default('pending');
             $table->enum('progress_status', [
-                'validasi', 'sk', 'sr', 'mgrt', 'gas_in',
-                'jalur_pipa', 'penyambungan', 'done', 'batal'
+                'validasi', 'sk', 'sr', 'gas_in', 'done', 'batal'
             ])->default('validasi');
             $table->text('keterangan')->nullable();
             $table->string('wilayah_area', 100)->nullable();

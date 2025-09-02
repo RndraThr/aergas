@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('file_storages', function (Blueprint $table) {
             $table->id();
             $table->string('reff_id_pelanggan', 50);
-            $table->enum('module_name', ['sk', 'sr', 'mgrt', 'gas_in', 'jalur_pipa', 'penyambungan', 'ba_batal']);
+            $table->enum('module_name', ['sk', 'sr', 'gas_in']);
             $table->string('field_name', 100);
             $table->string('original_filename', 255);
             $table->string('stored_filename', 255);

@@ -22,8 +22,8 @@ class CalonPelanggan extends Model
         'tanggal_registrasi' => 'datetime',
         'validated_at'       => 'datetime',
         'last_login'         => 'datetime',
-        'status'             => 'string',        // pending | validated | in_progress | lanjut | batal
-        'progress_status'    => 'string',        // validasi | sk | sr | mgrt | gas_in | jalur_pipa | penyambungan | done | batal
+        'status'             => 'string',        // pending | lanjut | in_progress | batal
+        'progress_status'    => 'string',        // validasi | sk | sr | gas_in | done | batal
     ];
 
     /* =========================
@@ -32,9 +32,6 @@ class CalonPelanggan extends Model
     public function skData(): HasOne { return $this->hasOne(SkData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
     public function srData(): HasOne { return $this->hasOne(SrData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
     public function gasInData(): HasOne { return $this->hasOne(GasInData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
-    public function jalurPipaData(): HasOne { return $this->hasOne(JalurPipaData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
-    public function penyambunganPipaData(): HasOne { return $this->hasOne(PenyambunganPipaData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
-    public function baBatalData(): HasOne { return $this->hasOne(BaBatalData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
 
     public function photoApprovals(): HasMany
     {
@@ -81,7 +78,7 @@ class CalonPelanggan extends Model
 
     public function getProgressPercentage(): int
     {
-        $steps = ['validasi','sk','sr','mgrt','gas_in','jalur_pipa','penyambungan','done'];
+        $steps = ['validasi','sk','sr','gas_in','done'];
         $idx = array_search($this->progress_status, $steps, true);
         if ($idx === false) return 0;
         $max = count($steps) - 1;
@@ -92,7 +89,7 @@ class CalonPelanggan extends Model
     {
         if ($this->status === 'batal' || $this->progress_status === 'batal') return null;
 
-        $order = ['validasi','sk','sr','mgrt','gas_in','jalur_pipa','penyambungan','done'];
+        $order = ['validasi','sk','sr','gas_in','done'];
         $pos = array_search($this->progress_status, $order, true);
         if ($pos === false || $this->progress_status === 'done') return null;
 
@@ -118,10 +115,9 @@ class CalonPelanggan extends Model
         $module = strtolower($module);
 
         return match ($module) {
-            'sk' => in_array($this->status, ['validated','in_progress','lanjut'], true),
+            'sk' => in_array($this->status, ['lanjut','in_progress'], true),
             'sr' => ($this->skData?->module_status === 'completed'),
             'gas_in' => ($this->skData?->module_status === 'completed') && ($this->srData?->module_status === 'completed'),
-            'jalur_pipa' => true,
             default => false,
         };
     }
@@ -144,7 +140,7 @@ class CalonPelanggan extends Model
         }
 
         $this->update([
-            'status' => 'validated',
+            'status' => 'lanjut',
             'validated_at' => now(),
             'validated_by' => $userId,
             'validation_notes' => $notes,

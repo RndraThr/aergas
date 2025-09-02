@@ -12,8 +12,6 @@ use App\Http\Controllers\Web\{
    NotificationController,
    ImportController,
    GasInDataController,
-   JalurPipaDataController,
-   PenyambunganPipaDataController,
    AdminController,
    TracerApprovalController,
    CgpApprovalController

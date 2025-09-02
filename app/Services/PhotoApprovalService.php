@@ -9,8 +9,6 @@ use App\Models\AuditLog;
 use App\Models\SrData; // perbaiki case (bukan SRData)
 use App\Models\SkData;
 use App\Models\GasInData;
-use App\Models\JalurPipaData;
-use App\Models\PenyambunganPipaData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -885,9 +883,7 @@ class PhotoApprovalService
             $next = [
                 'sk' => 'sr',
                 'sr' => 'gas_in',
-                'gas_in' => 'jalur_pipa',
-                'jalur_pipa' => 'penyambungan',
-                'penyambungan' => 'done',
+                'gas_in' => 'done',
             ][$completedModule] ?? null;
 
             if ($next) {

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('photo_approvals', function (Blueprint $table) {
             $table->id();
             $table->string('reff_id_pelanggan', 50);
-            $table->enum('module_name', ['sk', 'sr', 'mgrt', 'gas_in', 'jalur_pipa', 'penyambungan', 'ba_batal']);
+            $table->enum('module_name', ['sk', 'sr', 'gas_in']);
             $table->string('photo_field_name', 100);
             $table->string('photo_url', 500);
             $table->decimal('ai_confidence_score', 5, 2)->nullable();

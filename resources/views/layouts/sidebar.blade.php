@@ -118,23 +118,6 @@
                 </a>
                 @endif
 
-                @if(in_array(auth()->user()->role, ['pic', 'tracer', 'admin']))
-                <!-- Jalur Pipa -->
-                <a href="#"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-400 cursor-not-allowed">
-                    <i class="fas fa-project-diagram mr-3 text-lg text-gray-300"></i>
-                    Jalur Pipa
-                    <span class="ml-auto text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Soon</span>
-                </a>
-
-                <!-- Penyambungan -->
-                <a href="#"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-400 cursor-not-allowed">
-                    <i class="fas fa-link mr-3 text-lg text-gray-300"></i>
-                    Penyambungan
-                    <span class="ml-auto text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Soon</span>
-                </a>
-                @endif
 
                 <!-- Divider -->
                 <div class="border-t border-gray-200 my-4"></div>
@@ -202,19 +185,6 @@
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">MANAGEMENT</span>
                 </div>
 
-                {{-- @if(in_array(auth()->user()->role, ['admin', 'gudang', 'tracer']))
-                <!-- Gudang Data -->
-                <a href="{{ route('gudang.items') }}"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('gudang.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-warehouse mr-3 text-lg {{ request()->routeIs('gudang.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
-                    Gudang & Inventory
-                    @if(request()->routeIs('gudang.*'))
-                        <div class="ml-auto">
-                            <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
-                        </div>
-                    @endif
-                </a>
-                @endif --}}
 
                 <!-- File Manager -->
                 <a href="#"

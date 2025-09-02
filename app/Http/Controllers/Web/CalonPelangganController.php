@@ -76,7 +76,7 @@ class CalonPelangganController extends Controller
             $stats = [
                 'total_customers'       => CalonPelanggan::count(),
                 'pending_validation'    => CalonPelanggan::where('status', 'pending')->count(),
-                'validated_customers'   => CalonPelanggan::where('status', 'validated')->count(),
+                'validated_customers'   => CalonPelanggan::where('status', 'lanjut')->count(),
                 'in_progress_customers' => CalonPelanggan::whereIn('status', ['in_progress', 'lanjut'])
                                                        ->whereNotIn('progress_status', ['done', 'batal'])
                                                        ->count(),
@@ -185,8 +185,8 @@ class CalonPelangganController extends Controller
             'padukuhan'        => 'nullable|string|max:120',
             'jenis_pelanggan'  => 'nullable|in:residensial,komersial,industri',
             'keterangan'       => 'nullable|string|max:500',
-            'status'           => 'sometimes|in:pending,validated,in_progress,lanjut,batal',
-            'progress_status'  => 'sometimes|in:validasi,sk,sr,gas_in,jalur_pipa,penyambungan,done,batal',
+            'status'           => 'sometimes|in:pending,lanjut,in_progress,batal',
+            'progress_status'  => 'sometimes|in:validasi,sk,sr,gas_in,done,batal',
             'email'            => 'nullable|email',
         ]);
 
@@ -310,8 +310,8 @@ class CalonPelangganController extends Controller
                 'nama_pelanggan'  => 'sometimes|string|max:255',
                 'alamat'          => 'sometimes|string|max:1000',
                 'no_telepon'      => 'sometimes|string|max:20|regex:/^[0-9+\-\s]+$/',
-                'status'          => 'sometimes|in:pending,validated,in_progress,lanjut,batal',
-                'progress_status' => 'sometimes|in:validasi,sk,sr,gas_in,jalur_pipa,penyambungan,done,batal',
+                'status'          => 'sometimes|in:pending,lanjut,in_progress,batal',
+                'progress_status' => 'sometimes|in:validasi,sk,sr,gas_in,done,batal',
                 'kelurahan'       => 'nullable|string|max:120',
                 'padukuhan'       => 'nullable|string|max:120',
                 'jenis_pelanggan' => 'nullable|in:residensial,komersial,industri',

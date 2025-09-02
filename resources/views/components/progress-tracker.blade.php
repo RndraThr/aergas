@@ -32,18 +32,6 @@
             'icon' => 'fas fa-gas-pump',
             'color' => 'red'
         ],
-        'jalur_pipa' => [
-            'label' => 'Jalur Pipa',
-            'description' => 'Pipeline installation',
-            'icon' => 'fas fa-project-diagram',
-            'color' => 'indigo'
-        ],
-        'penyambungan' => [
-            'label' => 'Penyambungan',
-            'description' => 'Final connection',
-            'icon' => 'fas fa-link',
-            'color' => 'cyan'
-        ],
         'done' => [
             'label' => 'Completed',
             'description' => 'Installation completed',

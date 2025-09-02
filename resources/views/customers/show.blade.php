@@ -18,7 +18,7 @@
 
                 <div class="flex items-center space-x-4 mt-2">
                     <span class="inline-flex px-3 py-1 text-sm font-semibold rounded-full
-                        @if($customer->status === 'validated' || $customer->status === 'lanjut') bg-green-100 text-green-800
+                        @if($customer->status === 'lanjut') bg-green-100 text-green-800
                         @elseif($customer->status === 'in_progress') bg-blue-100 text-blue-800
                         @elseif($customer->status === 'pending') bg-yellow-100 text-yellow-800
                         @elseif($customer->status === 'batal') bg-red-100 text-red-800
@@ -98,7 +98,7 @@
             @foreach($modules as $key => $module)
                 @php
                     $moduleIndex = array_search($key, $progressOrder);
-                    $isCompleted = $moduleIndex < $currentIndex || ($moduleIndex == $currentIndex && $customer->status === 'lanjut');
+                    $isCompleted = $moduleIndex < $currentIndex || ($moduleIndex == $currentIndex && $customer->progress_status === 'done');
                     $isCurrent = $moduleIndex == $currentIndex;
                     $isPending = $moduleIndex > $currentIndex;
                 @endphp

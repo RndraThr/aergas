@@ -101,7 +101,7 @@
                                 <span class="text-yellow-700 font-medium">Status:</span>
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
                                       :class="{
-                                          'bg-green-100 text-green-800': customerData?.status === 'validated',
+                                          'bg-green-100 text-green-800': customerData?.status === 'lanjut',
                                           'bg-blue-100 text-blue-800': customerData?.status === 'in_progress',
                                           'bg-yellow-100 text-yellow-800': customerData?.status === 'pending',
                                           'bg-red-100 text-red-800': customerData?.status === 'batal'

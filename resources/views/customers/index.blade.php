@@ -225,7 +225,7 @@
 
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span :class="{
-                                    'bg-green-100 text-green-800': customer.status === 'validated' || customer.status === 'lanjut',
+                                    'bg-green-100 text-green-800': customer.status === 'lanjut',
                                     'bg-blue-100 text-blue-800': customer.status === 'in_progress',
                                     'bg-yellow-100 text-yellow-800': customer.status === 'pending',
                                     'bg-red-100 text-red-800': customer.status === 'batal',
@@ -509,8 +509,8 @@ function customersData() {
                 case 'pending_validation':
                     this.filters.status = 'pending';
                     break;
-                case 'validated':
-                    this.filters.status = 'validated';
+                case 'lanjut':
+                    this.filters.status = 'lanjut';
                     break;
                 case 'in_progress':
                     this.filters.status = 'in_progress';
@@ -563,7 +563,7 @@ function customersData() {
                         'X-CSRF-TOKEN': window.csrfToken
                     },
                     body: JSON.stringify({
-                        status: 'validated',
+                        status: 'lanjut',
                         progress_status: 'sk'
                     })
                 });

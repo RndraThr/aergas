@@ -57,8 +57,6 @@ class SrData extends BaseModuleModel
         'qty_sealtape',
         'no_seri_mgrt',
         'merk_brand_mgrt',
-        'panjang_pipa_pe_m',
-        'panjang_casing_crossing_m',
         'panjang_pipa_pe',
         'panjang_casing_crossing_sr',
     ];
@@ -210,8 +208,6 @@ class SrData extends BaseModuleModel
             'jenis_tapping' => $this->jenis_tapping,
             'no_seri_mgrt' => $this->no_seri_mgrt,
             'merk_brand_mgrt' => $this->merk_brand_mgrt,
-            'panjang_pipa_pe_m' => $this->panjang_pipa_pe_m,
-            'panjang_casing_crossing_m' => $this->panjang_casing_crossing_m,
         ];
     }
 

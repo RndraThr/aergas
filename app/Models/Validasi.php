@@ -90,7 +90,7 @@ class Validasi extends Model
         $this->status = 'lanjut';
         $this->catatan = $note;
         $this->save();
-        optional($this->pelanggan)->update(['status'=>'validated']); // sinkron
+        optional($this->pelanggan)->update(['status'=>'lanjut']); // sinkron
     }
     public function setBatal(?string $note=null): void {
         $this->status = 'batal';

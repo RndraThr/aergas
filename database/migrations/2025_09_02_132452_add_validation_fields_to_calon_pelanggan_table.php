@@ -46,7 +46,7 @@ return new class extends Migration
             
         // Update these customers to validated status
         $existingCustomersWithData->update([
-            'status' => 'validated',
+            'status' => 'lanjut',
             'validated_at' => now(),
             'validation_notes' => 'Auto-validated during system upgrade (existing production data)'
         ]);
