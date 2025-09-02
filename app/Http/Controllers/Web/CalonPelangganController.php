@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Database\QueryException;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Auth;
 
 use Exception;
 
@@ -91,9 +92,9 @@ class CalonPelangganController extends Controller
                     $customer->validated_by_name = $customer->validatedBy?->name;
                     return $customer;
                 });
-                
+
                 $customers->setCollection($customersData);
-                
+
                 return response()->json([
                     'success' => true,
                     'data'    => $customers, // paginator object
@@ -294,7 +295,7 @@ class CalonPelangganController extends Controller
         try {
             Log::info('Customer update request', [
                 'reff_id' => $reffId,
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'data' => $request->all()
             ]);
 
@@ -326,7 +327,7 @@ class CalonPelangganController extends Controller
             }
 
             $validator = Validator::make($request->all(), $rules);
-            
+
             if ($validator->fails()) {
                 if ($request->expectsJson() || $request->ajax()) {
                     return response()->json([
@@ -337,7 +338,7 @@ class CalonPelangganController extends Controller
                 }
                 return back()->withErrors($validator)->withInput();
             }
-            
+
             $validated = $validator->validated();
 
             // siapkan data update biasa
@@ -361,13 +362,13 @@ class CalonPelangganController extends Controller
             // ON UPDATE CASCADE, Anda perlu update manual di tabel-tabel itu.
 
             $targetReff = $customer->reff_id_pelanggan; // bisa saja berubah
-            
+
             Log::info('Customer update success', [
                 'reff_id' => $targetReff,
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'is_ajax' => $request->expectsJson() || $request->ajax()
             ]);
-            
+
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
@@ -381,14 +382,14 @@ class CalonPelangganController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error updating customer', ['reff_id' => $reffId, 'error' => $e->getMessage()]);
-            
+
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Terjadi kesalahan saat memperbarui pelanggan: ' . $e->getMessage()
                 ], 500);
             }
-            
+
             return back()->with('error', 'Terjadi kesalahan')->withInput();
         }
     }
@@ -535,7 +536,7 @@ class CalonPelangganController extends Controller
             }
 
             $success = $customer->validateCustomer(
-                auth()->id(),
+                Auth::id(),
                 $request->input('notes')
             );
 
@@ -568,7 +569,7 @@ class CalonPelangganController extends Controller
         } catch (Exception $e) {
             Log::error('Error validating customer', [
                 'reff_id' => $reffId,
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'error' => $e->getMessage()
             ]);
 
@@ -599,7 +600,7 @@ class CalonPelangganController extends Controller
             }
 
             $success = $customer->rejectValidation(
-                auth()->id(),
+                Auth::id(),
                 $request->input('notes')
             );
 
@@ -625,7 +626,7 @@ class CalonPelangganController extends Controller
         } catch (Exception $e) {
             Log::error('Error rejecting customer', [
                 'reff_id' => $reffId,
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'error' => $e->getMessage()
             ]);
 
