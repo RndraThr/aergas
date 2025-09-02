@@ -33,18 +33,12 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
         <div class="text-xs text-gray-500">Created By</div>
-        @if($sk->createdBy)
-          <div class="flex items-center mt-1">
-            <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-              <span class="text-xs font-medium text-blue-600">
-                {{ strtoupper(substr($sk->createdBy->name, 0, 1)) }}
-              </span>
-            </div>
-            <span class="font-medium">{{ $sk->createdBy->name }}</span>
-          </div>
-        @else
-          <div class="font-medium text-gray-400">-</div>
-        @endif
+        <select x-model="createdBy" class="mt-1 w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm">
+          <option value="">Pilih User</option>
+          @foreach(\App\Models\User::orderBy('name')->get() as $user)
+            <option value="{{ $user->id }}">{{ $user->name }}</option>
+          @endforeach
+        </select>
       </div>
       <div>
         <div class="text-xs text-gray-500">Tanggal Instalasi</div>
@@ -240,6 +234,7 @@
 <script>
 function skEdit() {
   return {
+    createdBy: @json($sk->created_by ?? ''),
     material: {
       tanggal_instalasi: @json($sk->tanggal_instalasi ? $sk->tanggal_instalasi->format('Y-m-d') : ''),
       panjang_pipa_gl_medium_m: @json($sk->panjang_pipa_gl_medium_m ?? ''),
@@ -308,6 +303,7 @@ function skEdit() {
             formData.append(key, value);
           }
         });
+        if (this.createdBy) formData.append('created_by', this.createdBy);
 
         const response = await fetch(@json(route('sk.update', $sk->id)), {
           method: 'POST',

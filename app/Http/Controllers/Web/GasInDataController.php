@@ -99,6 +99,7 @@ class GasInDataController extends Controller
        $v = Validator::make($r->all(), [
            'tanggal_gas_in' => ['required','date'],
            'notes' => ['nullable','string'],
+           'created_by' => ['nullable','integer','exists:users,id'],
        ]);
 
        if ($v->fails()) {

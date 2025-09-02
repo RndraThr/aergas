@@ -41,18 +41,12 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
         <div class="text-xs text-gray-500">Created By</div>
-        @if($gasIn->createdBy)
-          <div class="flex items-center mt-1">
-            <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-              <span class="text-xs font-medium text-blue-600">
-                {{ strtoupper(substr($gasIn->createdBy->name, 0, 1)) }}
-              </span>
-            </div>
-            <span class="font-medium">{{ $gasIn->createdBy->name }}</span>
-          </div>
-        @else
-          <div class="font-medium text-gray-400">-</div>
-        @endif
+        <select x-model="createdBy" class="mt-1 w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm">
+          <option value="">Pilih User</option>
+          @foreach(\App\Models\User::orderBy('name')->get() as $user)
+            <option value="{{ $user->id }}">{{ $user->name }}</option>
+          @endforeach
+        </select>
       </div>
       <div>
         <div class="text-xs text-gray-500">Tanggal Gas In</div>
@@ -190,6 +184,7 @@
 <script>
 function gasInEdit() {
   return {
+    createdBy: @json($gasIn->created_by ?? ''),
     tanggalGasIn: @json($gasIn->tanggal_gas_in ? $gasIn->tanggal_gas_in->format('Y-m-d') : ''),
     notes: @json($gasIn->notes ?? ''),
     updating: false,
@@ -206,6 +201,7 @@ function gasInEdit() {
         formData.append('_token', @json(csrf_token()));
         formData.append('_method', 'PUT');
 
+        if (this.createdBy) formData.append('created_by', this.createdBy);
         if (this.tanggalGasIn) formData.append('tanggal_gas_in', this.tanggalGasIn);
         if (this.notes) formData.append('notes', this.notes);
 

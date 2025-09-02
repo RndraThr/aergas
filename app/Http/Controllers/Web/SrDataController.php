@@ -104,6 +104,7 @@ class SrDataController extends Controller
         $v = Validator::make($r->all(), array_merge([
             'tanggal_pemasangan' => ['required','date'],
             'notes' => ['nullable','string'],
+            'created_by' => ['nullable','integer','exists:users,id'],
         ], $materialRules));
 
         if ($v->fails()) {
