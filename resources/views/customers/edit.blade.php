@@ -334,7 +334,9 @@ function customerEditData() {
                     this.originalForm = { ...this.form };
 
                     setTimeout(() => {
-                        window.location.href = '{{ route("customers.show", $customer->reff_id_pelanggan) }}';
+                        // Use the updated reff_id from server response
+                        const reffId = result.data?.reff_id_pelanggan || this.form.reff_id_pelanggan;
+                        window.location.href = `/customers/${reffId}`;
                     }, 1500);
                 } else {
                     console.error('Update failed:', result);
