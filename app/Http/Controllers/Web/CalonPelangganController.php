@@ -38,7 +38,7 @@ class CalonPelangganController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = CalonPelanggan::query();
+            $query = CalonPelanggan::with(['validatedBy:id,name']);
 
             // Filters
             if ($s = trim((string) $request->input('search', ''))) {
@@ -71,16 +71,29 @@ class CalonPelangganController extends Controller
                 'search','status','progress_status','kelurahan','padukuhan','sort_by','sort_direction','per_page'
             ]));
 
-            // Stats
+            // Updated stats with validation metrics
             $stats = [
-                'total_customers'     => CalonPelanggan::count(),
-                'active_customers'    => CalonPelanggan::where('status','lanjut')->count(),
-                'pending_validation'  => CalonPelanggan::where('status','pending')->count(),
-                'completed_customers' => CalonPelanggan::where('progress_status','done')->count(),
+                'total_customers'       => CalonPelanggan::count(),
+                'pending_validation'    => CalonPelanggan::where('status', 'pending')->count(),
+                'validated_customers'   => CalonPelanggan::where('status', 'validated')->count(),
+                'in_progress_customers' => CalonPelanggan::whereIn('status', ['in_progress', 'lanjut'])
+                                                       ->whereNotIn('progress_status', ['done', 'batal'])
+                                                       ->count(),
+                'completed_cancelled'   => CalonPelanggan::whereIn('progress_status', ['done', 'batal'])
+                                                       ->orWhere('status', 'batal')
+                                                       ->count(),
             ];
 
             // JSON for AJAX (fetch ?ajax=1)
             if ($request->expectsJson() || $request->boolean('ajax')) {
+                // Transform customers data to include validated_by_name
+                $customersData = $customers->getCollection()->map(function ($customer) {
+                    $customer->validated_by_name = $customer->validatedBy?->name;
+                    return $customer;
+                });
+                
+                $customers->setCollection($customersData);
+                
                 return response()->json([
                     'success' => true,
                     'data'    => $customers, // paginator object
@@ -279,6 +292,12 @@ class CalonPelangganController extends Controller
     public function update(Request $request, string $reffId)
     {
         try {
+            Log::info('Customer update request', [
+                'reff_id' => $reffId,
+                'user_id' => auth()->id(),
+                'data' => $request->all()
+            ]);
+
             $customer = CalonPelanggan::findOrFail($reffId);
 
             // siapa saja yg boleh ubah reff?
@@ -306,7 +325,20 @@ class CalonPelangganController extends Controller
                     $reffId . ',reff_id_pelanggan';
             }
 
-            $validated = Validator::make($request->all(), $rules)->validate();
+            $validator = Validator::make($request->all(), $rules);
+            
+            if ($validator->fails()) {
+                if ($request->expectsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed',
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
+                return back()->withErrors($validator)->withInput();
+            }
+            
+            $validated = $validator->validated();
 
             // siapkan data update biasa
             $data = $request->only([
@@ -329,6 +361,13 @@ class CalonPelangganController extends Controller
             // ON UPDATE CASCADE, Anda perlu update manual di tabel-tabel itu.
 
             $targetReff = $customer->reff_id_pelanggan; // bisa saja berubah
+            
+            Log::info('Customer update success', [
+                'reff_id' => $targetReff,
+                'user_id' => auth()->id(),
+                'is_ajax' => $request->expectsJson() || $request->ajax()
+            ]);
+            
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
@@ -342,6 +381,14 @@ class CalonPelangganController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error updating customer', ['reff_id' => $reffId, 'error' => $e->getMessage()]);
+            
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat memperbarui pelanggan: ' . $e->getMessage()
+                ], 500);
+            }
+            
             return back()->with('error', 'Terjadi kesalahan')->withInput();
         }
     }
@@ -459,5 +506,133 @@ class CalonPelangganController extends Controller
             ];
         }
         return $status;
+    }
+
+    /**
+     * Validate customer (approve)
+     */
+    public function validateCustomer(Request $request, string $reffId)
+    {
+        try {
+            $customer = CalonPelanggan::findOrFail($reffId);
+
+            if ($customer->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pelanggan sudah divalidasi atau dibatalkan'
+                ], 422);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'notes' => 'nullable|string|max:500'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $success = $customer->validateCustomer(
+                auth()->id(),
+                $request->input('notes')
+            );
+
+            if (!$success) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal memvalidasi pelanggan'
+                ], 422);
+            }
+
+            // Send notification
+            $this->notificationService->create(
+                'customer_validated',
+                'Pelanggan Divalidasi',
+                "Pelanggan {$customer->nama_pelanggan} (ID: {$customer->reff_id_pelanggan}) telah divalidasi.",
+                ['customer_id' => $customer->reff_id_pelanggan]
+            );
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Pelanggan berhasil divalidasi',
+                    'data' => $customer->fresh()
+                ]);
+            }
+
+            return redirect()->route('customers.show', $customer->reff_id_pelanggan)
+                           ->with('success', 'Pelanggan berhasil divalidasi');
+
+        } catch (Exception $e) {
+            Log::error('Error validating customer', [
+                'reff_id' => $reffId,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memvalidasi pelanggan'
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject customer validation
+     */
+    public function rejectCustomer(Request $request, string $reffId)
+    {
+        try {
+            $customer = CalonPelanggan::findOrFail($reffId);
+
+            $validator = Validator::make($request->all(), [
+                'notes' => 'required|string|max:500'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $success = $customer->rejectValidation(
+                auth()->id(),
+                $request->input('notes')
+            );
+
+            // Send notification
+            $this->notificationService->create(
+                'customer_rejected',
+                'Pelanggan Ditolak',
+                "Pelanggan {$customer->nama_pelanggan} (ID: {$customer->reff_id_pelanggan}) ditolak validasinya.",
+                ['customer_id' => $customer->reff_id_pelanggan]
+            );
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Pelanggan berhasil ditolak',
+                    'data' => $customer->fresh()
+                ]);
+            }
+
+            return redirect()->route('customers.show', $customer->reff_id_pelanggan)
+                           ->with('success', 'Pelanggan berhasil ditolak');
+
+        } catch (Exception $e) {
+            Log::error('Error rejecting customer', [
+                'reff_id' => $reffId,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menolak pelanggan'
+            ], 500);
+        }
     }
 }

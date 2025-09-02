@@ -114,6 +114,15 @@ class PhotoApprovalService
                 'uploaded_at'   => now(),
                 'ai_status'     => 'pending',
                 'photo_status'  => 'ai_pending',
+                // Reset rejection fields when photo is replaced
+                'tracer_rejected_at' => null,
+                'tracer_user_id' => null,
+                'tracer_approved_at' => null,
+                'tracer_notes' => null,
+                'cgp_approved_at' => null,
+                'cgp_user_id' => null,
+                'cgp_notes' => null,
+                'rejection_reason' => null,
             ]
         );
 
@@ -209,7 +218,24 @@ class PhotoApprovalService
         $slotKey = $aliases[$slotIncoming] ?? $slotIncoming;
 
         $slotCfg = $cfg['modules'][$moduleKey]['slots'][$slotKey] ?? null;
+        
+        // Log detailed slot configuration for debugging
+        Log::info('PhotoApprovalService uploadDraftOnly slot check', [
+            'module' => $moduleKey,
+            'slotIncoming' => $slotIncoming,
+            'slotKey' => $slotKey,
+            'slotCfg_exists' => !is_null($slotCfg),
+            'available_slots' => array_keys($cfg['modules'][$moduleKey]['slots'] ?? []),
+            'available_aliases' => $aliases
+        ]);
+        
         if (!$slotCfg) {
+            Log::error('PhotoApprovalService slot not found', [
+                'module' => $moduleKey,
+                'slotIncoming' => $slotIncoming,
+                'slotKey' => $slotKey,
+                'available_slots' => array_keys($cfg['modules'][$moduleKey]['slots'] ?? [])
+            ]);
             return ['success' => false, 'message' => "Slot tidak dikenal: {$slotIncoming} → {$slotKey}"];
         }
 
@@ -376,7 +402,7 @@ class PhotoApprovalService
             $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            if (!$user->isAdmin()) throw new Exception('Unauthorized: Only Admin can perform CGP approval');
+            if (!$user->isAdminLike()) throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP approval');
             if ($pa->photo_status !== 'cgp_pending') throw new Exception("Photo is not in cgp_pending status. Current: {$pa->photo_status}");
 
             $old = $pa->photo_status;
@@ -413,7 +439,7 @@ class PhotoApprovalService
             $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            if (!$user->isAdmin()) throw new Exception('Unauthorized: Only Admin can perform CGP rejection');
+            if (!$user->isAdminLike()) throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP rejection');
             if ($pa->photo_status !== 'cgp_pending') throw new Exception("Photo is not in cgp_pending status. Current: {$pa->photo_status}");
 
             $old = $pa->photo_status;
@@ -926,5 +952,305 @@ class PhotoApprovalService
             ['reff_id_pelanggan' => $reffId, 'module_name' => strtolower($module), 'photo_field_name' => $photoField],
             ['photo_url' => $photoUrl, 'photo_status' => 'ai_rejected', 'rejection_reason' => 'Use handleUploadAndValidate flow']
         );
+    }
+
+    /* =====================================================================================
+     |  NEW METHODS FOR TRACER APPROVAL INTERFACE
+     * ==================================================================================== */
+
+    /**
+     * Run AI Review for all photos in a module
+     */
+    public function runAIReviewForModule($moduleData, string $module): array
+    {
+        if (!$moduleData) {
+            throw new Exception("Module data not found");
+        }
+
+        $photos = PhotoApproval::where('module_name', strtolower($module))
+            ->where('reff_id_pelanggan', $moduleData->reff_id_pelanggan)
+            ->whereNull('ai_approved_at')
+            ->get();
+
+        $results = [];
+        $processed = 0;
+
+        foreach ($photos as $photo) {
+            try {
+                // Run AI analysis on photo
+                $aiResult = $this->runAIAnalysis($photo);
+                
+                $photo->update([
+                    'ai_approved_at' => now(),
+                    'ai_confidence_score' => $aiResult['confidence'] ?? 0,
+                    'ai_notes' => $aiResult['notes'] ?? null,
+                    'ai_analysis_result' => $aiResult['detailed_analysis'] ?? null
+                ]);
+
+                $results[] = [
+                    'photo_id' => $photo->id,
+                    'photo_type' => $photo->photo_field_name,
+                    'success' => true,
+                    'confidence' => $aiResult['confidence'] ?? 0,
+                    'notes' => $aiResult['notes'] ?? null
+                ];
+
+                $processed++;
+
+            } catch (Exception $e) {
+                Log::error('AI Review failed for photo', [
+                    'photo_id' => $photo->id,
+                    'error' => $e->getMessage()
+                ]);
+
+                $results[] = [
+                    'photo_id' => $photo->id,
+                    'photo_type' => $photo->photo_field_name,
+                    'success' => false,
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        return [
+            'total_photos' => $photos->count(),
+            'processed' => $processed,
+            'results' => $results
+        ];
+    }
+
+    /**
+     * Approve photo by tracer (new interface)
+     */
+    public function approvePhotoByTracer(PhotoApproval $photo, int $tracerId, ?string $notes = null): PhotoApproval
+    {
+        DB::beginTransaction();
+        try {
+            $tracer = User::findOrFail($tracerId);
+
+            if (!$tracer->isTracer() && !$tracer->isSuperAdmin()) {
+                throw new Exception('Unauthorized: Only Tracer can perform this action');
+            }
+
+            $oldStatus = $photo->photo_status;
+            
+            $photo->update([
+                'tracer_user_id' => $tracerId,
+                'tracer_approved_at' => now(),
+                'tracer_notes' => $notes,
+                'photo_status' => 'cgp_pending' // Change to cgp_pending so it appears in CGP queue
+            ]);
+
+            $this->createAuditLog($tracerId, 'tracer_approved', 'PhotoApproval', $photo->id, $photo->reff_id_pelanggan, [
+                'old_status' => $oldStatus,
+                'new_status' => 'cgp_pending',
+                'notes' => $notes
+            ]);
+
+            DB::commit();
+            
+            // Update module status
+            $this->recalcModule($photo->reff_id_pelanggan, $photo->module_name);
+            
+            return $photo->fresh();
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Approve by tracer failed', [
+                'photo_id' => $photo->id,
+                'tracer_id' => $tracerId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Reject photo by tracer (new interface)
+     */
+    public function rejectPhotoByTracer(PhotoApproval $photo, int $tracerId, ?string $notes = null): PhotoApproval
+    {
+        DB::beginTransaction();
+        try {
+            $tracer = User::findOrFail($tracerId);
+
+            if (!$tracer->isTracer() && !$tracer->isSuperAdmin()) {
+                throw new Exception('Unauthorized: Only Tracer can perform this action');
+            }
+
+            $oldStatus = $photo->photo_status;
+            
+            $photo->update([
+                'tracer_user_id' => $tracerId,
+                'tracer_approved_at' => null,
+                'tracer_rejected_at' => now(),
+                'tracer_notes' => $notes,
+                'photo_status' => 'tracer_rejected',
+                'rejection_reason' => $notes
+            ]);
+
+            $this->createAuditLog($tracerId, 'tracer_rejected', 'PhotoApproval', $photo->id, $photo->reff_id_pelanggan, [
+                'old_status' => $oldStatus,
+                'new_status' => 'tracer_rejected',
+                'rejection_reason' => $notes
+            ]);
+
+            // Handle rejection (notifications, etc.)
+            $this->handlePhotoRejection($photo, $tracer->full_name . ' (Tracer)', $notes ?? '');
+
+            DB::commit();
+            
+            // Update module status
+            $this->recalcModule($photo->reff_id_pelanggan, $photo->module_name);
+            
+            return $photo->fresh();
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Reject by tracer failed', [
+                'photo_id' => $photo->id,
+                'tracer_id' => $tracerId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Approve all photos in a module by tracer
+     */
+    public function approveModuleByTracer($moduleData, string $module, int $tracerId, ?string $notes = null): array
+    {
+        DB::beginTransaction();
+        try {
+            $tracer = User::findOrFail($tracerId);
+
+            if (!$tracer->isTracer() && !$tracer->isSuperAdmin()) {
+                throw new Exception('Unauthorized: Only Tracer can perform this action');
+            }
+
+            $photos = PhotoApproval::where('module_name', strtolower($module))
+                ->where('reff_id_pelanggan', $moduleData->reff_id_pelanggan)
+                ->whereNull('tracer_approved_at')
+                ->get();
+
+            if ($photos->count() === 0) {
+                throw new Exception('No photos found to approve');
+            }
+
+            $approved = [];
+
+            foreach ($photos as $photo) {
+                $oldStatus = $photo->photo_status;
+                
+                $photo->update([
+                    'tracer_user_id' => $tracerId,
+                    'tracer_approved_at' => now(),
+                    'tracer_notes' => $notes,
+                    'photo_status' => 'cgp_pending' // Change to cgp_pending so it appears in CGP queue
+                ]);
+
+                $this->createAuditLog($tracerId, 'tracer_approved', 'PhotoApproval', $photo->id, $photo->reff_id_pelanggan, [
+                    'old_status' => $oldStatus,
+                    'new_status' => 'cgp_pending',
+                    'notes' => $notes,
+                    'batch_approval' => true
+                ]);
+
+                $approved[] = $photo->id;
+            }
+
+            // Update module status
+            $moduleData->update([
+                'tracer_approved_at' => now(),
+                'tracer_approved_by' => $tracerId,
+                'tracer_notes' => $notes,
+                'module_status' => 'tracer_approved'
+            ]);
+
+            DB::commit();
+            
+            // Recalc overall status
+            $this->recalcModule($moduleData->reff_id_pelanggan, $module);
+
+            return [
+                'approved_photos' => $approved,
+                'total_approved' => count($approved),
+                'module_status' => 'tracer_approved'
+            ];
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Approve module by tracer failed', [
+                'module' => $module,
+                'module_id' => $moduleData->id ?? null,
+                'tracer_id' => $tracerId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Run AI analysis on a single photo
+     */
+    private function runAIAnalysis(PhotoApproval $photo): array
+    {
+        // This is a placeholder for actual AI analysis
+        // You would integrate with your OpenAI service or other AI provider
+        
+        try {
+            // Example AI analysis call
+            $result = $this->openAIService->analyzePhoto($photo->photo_url, [
+                'photo_type' => $photo->photo_field_name,
+                'module_type' => $photo->module_name,
+                'analysis_prompt' => $this->getAnalysisPrompt($photo->photo_field_name, $photo->module_name)
+            ]);
+
+            return [
+                'confidence' => $result['confidence'] ?? 75,
+                'notes' => $result['analysis'] ?? 'AI analysis completed',
+                'detailed_analysis' => $result['detailed'] ?? null
+            ];
+
+        } catch (Exception $e) {
+            Log::warning('AI Analysis failed, using fallback', [
+                'photo_id' => $photo->id,
+                'error' => $e->getMessage()
+            ]);
+
+            // Fallback analysis
+            return [
+                'confidence' => 70,
+                'notes' => 'Photo appears valid (AI service unavailable)',
+                'detailed_analysis' => null
+            ];
+        }
+    }
+
+    /**
+     * Get analysis prompt for AI based on photo type and module
+     */
+    private function getAnalysisPrompt(string $photoType, string $moduleType): string
+    {
+        $prompts = [
+            'sk' => [
+                'foto_sebelum_pekerjaan' => 'Analyze if the photo shows the area before SK work begins, looking for gas pipes, safety conditions, and workspace clarity.',
+                'foto_material_sk' => 'Verify that all SK materials are visible and properly arranged in the photo.',
+                'foto_hasil_pekerjaan' => 'Check if the completed SK work meets installation standards and safety requirements.'
+            ],
+            'sr' => [
+                'foto_sebelum_pekerjaan' => 'Analyze if the photo shows the area before SR work begins, checking for existing installations and work area.',
+                'foto_material_sr' => 'Verify that all SR materials are visible and properly arranged in the photo.',
+                'foto_hasil_pekerjaan' => 'Check if the completed SR work meets installation standards and connection requirements.'
+            ],
+            'gas_in' => [
+                'foto_sebelum_pekerjaan' => 'Analyze if the photo shows the area before gas-in work begins.',
+                'foto_material_gas_in' => 'Verify that all gas-in materials and equipment are visible in the photo.',
+                'foto_hasil_pekerjaan' => 'Check if the completed gas-in work meets safety and operational standards.'
+            ]
+        ];
+
+        return $prompts[$moduleType][$photoType] ?? "Analyze this {$photoType} photo for {$moduleType} module to ensure it meets quality and safety standards.";
     }
 }

@@ -90,6 +90,14 @@
     @endphp
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-3 mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Tanggal Instalasi <span class="text-red-500">*</span>
+        </label>
+        <input type="date" x-model="material.tanggal_instalasi"
+               class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500" required>
+      </div>
+
       <div class="lg:col-span-3">
         <label class="block text-sm font-medium text-gray-700 mb-1">
           {{ $materialLabels['panjang_pipa_gl_medium_m'] }} <span class="text-red-500">*</span>
@@ -233,6 +241,7 @@
 function skEdit() {
   return {
     material: {
+      tanggal_instalasi: @json($sk->tanggal_instalasi ? $sk->tanggal_instalasi->format('Y-m-d') : ''),
       panjang_pipa_gl_medium_m: @json($sk->panjang_pipa_gl_medium_m ?? ''),
       qty_elbow_1_2_galvanis: @json($sk->qty_elbow_1_2_galvanis ?? ''),
       qty_sockdraft_galvanis_1_2: @json($sk->qty_sockdraft_galvanis_1_2 ?? ''),
@@ -363,7 +372,11 @@ function slotUploader(slot) {
     },
 
     async upload() {
-      if (!this.file) return;
+      if (!this.file) {
+        console.error('No file selected for upload');
+        return;
+      }
+      
       this.uploading = true;
 
       try {

@@ -41,6 +41,12 @@
                         <i class="fas fa-check"></i>
                         <span>Validate</span>
                     </button>
+                    
+                    <button @click="rejectCustomer()"
+                            class="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                        <i class="fas fa-times"></i>
+                        <span>Reject</span>
+                    </button>
                 @endif
 
                 <a href="{{ route('customers.edit', $customer->reff_id_pelanggan) }}"
@@ -426,30 +432,71 @@ function customerDetailData() {
         customer: @json($customer),
 
         async validateCustomer() {
+            const notes = prompt('Catatan validasi (opsional):');
+            if (notes === null) return; // User cancelled
+            
             if (!confirm('Validate this customer? This will allow them to proceed to SK module.')) return;
-
+            
             try {
-                const response = await fetch(`{{ route('customers.update', $customer->reff_id_pelanggan) }}`, {
-                    method: 'PUT',
+                const response = await fetch(`{{ route('customers.validate', $customer->reff_id_pelanggan) }}`, {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': window.csrfToken
                     },
                     body: JSON.stringify({
-                        status: 'validated',
-                        progress_status: 'sk'
+                        notes: notes
                     })
                 });
-
-                if (response.ok) {
-                    window.showToast('success', 'Customer validated successfully');
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    window.showToast('success', result.message || 'Customer validated successfully');
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    throw new Error('Validation failed');
+                    throw new Error(result.message || 'Validation failed');
                 }
             } catch (error) {
-                window.showToast('error', 'Failed to validate customer');
+                console.error('Validation error:', error);
+                window.showToast('error', error.message || 'Failed to validate customer');
+            }
+        },
+
+        async rejectCustomer() {
+            const notes = prompt('Alasan penolakan (wajib diisi):');
+            if (!notes || notes.trim() === '') {
+                window.showToast('error', 'Alasan penolakan harus diisi');
+                return;
+            }
+            
+            if (!confirm('Reject this customer? This action cannot be undone.')) return;
+            
+            try {
+                const response = await fetch(`{{ route('customers.reject', $customer->reff_id_pelanggan) }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': window.csrfToken
+                    },
+                    body: JSON.stringify({
+                        notes: notes
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    window.showToast('success', result.message || 'Customer rejected successfully');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    throw new Error(result.message || 'Rejection failed');
+                }
+            } catch (error) {
+                console.error('Rejection error:', error);
+                window.showToast('error', error.message || 'Failed to reject customer');
             }
         },
 

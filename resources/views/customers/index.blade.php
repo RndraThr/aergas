@@ -43,28 +43,32 @@
             color="blue"
         />
         <x-stat-card
-            title="Aktif"
-            :value="$stats['active_customers'] ?? 0"
+            title="Perlu Validasi"
+            :value="$stats['pending_validation'] ?? 0"
+            icon="fas fa-user-clock"
+            color="yellow"
+            description="Pelanggan menunggu validasi admin/tracer"
+        />
+        <x-stat-card
+            title="Tervalidasi"
+            :value="$stats['validated_customers'] ?? 0"
             icon="fas fa-user-check"
             color="green"
+            description="Pelanggan sudah divalidasi dan dapat melanjutkan"
         />
         <x-stat-card
-            title="Selesai"
-            :value="$stats['completed_customers'] ?? 0"
-            icon="fas fa-check-circle"
+            title="Dalam Proses"
+            :value="$stats['in_progress_customers'] ?? 0"
+            icon="fas fa-tasks"
             color="purple"
+            description="Pelanggan sedang dalam tahap SK/SR/Gas In"
         />
         <x-stat-card
-            title="Pending"
-            :value="$stats['pending_validation'] ?? 0"
-            icon="fas fa-clock"
-            color="yellow"
-        />
-        <x-stat-card
-            title="Batal"
-            :value="($stats['total_customers'] ?? 0) - ($stats['active_customers'] ?? 0) - ($stats['completed_customers'] ?? 0) - ($stats['pending_validation'] ?? 0)"
-            icon="fas fa-times-circle"
-            color="red"
+            title="Selesai/Batal"
+            :value="$stats['completed_cancelled'] ?? 0"
+            icon="fas fa-flag-checkered"
+            color="gray"
+            description="Pelanggan selesai atau dibatalkan"
         />
     </div>
 
@@ -113,25 +117,25 @@
         </div>
 
         <div class="mt-4 flex flex-wrap gap-2">
+            <button @click="setQuickFilter('pending_validation')"
+                    :class="quickFilter === 'pending_validation' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
+                <i class="fas fa-user-clock mr-1"></i> Perlu Validasi
+            </button>
+            <button @click="setQuickFilter('validated')"
+                    :class="quickFilter === 'validated' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
+                <i class="fas fa-user-check mr-1"></i> Tervalidasi
+            </button>
+            <button @click="setQuickFilter('in_progress')"
+                    :class="quickFilter === 'in_progress' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
+                <i class="fas fa-tasks mr-1"></i> Dalam Proses
+            </button>
             <button @click="setQuickFilter('today')"
                     :class="quickFilter === 'today' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
                     class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
-                Hari Ini
-            </button>
-            <button @click="setQuickFilter('week')"
-                    :class="quickFilter === 'week' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
-                Minggu Ini
-            </button>
-            <button @click="setQuickFilter('pending')"
-                    :class="quickFilter === 'pending' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
-                Butuh Review
-            </button>
-            <button @click="setQuickFilter('active')"
-                    :class="quickFilter === 'active' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
-                Sedang Berjalan
+                <i class="fas fa-calendar-day mr-1"></i> Hari Ini
             </button>
             <button @click="resetFilters()"
                     class="px-3 py-1 rounded-full text-sm font-medium bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors">
@@ -185,6 +189,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kontak</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validasi</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <button @click="sortBy('tanggal_registrasi')" class="flex items-center space-x-1 hover:text-gray-700">
                                 <span>Tgl Registrasi</span>
@@ -242,6 +247,33 @@
                                                  :style="'width: ' + (customer.progress_percentage || 0) + '%'"></div>
                                         </div>
                                     </div>
+                                </div>
+                            </td>
+
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm">
+                                    <template x-if="customer.validated_at">
+                                        <div>
+                                            <div class="flex items-center text-green-600 mb-1">
+                                                <i class="fas fa-check-circle mr-1"></i>
+                                                <span class="text-xs font-medium">Validated</span>
+                                            </div>
+                                            <div class="text-xs text-gray-500" x-text="customer.validated_at ? new Date(customer.validated_at).toLocaleDateString('id-ID') : ''"></div>
+                                            <div class="text-xs text-gray-400" x-text="customer.validated_by_name ? 'by ' + customer.validated_by_name : ''"></div>
+                                        </div>
+                                    </template>
+                                    <template x-if="!customer.validated_at && customer.status === 'pending'">
+                                        <div class="flex items-center text-yellow-600">
+                                            <i class="fas fa-clock mr-1"></i>
+                                            <span class="text-xs font-medium">Menunggu Validasi</span>
+                                        </div>
+                                    </template>
+                                    <template x-if="!customer.validated_at && customer.status === 'batal'">
+                                        <div class="flex items-center text-red-600">
+                                            <i class="fas fa-times-circle mr-1"></i>
+                                            <span class="text-xs font-medium">Ditolak</span>
+                                        </div>
+                                    </template>
                                 </div>
                             </td>
 
@@ -466,8 +498,23 @@ function customersData() {
 
         setQuickFilter(filter) {
             this.quickFilter = filter;
+            
+            // Reset filters first
+            this.filters.status = '';
+            this.filters.progress_status = '';
+            this.filters.date_from = '';
+            this.filters.date_to = '';
 
             switch(filter) {
+                case 'pending_validation':
+                    this.filters.status = 'pending';
+                    break;
+                case 'validated':
+                    this.filters.status = 'validated';
+                    break;
+                case 'in_progress':
+                    this.filters.status = 'in_progress';
+                    break;
                 case 'today':
                     this.filters.date_from = new Date().toISOString().split('T')[0];
                     this.filters.date_to = new Date().toISOString().split('T')[0];
@@ -477,12 +524,6 @@ function customersData() {
                     weekAgo.setDate(weekAgo.getDate() - 7);
                     this.filters.date_from = weekAgo.toISOString().split('T')[0];
                     this.filters.date_to = new Date().toISOString().split('T')[0];
-                    break;
-                case 'pending':
-                    this.filters.status = 'pending';
-                    break;
-                case 'active':
-                    this.filters.status = 'lanjut';
                     break;
             }
 

@@ -20,6 +20,7 @@ class CalonPelanggan extends Model
 
     protected $casts = [
         'tanggal_registrasi' => 'datetime',
+        'validated_at'       => 'datetime',
         'last_login'         => 'datetime',
         'status'             => 'string',        // pending | validated | in_progress | lanjut | batal
         'progress_status'    => 'string',        // validasi | sk | sr | mgrt | gas_in | jalur_pipa | penyambungan | done | batal
@@ -44,6 +45,11 @@ class CalonPelanggan extends Model
     {
         return $this->hasMany(AuditLog::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
     }
+
+    public function validatedBy()
+    {
+        return $this->belongsTo(User::class, 'validated_by');
+    }
     public function getRouteKeyName()
     {
         return 'reff_id_pelanggan';
@@ -66,7 +72,7 @@ class CalonPelanggan extends Model
     protected $fillable = [
         'reff_id_pelanggan','nama_pelanggan','alamat','no_telepon',
         'kelurahan','padukuhan','status','progress_status','jenis_pelanggan','keterangan',
-        'tanggal_registrasi',
+        'tanggal_registrasi','validated_at','validated_by','validation_notes',
     ];
 
     /* =========================
@@ -118,5 +124,47 @@ class CalonPelanggan extends Model
             'jalur_pipa' => true,
             default => false,
         };
+    }
+
+    /**
+     * Check if customer is validated
+     */
+    public function isValidated(): bool
+    {
+        return $this->status !== 'pending';
+    }
+
+    /**
+     * Validate customer
+     */
+    public function validateCustomer(?int $userId = null, ?string $notes = null): bool
+    {
+        if ($this->status !== 'pending') {
+            return false; // Already validated
+        }
+
+        $this->update([
+            'status' => 'validated',
+            'validated_at' => now(),
+            'validated_by' => $userId,
+            'validation_notes' => $notes,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Reject customer validation
+     */
+    public function rejectValidation(?int $userId = null, ?string $notes = null): bool
+    {
+        $this->update([
+            'status' => 'batal',
+            'validated_at' => now(),
+            'validated_by' => $userId,
+            'validation_notes' => $notes,
+        ]);
+
+        return true;
     }
 }

@@ -102,7 +102,7 @@ class SrDataController extends Controller
         $materialRules = $sr->getMaterialValidationRules();
 
         $v = Validator::make($r->all(), array_merge([
-            'tanggal_pemasangan' => ['nullable','date'],
+            'tanggal_pemasangan' => ['required','date'],
             'notes' => ['nullable','string'],
         ], $materialRules));
 

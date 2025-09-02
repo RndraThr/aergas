@@ -18,6 +18,7 @@ class PhotoApproval extends Model
         'ai_validation_result' => 'array',
         'ai_approved_at'       => 'datetime',
         'tracer_approved_at'   => 'datetime',
+        'tracer_rejected_at'   => 'datetime',
         'cgp_approved_at'      => 'datetime',
         'created_at'           => 'datetime',
         'updated_at'           => 'datetime',

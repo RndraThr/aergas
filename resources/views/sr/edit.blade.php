@@ -78,6 +78,13 @@
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Tanggal Pemasangan <span class="text-red-500">*</span>
+        </label>
+        <input type="date" x-model="material.tanggal_pemasangan"
+               class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500" required>
+      </div>
+      <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Tapping</label>
         <select x-model="jenisTapping" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
           <option value="">Pilih Jenis Tapping</option>
@@ -235,6 +242,7 @@
 function srEdit() {
   return {
     material: {
+      tanggal_pemasangan: @json($sr->tanggal_pemasangan ? $sr->tanggal_pemasangan->format('Y-m-d') : ''),
       qty_tapping_saddle: @json($sr->qty_tapping_saddle ?? ''),
       qty_coupler_20mm: @json($sr->qty_coupler_20mm ?? ''),
       panjang_pipa_pe_20mm_m: @json($sr->panjang_pipa_pe_20mm_m ?? ''),

@@ -11,12 +11,12 @@
          class="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden" x-cloak></div>
 
     <!-- Sidebar -->
-    <div class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform lg:translate-x-0 lg:static lg:inset-0 transition-transform duration-300 ease-in-out border-r border-gray-200"
+    <div class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform lg:translate-x-0 lg:static lg:inset-0 transition-transform duration-300 ease-in-out border-r border-gray-200 flex flex-col"
          :class="{ '-translate-x-full': !sidebarOpen, 'translate-x-0': sidebarOpen }"
          x-cloak>
 
         <!-- Logo -->
-        <div class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-aergas-navy to-aergas-navy/90 border-b border-aergas-navy/20">
+        <div class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-aergas-navy to-aergas-navy/90 border-b border-aergas-navy/20 flex-shrink-0">
             <div class="flex items-center space-x-3">
                 <img src="{{ asset('assets/AERGAS_PNG.png') }}"
                      alt="AERGAS Logo"
@@ -29,7 +29,7 @@
         </div>
 
         <!-- User Info -->
-        <div class="p-6 bg-gradient-to-br from-gray-50 to-white border-b border-gray-200">
+        <div class="p-6 bg-gradient-to-br from-gray-50 to-white border-b border-gray-200 flex-shrink-0">
             <div class="flex items-center space-x-3">
                 <div class="w-12 h-12 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-full flex items-center justify-center text-white font-medium shadow-md">
                     {{ substr(auth()->user()->name, 0, 1) }}
@@ -44,7 +44,7 @@
         </div>
 
         <!-- Navigation -->
-        <nav class="flex-1 px-4 py-6 overflow-y-auto custom-scrollbar">
+        <nav class="flex-1 px-4 py-6 overflow-y-auto overflow-x-hidden min-h-0 sidebar-scroll">
             <div class="space-y-1">
                 <!-- Dashboard -->
                 <a href="{{ route('dashboard') }}"
@@ -155,6 +155,36 @@
                     @endphp
                     @if($pendingPhotos > 0)
                         <span class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ $pendingPhotos }}</span>
+                    @endif
+                </a>
+                @endif
+
+                @if(auth()->user()->role === 'tracer' || auth()->user()->role === 'super_admin')
+                <!-- Tracer Approval Interface -->
+                <a href="{{ route('approvals.tracer.index') }}"
+                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                    <i class="fas fa-search mr-3 text-lg {{ request()->routeIs('approvals.tracer.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    Tracer Review
+                    @php
+                        $pendingTracer = \App\Models\PhotoApproval::whereNull('tracer_approved_at')->count();
+                    @endphp
+                    @if($pendingTracer > 0)
+                        <span class="ml-auto bg-blue-500 text-white text-xs px-2 py-1 rounded-full">{{ $pendingTracer }}</span>
+                    @endif
+                </a>
+                @endif
+
+                @if(auth()->user()->role === 'admin' || auth()->user()->role === 'super_admin')
+                <!-- CGP Approval Interface -->
+                <a href="{{ route('approvals.cgp.index') }}"
+                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                    <i class="fas fa-clipboard-check mr-3 text-lg {{ request()->routeIs('approvals.cgp.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    CGP Review
+                    @php
+                        $pendingCgp = \App\Models\PhotoApproval::where('photo_status', 'cgp_pending')->count();
+                    @endphp
+                    @if($pendingCgp > 0)
+                        <span class="ml-auto bg-green-500 text-white text-xs px-2 py-1 rounded-full">{{ $pendingCgp }}</span>
                     @endif
                 </a>
                 @endif

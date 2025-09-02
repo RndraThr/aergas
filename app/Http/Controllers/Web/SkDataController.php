@@ -28,7 +28,6 @@ class SkDataController extends Controller
             $term = trim((string) $r->get('q'));
             $q->where(function($w) use ($term) {
                 $w->where('reff_id_pelanggan','like',"%{$term}%")
-                  ->orWhere('nomor_sk','like',"%{$term}%")
                   ->orWhere('status','like',"%{$term}%");
             });
         }
@@ -103,7 +102,7 @@ class SkDataController extends Controller
         $materialRules = $sk->getMaterialValidationRules();
 
         $v = Validator::make($r->all(), array_merge([
-            'tanggal_instalasi' => ['nullable','date'],
+            'tanggal_instalasi' => ['required','date'],
             'notes' => ['nullable','string'],
         ], $materialRules));
 
@@ -299,12 +298,29 @@ class SkDataController extends Controller
 
     public function uploadDraft(Request $r, SkData $sk)
     {
+        // Log request data untuk debugging
+        Log::info('SkData uploadDraft attempt', [
+            'sk_id' => $sk->id,
+            'reff_id' => $sk->reff_id_pelanggan,
+            'has_file' => $r->hasFile('file'),
+            'file_valid' => $r->hasFile('file') ? $r->file('file')->isValid() : false,
+            'file_size' => $r->hasFile('file') ? $r->file('file')->getSize() : null,
+            'file_mime' => $r->hasFile('file') ? $r->file('file')->getMimeType() : null,
+            'slot_type' => $r->input('slot_type'),
+            'request_data' => array_keys($r->all())
+        ]);
+
         $v = Validator::make($r->all(), [
             'file' => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:10240'],
             'slot_type' => ['required','string','max:100'],
         ]);
 
         if ($v->fails()) {
+            Log::warning('SkData uploadDraft validation failed', [
+                'sk_id' => $sk->id,
+                'reff_id' => $sk->reff_id_pelanggan,
+                'errors' => $v->errors()->toArray()
+            ]);
             return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
         }
 
@@ -321,22 +337,59 @@ class SkDataController extends Controller
             $meta['customer_name'] = $sk->calonPelanggan->nama_pelanggan;
         }
 
-        $res = $svc->uploadDraftOnly(
-            module: 'SK',
-            reffId: $sk->reff_id_pelanggan,
-            slotIncoming: $slotParam,
-            file: $r->file('file'),
-            uploadedBy: Auth::id(),
-            targetFileName: $targetName,
-            meta: $meta
-        );
+        try {
+            $res = $svc->uploadDraftOnly(
+                module: 'SK',
+                reffId: $sk->reff_id_pelanggan,
+                slotIncoming: $slotParam,
+                file: $r->file('file'),
+                uploadedBy: Auth::id(),
+                targetFileName: $targetName,
+                meta: $meta
+            );
 
-        return response()->json([
-            'success' => true,
-            'photo_id' => $res['photo_id'] ?? null,
-            'filename' => $targetName,
-            'message' => 'Upload berhasil tersimpan sebagai draft'
-        ], 201);
+            if (!$res['success']) {
+                Log::warning('SkData uploadDraftOnly service failed', [
+                    'sk_id' => $sk->id,
+                    'reff_id' => $sk->reff_id_pelanggan,
+                    'slot_type' => $slotParam,
+                    'service_message' => $res['message'] ?? 'Unknown error'
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => $res['message'] ?? 'Upload service failed'
+                ], 422);
+            }
+
+            Log::info('SkData uploadDraft success', [
+                'sk_id' => $sk->id,
+                'reff_id' => $sk->reff_id_pelanggan,
+                'photo_id' => $res['photo_id'] ?? null,
+                'filename' => $targetName
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'photo_id' => $res['photo_id'] ?? null,
+                'filename' => $targetName,
+                'message' => 'Upload berhasil tersimpan sebagai draft'
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('SkData uploadDraft exception', [
+                'sk_id' => $sk->id,
+                'reff_id' => $sk->reff_id_pelanggan,
+                'slot_type' => $slotParam,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat upload: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function readyStatus(SkData $sk)

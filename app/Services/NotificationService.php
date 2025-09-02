@@ -75,6 +75,22 @@ class NotificationService
         return $notification->refresh();
     }
 
+    /**
+     * Shorthand method for backward compatibility
+     */
+    public function create(string $type, string $title, string $message, array $data = [], string $priority = 'medium'): int
+    {
+        // Send to all admins and tracers by default
+        return $this->sendToRoles(
+            ['admin', 'super_admin', 'tracer'],
+            $type,
+            $title,
+            $message,
+            $priority,
+            $data
+        );
+    }
+
     public function notifyNewCustomerRegistration(CalonPelanggan $customer, array $options = []): int
     {
         $type     = $options['type']     ?? 'customer_registered';
@@ -386,24 +402,34 @@ class NotificationService
             return 0;
         }
 
-        $now = now();
-        $rows = $recipients->map(function ($u) use ($type, $title, $message, $priority, $data, $now) {
-            return [
-                'user_id'   => $u->id,
-                'type'      => $type,
-                'title'     => $title,
-                'message'   => $message,
-                'priority'  => $this->normalizePriority($priority),
-                'data'      => $data,
-                'is_read'   => false,
-                'read_at'   => null,
-                'created_at'=> $now,
-                'updated_at'=> $now,
-            ];
-        })->all();
-
-        Notification::insert($rows);
-        return count($rows);
+        $count = 0;
+        
+        // Use individual creates to ensure proper JSON casting
+        // For better performance in production, consider using a queue
+        foreach ($recipients as $user) {
+            try {
+                Notification::create([
+                    'user_id'   => $user->id,
+                    'type'      => $type,
+                    'title'     => $title,
+                    'message'   => $message,
+                    'priority'  => $this->normalizePriority($priority),
+                    'data'      => $data, // Will be automatically cast to JSON
+                    'is_read'   => false,
+                    'read_at'   => null,
+                ]);
+                $count++;
+            } catch (\Exception $e) {
+                Log::error('Failed to create notification', [
+                    'user_id' => $user->id,
+                    'type' => $type,
+                    'error' => $e->getMessage()
+                ]);
+                // Continue with other notifications
+            }
+        }
+        
+        return $count;
     }
 
     private function customerLink(?string $reff): string

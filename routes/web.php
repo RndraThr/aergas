@@ -14,7 +14,9 @@ use App\Http\Controllers\Web\{
    GasInDataController,
    JalurPipaDataController,
    PenyambunganPipaDataController,
-   AdminController
+   AdminController,
+   TracerApprovalController,
+   CgpApprovalController
 };
 
 Route::get('/', function () {
@@ -75,14 +77,20 @@ Route::middleware('auth')->group(function () {
                ->where('reffId', '[A-Z0-9\-]+')->name('edit');
            Route::put('/{reffId}', [CalonPelangganController::class, 'update'])
                ->where('reffId', '[A-Z0-9\-]+')->name('update');
+           
+           // Customer validation routes
+           Route::post('/{reffId}/validate', [CalonPelangganController::class, 'validateCustomer'])
+               ->where('reffId', '[A-Z0-9\-]+')->name('validate');
+           Route::post('/{reffId}/reject', [CalonPelangganController::class, 'rejectCustomer'])
+               ->where('reffId', '[A-Z0-9\-]+')->name('reject');
        });
    });
 
    // SK Module Routes
    Route::prefix('sk')->name('sk.')->middleware('role:sk,tracer,admin,super_admin')->group(function () {
        Route::get('/', [SkDataController::class, 'index'])->name('index');
-       Route::get('/create', [SkDataController::class, 'create'])->name('create');
-       Route::post('/', [SkDataController::class, 'store'])->name('store');
+       Route::get('/create', [SkDataController::class, 'create'])->middleware('customer.validated:sk')->name('create');
+       Route::post('/', [SkDataController::class, 'store'])->middleware('customer.validated:sk')->name('store');
        Route::get('/{sk}', [SkDataController::class, 'show'])->whereNumber('sk')->name('show');
        Route::get('/{sk}/edit', [SkDataController::class, 'edit'])->whereNumber('sk')->name('edit');
        Route::put('/{sk}', [SkDataController::class, 'update'])->whereNumber('sk')->name('update');
@@ -236,6 +244,67 @@ Route::middleware('auth')->group(function () {
        Route::post('/{id}/cgp/approve', [PhotoApprovalController::class, 'approveByCgp'])->whereNumber('id')->name('cgp.approve');
        Route::post('/{id}/cgp/reject', [PhotoApprovalController::class, 'rejectByCgp'])->whereNumber('id')->name('cgp.reject');
        Route::post('/batch', [PhotoApprovalController::class, 'batchApprove'])->name('batch');
+   });
+
+   // Tracer Approval Interface Routes
+   Route::prefix('approvals/tracer')->name('approvals.tracer.')->middleware('role:tracer,super_admin')->group(function () {
+       Route::get('/', [TracerApprovalController::class, 'index'])->name('index');
+       Route::get('/customers', [TracerApprovalController::class, 'customers'])->name('customers');
+       Route::get('/customers/{reffId}/photos', [TracerApprovalController::class, 'customerPhotos'])
+           ->where('reffId', '[A-Za-z0-9\-]+')->name('photos');
+       
+       // Photo Actions
+       Route::post('/photos/approve', [TracerApprovalController::class, 'approvePhoto'])->name('approve-photo');
+       Route::post('/modules/approve', [TracerApprovalController::class, 'approveModule'])->name('approve-module');
+       Route::post('/ai-review', [TracerApprovalController::class, 'aiReview'])->name('ai-review');
+       
+       // Debug route (temporary)
+       Route::get('/debug', function() {
+           $customers = \App\Models\CalonPelanggan::with(['skData', 'srData', 'gasInData'])->limit(10)->get();
+           $photos = \App\Models\PhotoApproval::limit(10)->get(['id', 'reff_id_pelanggan', 'module_name', 'photo_field_name', 'photo_url', 'photo_status']);
+           $customer416009 = \App\Models\CalonPelanggan::with(['skData'])->where('reff_id_pelanggan', '416009')->first();
+           $sk416009 = \App\Models\SkData::where('reff_id_pelanggan', '416009')->first();
+           
+           return response()->json([
+               'customers_count' => $customers->count(),
+               'photos_count' => $photos->count(),
+               'customer_416009_exists' => !is_null($customer416009),
+               'customer_416009_has_sk' => $customer416009 ? !is_null($customer416009->skData) : false,
+               'sk_416009_direct' => !is_null($sk416009),
+               'customers' => $customers->map(function($c) {
+                   return [
+                       'reff_id' => $c->reff_id_pelanggan,
+                       'has_sk' => !is_null($c->skData),
+                       'sk_tracer_approved' => $c->skData ? $c->skData->tracer_approved_at : null,
+                       'has_sr' => !is_null($c->srData),
+                       'has_gas_in' => !is_null($c->gasInData),
+                   ];
+               }),
+               'photos' => $photos->map(function($p) {
+                   return [
+                       'id' => $p->id,
+                       'reff_id' => $p->reff_id_pelanggan,
+                       'module' => $p->module_name,
+                       'field' => $p->photo_field_name,
+                       'url' => $p->photo_url,
+                       'url_length' => strlen($p->photo_url ?? ''),
+                       'status' => $p->photo_status
+                   ];
+               })
+           ]);
+       })->name('debug');
+   });
+
+   // CGP Approval Interface Routes
+   Route::prefix('approvals/cgp')->name('approvals.cgp.')->middleware('role:admin,super_admin')->group(function () {
+       Route::get('/', [CgpApprovalController::class, 'index'])->name('index');
+       Route::get('/customers', [CgpApprovalController::class, 'customers'])->name('customers');
+       Route::get('/customers/{reffId}/photos', [CgpApprovalController::class, 'customerPhotos'])
+           ->where('reffId', '[A-Za-z0-9\-]+')->name('customer-photos');
+       
+       // Photo Actions
+       Route::post('/photos/approve', [CgpApprovalController::class, 'approvePhoto'])->name('approve-photo');
+       Route::post('/modules/approve', [CgpApprovalController::class, 'approveModule'])->name('approve-module');
    });
 
    // Notification Routes

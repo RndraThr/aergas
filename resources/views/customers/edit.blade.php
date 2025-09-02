@@ -235,9 +235,12 @@
 function customerEditData() {
     return {
         originalForm: {
+            reff_id_pelanggan: @json($customer->reff_id_pelanggan),
             nama_pelanggan: @json($customer->nama_pelanggan),
             alamat: @json($customer->alamat),
             no_telepon: @json($customer->no_telepon),
+            kelurahan: @json($customer->kelurahan ?? ''),
+            padukuhan: @json($customer->padukuhan ?? ''),
             jenis_pelanggan: @json($customer->jenis_pelanggan ?? 'residensial'),
             keterangan: @json($customer->keterangan ?? ''),
             status: @json($customer->status),
@@ -245,9 +248,12 @@ function customerEditData() {
         },
 
         form: {
+            reff_id_pelanggan: @json($customer->reff_id_pelanggan),
             nama_pelanggan: @json($customer->nama_pelanggan),
             alamat: @json($customer->alamat),
             no_telepon: @json($customer->no_telepon),
+            kelurahan: @json($customer->kelurahan ?? ''),
+            padukuhan: @json($customer->padukuhan ?? ''),
             jenis_pelanggan: @json($customer->jenis_pelanggan ?? 'residensial'),
             keterangan: @json($customer->keterangan ?? ''),
             status: @json($customer->status),
@@ -286,19 +292,47 @@ function customerEditData() {
             this.errors = {};
 
             try {
+                const formData = new FormData();
+                
+                // Add CSRF token and method override
+                formData.append('_token', '{{ csrf_token() }}');
+                formData.append('_method', 'PUT');
+                
+                // Add form data
+                Object.keys(this.form).forEach(key => {
+                    if (this.form[key] !== null && this.form[key] !== '') {
+                        formData.append(key, this.form[key]);
+                    }
+                });
+                
+                // Debug: log form data
+                console.log('Form data being sent:');
+                for (let [key, value] of formData.entries()) {
+                    console.log(key, ':', value);
+                }
+
                 const response = await fetch('{{ route("customers.update", $customer->reff_id_pelanggan) }}', {
-                    method: 'PUT',
+                    method: 'POST', // Use POST with _method override
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Cache-Control': 'no-cache'
                     },
-                    body: JSON.stringify(this.form)
+                    body: formData
                 });
 
-                const result = await response.json();
+                let result;
+                try {
+                    const responseText = await response.text();
+                    console.log('Raw response:', responseText);
+                    
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('Failed to parse JSON:', parseError);
+                    throw new Error('Server returned invalid response. Please check logs.');
+                }
 
-                if (response.ok) {
+                if (response.ok && result.success) {
                     this.showNotification('Data pelanggan berhasil diperbarui!', 'success');
                     this.originalForm = { ...this.form };
 
@@ -306,15 +340,17 @@ function customerEditData() {
                         window.location.href = '{{ route("customers.show", $customer->reff_id_pelanggan) }}';
                     }, 1500);
                 } else {
+                    console.error('Update failed:', result);
                     if (result.errors) {
                         this.errors = result.errors;
+                        this.showNotification('Ada kesalahan validasi dalam form', 'error');
                     } else {
                         this.showNotification(result.message || 'Terjadi kesalahan saat menyimpan data', 'error');
                     }
                 }
             } catch (error) {
-                console.error('Error:', error);
-                this.showNotification('Terjadi kesalahan jaringan', 'error');
+                console.error('Submit Error:', error);
+                this.showNotification(`Terjadi kesalahan jaringan: ${error.message}`, 'error');
             } finally {
                 this.submitting = false;
             }

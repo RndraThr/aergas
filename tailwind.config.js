@@ -14,6 +14,11 @@ export default {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
+            colors: {
+                'aergas-navy': '#1e3a5f',
+                'aergas-orange': '#ff6b35',
+                'aergas-light-blue': '#f0f4f8',
+            },
         },
     },
 
