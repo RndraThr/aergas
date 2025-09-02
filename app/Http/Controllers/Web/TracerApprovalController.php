@@ -22,7 +22,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('auth'),
-            new Middleware('role:tracer,super_admin'),
+            new Middleware('role:tracer,admin,super_admin'),
         ];
     }
 
@@ -54,7 +54,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
 
             // Filter berdasarkan status
             $status = $request->get('status');
-            
+
             if ($status === 'sk_pending') {
                 // Only customers with SK data that hasn't been approved by tracer
                 $query->whereHas('skData', function($q) {
@@ -129,7 +129,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
                 'status_filter' => $request->get('status'),
                 'search_filter' => $request->get('search')
             ]);
-            
+
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
@@ -178,7 +178,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
 
             $reffId = $request->get('reff_id');
             $module = $request->get('module');
-            
+
             // Get module data
             $moduleData = $this->getModuleData($reffId, $module);
             if (!$moduleData) {
@@ -474,7 +474,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
 
             // This will be implemented with actual Telegram service
             // $this->notificationService->sendTelegram($message);
-            
+
         } catch (Exception $e) {
             Log::error('Failed to send rejection notification: ' . $e->getMessage());
         }
