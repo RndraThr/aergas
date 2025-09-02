@@ -249,8 +249,6 @@ function srEdit() {
       qty_sealtape: @json($sr->qty_sealtape ?? '')
     },
     jenisTapping: @json($sr->jenis_tapping ?? ''),
-    panjangPipaPe: @json($sr->panjang_pipa_pe_m ?? ''),
-    panjangCasingCrossing: @json($sr->panjang_casing_crossing_m ?? ''),
     updating: false,
 
     init() {},
@@ -275,11 +273,7 @@ function srEdit() {
       const required = Object.keys(this.material);
       for (const field of required) {
         const value = this.material[field];
-        if (field.includes('panjang_')) {
-          if (!value || Number(value) <= 0) return false;
-        } else {
-          if (value === '' || value === null || Number(value) < 0) return false;
-        }
+        if (value === '' || value === null || Number(value) < 0) return false;
       }
       return true;
     },
@@ -302,8 +296,6 @@ function srEdit() {
         });
 
         if (this.jenisTapping) formData.append('jenis_tapping', this.jenisTapping);
-        if (this.panjangPipaPe) formData.append('panjang_pipa_pe_m', this.panjangPipaPe);
-        if (this.panjangCasingCrossing) formData.append('panjang_casing_crossing_m', this.panjangCasingCrossing);
 
         const response = await fetch(@json(route('sr.update', $sr->id)), {
           method: 'POST',
