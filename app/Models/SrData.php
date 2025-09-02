@@ -233,7 +233,8 @@ class SrData extends BaseModuleModel
     {
         foreach ($this->getRequiredMaterialItems() as $key => $value) {
             if (str_contains($key, 'panjang_')) {
-                if (is_null($value) || $value <= 0) {
+                // ✅ Ubah dari $value <= 0 menjadi $value < 0
+                if (is_null($value) || $value < 0) {
                     return false;
                 }
             } else {
@@ -250,11 +251,11 @@ class SrData extends BaseModuleModel
         return [
             'qty_tapping_saddle' => 'required|integer|min:0|max:100',
             'qty_coupler_20mm' => 'required|integer|min:0|max:100',
-            'panjang_pipa_pe_20mm_m' => 'required|numeric|min:0.1|max:1000',
+            'panjang_pipa_pe_20mm_m' => 'required|numeric|min:0|max:1000', // ✅ Ubah dari min:0.1
             'qty_elbow_90x20' => 'required|integer|min:0|max:100',
             'qty_transition_fitting' => 'required|integer|min:0|max:100',
-            'panjang_pondasi_tiang_sr_m' => 'required|numeric|min:0.1|max:100',
-            'panjang_pipa_galvanize_3_4_m' => 'required|numeric|min:0.1|max:100',
+            'panjang_pondasi_tiang_sr_m' => 'required|numeric|min:0|max:100', // ✅ Ubah dari min:0.1
+            'panjang_pipa_galvanize_3_4_m' => 'required|numeric|min:0|max:100', // ✅ Ubah dari min:0.1
             'qty_klem_pipa' => 'required|integer|min:0|max:100',
             'qty_ball_valve_3_4' => 'required|integer|min:0|max:100',
             'qty_double_nipple_3_4' => 'required|integer|min:0|max:100',
@@ -262,7 +263,7 @@ class SrData extends BaseModuleModel
             'qty_regulator_service' => 'required|integer|min:0|max:100',
             'qty_coupling_mgrt' => 'required|integer|min:0|max:100',
             'qty_meter_gas_rumah_tangga' => 'required|integer|min:0|max:100',
-            'panjang_casing_1_inch_m' => 'required|numeric|min:0.1|max:100',
+            'panjang_casing_1_inch_m' => 'required|numeric|min:0|max:100', // ✅ Ubah dari min:0.1
             'qty_sealtape' => 'required|integer|min:0|max:100',
             'jenis_tapping' => 'nullable|in:63x20,90x20,63x32,180x90,180x63,125x63,90x63,180x32,125x32,90x32',
             'panjang_pipa_pe_m' => 'nullable|numeric|min:0|max:1000',
