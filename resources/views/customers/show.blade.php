@@ -78,15 +78,13 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             @php
                 $modules = [
                     'validasi' => ['icon' => 'fa-clipboard-check', 'name' => 'Validasi'],
                     'sk' => ['icon' => 'fa-fire', 'name' => 'SK'],
                     'sr' => ['icon' => 'fa-route', 'name' => 'SR'],
                     'gas_in' => ['icon' => 'fa-gas-pump', 'name' => 'Gas In'],
-                    'jalur_pipa' => ['icon' => 'fa-project-diagram', 'name' => 'Jalur Pipa'],
-                    'penyambungan' => ['icon' => 'fa-link', 'name' => 'Penyambungan'],
                     'done' => ['icon' => 'fa-check-circle', 'name' => 'Selesai']
                 ];
 

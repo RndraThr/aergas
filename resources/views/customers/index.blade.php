@@ -92,9 +92,8 @@
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                     <option value="">Semua Status</option>
                     <option value="pending">Pending</option>
-                    <option value="validated">Validated</option>
-                    <option value="in_progress">In Progress</option>
                     <option value="lanjut">Lanjut</option>
+                    <option value="in_progress">In Progress</option>
                     <option value="batal">Batal</option>
                 </select>
             </div>
@@ -108,8 +107,6 @@
                     <option value="sk">SK</option>
                     <option value="sr">SR</option>
                     <option value="gas_in">Gas In</option>
-                    <option value="jalur_pipa">Jalur Pipa</option>
-                    <option value="penyambungan">Penyambungan</option>
                     <option value="done">Done</option>
                     <option value="batal">Batal</option>
                 </select>
@@ -122,8 +119,8 @@
                     class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
                 <i class="fas fa-user-clock mr-1"></i> Perlu Validasi
             </button>
-            <button @click="setQuickFilter('validated')"
-                    :class="quickFilter === 'validated' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+            <button @click="setQuickFilter('lanjut')"
+                    :class="quickFilter === 'lanjut' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
                     class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
                 <i class="fas fa-user-check mr-1"></i> Tervalidasi
             </button>
@@ -432,7 +429,7 @@ function customersData() {
         },
 
         calculateProgressPercentage(progressStatus) {
-            const steps = ['validasi', 'sk', 'sr', 'gas_in', 'jalur_pipa', 'penyambungan', 'done'];
+            const steps = ['validasi', 'sk', 'sr', 'gas_in', 'done'];
             const currentIndex = steps.indexOf(progressStatus);
             if (currentIndex === -1) return 0;
             if (progressStatus === 'done') return 100;

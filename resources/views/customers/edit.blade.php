@@ -144,9 +144,8 @@
                     <select x-model="form.status"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                         <option value="pending">Pending</option>
-                        <option value="validated">Validated</option>
-                        <option value="in_progress">In Progress</option>
                         <option value="lanjut">Lanjut</option>
+                        <option value="in_progress">In Progress</option>
                         <option value="batal">Batal</option>
                     </select>
                     <p class="mt-1 text-xs text-gray-500">Status workflow pelanggan</p>
@@ -160,8 +159,6 @@
                         <option value="sk">SK</option>
                         <option value="sr">SR</option>
                         <option value="gas_in">Gas In</option>
-                        <option value="jalur_pipa">Jalur Pipa</option>
-                        <option value="penyambungan">Penyambungan</option>
                         <option value="done">Done</option>
                         <option value="batal">Batal</option>
                     </select>

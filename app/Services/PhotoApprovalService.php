@@ -903,8 +903,6 @@ class PhotoApprovalService
             'sk'           => SkData::class,
             'sr'           => SrData::class,
             'gas_in'       => GasInData::class,
-            'jalur_pipa'   => JalurPipaData::class,
-            'penyambungan' => PenyambunganPipaData::class,
             default        => null,
         };
     }
@@ -1196,17 +1194,23 @@ class PhotoApprovalService
         // You would integrate with your OpenAI service or other AI provider
         
         try {
-            // Example AI analysis call
-            $result = $this->openAIService->analyzePhoto($photo->photo_url, [
-                'photo_type' => $photo->photo_field_name,
-                'module_type' => $photo->module_name,
-                'analysis_prompt' => $this->getAnalysisPrompt($photo->photo_field_name, $photo->module_name)
-            ]);
+            // Get analysis prompt for this photo type
+            $customPrompt = $this->getAnalysisPrompt($photo->photo_field_name, $photo->module_name);
+            
+            // Call OpenAI service with correct method
+            $result = $this->openAIService->validatePhotoWithPrompt(
+                $photo->photo_url,
+                $customPrompt,
+                [
+                    'module' => $photo->module_name,
+                    'slot' => $photo->photo_field_name
+                ]
+            );
 
             return [
-                'confidence' => $result['confidence'] ?? 75,
-                'notes' => $result['analysis'] ?? 'AI analysis completed',
-                'detailed_analysis' => $result['detailed'] ?? null
+                'confidence' => ($result['confidence'] ?? 0.75) * 100, // Convert to percentage
+                'notes' => $result['reason'] ?? 'AI analysis completed',
+                'detailed_analysis' => $result['raw_response'] ?? null
             ];
 
         } catch (Exception $e) {

@@ -134,8 +134,7 @@ class CalonPelangganController extends Controller
         try {
             $customer = CalonPelanggan::with([
                 'skData.photoApprovals', 'srData.photoApprovals','gasInData.photoApprovals',
-                'jalurPipaData.photoApprovals', 'penyambunganPipaData.photoApprovals',
-                'baBatalData', 'photoApprovals.tracerUser', 'photoApprovals.cgpUser',
+                'photoApprovals.tracerUser', 'photoApprovals.cgpUser',
                 'auditLogs.user'
             ])->findOrFail($reffId);
 
@@ -265,7 +264,7 @@ class CalonPelangganController extends Controller
 
     private function calculateProgressPercentage($customer): int
     {
-        $steps = ['validasi', 'sk', 'sr', 'gas_in', 'jalur_pipa', 'penyambungan', 'done'];
+        $steps = ['validasi', 'sk', 'sr', 'gas_in', 'done'];
         $currentIndex = array_search($customer->progress_status, $steps);
 
         if ($currentIndex === false) return 0;
@@ -483,16 +482,11 @@ class CalonPelangganController extends Controller
 
     private function getModuleCompletionStatus(CalonPelanggan $customer): array
     {
-        $modules = ['sk', 'sr', 'gas_in', 'jalur_pipa', 'penyambungan'];
+        $modules = ['sk', 'sr', 'gas_in'];
         $status = [];
 
         foreach ($modules as $module) {
-            $relationName = match ($module) {
-                'jalur_pipa'  => 'jalurPipaData',
-                'penyambungan'=> 'penyambunganPipaData',
-                default       => $module.'Data',
-            };
-
+            $relationName = $module.'Data';
             $moduleData = $customer->$relationName;
 
             // NOTE: fallback ke status/workflow_status bila module_status tidak ada
