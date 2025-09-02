@@ -77,7 +77,7 @@ Route::middleware('auth')->group(function () {
                ->where('reffId', '[A-Z0-9\-]+')->name('edit');
            Route::put('/{reffId}', [CalonPelangganController::class, 'update'])
                ->where('reffId', '[A-Z0-9\-]+')->name('update');
-           
+
            // Customer validation routes
            Route::post('/{reffId}/validate', [CalonPelangganController::class, 'validateCustomer'])
                ->where('reffId', '[A-Z0-9\-]+')->name('validate');
@@ -247,24 +247,24 @@ Route::middleware('auth')->group(function () {
    });
 
    // Tracer Approval Interface Routes
-   Route::prefix('approvals/tracer')->name('approvals.tracer.')->middleware('role:tracer,super_admin')->group(function () {
+   Route::prefix('approvals/tracer')->name('approvals.tracer.')->middleware('role:tracer,admin,super_admin')->group(function () {
        Route::get('/', [TracerApprovalController::class, 'index'])->name('index');
        Route::get('/customers', [TracerApprovalController::class, 'customers'])->name('customers');
        Route::get('/customers/{reffId}/photos', [TracerApprovalController::class, 'customerPhotos'])
            ->where('reffId', '[A-Za-z0-9\-]+')->name('photos');
-       
+
        // Photo Actions
        Route::post('/photos/approve', [TracerApprovalController::class, 'approvePhoto'])->name('approve-photo');
        Route::post('/modules/approve', [TracerApprovalController::class, 'approveModule'])->name('approve-module');
        Route::post('/ai-review', [TracerApprovalController::class, 'aiReview'])->name('ai-review');
-       
+
        // Debug route (temporary)
        Route::get('/debug', function() {
            $customers = \App\Models\CalonPelanggan::with(['skData', 'srData', 'gasInData'])->limit(10)->get();
            $photos = \App\Models\PhotoApproval::limit(10)->get(['id', 'reff_id_pelanggan', 'module_name', 'photo_field_name', 'photo_url', 'photo_status']);
            $customer416009 = \App\Models\CalonPelanggan::with(['skData'])->where('reff_id_pelanggan', '416009')->first();
            $sk416009 = \App\Models\SkData::where('reff_id_pelanggan', '416009')->first();
-           
+
            return response()->json([
                'customers_count' => $customers->count(),
                'photos_count' => $photos->count(),
@@ -301,7 +301,7 @@ Route::middleware('auth')->group(function () {
        Route::get('/customers', [CgpApprovalController::class, 'customers'])->name('customers');
        Route::get('/customers/{reffId}/photos', [CgpApprovalController::class, 'customerPhotos'])
            ->where('reffId', '[A-Za-z0-9\-]+')->name('customer-photos');
-       
+
        // Photo Actions
        Route::post('/photos/approve', [CgpApprovalController::class, 'approvePhoto'])->name('approve-photo');
        Route::post('/modules/approve', [CgpApprovalController::class, 'approveModule'])->name('approve-module');
