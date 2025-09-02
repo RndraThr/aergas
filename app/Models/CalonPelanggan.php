@@ -104,6 +104,28 @@ class CalonPelanggan extends Model
     }
 
     /**
+     * Get URL for next available module
+     */
+    public function getNextModuleUrl(): ?string
+    {
+        $nextModule = $this->getNextAvailableModule();
+        
+        if (!$nextModule) {
+            return null;
+        }
+
+        $moduleRoutes = [
+            'sk' => '/sk/create',
+            'sr' => '/sr/create', 
+            'gas_in' => '/gas-in/create',
+        ];
+
+        $baseUrl = $moduleRoutes[$nextModule] ?? null;
+        
+        return $baseUrl ? $baseUrl . '?reff_id=' . $this->reff_id_pelanggan : null;
+    }
+
+    /**
      * Boleh lanjut ke modul X?
      * - sk: status pelanggan harus validated/in_progress
      * - sr: SK completed

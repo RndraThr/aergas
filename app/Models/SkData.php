@@ -30,6 +30,8 @@ class SkData extends BaseModuleModel
         'reff_id_pelanggan',
         'nomor_sk',
         'status',
+        'module_status',
+        'overall_photo_status',
         'tanggal_instalasi',
         'notes',
         'ai_overall_status',

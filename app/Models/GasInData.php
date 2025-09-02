@@ -26,6 +26,8 @@ class GasInData extends BaseModuleModel
    protected $fillable = [
        'reff_id_pelanggan',
        'status',
+       'module_status',
+       'overall_photo_status',
        'tanggal_gas_in',
        'notes',
        'ai_overall_status',

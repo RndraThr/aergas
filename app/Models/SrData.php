@@ -26,6 +26,8 @@ class SrData extends BaseModuleModel
     protected $fillable = [
         'reff_id_pelanggan',
         'status',
+        'module_status',
+        'overall_photo_status',
         'tanggal_pemasangan',
         'notes',
         'ai_overall_status',
