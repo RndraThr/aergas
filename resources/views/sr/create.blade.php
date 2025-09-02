@@ -420,16 +420,16 @@ function srCreate() {
     },
 
     isMaterialComplete() {
-      const required = Object.keys(this.material);
-      for (const field of required) {
-        const value = this.material[field];
-        if (field.includes('panjang_')) {
-          if (!value || Number(value) <= 0) return false;
-        } else {
-          if (value === '' || value === null || Number(value) < 0) return false;
+        const required = Object.keys(this.material);
+        for (const field of required) {
+            const value = this.material[field];
+            if (field.includes('panjang_')) {
+            if (value === '' || value === null || Number(value) < 0) return false;
+            } else {
+            if (value === '' || value === null || Number(value) < 0) return false;
+            }
         }
-      }
-      return true;
+        return true;
     },
 
     clearPick(field) {
