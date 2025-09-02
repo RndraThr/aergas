@@ -93,6 +93,18 @@
           @endforeach
         </select>
       </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Panjang Pipa PE (meter)</label>
+        <input type="number" x-model="panjangPipaPe" step="0.01" min="0" max="1000"
+               class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+               placeholder="0.00">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Panjang Casing Crossing (meter)</label>
+        <input type="number" x-model="panjangCasingCrossing" step="0.01" min="0" max="100"
+               class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+               placeholder="0.00">
+      </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -249,6 +261,8 @@ function srEdit() {
       qty_sealtape: @json($sr->qty_sealtape ?? '')
     },
     jenisTapping: @json($sr->jenis_tapping ?? ''),
+    panjangPipaPe: @json($sr->panjang_pipa_pe_m ?? ''),
+    panjangCasingCrossing: @json($sr->panjang_casing_crossing_m ?? ''),
     updating: false,
 
     init() {},
@@ -300,6 +314,8 @@ function srEdit() {
         });
 
         if (this.jenisTapping) formData.append('jenis_tapping', this.jenisTapping);
+        if (this.panjangPipaPe) formData.append('panjang_pipa_pe_m', this.panjangPipaPe);
+        if (this.panjangCasingCrossing) formData.append('panjang_casing_crossing_m', this.panjangCasingCrossing);
 
         const response = await fetch(@json(route('sr.update', $sr->id)), {
           method: 'POST',
