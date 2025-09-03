@@ -186,6 +186,20 @@
                 </div>
 
 
+                @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
+                <!-- Import Excel -->
+                <a href="{{ route('imports.calon-pelanggan.form') }}"
+                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('imports.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                    <i class="fas fa-file-excel mr-3 text-lg {{ request()->routeIs('imports.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    Import Excel
+                    @if(request()->routeIs('imports.*'))
+                        <div class="ml-auto">
+                            <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
+                        </div>
+                    @endif
+                </a>
+                @endif
+
                 <!-- File Manager -->
                 <a href="#"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-400 cursor-not-allowed">

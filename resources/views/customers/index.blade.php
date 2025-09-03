@@ -20,7 +20,7 @@
                     <span>Export</span>
                 </button>
 
-                <a href="#" onclick="alert('Fitur import akan segera tersedia')"
+                <a href="{{ route('imports.calon-pelanggan.form') }}"
                    class="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
                     <i class="fas fa-file-excel"></i>
                     <span>Import Excel</span>
