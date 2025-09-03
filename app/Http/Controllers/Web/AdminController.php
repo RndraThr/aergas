@@ -26,16 +26,26 @@ class AdminController extends Controller
 {
     private TelegramService $telegramService;
     private OpenAIService $openAIService;
-    private GoogleDriveService $googleDriveService;
 
     public function __construct(
         TelegramService $telegramService,
-        OpenAIService $openAIService,
-        GoogleDriveService $googleDriveService
+        OpenAIService $openAIService
     ) {
-        $this->telegramService   = $telegramService;
-        $this->openAIService     = $openAIService;
-        $this->googleDriveService= $googleDriveService;
+        $this->telegramService = $telegramService;
+        $this->openAIService = $openAIService;
+    }
+
+    /**
+     * Get Google Drive service instance with error handling
+     */
+    private function getGoogleDriveService(): ?GoogleDriveService
+    {
+        try {
+            return app(GoogleDriveService::class);
+        } catch (Exception $e) {
+            Log::warning('Failed to get Google Drive service', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     /**
@@ -396,8 +406,9 @@ class AdminController extends Controller
 
         // Google Drive
         try {
-            if (method_exists($this->googleDriveService, 'testConnection')) {
-                $g = $this->googleDriveService->testConnection();
+            $googleDriveService = $this->getGoogleDriveService();
+            if ($googleDriveService && method_exists($googleDriveService, 'testConnection')) {
+                $g = $googleDriveService->testConnection();
                 $results['google_drive'] = [
                     'status'        => !empty($g['success']) ? 'success' : 'failed',
                     'message'       => $g['message'] ?? '',
@@ -409,7 +420,11 @@ class AdminController extends Controller
                     'tested_at'     => now()->toISOString(),
                 ];
             } else {
-                $results['google_drive'] = ['status'=>'failed','message'=>'Not implemented','tested_at'=>now()->toISOString()];
+                $results['google_drive'] = [
+                    'status' => 'failed',
+                    'message' => 'Google Drive service not available',
+                    'tested_at' => now()->toISOString()
+                ];
             }
         } catch (Exception $e) {
             $results['google_drive'] = ['status'=>'error','message'=>$e->getMessage(),'tested_at'=>now()->toISOString()];
@@ -439,11 +454,20 @@ class AdminController extends Controller
     public function getGoogleDriveStats(): JsonResponse
     {
         try {
-            if (!method_exists($this->googleDriveService, 'getStorageStats')) {
+            $googleDriveService = $this->getGoogleDriveService();
+            
+            if (!$googleDriveService) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Google Drive service not available'
+                ], 503);
+            }
+
+            if (!method_exists($googleDriveService, 'getStorageStats')) {
                 return response()->json(['success'=>false,'message'=>'getStorageStats() not implemented in GoogleDriveService'], 501);
             }
 
-            $stats = $this->googleDriveService->getStorageStats();
+            $stats = $googleDriveService->getStorageStats();
             return response()->json(['success'=>true,'data'=>$stats]);
         } catch (Exception $e) {
             Log::error('Error fetching Google Drive stats', ['error'=>$e->getMessage()]);

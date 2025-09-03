@@ -9,27 +9,77 @@ use Google\Service\Drive\Permission;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Exception;
 
 class GoogleDriveService
 {
-    private Drive $drive;
-    private string $rootFolderId;
+    private ?Drive $drive = null;
+    private ?GoogleClient $client = null;
+    private ?string $rootFolderId = null;
+    private bool $initialized = false;
+    private ?Exception $initializationError = null;
 
     public function __construct()
     {
-        $client = new GoogleClient();
-        $client->setApplicationName('AERGAS');
-        $client->setScopes([Drive::DRIVE]);
-
-        $this->authenticateClient($client);
-
-        $this->drive = new Drive($client);
+        // Don't initialize immediately - use lazy initialization
         $this->rootFolderId = config('services.google_drive.folder_id');
+    }
 
-        if (!$this->rootFolderId) {
-            throw new Exception('GOOGLE_DRIVE_FOLDER_ID is required.');
+    /**
+     * Lazy initialization with error handling
+     */
+    private function initialize(): bool
+    {
+        if ($this->initialized) {
+            return $this->drive !== null;
         }
+
+        $this->initialized = true;
+
+        try {
+            if (!config('services.google_drive.enabled', true)) {
+                throw new Exception('Google Drive integration is disabled');
+            }
+
+            if (!$this->rootFolderId) {
+                throw new Exception('GOOGLE_DRIVE_FOLDER_ID is required.');
+            }
+
+            $this->client = new GoogleClient();
+            $this->client->setApplicationName('AERGAS');
+            $this->client->setScopes([Drive::DRIVE]);
+
+            $this->authenticateClient($this->client);
+            $this->drive = new Drive($this->client);
+
+            Log::info('Google Drive service initialized successfully');
+            return true;
+
+        } catch (Exception $e) {
+            $this->initializationError = $e;
+            Log::error('Google Drive service initialization failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Check if service is available
+     */
+    public function isAvailable(): bool
+    {
+        return $this->initialize();
+    }
+
+    /**
+     * Get initialization error if any
+     */
+    public function getError(): ?string
+    {
+        return $this->initializationError?->getMessage();
     }
 
     private function authenticateClient(GoogleClient $client): void
@@ -82,6 +132,17 @@ class GoogleDriveService
 
     private function refreshTokenWithRetry(GoogleClient $client, string $refreshToken, int $maxRetries = 3): array
     {
+        $cacheKey = 'google_drive_access_token';
+        
+        // Check if we have a cached valid token
+        $cachedToken = Cache::get($cacheKey);
+        if ($cachedToken && isset($cachedToken['access_token']) && isset($cachedToken['expires_at'])) {
+            if (time() < $cachedToken['expires_at'] - 300) { // 5 minutes buffer
+                Log::info('Using cached Google Drive access token');
+                return $cachedToken;
+            }
+        }
+
         $lastException = null;
 
         for ($i = 0; $i < $maxRetries; $i++) {
@@ -93,7 +154,18 @@ class GoogleDriveService
                     throw new Exception('Failed to fetch access token: ' . $error);
                 }
 
-                Log::info('Google Drive token refreshed successfully', ['attempt' => $i + 1]);
+                // Add expires_at timestamp for easier checking
+                $token['expires_at'] = time() + ($token['expires_in'] ?? 3600);
+                
+                // Cache the token for slightly less than its expiration time
+                $cacheMinutes = floor(($token['expires_in'] ?? 3600) / 60) - 5; // 5 minutes buffer
+                Cache::put($cacheKey, $token, now()->addMinutes(max($cacheMinutes, 30)));
+
+                Log::info('Google Drive token refreshed and cached successfully', [
+                    'attempt' => $i + 1,
+                    'expires_in' => $token['expires_in'] ?? 'unknown',
+                    'cached_for_minutes' => $cacheMinutes
+                ]);
                 return $token;
 
             } catch (Exception $e) {
@@ -106,11 +178,17 @@ class GoogleDriveService
             }
         }
 
+        // Clear any invalid cached token
+        Cache::forget($cacheKey);
         throw $lastException;
     }
 
     public function ensureNestedFolders(string $path): string
     {
+        if (!$this->initialize()) {
+            throw new Exception('Google Drive service not available: ' . $this->getError());
+        }
+
         $path = trim($path, "/ \t\n\r\0\x0B");
         if ($path === '') {
             return $this->rootFolderId;
@@ -127,6 +205,10 @@ class GoogleDriveService
 
     public function uploadFile(UploadedFile $file, string $folderId, ?string $targetName = null): array
     {
+        if (!$this->initialize()) {
+            throw new Exception('Google Drive service not available: ' . $this->getError());
+        }
+
         $name = $targetName ?: $file->getClientOriginalName();
         $mime = $file->getMimeType() ?: 'application/octet-stream';
 
@@ -168,6 +250,10 @@ class GoogleDriveService
 
     public function mirrorToDrive(string $disk, string $path, string $module, string $reffId, string $sub = 'original'): array
     {
+        if (!$this->initialize()) {
+            throw new Exception('Google Drive service not available: ' . $this->getError());
+        }
+
         $abs = Storage::disk($disk)->path($path);
         if (!is_file($abs)) {
             throw new Exception("Local file not found: {$abs}");
@@ -206,6 +292,11 @@ class GoogleDriveService
 
     public function deleteFile(string $fileId): void
     {
+        if (!$this->initialize()) {
+            Log::warning('Google Drive service not available for delete operation', ['file_id' => $fileId, 'error' => $this->getError()]);
+            return;
+        }
+
         try {
             $this->drive->files->delete($fileId, [
                 'supportsAllDrives' => true,
@@ -217,6 +308,14 @@ class GoogleDriveService
 
     public function testConnection(): array
     {
+        if (!$this->initialize()) {
+            return [
+                'success' => false,
+                'message' => $this->getError() ?? 'Failed to initialize Google Drive service',
+                'auth_method' => config('services.google_drive.service_account_json') ? 'service_account' : 'oauth',
+            ];
+        }
+
         try {
             $about = $this->drive->about->get(['fields' => 'user,storageQuota']);
             $user  = $about->getUser();
@@ -243,6 +342,18 @@ class GoogleDriveService
 
     public function getStorageStats(): array
     {
+        if (!$this->initialize()) {
+            return [
+                'used' => 0,
+                'limit' => null,
+                'used_human' => 'Service Unavailable',
+                'limit_human' => 'Service Unavailable',
+                'percentage' => 0,
+                'folders' => [],
+                'error' => $this->getError()
+            ];
+        }
+
         try {
             $about = $this->drive->about->get(['fields' => 'storageQuota']);
             $quota = $about->getStorageQuota();
