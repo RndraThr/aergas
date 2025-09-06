@@ -4,12 +4,14 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Route;
 use App\Services\TelegramService;
 use App\Services\OpenAIService;
 use App\Services\GoogleDriveService;
 use App\Services\PhotoApprovalService;
 use App\Services\NotificationService;
 use App\Services\FileUploadService;
+use App\Models\GasInData;
 
 
 class AppServiceProvider extends ServiceProvider
@@ -57,6 +59,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Route model binding for Gas In Data
+        Route::model('gasIn', GasInData::class);
+        
         // Custom validation rules for AERGAS
         Validator::extend('reff_id_format', function ($attribute, $value, $parameters, $validator) {
             return preg_match('/^[A-Z]{3}[0-9]{3,}$/', $value);
