@@ -38,65 +38,249 @@
     </div>
   </div>
 
-  <!-- Basic Information -->
-  <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+  <!-- Gas In Information -->
+  <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl shadow-lg p-6 border border-orange-200">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+        <i class="fas fa-gas-pump text-white text-lg"></i>
+      </div>
       <div>
-        <div class="text-xs text-gray-500">Created By</div>
+        <h2 class="text-xl font-semibold text-gray-800">Gas In Information</h2>
+        <p class="text-orange-600 text-sm font-medium">Final stage - Gas activation and testing</p>
+      </div>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created By</div>
         @if($gasIn->createdBy)
-          <div class="flex items-center mt-1">
-            <div class="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center mr-2">
-              <span class="text-xs font-medium text-orange-600">
+          <div class="flex items-center">
+            <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 shadow">
+              <span class="text-xs font-semibold text-white">
                 {{ strtoupper(substr($gasIn->createdBy->name, 0, 1)) }}
               </span>
             </div>
-            <span class="font-medium">{{ $gasIn->createdBy->name }}</span>
+            <div>
+              <div class="font-semibold text-gray-900">{{ $gasIn->createdBy->name }}</div>
+              <div class="text-xs text-gray-500">{{ ucwords(str_replace('_', ' ', $gasIn->createdBy->role ?? '')) }}</div>
+            </div>
           </div>
         @else
           <div class="font-medium text-gray-400">-</div>
         @endif
       </div>
-      <div>
-        <div class="text-xs text-gray-500">Tanggal Gas In</div>
-        <div class="font-medium">{{ $gasIn->tanggal_gas_in ? $gasIn->tanggal_gas_in->format('d/m/Y') : '-' }}</div>
+      
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tanggal Gas In</div>
+        <div class="flex items-center">
+          <i class="fas fa-calendar-alt text-orange-500 mr-2"></i>
+          <div class="font-semibold text-gray-900">
+            {{ $gasIn->tanggal_gas_in ? $gasIn->tanggal_gas_in->format('d F Y') : 'Belum ditentukan' }}
+          </div>
+        </div>
+        @if($gasIn->tanggal_gas_in)
+          <div class="text-xs text-gray-500">
+            {{ $gasIn->tanggal_gas_in->diffForHumans() }}
+          </div>
+        @endif
       </div>
-      <div>
-        <div class="text-xs text-gray-500">Status</div>
-        <span class="px-2 py-0.5 rounded text-xs
-          @class([
-            'bg-gray-100 text-gray-700' => $gasIn->status === 'draft',
-            'bg-blue-100 text-blue-800' => $gasIn->status === 'ready_for_tracer',
-            'bg-yellow-100 text-yellow-800' => $gasIn->status === 'approved_scheduled',
-            'bg-purple-100 text-purple-800' => $gasIn->status === 'tracer_approved',
-            'bg-amber-100 text-amber-800' => $gasIn->status === 'cgp_approved',
-            'bg-red-100 text-red-800' => str_contains($gasIn->status,'rejected'),
-            'bg-green-100 text-green-800' => $gasIn->status === 'completed',
-          ])
-        ">{{ strtoupper($gasIn->status) }}</span>
+      
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status</div>
+        <div>
+          <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium
+            @class([
+              'bg-gray-100 text-gray-700 border border-gray-200' => $gasIn->status === 'draft',
+              'bg-blue-100 text-blue-800 border border-blue-200' => $gasIn->status === 'ready_for_tracer',
+              'bg-yellow-100 text-yellow-800 border border-yellow-200' => $gasIn->status === 'approved_scheduled',
+              'bg-purple-100 text-purple-800 border border-purple-200' => $gasIn->status === 'tracer_approved',
+              'bg-amber-100 text-amber-800 border border-amber-200' => $gasIn->status === 'cgp_approved',
+              'bg-red-100 text-red-800 border border-red-200' => str_contains($gasIn->status,'rejected'),
+              'bg-green-100 text-green-800 border border-green-200' => $gasIn->status === 'completed',
+            ])
+          ">
+            <div class="w-2 h-2 rounded-full mr-2
+              @class([
+                'bg-gray-400' => $gasIn->status === 'draft',
+                'bg-blue-500' => $gasIn->status === 'ready_for_tracer',
+                'bg-yellow-500' => $gasIn->status === 'approved_scheduled',
+                'bg-purple-500' => $gasIn->status === 'tracer_approved',
+                'bg-amber-500' => $gasIn->status === 'cgp_approved',
+                'bg-red-500' => str_contains($gasIn->status,'rejected'),
+                'bg-green-500' => $gasIn->status === 'completed',
+              ])
+            "></div>
+            {{ ucwords(str_replace('_', ' ', $gasIn->status)) }}
+          </span>
+        </div>
       </div>
-      <div>
-        <div class="text-xs text-gray-500">Created At</div>
-        <div class="font-medium">{{ $gasIn->created_at ? $gasIn->created_at->format('d/m/Y H:i') : '-' }}</div>
+      
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created At</div>
+        <div class="flex items-center">
+          <i class="fas fa-clock text-orange-500 mr-2"></i>
+          <div>
+            <div class="font-semibold text-gray-900">
+              {{ $gasIn->created_at ? $gasIn->created_at->format('d/m/Y H:i') : '-' }}
+            </div>
+            @if($gasIn->created_at)
+              <div class="text-xs text-gray-500">
+                {{ $gasIn->created_at->diffForHumans() }}
+              </div>
+            @endif
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Module Status Progress -->
+    @if($gasIn->ai_overall_status || $gasIn->tracer_approved_at || $gasIn->cgp_approved_at)
+      <div class="mt-6 pt-6 border-t border-orange-200">
+        <div class="flex items-center gap-4">
+          <div class="text-sm font-medium text-gray-700">Progress:</div>
+          
+          @if($gasIn->ai_overall_status)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full mr-2 {{ $gasIn->ai_overall_status === 'ready' ? 'bg-green-500' : 'bg-yellow-500' }}"></div>
+              <span class="text-sm {{ $gasIn->ai_overall_status === 'ready' ? 'text-green-700' : 'text-yellow-700' }}">
+                AI: {{ ucfirst($gasIn->ai_overall_status) }}
+              </span>
+            </div>
+          @endif
+          
+          @if($gasIn->tracer_approved_at)
+            <div class="flex items-center">
+              <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+              <span class="text-sm text-blue-700">Tracer Approved</span>
+            </div>
+          @endif
+          
+          @if($gasIn->cgp_approved_at)
+            <div class="flex items-center">
+              <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+              <span class="text-sm text-green-700">CGP Approved</span>
+            </div>
+          @endif
+        </div>
+      </div>
+    @endif
   </div>
 
   <!-- Customer Information -->
   @if($gasIn->calonPelanggan)
     <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-      <h2 class="font-semibold mb-3 text-gray-800">Customer Information</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <div class="text-xs text-gray-500">Nama</div>
-          <div class="font-medium">{{ $gasIn->calonPelanggan->nama_pelanggan }}</div>
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+          <i class="fas fa-user text-white"></i>
         </div>
-        <div>
-          <div class="text-xs text-gray-500">Telepon</div>
-          <div class="font-medium">{{ $gasIn->calonPelanggan->no_telepon ?? '-' }}</div>
+        <h2 class="text-xl font-semibold text-gray-800">Customer Information</h2>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="space-y-1">
+          <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Nama Pelanggan</div>
+          <div class="font-semibold text-gray-900">{{ $gasIn->calonPelanggan->nama_pelanggan }}</div>
         </div>
-        <div>
-          <div class="text-xs text-gray-500">Alamat</div>
-          <div class="font-medium">{{ $gasIn->calonPelanggan->alamat ?? '-' }}</div>
+        <div class="space-y-1">
+          <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">No. Telepon</div>
+          <div class="font-medium text-gray-700">
+            @if($gasIn->calonPelanggan->no_telepon)
+              <a href="tel:{{ $gasIn->calonPelanggan->no_telepon }}" class="text-orange-600 hover:text-orange-800 transition-colors">
+                <i class="fas fa-phone mr-1"></i>{{ $gasIn->calonPelanggan->no_telepon }}
+              </a>
+            @else
+              <span class="text-gray-400">-</span>
+            @endif
+          </div>
+        </div>
+        <div class="space-y-1">
+          <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Email</div>
+          <div class="font-medium text-gray-700">
+            @if($gasIn->calonPelanggan->email)
+              <a href="mailto:{{ $gasIn->calonPelanggan->email }}" class="text-orange-600 hover:text-orange-800 transition-colors">
+                <i class="fas fa-envelope mr-1"></i>{{ $gasIn->calonPelanggan->email }}
+              </a>
+            @else
+              <span class="text-gray-400">-</span>
+            @endif
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-6 border-t border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Alamat Lengkap</div>
+            <div class="font-medium text-gray-700">{{ $gasIn->calonPelanggan->alamat ?? '-' }}</div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Kelurahan</div>
+            <div class="font-medium text-gray-700">
+              @if($gasIn->calonPelanggan->kelurahan)
+                <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                  <i class="fas fa-map-marker-alt mr-1"></i>{{ $gasIn->calonPelanggan->kelurahan }}
+                </div>
+              @else
+                <span class="text-gray-400">-</span>
+              @endif
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Padukuhan</div>
+            <div class="font-medium text-gray-700">
+              @if($gasIn->calonPelanggan->padukuhan)
+                <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <i class="fas fa-home mr-1"></i>{{ $gasIn->calonPelanggan->padukuhan }}
+                </div>
+              @else
+                <span class="text-gray-400">-</span>
+              @endif
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registration Info -->
+      <div class="mt-6 pt-6 border-t border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tanggal Registrasi</div>
+            <div class="font-medium text-gray-700">
+              {{ $gasIn->calonPelanggan->tanggal_registrasi ? $gasIn->calonPelanggan->tanggal_registrasi->format('d F Y') : '-' }}
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status Customer</div>
+            <div class="font-medium">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                @class([
+                  'bg-green-100 text-green-800' => $gasIn->calonPelanggan->status === 'lanjut',
+                  'bg-yellow-100 text-yellow-800' => $gasIn->calonPelanggan->status === 'pending',
+                  'bg-gray-100 text-gray-800' => $gasIn->calonPelanggan->status === 'menunda',
+                  'bg-red-100 text-red-800' => $gasIn->calonPelanggan->status === 'batal',
+                ])
+              ">
+                {{ ucfirst($gasIn->calonPelanggan->status) }}
+              </span>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Progress Status</div>
+            <div class="font-medium">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                @class([
+                  'bg-green-100 text-green-800' => $gasIn->calonPelanggan->progress_status === 'done',
+                  'bg-blue-100 text-blue-800' => $gasIn->calonPelanggan->progress_status === 'gas_in',
+                  'bg-purple-100 text-purple-800' => $gasIn->calonPelanggan->progress_status === 'sr',
+                  'bg-orange-100 text-orange-800' => $gasIn->calonPelanggan->progress_status === 'sk',
+                  'bg-yellow-100 text-yellow-800' => $gasIn->calonPelanggan->progress_status === 'validasi',
+                  'bg-gray-100 text-gray-800' => in_array($gasIn->calonPelanggan->progress_status, ['pending', 'batal']),
+                ])
+              ">
+                {{ ucwords(str_replace('_', ' ', $gasIn->calonPelanggan->progress_status)) }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -105,8 +289,22 @@
   <!-- Notes -->
   @if($gasIn->notes)
     <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-      <h3 class="font-semibold mb-3 text-gray-800">Catatan</h3>
-      <p class="text-gray-700">{{ $gasIn->notes }}</p>
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+          <i class="fas fa-sticky-note text-white"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-800">Catatan</h3>
+      </div>
+      <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <i class="fas fa-info-circle text-blue-400"></i>
+          </div>
+          <div class="ml-3">
+            <p class="text-gray-700 leading-relaxed">{{ $gasIn->notes }}</p>
+          </div>
+        </div>
+      </div>
     </div>
   @endif
 
@@ -234,45 +432,78 @@
   <!-- Workflow Actions -->
   @if(in_array(auth()->user()->role, ['tracer', 'admin', 'super_admin']))
     <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-      <h3 class="font-semibold mb-4 text-gray-800">Workflow Actions</h3>
-      <div class="flex flex-wrap gap-3">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
+          <i class="fas fa-tasks text-white"></i>
+        </div>
+        <div>
+          <h3 class="text-xl font-semibold text-gray-800">Workflow Actions</h3>
+          <p class="text-gray-600 text-sm">Available actions based on your role and current status</p>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
         @if($gasIn->canApproveTracer() && in_array(auth()->user()->role, ['tracer', 'super_admin']))
           <button @click="approveTracer()" 
-                  class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
-            <i class="fas fa-check mr-2"></i>Approve Tracer
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-check text-2xl mb-2"></i>
+            <span class="font-semibold">Approve Tracer</span>
+            <span class="text-xs opacity-80 text-center">Validate and approve as tracer</span>
           </button>
+          
           <button @click="rejectTracer()" 
-                  class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
-            <i class="fas fa-times mr-2"></i>Reject Tracer
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-times text-2xl mb-2"></i>
+            <span class="font-semibold">Reject Tracer</span>
+            <span class="text-xs opacity-80 text-center">Reject with comments</span>
           </button>
         @endif
 
         @if($gasIn->canApproveCgp() && in_array(auth()->user()->role, ['admin', 'super_admin']))
           <button @click="approveCgp()" 
-                  class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
-            <i class="fas fa-check mr-2"></i>Approve CGP
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-check-double text-2xl mb-2"></i>
+            <span class="font-semibold">Approve CGP</span>
+            <span class="text-xs opacity-80 text-center">Final CGP approval</span>
           </button>
+          
           <button @click="rejectCgp()" 
-                  class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
-            <i class="fas fa-times mr-2"></i>Reject CGP
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-times-circle text-2xl mb-2"></i>
+            <span class="font-semibold">Reject CGP</span>
+            <span class="text-xs opacity-80 text-center">Reject with comments</span>
           </button>
         @endif
 
         @if($gasIn->canSchedule())
           <button @click="scheduleGasIn()" 
-                  class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-            <i class="fas fa-calendar mr-2"></i>Schedule Gas In
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-calendar-alt text-2xl mb-2"></i>
+            <span class="font-semibold">Schedule Gas In</span>
+            <span class="text-xs opacity-80 text-center">Set gas activation date</span>
           </button>
         @endif
 
         @if($gasIn->canComplete())
           <button @click="completeGasIn()" 
-                  class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors">
-            <i class="fas fa-flag-checkered mr-2"></i>Complete Gas In
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-flag-checkered text-2xl mb-2"></i>
+            <span class="font-semibold">Complete Gas In</span>
+            <span class="text-xs opacity-80 text-center">Mark as completed</span>
           </button>
         @endif
       </div>
+      
+      @if(!$gasIn->canApproveTracer() && !$gasIn->canApproveCgp() && !$gasIn->canSchedule() && !$gasIn->canComplete())
+        <div class="text-center py-8">
+          <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-info-circle text-gray-400 text-2xl"></i>
+          </div>
+          <p class="text-gray-500 text-sm">No actions available at this time</p>
+          <p class="text-gray-400 text-xs mt-1">Current status: {{ ucwords(str_replace('_', ' ', $gasIn->status)) }}</p>
+        </div>
+      @endif
     </div>
   @endif
 </div>
