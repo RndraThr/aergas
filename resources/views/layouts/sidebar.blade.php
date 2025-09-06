@@ -125,40 +125,50 @@
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">WORKFLOW</span>
                 </div>
 
-                @if(in_array(auth()->user()->role, ['tracer', 'admin']))
-                <!-- Photo Approvals -->
-                <a href="{{ route('photos.index') }}"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('photos.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-clipboard-check mr-3 text-lg {{ request()->routeIs('photos.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
-                    Photo Approvals
-                    @php
-                        $pendingPhotos = \App\Models\PhotoApproval::where('photo_status',
-                            auth()->user()->role === 'tracer' ? 'tracer_pending' : 'cgp_pending'
-                        )->count();
-                    @endphp
-                    @if($pendingPhotos > 0)
-                        <span class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ $pendingPhotos }}</span>
-                    @endif
-                </a>
-                @endif
-
-                @if(auth()->user()->role === 'tracer' || auth()->user()->role === 'super_admin')
-                <!-- Tracer Approval Interface -->
+                @if(auth()->user()->role === 'admin')
+                <!-- Tracer Internal Review (role admin) -->
                 <a href="{{ route('approvals.tracer.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i class="fas fa-search mr-3 text-lg {{ request()->routeIs('approvals.tracer.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
-                    Tracer Review
+                    Photo Review
                     @php
-                        $pendingTracer = \App\Models\PhotoApproval::whereNull('tracer_approved_at')->count();
+                        $pendingTracer = \App\Models\PhotoApproval::where('photo_status', 'tracer_pending')->count();
                     @endphp
                     @if($pendingTracer > 0)
                         <span class="ml-auto bg-blue-500 text-white text-xs px-2 py-1 rounded-full">{{ $pendingTracer }}</span>
                     @endif
                 </a>
                 @endif
+                
+                @if(auth()->user()->role === 'tracer')
+                <!-- CGP Final Review (role tracer) -->
+                <a href="{{ route('approvals.cgp.index') }}"
+                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                    <i class="fas fa-clipboard-check mr-3 text-lg {{ request()->routeIs('approvals.cgp.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    Photo Review
+                    @php
+                        $pendingCgp = \App\Models\PhotoApproval::where('photo_status', 'cgp_pending')->count();
+                    @endphp
+                    @if($pendingCgp > 0)
+                        <span class="ml-auto bg-green-500 text-white text-xs px-2 py-1 rounded-full">{{ $pendingCgp }}</span>
+                    @endif
+                </a>
+                @endif
 
-                @if(auth()->user()->role === 'admin' || auth()->user()->role === 'super_admin')
-                <!-- CGP Approval Interface -->
+                @if(auth()->user()->role === 'super_admin')
+                <!-- Super Admin: Access to both Tracer and CGP interfaces -->
+                <a href="{{ route('approvals.tracer.index') }}"
+                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                    <i class="fas fa-search mr-3 text-lg {{ request()->routeIs('approvals.tracer.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    Tracer Review
+                    @php
+                        $pendingTracer = \App\Models\PhotoApproval::where('photo_status', 'tracer_pending')->count();
+                    @endphp
+                    @if($pendingTracer > 0)
+                        <span class="ml-auto bg-blue-500 text-white text-xs px-2 py-1 rounded-full">{{ $pendingTracer }}</span>
+                    @endif
+                </a>
+                
                 <a href="{{ route('approvals.cgp.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i class="fas fa-clipboard-check mr-3 text-lg {{ request()->routeIs('approvals.cgp.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>

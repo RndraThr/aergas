@@ -253,8 +253,8 @@ Route::middleware('auth')->group(function () {
        Route::post('/batch', [PhotoApprovalController::class, 'batchApprove'])->name('batch');
    });
 
-   // Tracer Approval Interface Routes
-   Route::prefix('approvals/tracer')->name('approvals.tracer.')->middleware('role:tracer,admin,super_admin')->group(function () {
+   // Tracer Approval Interface Routes (untuk role admin sebagai Tracer Internal)
+   Route::prefix('approvals/tracer')->name('approvals.tracer.')->middleware('role:admin,super_admin')->group(function () {
        Route::get('/', [TracerApprovalController::class, 'index'])->name('index');
        Route::get('/customers', [TracerApprovalController::class, 'customers'])->name('customers');
        Route::get('/customers/{reffId}/photos', [TracerApprovalController::class, 'customerPhotos'])
@@ -302,8 +302,8 @@ Route::middleware('auth')->group(function () {
        })->name('debug');
    });
 
-   // CGP Approval Interface Routes
-   Route::prefix('approvals/cgp')->name('approvals.cgp.')->middleware('role:admin,super_admin')->group(function () {
+   // CGP Approval Interface Routes (untuk role tracer sebagai CGP Review)
+   Route::prefix('approvals/cgp')->name('approvals.cgp.')->middleware('role:tracer,super_admin')->group(function () {
        Route::get('/', [CgpApprovalController::class, 'index'])->name('index');
        Route::get('/customers', [CgpApprovalController::class, 'customers'])->name('customers');
        Route::get('/customers/{reffId}/photos', [CgpApprovalController::class, 'customerPhotos'])

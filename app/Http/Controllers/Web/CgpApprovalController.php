@@ -22,7 +22,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('auth'),
-            new Middleware('role:admin,tracer,super_admin'),
+            new Middleware('role:tracer,super_admin'), // CGP Review menggunakan role tracer
         ];
     }
 

@@ -22,7 +22,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('auth'),
-            new Middleware('role:tracer,admin,super_admin'),
+            new Middleware('role:admin,super_admin'), // Tracer Review menggunakan role admin
         ];
     }
 
