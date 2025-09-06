@@ -1022,8 +1022,8 @@ class PhotoApprovalService
         try {
             $tracer = User::findOrFail($tracerId);
 
-            if (!$tracer->isTracer() && !$tracer->isSuperAdmin()) {
-                throw new Exception('Unauthorized: Only Tracer can perform this action');
+            if (!$tracer->isAdmin() && !$tracer->isSuperAdmin()) {
+                throw new Exception('Unauthorized: Only Admin can perform this action');
             }
 
             $oldStatus = $photo->photo_status;
@@ -1068,8 +1068,8 @@ class PhotoApprovalService
         try {
             $tracer = User::findOrFail($tracerId);
 
-            if (!$tracer->isTracer() && !$tracer->isSuperAdmin()) {
-                throw new Exception('Unauthorized: Only Tracer can perform this action');
+            if (!$tracer->isAdmin() && !$tracer->isSuperAdmin()) {
+                throw new Exception('Unauthorized: Only Admin can perform this action');
             }
 
             $oldStatus = $photo->photo_status;
@@ -1119,8 +1119,8 @@ class PhotoApprovalService
         try {
             $tracer = User::findOrFail($tracerId);
 
-            if (!$tracer->isTracer() && !$tracer->isSuperAdmin()) {
-                throw new Exception('Unauthorized: Only Tracer can perform this action');
+            if (!$tracer->isAdmin() && !$tracer->isSuperAdmin()) {
+                throw new Exception('Unauthorized: Only Admin can perform this action');
             }
 
             $photos = PhotoApproval::where('module_name', strtolower($module))
