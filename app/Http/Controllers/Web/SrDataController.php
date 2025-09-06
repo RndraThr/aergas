@@ -13,6 +13,7 @@ use App\Services\OpenAIService;
 use App\Services\PhotoRuleEvaluator;
 use App\Models\SrData;
 use App\Services\PhotoApprovalService;
+use App\Services\BeritaAcaraService;
 
 class SrDataController extends Controller
 {
@@ -496,6 +497,33 @@ class SrDataController extends Controller
             }
         } catch (\Throwable $e) {
             Log::error('audit-failed: '.$e->getMessage());
+        }
+    }
+
+    public function generateBeritaAcara(SrData $sr, BeritaAcaraService $beritaAcaraService)
+    {
+        try {
+            $result = $beritaAcaraService->generateSrBeritaAcara($sr);
+            
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            return $result['pdf']->download($result['filename']);
+
+        } catch (\Exception $e) {
+            Log::error('Generate SR Berita Acara failed', [
+                'sr_id' => $sr->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal generate Berita Acara: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

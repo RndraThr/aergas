@@ -22,14 +22,29 @@
       @if($sr->status === 'draft')
         <a href="{{ route('sr.edit',$sr->id) }}" class="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Edit</a>
       @endif
+      
+      @if(in_array(auth()->user()->role, ['admin', 'super_admin', 'tracer']))
+        <a href="{{ route('sr.berita-acara', $sr->id) }}" 
+           class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+           target="_blank">
+          <i class="fas fa-file-pdf"></i>
+          Generate Berita Acara
+        </a>
+      @endif
+      
       <a href="{{ route('sr.index') }}" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Kembali</a>
     </div>
   </div>
 
   <div class="bg-white rounded-xl card-shadow p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <i class="fas fa-info-circle text-blue-600"></i>
+      <h2 class="font-semibold text-gray-800">Informasi SR</h2>
+    </div>
+    
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div>
-        <div class="text-xs text-gray-500">Created By</div>
+        <div class="text-xs text-gray-500">Petugas SR</div>
         @if($sr->createdBy)
           <div class="flex items-center mt-1">
             <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
@@ -66,24 +81,146 @@
         <div class="font-medium">{{ $sr->created_at ? $sr->created_at->format('d/m/Y H:i') : '-' }}</div>
       </div>
     </div>
+
+    @if($sr->no_seri_mgrt || $sr->merk_brand_mgrt || $sr->notes)
+      <div class="mt-6 pt-4 border-t border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          @if($sr->no_seri_mgrt)
+            <div>
+              <div class="text-xs text-gray-500">No. Seri MGRT</div>
+              <div class="font-medium text-blue-600">{{ $sr->no_seri_mgrt }}</div>
+            </div>
+          @endif
+          
+          @if($sr->merk_brand_mgrt)
+            <div>
+              <div class="text-xs text-gray-500">Merk/Brand MGRT</div>
+              <div class="font-medium">{{ $sr->merk_brand_mgrt }}</div>
+            </div>
+          @endif
+
+          @if($sr->notes)
+            <div class="md:col-span-{{ $sr->no_seri_mgrt && $sr->merk_brand_mgrt ? '1' : ($sr->no_seri_mgrt || $sr->merk_brand_mgrt ? '2' : '3') }}">
+              <div class="text-xs text-gray-500">Catatan Petugas</div>
+              <div class="font-medium text-gray-700">{{ $sr->notes }}</div>
+            </div>
+          @endif
+        </div>
+      </div>
+    @endif
   </div>
+
+  @if($sr->tracer_approved_at || $sr->cgp_approved_at)
+    <div class="bg-white rounded-xl card-shadow p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <i class="fas fa-clipboard-check text-green-600"></i>
+        <h2 class="font-semibold text-gray-800">Timeline Approval</h2>
+      </div>
+
+      <div class="space-y-4">
+        @if($sr->tracer_approved_at)
+          <div class="flex items-start space-x-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-search text-purple-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-purple-800">Tracer Approval</h4>
+                  <p class="text-sm text-purple-600">{{ $sr->tracer_approved_at->format('d/m/Y H:i') }}</p>
+                </div>
+                @if($sr->tracerApprovedBy)
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-purple-700">{{ $sr->tracerApprovedBy->name }}</div>
+                    <div class="text-xs text-purple-600">{{ ucfirst($sr->tracerApprovedBy->role) }}</div>
+                  </div>
+                @endif
+              </div>
+              @if($sr->tracer_notes)
+                <div class="mt-2 p-2 bg-white rounded border">
+                  <div class="text-xs text-gray-500 mb-1">Notes:</div>
+                  <div class="text-sm text-gray-700">{{ $sr->tracer_notes }}</div>
+                </div>
+              @endif
+            </div>
+          </div>
+        @endif
+
+        @if($sr->cgp_approved_at)
+          <div class="flex items-start space-x-4 p-4 bg-green-50 rounded-lg border border-green-200">
+            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-check-circle text-green-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-green-800">CGP Approval</h4>
+                  <p class="text-sm text-green-600">{{ $sr->cgp_approved_at->format('d/m/Y H:i') }}</p>
+                </div>
+                @if($sr->cgpApprovedBy)
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-green-700">{{ $sr->cgpApprovedBy->name }}</div>
+                    <div class="text-xs text-green-600">{{ ucfirst($sr->cgpApprovedBy->role) }}</div>
+                  </div>
+                @endif
+              </div>
+              @if($sr->cgp_notes)
+                <div class="mt-2 p-2 bg-white rounded border">
+                  <div class="text-xs text-gray-500 mb-1">Notes:</div>
+                  <div class="text-sm text-gray-700">{{ $sr->cgp_notes }}</div>
+                </div>
+              @endif
+            </div>
+          </div>
+        @endif
+      </div>
+    </div>
+  @endif
 
   @if($sr->calonPelanggan)
     <div class="bg-white rounded-xl card-shadow p-6">
-      <h2 class="font-semibold mb-3 text-gray-800">Customer</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="flex items-center gap-3 mb-4">
+        <i class="fas fa-user text-blue-600"></i>
+        <h2 class="font-semibold text-gray-800">Informasi Customer</h2>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
-          <div class="text-xs text-gray-500">Nama</div>
+          <div class="text-xs text-gray-500">Reference ID</div>
+          <div class="font-medium text-blue-600">{{ $sr->reff_id_pelanggan }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500">Nama Pelanggan</div>
           <div class="font-medium">{{ $sr->calonPelanggan->nama_pelanggan }}</div>
         </div>
         <div>
-          <div class="text-xs text-gray-500">Telepon</div>
+          <div class="text-xs text-gray-500">No. Telepon</div>
           <div class="font-medium">{{ $sr->calonPelanggan->no_telepon ?? '-' }}</div>
         </div>
         <div>
+          <div class="text-xs text-gray-500">Status Customer</div>
+          <span class="px-2 py-0.5 rounded text-xs
+            @class([
+              'bg-gray-100 text-gray-700' => $sr->calonPelanggan->status === 'pending',
+              'bg-green-100 text-green-800' => $sr->calonPelanggan->status === 'lanjut',
+              'bg-blue-100 text-blue-800' => $sr->calonPelanggan->status === 'in_progress',
+              'bg-red-100 text-red-800' => $sr->calonPelanggan->status === 'batal',
+            ])
+          ">{{ strtoupper($sr->calonPelanggan->status ?? '-') }}</span>
+        </div>
+        <div class="md:col-span-2 lg:col-span-3">
           <div class="text-xs text-gray-500">Alamat</div>
           <div class="font-medium">{{ $sr->calonPelanggan->alamat ?? '-' }}</div>
         </div>
+        <div>
+          <div class="text-xs text-gray-500">Kelurahan</div>
+          <div class="font-medium">{{ $sr->calonPelanggan->kelurahan ?? '-' }}</div>
+        </div>
+        @if($sr->calonPelanggan->padukuhan)
+          <div class="md:col-span-1">
+            <div class="text-xs text-gray-500">Padukuhan</div>
+            <div class="font-medium">{{ $sr->calonPelanggan->padukuhan }}</div>
+          </div>
+        @endif
       </div>
     </div>
   @endif

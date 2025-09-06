@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use App\Services\OpenAIService;
 use App\Models\GasInData;
 use App\Services\PhotoApprovalService;
+use App\Services\BeritaAcaraService;
 
 class GasInDataController extends Controller
 {
@@ -495,6 +496,33 @@ class GasInDataController extends Controller
            }
        } catch (\Throwable $e) {
            Log::error('audit-failed: '.$e->getMessage());
+       }
+   }
+
+   public function generateBeritaAcara(GasInData $gasIn, BeritaAcaraService $beritaAcaraService)
+   {
+       try {
+           $result = $beritaAcaraService->generateGasInBeritaAcara($gasIn);
+           
+           if (!$result['success']) {
+               return response()->json([
+                   'success' => false,
+                   'message' => $result['message']
+               ], 422);
+           }
+
+           return $result['pdf']->download($result['filename']);
+
+       } catch (\Exception $e) {
+           Log::error('Generate Gas In Berita Acara failed', [
+               'gas_in_id' => $gasIn->id,
+               'error' => $e->getMessage()
+           ]);
+
+           return response()->json([
+               'success' => false,
+               'message' => 'Gagal generate Berita Acara: ' . $e->getMessage()
+           ], 500);
        }
    }
 }

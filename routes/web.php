@@ -107,6 +107,9 @@ Route::middleware('auth')->group(function () {
        Route::post('/{sk}/reject-cgp', [SkDataController::class, 'rejectCgp'])->whereNumber('sk')->name('reject-cgp');
        Route::post('/{sk}/schedule', [SkDataController::class, 'schedule'])->whereNumber('sk')->name('schedule');
        Route::post('/{sk}/complete', [SkDataController::class, 'complete'])->whereNumber('sk')->name('complete');
+       
+       // Generate Berita Acara
+       Route::get('/{sk}/berita-acara', [SkDataController::class, 'generateBeritaAcara'])->whereNumber('sk')->name('berita-acara');
 
        // Find by Reference ID
        Route::get('/by-reff/{reffId}', [SkDataController::class, 'redirectByReff'])
@@ -136,6 +139,9 @@ Route::middleware('auth')->group(function () {
        Route::post('/{sr}/reject-cgp', [SrDataController::class, 'rejectCgp'])->whereNumber('sr')->name('reject-cgp');
        Route::post('/{sr}/schedule', [SrDataController::class, 'schedule'])->whereNumber('sr')->name('schedule');
        Route::post('/{sr}/complete', [SrDataController::class, 'complete'])->whereNumber('sr')->name('complete');
+       
+       // Generate Berita Acara
+       Route::get('/{sr}/berita-acara', [SrDataController::class, 'generateBeritaAcara'])->whereNumber('sr')->name('berita-acara');
 
        // Find by Reference ID
        Route::get('/by-reff/{reffId}', [SrDataController::class, 'redirectByReff'])
@@ -165,6 +171,9 @@ Route::middleware('auth')->group(function () {
        Route::post('/{gasIn}/reject-cgp', [GasInDataController::class, 'rejectCgp'])->whereNumber('gasIn')->name('reject-cgp');
        Route::post('/{gasIn}/schedule', [GasInDataController::class, 'schedule'])->whereNumber('gasIn')->name('schedule');
        Route::post('/{gasIn}/complete', [GasInDataController::class, 'complete'])->whereNumber('gasIn')->name('complete');
+       
+       // Generate Berita Acara
+       Route::get('/{gasIn}/berita-acara', [GasInDataController::class, 'generateBeritaAcara'])->whereNumber('gasIn')->name('berita-acara');
 
        // Find by Reference ID
        Route::get('/by-reff/{reffId}', [GasInDataController::class, 'redirectByReff'])

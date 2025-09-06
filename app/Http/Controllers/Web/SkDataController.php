@@ -13,6 +13,7 @@ use App\Services\OpenAIService;
 use App\Services\PhotoRuleEvaluator;
 use App\Models\SkData;
 use App\Services\PhotoApprovalService;
+use App\Services\BeritaAcaraService;
 
 class SkDataController extends Controller
 {
@@ -493,6 +494,33 @@ class SkDataController extends Controller
         $sk->save();
         $this->audit('update', $sk, $old, $sk->toArray());
         return response()->json(['success'=>true,'data'=>$sk]);
+    }
+
+    public function generateBeritaAcara(SkData $sk, BeritaAcaraService $beritaAcaraService)
+    {
+        try {
+            $result = $beritaAcaraService->generateSkBeritaAcara($sk);
+            
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            return $result['pdf']->download($result['filename']);
+
+        } catch (\Exception $e) {
+            Log::error('Generate SK Berita Acara failed', [
+                'sk_id' => $sk->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal generate Berita Acara: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     private function buildPhotoDefs(string $module): array

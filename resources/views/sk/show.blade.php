@@ -22,6 +22,16 @@
       @if($sk->status === 'draft')
         <a href="{{ route('sk.edit',$sk->id) }}" class="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Edit</a>
       @endif
+      
+      @if(in_array(auth()->user()->role, ['admin', 'super_admin', 'tracer']))
+        <a href="{{ route('sk.berita-acara', $sk->id) }}" 
+           class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+           target="_blank">
+          <i class="fas fa-file-pdf"></i>
+          Generate Berita Acara
+        </a>
+      @endif
+      
       <a href="{{ route('sk.index') }}" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Kembali</a>
     </div>
   </div>
