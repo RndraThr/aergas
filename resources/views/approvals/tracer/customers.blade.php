@@ -114,20 +114,31 @@
                                                 <span class="text-blue-600 font-bold text-xs">SR</span>
                                             </div>
                                         @else
-                                            <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-2">
+                                            <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-2 relative">
                                                 <span class="text-gray-400 font-bold text-xs">SR</span>
+                                                <i class="fas fa-lock absolute -top-1 -right-1 text-xs text-red-500 bg-white rounded-full p-0.5"></i>
                                             </div>
                                         @endif
-                                        <span class="text-sm font-medium {{ $customer->sequential_status['sr_completed'] ? 'text-green-600' : ($customer->sequential_status['sr_available'] ? 'text-blue-600' : 'text-gray-400') }}">
-                                            SR 
-                                            @if($customer->sequential_status['sr_completed'])
-                                                Completed
-                                            @elseif($customer->sequential_status['sr_available'])
-                                                Available
-                                            @else
-                                                Locked
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-medium {{ $customer->sequential_status['sr_completed'] ? 'text-green-600' : ($customer->sequential_status['sr_available'] ? 'text-blue-600' : 'text-gray-400') }}">
+                                                SR 
+                                                @if($customer->sequential_status['sr_completed'])
+                                                    Completed
+                                                @elseif($customer->sequential_status['sr_available'])
+                                                    Available
+                                                @else
+                                                    Locked
+                                                @endif
+                                            </span>
+                                            @if(isset($customer->sequential_status['modules']['sr']))
+                                                <span class="text-xs text-gray-500">
+                                                    {{ $customer->sequential_status['modules']['sr']['status_text'] }}
+                                                    @if($customer->sequential_status['modules']['sr']['pending_count'] > 0)
+                                                        ({{ $customer->sequential_status['modules']['sr']['pending_count'] }} pending)
+                                                    @endif
+                                                </span>
                                             @endif
-                                        </span>
+                                        </div>
                                     </div>
 
                                     <!-- Arrow -->
@@ -144,24 +155,35 @@
                                                 </svg>
                                             </div>
                                         @elseif($customer->sequential_status['gas_in_available'])
-                                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                                                <span class="text-green-600 font-bold text-xs">GI</span>
+                                            <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mr-2">
+                                                <span class="text-orange-600 font-bold text-xs">GI</span>
                                             </div>
                                         @else
-                                            <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-2">
+                                            <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-2 relative">
                                                 <span class="text-gray-400 font-bold text-xs">GI</span>
+                                                <i class="fas fa-lock absolute -top-1 -right-1 text-xs text-red-500 bg-white rounded-full p-0.5"></i>
                                             </div>
                                         @endif
-                                        <span class="text-sm font-medium {{ $customer->sequential_status['gas_in_completed'] ? 'text-green-600' : ($customer->sequential_status['gas_in_available'] ? 'text-green-600' : 'text-gray-400') }}">
-                                            Gas In 
-                                            @if($customer->sequential_status['gas_in_completed'])
-                                                Completed
-                                            @elseif($customer->sequential_status['gas_in_available'])
-                                                Available
-                                            @else
-                                                Locked
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-medium {{ $customer->sequential_status['gas_in_completed'] ? 'text-green-600' : ($customer->sequential_status['gas_in_available'] ? 'text-orange-600' : 'text-gray-400') }}">
+                                                Gas In 
+                                                @if($customer->sequential_status['gas_in_completed'])
+                                                    Completed
+                                                @elseif($customer->sequential_status['gas_in_available'])
+                                                    Available
+                                                @else
+                                                    Locked
+                                                @endif
+                                            </span>
+                                            @if(isset($customer->sequential_status['modules']['gas_in']))
+                                                <span class="text-xs text-gray-500">
+                                                    {{ $customer->sequential_status['modules']['gas_in']['status_text'] }}
+                                                    @if($customer->sequential_status['modules']['gas_in']['pending_count'] > 0)
+                                                        ({{ $customer->sequential_status['modules']['gas_in']['pending_count'] }} pending)
+                                                    @endif
+                                                </span>
                                             @endif
-                                        </span>
+                                        </div>
                                     </div>
                                 </div>
 

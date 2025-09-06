@@ -64,21 +64,11 @@ class TracerApprovalController extends Controller implements HasMiddleware
                     })->orWhereHas('skData');
                 });
             } elseif ($status === 'sr_pending') {
-                // Customers with SR photos pending tracer approval OR SR data without photos
-                $query->where(function($q) {
-                    $q->whereHas('photoApprovals', function($photoQ) {
-                        $photoQ->where('module_name', 'sr')
-                              ->where('photo_status', 'tracer_pending');
-                    })->orWhereHas('srData');
-                });
+                // Show all customers with SR data (locked or unlocked)
+                $query->whereHas('srData');
             } elseif ($status === 'gas_in_pending') {
-                // Customers with Gas In photos pending tracer approval OR Gas In data without photos
-                $query->where(function($q) {
-                    $q->whereHas('photoApprovals', function($photoQ) {
-                        $photoQ->where('module_name', 'gas_in')
-                              ->where('photo_status', 'tracer_pending');
-                    })->orWhereHas('gasInData');
-                });
+                // Show all customers with Gas In data (locked or unlocked)
+                $query->whereHas('gasInData');
             } else {
                 // Default: show customers that have photos pending tracer approval OR have any module data
                 $query->where(function($q) {
@@ -185,6 +175,11 @@ class TracerApprovalController extends Controller implements HasMiddleware
             $reffId = $request->get('reff_id');
             $module = $request->get('module');
 
+            // Validation: Check sequential requirements for AI review
+            if (!$this->canApproveModule($reffId, $module)) {
+                throw new Exception('Module sebelumnya belum selesai di-approve');
+            }
+
             // Get module data
             $moduleData = $this->getModuleData($reffId, $module);
             if (!$moduleData) {
@@ -230,6 +225,11 @@ class TracerApprovalController extends Controller implements HasMiddleware
             $photoApproval = PhotoApproval::findOrFail($request->get('photo_id'));
             $action = $request->get('action');
             $notes = $request->get('notes');
+
+            // Validation: Check sequential requirements for individual photo approval
+            if (!$this->canApproveModule($photoApproval->reff_id_pelanggan, $photoApproval->module_name)) {
+                throw new Exception('Module sebelumnya belum selesai di-approve');
+            }
 
             if ($action === 'approve') {
                 $result = $this->photoApprovalService->approvePhotoByTracer(
@@ -353,10 +353,13 @@ class TracerApprovalController extends Controller implements HasMiddleware
         $status = [
             'current_step' => 'sk',
             'sk_completed' => false,
+            'sk_locked' => false,
             'sr_available' => false,
-            'sr_completed' => false,
+            'sr_completed' => false, 
+            'sr_locked' => true,
             'gas_in_available' => false,
             'gas_in_completed' => false,
+            'gas_in_locked' => true,
         ];
 
         try {
@@ -366,6 +369,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
                 $status['sk_completed'] = true;
                 $status['current_step'] = 'sr';
                 $status['sr_available'] = true;
+                $status['sr_locked'] = false; // SR unlocked
             }
 
             // Check SR photos - completed if any SR photo is tracer_approved or cgp_approved  
@@ -375,6 +379,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
                     $status['sr_completed'] = true;
                     $status['current_step'] = 'gas_in';
                     $status['gas_in_available'] = true;
+                    $status['gas_in_locked'] = false; // Gas In unlocked
                 }
             }
 
@@ -386,6 +391,13 @@ class TracerApprovalController extends Controller implements HasMiddleware
                     $status['current_step'] = 'completed';
                 }
             }
+            
+            // Add module-specific status info
+            $status['modules'] = [
+                'sk' => $this->getModuleStatus($customer, 'sk'),
+                'sr' => $this->getModuleStatus($customer, 'sr'),
+                'gas_in' => $this->getModuleStatus($customer, 'gas_in'),
+            ];
         } catch (Exception $e) {
             Log::warning('Error in getSequentialStatus', [
                 'reff_id' => $customer->reff_id_pelanggan ?? 'unknown',
@@ -394,6 +406,75 @@ class TracerApprovalController extends Controller implements HasMiddleware
         }
 
         return $status;
+    }
+
+    private function getModuleStatus($customer, $module): array
+    {
+        $moduleData = null;
+        $hasData = false;
+        
+        switch ($module) {
+            case 'sk':
+                $moduleData = $customer->skData;
+                break;
+            case 'sr':
+                $moduleData = $customer->srData;
+                break;
+            case 'gas_in':
+                $moduleData = $customer->gasInData;
+                break;
+        }
+        
+        $hasData = !is_null($moduleData);
+        $photos = $customer->photoApprovals->where('module_name', $module);
+        $hasPhotos = $photos->isNotEmpty();
+        
+        $photoStatus = null;
+        $photoCount = 0;
+        $pendingCount = 0;
+        $approvedCount = 0;
+        
+        if ($hasPhotos) {
+            $photoCount = $photos->count();
+            $pendingCount = $photos->where('photo_status', 'tracer_pending')->count();
+            $approvedCount = $photos->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved'])->count();
+            
+            if ($approvedCount > 0) {
+                $photoStatus = 'has_approved';
+            } elseif ($pendingCount > 0) {
+                $photoStatus = 'has_pending';
+            }
+        }
+        
+        return [
+            'has_data' => $hasData,
+            'has_photos' => $hasPhotos,
+            'photo_count' => $photoCount,
+            'pending_count' => $pendingCount,
+            'approved_count' => $approvedCount,
+            'photo_status' => $photoStatus,
+            'status_text' => $this->getModuleStatusText($hasData, $hasPhotos, $photoStatus)
+        ];
+    }
+    
+    private function getModuleStatusText($hasData, $hasPhotos, $photoStatus): string
+    {
+        if (!$hasData) {
+            return 'No Data';
+        }
+        
+        if (!$hasPhotos) {
+            return 'No Photos';
+        }
+        
+        switch ($photoStatus) {
+            case 'has_approved':
+                return 'Approved';
+            case 'has_pending':
+                return 'Pending Review';
+            default:
+                return 'Draft';
+        }
     }
 
     private function getDefaultSequentialStatus(): array
@@ -424,21 +505,17 @@ class TracerApprovalController extends Controller implements HasMiddleware
             ->orderBy('photo_field_name')
             ->get();
 
-        // SR photos (only if SK completed)
-        if ($sequential['sr_available']) {
-            $photos['sr'] = PhotoApproval::where('module_name', 'sr')
-                ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->orderBy('photo_field_name')
-                ->get();
-        }
+        // SR photos (always show, but mark as locked if not available)
+        $photos['sr'] = PhotoApproval::where('module_name', 'sr')
+            ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->orderBy('photo_field_name')
+            ->get();
 
-        // Gas In photos (only if SR completed)
-        if ($sequential['gas_in_available']) {
-            $photos['gas_in'] = PhotoApproval::where('module_name', 'gas_in')
-                ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->orderBy('photo_field_name')
-                ->get();
-        }
+        // Gas In photos (always show, but mark as locked if not available)
+        $photos['gas_in'] = PhotoApproval::where('module_name', 'gas_in')
+            ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->orderBy('photo_field_name')
+            ->get();
 
         return $photos;
     }
