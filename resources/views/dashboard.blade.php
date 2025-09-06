@@ -312,7 +312,7 @@
                         class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                     <option value="7">Last 7 days</option>
                     <option value="30">Last 30 days</option>
-                    <option value="90">Last 90 days</option>
+                    <option value="90" selected>Last 90 days</option>
                     <option value="365">Last year</option>
                 </select>
 
@@ -488,7 +488,7 @@ function dashboardData() {
 
         // Chart properties
         chartPeriod: 'daily',
-        chartDays: 30,
+        chartDays: 90,
         chartModule: 'all',
         chartLoading: false,
         installationChart: null,
