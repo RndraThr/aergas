@@ -100,6 +100,7 @@ class FileUploadService
         $publicUrl = '';
         $bytes     = (int) $file->getSize();
         $mime      = (string) $file->getMimeType();
+        $fileHash  = hash_file('sha256', $file->getRealPath());
 
         // ===== 1) Coba upload langsung ke Google Drive =====
         if ($this->canUseDrive()) {
@@ -134,23 +135,18 @@ class FileUploadService
             $payload = [
                 'reff_id_pelanggan' => $reffId,
                 'module_name'       => $moduleLower,
-                'photo_field_name'  => $fieldName,
-                'original_filename' => $file->getClientOriginalName(), // ✅ ADD THIS
-                'stored_filename'   => $targetName,                    // ✅ ADD THIS TOO
-                'file_path'         => $finalPath,                     // ✅ ADD THIS TOO
-                'storage_disk'      => $usedDisk,
-                'path'              => $finalPath,
-                'url'               => $publicUrl,
-                'file_size'         => $bytes,
+                'field_name'        => $fieldName,
+                'original_filename' => $file->getClientOriginalName(),
+                'stored_filename'   => $targetName,
+                'file_path'         => $finalPath,
                 'mime_type'         => $mime,
-                'size_bytes'        => $bytes,
+                'file_size'         => $bytes,
+                'file_hash'         => $fileHash,
                 'uploaded_by'       => $uploadedBy,
-                'status'            => 'active',
             ];
 
             // kolom drive opsional
-            if ($driveId)   $payload['drive_file_id']   = $driveId;
-            if ($driveLink) $payload['drive_view_link'] = $driveLink;
+            if ($driveId)   $payload['google_drive_id'] = $driveId;
 
             /** @var \App\Models\FileStorage $fs */
             $fs   = FileStorage::create($payload);
