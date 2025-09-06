@@ -4,6 +4,8 @@
 
 @section('content')
 @php
+  use Illuminate\Support\Str;
+  
   $gasIn->loadMissing(['calonPelanggan','photoApprovals']);
   $cfgSlots = (array) (config('aergas_photos.modules.GAS_IN.slots') ?? []);
   $slotLabels = [];
@@ -109,112 +111,124 @@
   @endif
 
   <!-- Photos Section -->
-  <div class="bg-white rounded-xl shadow-lg border border-gray-100">
-    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-      <h2 class="font-semibold text-gray-800">Foto Dokumentasi</h2>
-      <div class="flex items-center gap-2">
-        <span class="text-sm text-gray-500">Status AI:</span>
-        <span class="px-2 py-0.5 rounded text-xs
-          @class([
-            'bg-green-100 text-green-700' => $gasIn->ai_overall_status === 'ready',
-            'bg-yellow-100 text-yellow-700' => $gasIn->ai_overall_status === 'pending',
-            'bg-gray-100 text-gray-700' => !$gasIn->ai_overall_status,
-          ])
-        ">{{ $gasIn->ai_overall_status ? strtoupper($gasIn->ai_overall_status) : 'PENDING' }}</span>
-      </div>
+  <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 space-y-4">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-images text-orange-600"></i>
+      <h2 class="font-semibold text-gray-800">Dokumentasi Foto</h2>
     </div>
 
-    <div class="p-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        @foreach($slotLabels as $slot => $label)
-          @php
-            $photos = $gasIn->photoApprovals->where('photo_field_name', $slot)->values();
-            $latestPhoto = $photos->first();
-          @endphp
-          
-          <div class="border border-gray-200 rounded-lg p-4">
-            <div class="flex items-center justify-between mb-3">
-              <h4 class="font-medium text-gray-800">{{ $label }}</h4>
-              @if($latestPhoto)
-                <span class="px-2 py-0.5 rounded text-xs
-                  @class([
-                    'bg-gray-100 text-gray-700' => $latestPhoto->photo_status === 'draft',
-                    'bg-blue-100 text-blue-800' => $latestPhoto->photo_status === 'tracer_pending',
-                    'bg-purple-100 text-purple-800' => $latestPhoto->photo_status === 'tracer_approved',
-                    'bg-yellow-100 text-yellow-800' => $latestPhoto->photo_status === 'cgp_pending',
-                    'bg-green-100 text-green-800' => $latestPhoto->photo_status === 'cgp_approved',
-                    'bg-red-100 text-red-800' => str_contains($latestPhoto->photo_status ?? '', 'rejected'),
-                  ])
-                ">{{ $latestPhoto->photo_status ? strtoupper(str_replace('_', ' ', $latestPhoto->photo_status)) : 'DRAFT' }}</span>
-              @else
-                <span class="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-500">BELUM UPLOAD</span>
-              @endif
+    @php
+      $list = $gasIn->photoApprovals->sortBy('photo_field_name')->values();
+    @endphp
+
+    @if($list->isEmpty())
+      <div class="text-center py-8">
+        <i class="fas fa-camera text-gray-300 text-4xl mb-3"></i>
+        <p class="text-gray-500 text-sm mb-4">Belum ada foto yang diupload</p>
+        @if($gasIn->status === 'draft')
+          <a href="{{ route('gas-in.edit',$gasIn->id) }}" class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700">
+            Upload Foto
+          </a>
+        @endif
+      </div>
+    @else
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @foreach($list as $pa)
+          <div class="border rounded-lg p-4 space-y-3">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="text-xs text-gray-500">Slot</div>
+                <div class="font-medium">{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}</div>
+              </div>
+              <div class="text-xs text-gray-500">
+                {{ $pa->created_at ? $pa->created_at->format('d/m H:i') : '-' }}
+              </div>
             </div>
 
-            @if($latestPhoto && $latestPhoto->photo_url)
-              <div class="mb-3">
-                <img src="{{ $latestPhoto->photo_url }}" 
-                     alt="{{ $label }}" 
-                     class="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                     onclick="openImageModal('{{ $latestPhoto->photo_url }}', '{{ $label }}')">
-              </div>
+            @if($pa->photo_url)
+              @php
+                $originalUrl = $pa->photo_url;
+                $photoUrl = $originalUrl;
+                $isPdf = str_ends_with(Str::lower($originalUrl), '.pdf');
 
-              <!-- AI Analysis -->
-              @if($latestPhoto->ai_status)
-                <div class="text-xs space-y-1">
-                  <div class="flex items-center justify-between">
-                    <span class="text-gray-500">AI Status:</span>
-                    <span class="
-                      @class([
-                        'text-green-600' => $latestPhoto->ai_status === 'passed',
-                        'text-red-600' => $latestPhoto->ai_status === 'failed',
-                        'text-yellow-600' => $latestPhoto->ai_status === 'warning',
-                      ])
-                    ">{{ strtoupper($latestPhoto->ai_status) }}</span>
+                if (strpos($originalUrl, 'drive.google.com') !== false && preg_match('/\/file\/d\/([a-zA-Z0-9-_]+)/', $originalUrl, $matches)) {
+                  $fileId = $matches[1];
+                  $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}=w800";
+                }
+              @endphp
+
+              @if(!$isPdf)
+                <div class="relative group">
+                  <img src="{{ $photoUrl }}"
+                       class="w-full h-48 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
+                       alt="Photo {{ $pa->photo_field_name }}"
+                       loading="lazy"
+                       onerror="this.onerror=null; this.src='{{ $originalUrl }}'; if(this.onerror) this.style.display='none'; this.nextElementSibling.style.display='block';"
+                       onclick="openImageModal('{{ $photoUrl }}', '{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}')">
+
+                  <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <i class="fas fa-search-plus text-white text-xl"></i>
                   </div>
-                  @if($latestPhoto->ai_score)
-                    <div class="flex items-center justify-between">
-                      <span class="text-gray-500">AI Score:</span>
-                      <span class="font-medium">{{ number_format($latestPhoto->ai_score, 1) }}%</span>
-                    </div>
-                  @endif
-                  @if($latestPhoto->ai_reason)
-                    <div class="mt-2 p-2 bg-gray-50 rounded text-xs">
-                      <strong>AI Analysis:</strong> {{ $latestPhoto->ai_reason }}
-                    </div>
-                  @endif
-                </div>
-              @endif
 
-              <!-- Approval History -->
-              @if($latestPhoto->tracer_approved_at || $latestPhoto->cgp_approved_at)
-                <div class="mt-3 text-xs space-y-1 border-t pt-2">
-                  @if($latestPhoto->tracer_approved_at)
-                    <div class="flex items-center text-green-600">
-                      <i class="fas fa-check mr-1"></i>
-                      Tracer: {{ $latestPhoto->tracer_approved_at->format('d/m/Y H:i') }}
-                    </div>
-                  @endif
-                  @if($latestPhoto->cgp_approved_at)
-                    <div class="flex items-center text-green-600">
-                      <i class="fas fa-check mr-1"></i>
-                      CGP: {{ $latestPhoto->cgp_approved_at->format('d/m/Y H:i') }}
-                    </div>
-                  @endif
+                  <div class="w-full h-48 bg-gray-100 rounded border-2 border-dashed border-gray-300 flex-col items-center justify-center text-gray-500 hidden">
+                    <i class="fas fa-image text-3xl mb-2"></i>
+                    <p class="text-xs text-center mb-2">Foto tidak dapat dimuat</p>
+                    <a href="{{ $originalUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline">
+                      Buka di tab baru
+                    </a>
+                  </div>
+                </div>
+              @else
+                <div class="w-full h-48 flex flex-col items-center justify-center bg-gray-50 rounded border hover:bg-gray-100 transition-colors cursor-pointer"
+                     onclick="window.open('{{ $originalUrl }}', '_blank')">
+                  <i class="fas fa-file-pdf text-red-500 text-4xl mb-3"></i>
+                  <div class="text-sm text-gray-600 text-center font-medium">PDF Document</div>
+                  <div class="text-xs text-blue-600 mt-1">Klik untuk membuka</div>
                 </div>
               @endif
             @else
-              <div class="h-48 bg-gray-100 rounded-lg flex items-center justify-center">
-                <div class="text-center text-gray-500">
+              <div class="w-full h-48 flex items-center justify-center bg-gray-50 rounded border">
+                <div class="text-center text-gray-400">
                   <i class="fas fa-image text-3xl mb-2"></i>
-                  <div class="text-sm">Belum ada foto</div>
+                  <div class="text-xs">Foto tidak tersedia</div>
                 </div>
               </div>
             @endif
+
+            <!-- Status Badge -->
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 rounded text-xs
+                @class([
+                  'bg-gray-100 text-gray-700' => $pa->photo_status === 'draft',
+                  'bg-blue-100 text-blue-800' => $pa->photo_status === 'tracer_pending',
+                  'bg-purple-100 text-purple-800' => $pa->photo_status === 'tracer_approved',
+                  'bg-yellow-100 text-yellow-800' => $pa->photo_status === 'cgp_pending',
+                  'bg-green-100 text-green-800' => $pa->photo_status === 'cgp_approved',
+                  'bg-red-100 text-red-800' => str_contains($pa->photo_status ?? '', 'rejected'),
+                ])
+              ">{{ $pa->photo_status ? strtoupper(str_replace('_', ' ', $pa->photo_status)) : 'DRAFT' }}</span>
+              
+              @if($pa->ai_score)
+                <span class="text-xs text-gray-500">
+                  AI: {{ number_format($pa->ai_score, 1) }}%
+                </span>
+              @endif
+            </div>
+
+            <!-- AI Analysis (if available) -->
+            @if($pa->ai_reason)
+              <div class="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                {{ Str::limit($pa->ai_reason, 80) }}
+              </div>
+            @endif
+
+            <div class="text-xs text-gray-500 text-center">
+              {{ $pa->photo_field_name }}
+            </div>
           </div>
         @endforeach
       </div>
-    </div>
+    @endif
   </div>
 
   <!-- Workflow Actions -->
@@ -264,21 +278,13 @@
 </div>
 
 <!-- Image Modal -->
-<div x-show="imageModal.show" 
-     x-transition:enter="transition ease-out duration-300"
-     x-transition:enter-start="opacity-0"
-     x-transition:enter-end="opacity-100"
-     x-transition:leave="transition ease-in duration-200"
-     x-transition:leave-start="opacity-100"
-     x-transition:leave-end="opacity-0"
-     class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" 
-     @click="imageModal.show = false">
-  <div class="max-w-4xl max-h-full p-4" @click.stop>
-    <img :src="imageModal.url" :alt="imageModal.title" class="max-w-full max-h-full object-contain">
-    <div class="text-center mt-4">
-      <h3 class="text-white text-lg font-medium" x-text="imageModal.title"></h3>
-      <button @click="imageModal.show = false" class="mt-2 px-4 py-2 bg-white text-black rounded">Close</button>
-    </div>
+<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center p-4" onclick="closeImageModal()">
+  <div class="relative max-w-4xl max-h-full">
+    <button onclick="closeImageModal()" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300 z-10">
+      <i class="fas fa-times"></i>
+    </button>
+    <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded">
+    <div id="modalTitle" class="absolute bottom-4 left-4 text-white bg-black bg-opacity-50 px-3 py-1 rounded"></div>
   </div>
 </div>
 
@@ -286,12 +292,6 @@
 <script>
 function gasInShow() {
     return {
-        imageModal: {
-            show: false,
-            url: '',
-            title: ''
-        },
-
         init() {
             console.log('Gas In Show initialized');
         },
@@ -464,19 +464,27 @@ function gasInShow() {
     }
 }
 
-function openImageModal(url, title) {
-    const app = Alpine.data;
-    // This would need to be handled differently in a real Alpine.js context
-    // For now, we'll use a simple approach
-    window.dispatchEvent(new CustomEvent('open-image-modal', { 
-        detail: { url, title } 
-    }));
+function openImageModal(imageUrl, title) {
+  const modal = document.getElementById('imageModal');
+  const modalImage = document.getElementById('modalImage');
+  const modalTitle = document.getElementById('modalTitle');
+
+  modalImage.src = imageUrl;
+  modalTitle.textContent = title;
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
 }
 
-// Listen for the custom event
-window.addEventListener('open-image-modal', (e) => {
-    // This would need proper Alpine.js integration
-    console.log('Open image modal:', e.detail);
+function closeImageModal() {
+  const modal = document.getElementById('imageModal');
+  modal.classList.add('hidden');
+  document.body.style.overflow = 'auto';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeImageModal();
+  }
 });
 </script>
 @endpush
