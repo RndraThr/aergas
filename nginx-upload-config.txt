@@ -1,0 +1,27 @@
+# NGINX Configuration untuk mengatasi 413 Request Entity Too Large
+# Tambahkan ke file konfigurasi nginx (biasanya di /etc/nginx/sites-available/your-site)
+
+server {
+    # ... existing configuration ...
+    
+    # Fix 413 Request Entity Too Large
+    client_max_body_size 25M;
+    client_body_timeout 300s;
+    client_header_timeout 300s;
+    
+    # PHP Upload Settings (optional, jika tidak pakai .htaccess)
+    location ~ \.php$ {
+        fastcgi_read_timeout 300;
+        # ... other php-fpm settings ...
+    }
+    
+    # ... rest of configuration ...
+}
+
+# Setelah edit, restart nginx:
+# sudo systemctl reload nginx
+# atau
+# sudo service nginx reload
+
+# Verifikasi config sebelum reload:
+# sudo nginx -t

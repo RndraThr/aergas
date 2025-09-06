@@ -6,7 +6,7 @@
     'currentPhoto' => null,
     'required' => false,
     'accept' => 'image/jpeg,image/png,image/jpg,image/gif,image/webp,application/pdf',
-    'maxSize' => 10240, // 10MB in KB
+    'maxSize' => 20480, // 20MB in KB
     'uploadUrl' => '',
     'deleteUrl' => '',
     'previewUrl' => null,

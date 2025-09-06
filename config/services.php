@@ -79,7 +79,7 @@ return [
     ],
 
     'aergas' => [
-        'photo_max_size' => env('MAX_FILE_SIZE', 10485760), // 10MB
+        'photo_max_size' => env('MAX_FILE_SIZE', 20971520), // 20MB
         'allowed_mime_types' => [
             'image/jpeg', 'image/png', 'image/jpg',
             'image/gif', 'image/webp', 'application/pdf'
