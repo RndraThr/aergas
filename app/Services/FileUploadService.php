@@ -132,6 +132,14 @@ class FileUploadService
         // ===== 3) Catat ke file_storages (jika tabel/model tersedia) =====
         $fsId = null;
         try {
+            Log::info('FileUploadService creating FileStorage with payload keys', [
+                'reff_id' => $reffId,
+                'module' => $moduleLower,
+                'field' => $fieldName,
+                'has_file_hash' => isset($fileHash),
+                'file_hash_value' => $fileHash ?? 'NOT_SET'
+            ]);
+            
             $payload = [
                 'reff_id_pelanggan' => $reffId,
                 'module_name'       => $moduleLower,
@@ -147,6 +155,11 @@ class FileUploadService
 
             // kolom drive opsional
             if ($driveId)   $payload['google_drive_id'] = $driveId;
+
+            Log::info('FileUploadService about to create FileStorage', [
+                'payload_keys' => array_keys($payload),
+                'payload' => $payload
+            ]);
 
             /** @var \App\Models\FileStorage $fs */
             $fs   = FileStorage::create($payload);
