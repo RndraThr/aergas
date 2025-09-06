@@ -616,7 +616,14 @@ function dashboardData() {
                                 display: true,
                                 text: 'Installations'
                             },
-                            beginAtZero: true
+                            beginAtZero: true,
+                            suggestedMax: 10,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return Number.isInteger(value) ? value : '';
+                                }
+                            }
                         }
                     }
                 }
@@ -688,6 +695,18 @@ function dashboardData() {
                 // Validate and sanitize chart data
                 const labels = Array.isArray(chartData.labels) ? chartData.labels : [];
                 const datasets = Array.isArray(chartData.datasets) ? chartData.datasets : [];
+                
+                // Calculate dynamic max value for Y-axis
+                let maxValue = 0;
+                datasets.forEach(dataset => {
+                    if (Array.isArray(dataset.data)) {
+                        const dataMax = Math.max(...dataset.data.filter(val => typeof val === 'number' && !isNaN(val)));
+                        maxValue = Math.max(maxValue, dataMax);
+                    }
+                });
+                
+                // Add 20% padding to max value, minimum of 10
+                const suggestedMax = Math.max(10, Math.ceil(maxValue * 1.2));
                 
                 // Ensure all datasets have proper data arrays and required properties
                 const validatedDatasets = datasets.map(dataset => {
@@ -763,13 +782,20 @@ function dashboardData() {
                                     display: true,
                                     text: 'Installations'
                                 },
-                                beginAtZero: true
+                                beginAtZero: true,
+                                suggestedMax: suggestedMax,
+                                ticks: {
+                                    stepSize: Math.max(1, Math.ceil(suggestedMax / 10)),
+                                    callback: function(value) {
+                                        return Number.isInteger(value) ? value : '';
+                                    }
+                                }
                             }
                         }
                     }
                 });
 
-                console.log('Chart recreated successfully');
+                console.log('Chart recreated successfully with max value:', suggestedMax);
             } catch (error) {
                 console.error('Error recreating chart:', error);
                 this.installationChart = null;
