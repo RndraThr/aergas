@@ -49,38 +49,44 @@ class TracerApprovalController extends Controller implements HasMiddleware
     public function customers(Request $request)
     {
         try {
-            // Simple query first - get all customers with SK data
-            $query = CalonPelanggan::with(['skData', 'srData', 'gasInData']);
+            // Simple query first - get all customers with photo approvals
+            $query = CalonPelanggan::with(['skData', 'srData', 'gasInData', 'photoApprovals']);
 
             // Filter berdasarkan status
             $status = $request->get('status');
 
             if ($status === 'sk_pending') {
-                // Only customers with SK data that hasn't been approved by tracer
-                $query->whereHas('skData', function($q) {
-                    $q->whereNull('tracer_approved_at');
+                // Customers with SK photos pending tracer approval OR SK data without photos
+                $query->where(function($q) {
+                    $q->whereHas('photoApprovals', function($photoQ) {
+                        $photoQ->where('module_name', 'sk')
+                              ->where('photo_status', 'tracer_pending');
+                    })->orWhereHas('skData');
                 });
             } elseif ($status === 'sr_pending') {
-                // Only customers with SR data that hasn't been approved, but SK is approved
-                $query->whereHas('skData', function($q) {
-                    $q->whereNotNull('tracer_approved_at');
-                })->whereHas('srData', function($q) {
-                    $q->whereNull('tracer_approved_at');
+                // Customers with SR photos pending tracer approval OR SR data without photos
+                $query->where(function($q) {
+                    $q->whereHas('photoApprovals', function($photoQ) {
+                        $photoQ->where('module_name', 'sr')
+                              ->where('photo_status', 'tracer_pending');
+                    })->orWhereHas('srData');
                 });
             } elseif ($status === 'gas_in_pending') {
-                // Only customers with Gas In data that hasn't been approved, but SR is approved
-                $query->whereHas('srData', function($q) {
-                    $q->whereNotNull('tracer_approved_at');
-                })->whereHas('gasInData', function($q) {
-                    $q->whereNull('tracer_approved_at');
+                // Customers with Gas In photos pending tracer approval OR Gas In data without photos
+                $query->where(function($q) {
+                    $q->whereHas('photoApprovals', function($photoQ) {
+                        $photoQ->where('module_name', 'gas_in')
+                              ->where('photo_status', 'tracer_pending');
+                    })->orWhereHas('gasInData');
                 });
             } else {
-                // Default: show customers that have either SK data OR photo approvals
+                // Default: show customers that have photos pending tracer approval OR have any module data
                 $query->where(function($q) {
-                    $q->whereHas('skData')
-                      ->orWhereHas('photoApprovals', function($photoQuery) {
-                          $photoQuery->where('module_name', 'sk');
-                      });
+                    $q->whereHas('photoApprovals', function($photoQ) {
+                        $photoQ->where('photo_status', 'tracer_pending');
+                    })->orWhereHas('skData')
+                      ->orWhereHas('srData')
+                      ->orWhereHas('gasInData');
                 });
             }
 
@@ -354,24 +360,31 @@ class TracerApprovalController extends Controller implements HasMiddleware
         ];
 
         try {
-            // Check SK - more defensive checking
-            if ($customer->skData && !is_null($customer->skData->tracer_approved_at)) {
+            // Check SK photos - completed if any SK photo is tracer_approved or cgp_approved
+            $skPhotos = $customer->photoApprovals->where('module_name', 'sk');
+            if ($skPhotos->isNotEmpty() && $skPhotos->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved'])->isNotEmpty()) {
                 $status['sk_completed'] = true;
                 $status['current_step'] = 'sr';
                 $status['sr_available'] = true;
             }
 
-            // Check SR
-            if ($status['sr_available'] && $customer->srData && !is_null($customer->srData->tracer_approved_at)) {
-                $status['sr_completed'] = true;
-                $status['current_step'] = 'gas_in';
-                $status['gas_in_available'] = true;
+            // Check SR photos - completed if any SR photo is tracer_approved or cgp_approved  
+            if ($status['sr_available']) {
+                $srPhotos = $customer->photoApprovals->where('module_name', 'sr');
+                if ($srPhotos->isNotEmpty() && $srPhotos->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved'])->isNotEmpty()) {
+                    $status['sr_completed'] = true;
+                    $status['current_step'] = 'gas_in';
+                    $status['gas_in_available'] = true;
+                }
             }
 
-            // Check Gas In
-            if ($status['gas_in_available'] && $customer->gasInData && !is_null($customer->gasInData->tracer_approved_at)) {
-                $status['gas_in_completed'] = true;
-                $status['current_step'] = 'completed';
+            // Check Gas In photos - completed if any Gas In photo is tracer_approved or cgp_approved
+            if ($status['gas_in_available']) {
+                $gasInPhotos = $customer->photoApprovals->where('module_name', 'gas_in');
+                if ($gasInPhotos->isNotEmpty() && $gasInPhotos->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved'])->isNotEmpty()) {
+                    $status['gas_in_completed'] = true;
+                    $status['current_step'] = 'completed';
+                }
             }
         } catch (Exception $e) {
             Log::warning('Error in getSequentialStatus', [
