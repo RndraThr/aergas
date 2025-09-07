@@ -14,7 +14,8 @@ use App\Http\Controllers\Web\{
    GasInDataController,
    AdminController,
    TracerApprovalController,
-   CgpApprovalController
+   CgpApprovalController,
+   SystemInfoController
 };
 
 Route::get('/', function () {
@@ -56,6 +57,12 @@ Route::middleware('auth')->group(function () {
            Route::get('/system-stats', [AdminController::class, 'getSystemStats'])->name('system-stats');
            Route::get('/test-integrations', [AdminController::class, 'testIntegrations'])->name('test-integrations');
            Route::get('/google-drive-stats', [AdminController::class, 'getGoogleDriveStats'])->name('google-drive-stats');
+       });
+
+       // System Information Routes (Super Admin only)
+       Route::middleware('role:super_admin')->prefix('system')->name('system.')->group(function () {
+           Route::get('/phpinfo', [SystemInfoController::class, 'phpinfo'])->name('phpinfo');
+           Route::get('/info', [SystemInfoController::class, 'systemInfo'])->name('info');
        });
    });
 
