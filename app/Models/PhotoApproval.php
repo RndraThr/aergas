@@ -20,6 +20,8 @@ class PhotoApproval extends Model
         'tracer_approved_at'   => 'datetime',
         'tracer_rejected_at'   => 'datetime',
         'cgp_approved_at'      => 'datetime',
+        'uploaded_at'          => 'datetime',
+        'organized_at'         => 'datetime',
         'created_at'           => 'datetime',
         'updated_at'           => 'datetime',
         'photo_status'         => 'string',

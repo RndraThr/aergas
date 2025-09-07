@@ -116,6 +116,10 @@ class DashboardController extends Controller implements HasMiddleware
         return [
             'progress_distribution' => $progressCounts,
             'module_details' => $moduleData,
+            // Also include direct module access for frontend compatibility
+            'sk' => $moduleData['sk'],
+            'sr' => $moduleData['sr'],  
+            'gas_in' => $moduleData['gas_in'],
         ];
     }
 

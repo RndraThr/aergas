@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use App\Models\{CalonPelanggan, PhotoApproval, SkData, SrData, GasInData};
-use App\Services\{PhotoApprovalService, NotificationService};
+use App\Services\{PhotoApprovalService, NotificationService, FolderOrganizationService};
 use Illuminate\Http\{Request, JsonResponse};
 use Illuminate\Support\Facades\{DB, Log, Auth};
 use Exception;
@@ -15,7 +15,8 @@ class CgpApprovalController extends Controller implements HasMiddleware
 {
     public function __construct(
         private PhotoApprovalService $photoApprovalService,
-        private NotificationService $notificationService
+        private NotificationService $notificationService,
+        private FolderOrganizationService $folderOrganizationService
     ) {}
 
     public static function middleware(): array
@@ -140,8 +141,35 @@ class CgpApprovalController extends Controller implements HasMiddleware
             // Get photos yang sudah di-approve tracer
             $photos = $this->getPhotosForCgp($customer);
             $cgpStatus = $this->getCgpStatus($customer);
+            
+            // Get completion status for each module
+            $completionStatus = [];
+            
+            if ($customer->skData) {
+                $completionStatus['sk'] = [
+                    'completion_summary' => $customer->skData->getCompletionSummary(),
+                    'slot_status' => $customer->skData->getSlotCompletionStatus(),
+                    'missing_required' => $customer->skData->getMissingRequiredSlots(),
+                ];
+            }
+            
+            if ($customer->srData) {
+                $completionStatus['sr'] = [
+                    'completion_summary' => $customer->srData->getCompletionSummary(),
+                    'slot_status' => $customer->srData->getSlotCompletionStatus(),
+                    'missing_required' => $customer->srData->getMissingRequiredSlots(),
+                ];
+            }
+            
+            if ($customer->gasInData) {
+                $completionStatus['gas_in'] = [
+                    'completion_summary' => $customer->gasInData->getCompletionSummary(),
+                    'slot_status' => $customer->gasInData->getSlotCompletionStatus(),
+                    'missing_required' => $customer->gasInData->getMissingRequiredSlots(),
+                ];
+            }
 
-            return view('approvals.cgp.photos', compact('customer', 'photos', 'cgpStatus'));
+            return view('approvals.cgp.photos', compact('customer', 'photos', 'cgpStatus', 'completionStatus'));
 
         } catch (Exception $e) {
             Log::error('Customer photos error: ' . $e->getMessage());
@@ -281,6 +309,18 @@ class CgpApprovalController extends Controller implements HasMiddleware
             ]);
 
             DB::commit();
+            
+            // Organize photos into dedicated folders after successful approval
+            try {
+                $organizationResult = $this->folderOrganizationService->organizePhotosAfterCgpApproval($reffId, $module);
+                Log::info('Photo organization completed', $organizationResult);
+            } catch (Exception $e) {
+                Log::warning('Photo organization failed but approval succeeded', [
+                    'reff_id' => $reffId,
+                    'module' => $module,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -298,6 +338,56 @@ class CgpApprovalController extends Controller implements HasMiddleware
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API endpoint to check slot completion for a module
+     */
+    public function checkSlotCompletion(Request $request)
+    {
+        $request->validate([
+            'reff_id' => 'required|string',
+            'module' => 'required|in:sk,sr,gas_in'
+        ]);
+
+        try {
+            $reffId = $request->get('reff_id');
+            $module = $request->get('module');
+
+            $moduleData = $this->getModuleData($reffId, $module);
+            if (!$moduleData) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Module {$module} not found for {$reffId}"
+                ], 404);
+            }
+
+            $completionSummary = $moduleData->getCompletionSummary();
+            $slotStatus = $moduleData->getSlotCompletionStatus();
+            $missingRequired = $moduleData->getMissingRequiredSlots();
+
+            return response()->json([
+                'success' => true,
+                'reff_id' => $reffId,
+                'module' => $module,
+                'completion_summary' => $completionSummary,
+                'slot_status' => $slotStatus,
+                'missing_required' => $missingRequired,
+                'is_ready_for_cgp' => empty($missingRequired), // Only approve if all required slots are present
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Slot completion check failed', [
+                'reff_id' => $request->get('reff_id'),
+                'module' => $request->get('module'),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check slot completion: ' . $e->getMessage()
             ], 500);
         }
     }

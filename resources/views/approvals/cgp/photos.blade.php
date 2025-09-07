@@ -48,6 +48,136 @@
         </div>
     </div>
 
+    <!-- Slot Completion Status -->
+    @if(isset($completionStatus) && !empty($completionStatus))
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">📋 Slot Completion Status</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                @foreach(['sk' => 'SK', 'sr' => 'SR', 'gas_in' => 'Gas In'] as $moduleKey => $moduleName)
+                    @if(isset($completionStatus[$moduleKey]))
+                        @php $status = $completionStatus[$moduleKey]; @endphp
+                        <div class="border rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="font-semibold text-gray-900">{{ $moduleName }}</h3>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm font-medium 
+                                        {{ $status['completion_summary']['is_complete'] ? 'text-green-600' : 'text-orange-600' }}">
+                                        {{ $status['completion_summary']['completion_percentage'] }}%
+                                    </span>
+                                    @if($status['completion_summary']['is_complete'])
+                                        <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                                            ✅ Complete
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
+                                            ⚠️ Missing {{ count($status['missing_required']) }}
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                            
+                            <!-- Summary Stats -->
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-3">
+                                <div>Total Slots: {{ $status['completion_summary']['total_slots'] }}</div>
+                                <div>Required: {{ $status['completion_summary']['required_slots'] }}</div>
+                                <div>Uploaded: {{ $status['completion_summary']['uploaded_slots'] }}</div>
+                                <div>Approved: {{ $status['completion_summary']['approved_slots'] }}</div>
+                            </div>
+                            
+                            <!-- Missing Required Slots -->
+                            @if(!empty($status['missing_required']))
+                                <div class="bg-red-50 border border-red-200 rounded p-2 mb-3">
+                                    <p class="text-xs font-medium text-red-800 mb-1">Missing Required:</p>
+                                    @foreach($status['missing_required'] as $missingSlot)
+                                        @php 
+                                            $slotConfig = config("aergas_photos.modules.".strtoupper($moduleKey).".slots.{$missingSlot}");
+                                            $slotLabel = $slotConfig['label'] ?? $missingSlot;
+                                        @endphp
+                                        <span class="inline-block px-2 py-1 bg-red-100 text-red-700 rounded text-xs mr-1 mb-1">
+                                            {{ $slotLabel }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
+                            
+                            <!-- Slot Details (Collapsed by Default) -->
+                            <details class="mt-3">
+                                <summary class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
+                                    Show All Slots ({{ count($status['slot_status']) }})
+                                </summary>
+                                <div class="mt-2 space-y-1">
+                                    @foreach($status['slot_status'] as $slotKey => $slotInfo)
+                                        <div class="flex items-center justify-between text-xs py-1">
+                                            <span class="truncate flex-1 mr-2" title="{{ $slotInfo['label'] }}">
+                                                {{ $slotInfo['label'] }}
+                                                @if($slotInfo['required'])
+                                                    <span class="text-red-500">*</span>
+                                                @endif
+                                            </span>
+                                            @if($slotInfo['uploaded'])
+                                                @if($slotInfo['approved_by_cgp'])
+                                                    <span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">✅ CGP</span>
+                                                @elseif($slotInfo['approved_by_tracer'])
+                                                    <span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">👤 Tracer</span>
+                                                @elseif($slotInfo['status'] === 'draft')
+                                                    <span class="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">📝 Draft</span>
+                                                @else
+                                                    <span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded">🔄 Process</span>
+                                                @endif
+                                            @else
+                                                <span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded">❌ Missing</span>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </details>
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+            
+            <!-- Warning for Incomplete Modules -->
+            @php 
+                $incompleteModules = collect($completionStatus)->filter(function($status, $module) {
+                    return !$status['completion_summary']['is_complete'];
+                })->keys();
+            @endphp
+            
+            @if($incompleteModules->isNotEmpty())
+                <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-amber-800">Incomplete Modules Detected</h3>
+                            <div class="mt-2 text-sm text-amber-700">
+                                <p>The following modules have missing required slots:</p>
+                                <ul class="mt-1 ml-4 list-disc">
+                                    @foreach($incompleteModules as $module)
+                                        @php 
+                                            $moduleName = ['sk' => 'SK', 'sr' => 'SR', 'gas_in' => 'Gas In'][$module];
+                                            $missing = count($completionStatus[$module]['missing_required']);
+                                        @endphp
+                                        <li><strong>{{ $moduleName }}</strong>: {{ $missing }} missing required slot{{ $missing > 1 ? 's' : '' }}</li>
+                                    @endforeach
+                                </ul>
+                                <p class="mt-2 font-medium">
+                                    ⚠️ Consider requesting missing photos before final CGP approval.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        </div>
+    </div>
+    @endif
+
     <!-- CGP Progress Bar -->
     <div class="bg-white rounded-lg shadow mb-6">
         <div class="p-6">
@@ -176,8 +306,16 @@
                     
                     @if($moduleReady && !$moduleCompleted && count($modulePhotos) > 0)
                         <button onclick="approveModule('{{ $module }}')" 
-                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm">
-                            ✅ Approve All {{ strtoupper($module) }}
+                                id="approveModuleBtn_{{ $module }}"
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200">
+                            <span class="approve-text">✅ Approve All {{ strtoupper($module) }}</span>
+                            <span class="approve-loading hidden">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Processing...
+                            </span>
                         </button>
                     @endif
                 </div>
@@ -252,12 +390,26 @@
                                     @if($moduleReady && !$photo->cgp_approved_at && $photo->photo_status === 'cgp_pending')
                                         <div class="flex space-x-2">
                                             <button onclick="approvePhoto({{ $photo->id }})" 
-                                                    class="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
-                                                ✅ Approve
+                                                    id="approveBtn_{{ $photo->id }}"
+                                                    class="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-all duration-200">
+                                                <span class="approve-text">✅ Approve</span>
+                                                <span class="approve-loading hidden">
+                                                    <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </span>
                                             </button>
                                             <button onclick="rejectPhoto({{ $photo->id }})" 
-                                                    class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
-                                                ❌ Reject
+                                                    id="rejectBtn_{{ $photo->id }}"
+                                                    class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-all duration-200">
+                                                <span class="reject-text">❌ Reject</span>
+                                                <span class="reject-loading hidden">
+                                                    <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </span>
                                             </button>
                                         </div>
                                     @endif
@@ -317,12 +469,20 @@
             </div>
             <div class="flex justify-end space-x-3">
                 <button type="button" onclick="closeNotesModal()" 
-                        class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg">
+                        class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg" 
+                        id="cancelButton">
                     Cancel
                 </button>
                 <button type="submit" id="confirmButton" 
                         class="px-4 py-2 rounded-lg text-white">
-                    Confirm
+                    <span id="confirmButtonText">Confirm</span>
+                    <span id="confirmButtonLoading" class="hidden">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                    </span>
                 </button>
             </div>
         </form>
@@ -358,15 +518,20 @@ function openNotesModal(title, action, photoId = null, module = null) {
     document.getElementById('reviewNotes').value = '';
     
     const confirmButton = document.getElementById('confirmButton');
+    const confirmButtonText = document.getElementById('confirmButtonText');
+    
+    // Reset button state
+    resetButtonState();
+    
     if (action === 'approve') {
         confirmButton.className = 'px-4 py-2 rounded-lg text-white bg-green-600 hover:bg-green-700';
-        confirmButton.textContent = 'Approve';
+        confirmButtonText.textContent = 'Approve';
     } else if (action === 'reject') {
         confirmButton.className = 'px-4 py-2 rounded-lg text-white bg-red-600 hover:bg-red-700';
-        confirmButton.textContent = 'Reject';
+        confirmButtonText.textContent = 'Reject';
     } else if (action === 'approveModule') {
         confirmButton.className = 'px-4 py-2 rounded-lg text-white bg-green-600 hover:bg-green-700';
-        confirmButton.textContent = 'Approve All';
+        confirmButtonText.textContent = 'Approve All';
     }
     
     document.getElementById('notesModal').classList.remove('hidden');
@@ -374,6 +539,8 @@ function openNotesModal(title, action, photoId = null, module = null) {
 
 function closeNotesModal() {
     document.getElementById('notesModal').classList.add('hidden');
+    // Reset all button states when modal closes
+    resetAllButtonStates();
     currentPhotoId = null;
     currentAction = null;
     currentModule = null;
@@ -381,20 +548,101 @@ function closeNotesModal() {
 
 // Photo actions
 function approvePhoto(photoId) {
+    // Set button loading state
+    setButtonLoadingState(`approveBtn_${photoId}`, 'approve-text', 'approve-loading');
     openNotesModal('Approve Photo', 'approve', photoId);
 }
 
 function rejectPhoto(photoId) {
+    // Set button loading state
+    setButtonLoadingState(`rejectBtn_${photoId}`, 'reject-text', 'reject-loading');
     openNotesModal('Reject Photo', 'reject', photoId);
 }
 
 function approveModule(module) {
+    // Set button loading state
+    setButtonLoadingState(`approveModuleBtn_${module}`, 'approve-text', 'approve-loading');
     openNotesModal(`Approve All ${module.toUpperCase()} Photos`, 'approveModule', null, module);
+}
+
+// Button loading state functions
+function setButtonLoadingState(buttonId, textClass, loadingClass) {
+    const button = document.getElementById(buttonId);
+    if (button) {
+        button.disabled = true;
+        button.classList.add('opacity-50', 'cursor-not-allowed');
+        
+        const textSpan = button.querySelector(`.${textClass}`);
+        const loadingSpan = button.querySelector(`.${loadingClass}`);
+        
+        if (textSpan) textSpan.classList.add('hidden');
+        if (loadingSpan) loadingSpan.classList.remove('hidden');
+    }
+}
+
+function resetButtonLoadingState(buttonId, textClass, loadingClass) {
+    const button = document.getElementById(buttonId);
+    if (button) {
+        button.disabled = false;
+        button.classList.remove('opacity-50', 'cursor-not-allowed');
+        
+        const textSpan = button.querySelector(`.${textClass}`);
+        const loadingSpan = button.querySelector(`.${loadingClass}`);
+        
+        if (textSpan) textSpan.classList.remove('hidden');
+        if (loadingSpan) loadingSpan.classList.add('hidden');
+    }
+}
+
+function resetAllButtonStates() {
+    // Reset all button states when modal closes or form completes
+    document.querySelectorAll('[id^="approveBtn_"], [id^="rejectBtn_"], [id^="approveModuleBtn_"]').forEach(button => {
+        button.disabled = false;
+        button.classList.remove('opacity-50', 'cursor-not-allowed');
+        
+        const textSpan = button.querySelector('.approve-text, .reject-text');
+        const loadingSpan = button.querySelector('.approve-loading, .reject-loading');
+        
+        if (textSpan) textSpan.classList.remove('hidden');
+        if (loadingSpan) loadingSpan.classList.add('hidden');
+    });
+}
+
+// Loading state functions
+function setLoadingState() {
+    const confirmButton = document.getElementById('confirmButton');
+    const confirmButtonText = document.getElementById('confirmButtonText');
+    const confirmButtonLoading = document.getElementById('confirmButtonLoading');
+    const cancelButton = document.getElementById('cancelButton');
+    
+    confirmButton.disabled = true;
+    confirmButton.classList.add('opacity-50', 'cursor-not-allowed');
+    confirmButtonText.classList.add('hidden');
+    confirmButtonLoading.classList.remove('hidden');
+    cancelButton.disabled = true;
+    cancelButton.classList.add('opacity-50', 'cursor-not-allowed');
+}
+
+function resetButtonState() {
+    const confirmButton = document.getElementById('confirmButton');
+    const confirmButtonText = document.getElementById('confirmButtonText');
+    const confirmButtonLoading = document.getElementById('confirmButtonLoading');
+    const cancelButton = document.getElementById('cancelButton');
+    
+    confirmButton.disabled = false;
+    confirmButton.classList.remove('opacity-50', 'cursor-not-allowed');
+    confirmButtonText.classList.remove('hidden');
+    confirmButtonLoading.classList.add('hidden');
+    cancelButton.disabled = false;
+    cancelButton.classList.remove('opacity-50', 'cursor-not-allowed');
 }
 
 // Form submission
 document.getElementById('notesForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    
+    // Set loading state immediately
+    setLoadingState();
     
     const notes = document.getElementById('reviewNotes').value;
     const formData = new FormData();
@@ -402,16 +650,27 @@ document.getElementById('notesForm').addEventListener('submit', function(e) {
     formData.append('_token', '{{ csrf_token() }}');
     
     let url = '';
+    let actionText = '';
     
     if (currentAction === 'approveModule') {
         url = '{{ route("approvals.cgp.approve-module") }}';
         formData.append('reff_id', reffId);
         formData.append('module', currentModule);
-    } else {
+        actionText = `Approving all ${currentModule.toUpperCase()} photos`;
+    } else if (currentAction === 'approve') {
         url = '{{ route("approvals.cgp.approve-photo") }}';
         formData.append('photo_id', currentPhotoId);
         formData.append('action', currentAction);
+        actionText = 'Approving photo';
+    } else if (currentAction === 'reject') {
+        url = '{{ route("approvals.cgp.approve-photo") }}';
+        formData.append('photo_id', currentPhotoId);
+        formData.append('action', currentAction);
+        actionText = 'Rejecting photo';
     }
+    
+    // Show toast notification with action in progress
+    showToast('info', `${actionText}... Please wait.`);
     
     fetch(url, {
         method: 'POST',
@@ -419,20 +678,109 @@ document.getElementById('notesForm').addEventListener('submit', function(e) {
     })
     .then(response => response.json())
     .then(data => {
+        resetButtonState();
+        resetAllButtonStates(); // Reset all button states
         closeNotesModal();
+        
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            showToast('success', data.message);
+            
+            // Add organization info for module approvals
+            if (currentAction === 'approveModule' && data.data && data.data.approved_photos) {
+                const approvedCount = data.data.approved_photos.length;
+                setTimeout(() => {
+                    showToast('info', `📁 Organizing ${approvedCount} photos into dedicated folders...`);
+                }, 1000);
+            }
+            
+            // Reload page after showing success message
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
         } else {
-            alert('Error: ' + data.message);
+            showToast('error', 'Error: ' + (data.message || 'Unknown error occurred'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred');
+        resetButtonState();
+        resetAllButtonStates(); // Reset all button states
         closeNotesModal();
+        showToast('error', 'Network error occurred. Please try again.');
     });
 });
+
+// Toast notification function
+function showToast(type, message) {
+    // Remove existing toast if any
+    const existingToast = document.querySelector('.toast-notification');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification fixed top-4 right-4 z-50 max-w-sm w-full bg-white border border-gray-200 rounded-lg shadow-lg p-4 transition-all duration-300 transform translate-x-full`;
+    
+    let bgClass = '';
+    let iconSvg = '';
+    
+    if (type === 'success') {
+        bgClass = 'border-green-400 bg-green-50';
+        iconSvg = `<svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>`;
+    } else if (type === 'error') {
+        bgClass = 'border-red-400 bg-red-50';
+        iconSvg = `<svg class="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+        </svg>`;
+    } else if (type === 'info') {
+        bgClass = 'border-blue-400 bg-blue-50';
+        iconSvg = `<svg class="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+        </svg>`;
+    }
+    
+    toast.className += ` ${bgClass}`;
+    toast.innerHTML = `
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                ${iconSvg}
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-gray-700">${message}</p>
+            </div>
+            <div class="ml-auto pl-3">
+                <button onclick="this.closest('.toast-notification').remove()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => {
+        toast.classList.remove('translate-x-full');
+        toast.classList.add('translate-x-0');
+    }, 100);
+    
+    // Auto remove after 5 seconds (except for info toasts which stay longer)
+    const autoRemoveTime = type === 'info' ? 8000 : 5000;
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.classList.add('translate-x-full');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 300);
+        }
+    }, autoRemoveTime);
+}
 
 // Google Drive URL fallback function
 function tryAlternativeUrls(imgElement) {

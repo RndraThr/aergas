@@ -248,6 +248,77 @@ class GoogleDriveService
         ];
     }
 
+    /**
+     * Move file to a different folder and optionally rename
+     */
+    public function moveFile(string $fileId, string $targetFolderId, ?string $newName = null): array
+    {
+        if (!$this->initialize()) {
+            throw new Exception('Google Drive service not available: ' . $this->getError());
+        }
+
+        try {
+            // Get current file info
+            $file = $this->drive->files->get($fileId, [
+                'fields' => 'id,name,parents,webViewLink,webContentLink',
+                'supportsAllDrives' => true
+            ]);
+
+            $updateData = [];
+            $updateParams = ['supportsAllDrives' => true, 'fields' => 'id,name,webViewLink,webContentLink'];
+
+            // Update parent folders if needed
+            if ($targetFolderId !== ($file->getParents()[0] ?? null)) {
+                $currentParents = implode(',', $file->getParents() ?? []);
+                $updateParams['addParents'] = $targetFolderId;
+                $updateParams['removeParents'] = $currentParents;
+            }
+
+            // Update name if needed
+            if ($newName && $newName !== $file->getName()) {
+                $updateData['name'] = $newName;
+            }
+
+            // Perform update only if there are changes
+            if (!empty($updateData) || isset($updateParams['addParents'])) {
+                $driveFile = new DriveFile($updateData);
+                $updated = $this->drive->files->update($fileId, $driveFile, $updateParams);
+                
+                Log::info('File moved successfully in Google Drive', [
+                    'file_id' => $fileId,
+                    'old_name' => $file->getName(),
+                    'new_name' => $updated->getName(),
+                    'target_folder_id' => $targetFolderId
+                ]);
+
+                return [
+                    'id' => $updated->getId(),
+                    'name' => $updated->getName(),
+                    'webViewLink' => $updated->getWebViewLink(),
+                    'webContentLink' => $updated->getWebContentLink(),
+                ];
+            }
+
+            // No changes needed, return current info
+            return [
+                'id' => $file->getId(),
+                'name' => $file->getName(),
+                'webViewLink' => $file->getWebViewLink(),
+                'webContentLink' => $file->getWebContentLink(),
+            ];
+
+        } catch (\Google\Service\Exception $e) {
+            Log::error('Google Drive API error during move', [
+                'file_id' => $fileId,
+                'target_folder_id' => $targetFolderId,
+                'new_name' => $newName,
+                'error' => $e->getMessage(),
+                'errors' => $e->getErrors()
+            ]);
+            throw new Exception('Failed to move file in Google Drive: ' . $e->getMessage());
+        }
+    }
+
     public function mirrorToDrive(string $disk, string $path, string $module, string $reffId, string $sub = 'original'): array
     {
         if (!$this->initialize()) {

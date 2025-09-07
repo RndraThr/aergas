@@ -312,6 +312,9 @@ Route::middleware('auth')->group(function () {
        // Photo Actions
        Route::post('/photos/approve', [CgpApprovalController::class, 'approvePhoto'])->name('approve-photo');
        Route::post('/modules/approve', [CgpApprovalController::class, 'approveModule'])->name('approve-module');
+       
+       // Slot Completion Check
+       Route::get('/slot-completion', [CgpApprovalController::class, 'checkSlotCompletion'])->name('check-slot-completion');
    });
 
    // Notification Routes

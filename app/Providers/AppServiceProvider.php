@@ -11,6 +11,7 @@ use App\Services\GoogleDriveService;
 use App\Services\PhotoApprovalService;
 use App\Services\NotificationService;
 use App\Services\FileUploadService;
+use App\Services\FolderOrganizationService;
 use App\Models\GasInData;
 
 
@@ -50,6 +51,12 @@ class AppServiceProvider extends ServiceProvider
                 $app->make(TelegramService::class),
                 $app->make(OpenAIService::class),
                 $app->make(NotificationService::class)
+            );
+        });
+
+        $this->app->singleton(FolderOrganizationService::class, function ($app) {
+            return new FolderOrganizationService(
+                $app->make(GoogleDriveService::class)
             );
         });
     }

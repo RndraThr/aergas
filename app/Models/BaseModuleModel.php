@@ -219,6 +219,87 @@ abstract class BaseModuleModel extends Model
         return $out;
     }
 
+    /**
+     * Get missing required slots for this module instance
+     */
+    public function getMissingRequiredSlots(): array
+    {
+        $moduleUpper = strtoupper($this->getModuleName());
+        $configSlots = config("aergas_photos.modules.{$moduleUpper}.slots", []);
+        $requiredSlots = collect($configSlots)->filter(fn($slot) => $slot['required'] ?? false)->keys();
+        
+        $existingSlots = $this->photoApprovals()
+            ->pluck('photo_field_name');
+        
+        return $requiredSlots->diff($existingSlots)->values()->toArray();
+    }
+
+    /**
+     * Get completion status for all slots (required + optional)
+     */
+    public function getSlotCompletionStatus(): array
+    {
+        $moduleUpper = strtoupper($this->getModuleName());
+        $configSlots = config("aergas_photos.modules.{$moduleUpper}.slots", []);
+        
+        $existingPhotos = $this->photoApprovals()
+            ->get()
+            ->keyBy('photo_field_name');
+        
+        $result = [];
+        foreach ($configSlots as $slotKey => $slotConfig) {
+            $photo = $existingPhotos->get($slotKey);
+            
+            $result[$slotKey] = [
+                'label' => $slotConfig['label'],
+                'required' => $slotConfig['required'] ?? false,
+                'uploaded' => !is_null($photo),
+                'status' => $photo?->photo_status ?? 'missing',
+                'photo_id' => $photo?->id,
+                'photo_url' => $photo?->photo_url,
+                'uploaded_at' => $photo?->uploaded_at?->format('d/m/Y H:i'),
+                'approved_by_tracer' => !is_null($photo?->tracer_approved_at),
+                'approved_by_cgp' => !is_null($photo?->cgp_approved_at),
+            ];
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Check if all required slots are uploaded
+     */
+    public function isRequiredSlotsComplete(): bool
+    {
+        return empty($this->getMissingRequiredSlots());
+    }
+
+    /**
+     * Get summary completion info
+     */
+    public function getCompletionSummary(): array
+    {
+        $moduleUpper = strtoupper($this->getModuleName());
+        $configSlots = config("aergas_photos.modules.{$moduleUpper}.slots", []);
+        $requiredSlots = collect($configSlots)->filter(fn($slot) => $slot['required'] ?? false);
+        $uploadedSlots = $this->photoApprovals()->count();
+        $approvedSlots = $this->photoApprovals()->whereNotNull('cgp_approved_at')->count();
+        $missingRequired = $this->getMissingRequiredSlots();
+        
+        return [
+            'total_slots' => count($configSlots),
+            'required_slots' => $requiredSlots->count(),
+            'optional_slots' => count($configSlots) - $requiredSlots->count(),
+            'uploaded_slots' => $uploadedSlots,
+            'approved_slots' => $approvedSlots,
+            'missing_required' => $missingRequired,
+            'is_complete' => empty($missingRequired),
+            'completion_percentage' => $requiredSlots->count() > 0 
+                ? round((($requiredSlots->count() - count($missingRequired)) / $requiredSlots->count()) * 100, 1)
+                : 100,
+        ];
+    }
+
     // Kontrak yang wajib diimplement oleh child:
     abstract public function getModuleName(): string;
     abstract public function getRequiredPhotos(): array;
