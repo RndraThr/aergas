@@ -312,7 +312,7 @@
                         class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                     <option value="7">Last 7 days</option>
                     <option value="30">Last 30 days</option>
-                    <option value="90" selected>Last 90 days</option>
+                    <option value="90">Last 90 days</option>
                     <option value="365">Last year</option>
                 </select>
 
@@ -488,7 +488,7 @@ function dashboardData() {
 
         // Chart properties
         chartPeriod: 'daily',
-        chartDays: 90,
+        chartDays: 30,
         chartModule: 'all',
         chartLoading: false,
         installationChart: null,
@@ -616,14 +616,7 @@ function dashboardData() {
                                 display: true,
                                 text: 'Installations'
                             },
-                            beginAtZero: true,
-                            suggestedMax: 10,
-                            ticks: {
-                                stepSize: 1,
-                                callback: function(value) {
-                                    return Number.isInteger(value) ? value : '';
-                                }
-                            }
+                            beginAtZero: true
                         }
                     }
                 }
@@ -638,7 +631,7 @@ function dashboardData() {
             if (this.chartUpdateTimeout) {
                 clearTimeout(this.chartUpdateTimeout);
             }
-            
+
             this.chartUpdateTimeout = setTimeout(() => {
                 this.performChartUpdate();
             }, 300);
@@ -695,19 +688,7 @@ function dashboardData() {
                 // Validate and sanitize chart data
                 const labels = Array.isArray(chartData.labels) ? chartData.labels : [];
                 const datasets = Array.isArray(chartData.datasets) ? chartData.datasets : [];
-                
-                // Calculate dynamic max value for Y-axis
-                let maxValue = 0;
-                datasets.forEach(dataset => {
-                    if (Array.isArray(dataset.data)) {
-                        const dataMax = Math.max(...dataset.data.filter(val => typeof val === 'number' && !isNaN(val)));
-                        maxValue = Math.max(maxValue, dataMax);
-                    }
-                });
-                
-                // Add 20% padding to max value, minimum of 10
-                const suggestedMax = Math.max(10, Math.ceil(maxValue * 1.2));
-                
+
                 // Ensure all datasets have proper data arrays and required properties
                 const validatedDatasets = datasets.map(dataset => {
                     const validatedDataset = {
@@ -718,7 +699,7 @@ function dashboardData() {
                         borderColor: dataset.borderColor || '#3B82F6',
                         borderWidth: dataset.borderWidth || 1
                     };
-                    
+
                     // Add additional properties for line charts
                     if (dataset.type === 'line') {
                         validatedDataset.fill = dataset.fill !== undefined ? dataset.fill : false;
@@ -728,7 +709,7 @@ function dashboardData() {
                         validatedDataset.pointBorderWidth = dataset.pointBorderWidth || 2;
                         validatedDataset.pointRadius = dataset.pointRadius || 4;
                     }
-                    
+
                     return validatedDataset;
                 });
 
@@ -740,7 +721,7 @@ function dashboardData() {
                 }
 
                 const ctx = canvas.getContext('2d');
-                
+
                 this.installationChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -782,20 +763,13 @@ function dashboardData() {
                                     display: true,
                                     text: 'Installations'
                                 },
-                                beginAtZero: true,
-                                suggestedMax: suggestedMax,
-                                ticks: {
-                                    stepSize: Math.max(1, Math.ceil(suggestedMax / 10)),
-                                    callback: function(value) {
-                                        return Number.isInteger(value) ? value : '';
-                                    }
-                                }
+                                beginAtZero: true
                             }
                         }
                     }
                 });
 
-                console.log('Chart recreated successfully with max value:', suggestedMax);
+                console.log('Chart recreated successfully');
             } catch (error) {
                 console.error('Error recreating chart:', error);
                 this.installationChart = null;

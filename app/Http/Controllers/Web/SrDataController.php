@@ -71,13 +71,32 @@ class SrDataController extends Controller
         $materialRules = (new SrData())->getMaterialValidationRules();
 
         $v = Validator::make($r->all(), array_merge([
-            'reff_id_pelanggan' => ['required','string','max:50', Rule::exists('calon_pelanggan','reff_id_pelanggan')],
+            'reff_id_pelanggan' => [
+                'required',
+                'string',
+                'max:50', 
+                Rule::exists('calon_pelanggan','reff_id_pelanggan'),
+                Rule::unique('sr_data','reff_id_pelanggan')->whereNull('deleted_at')
+            ],
             'tanggal_pemasangan' => ['required','date'],
             'notes' => ['nullable','string'],
-        ], $materialRules));
+        ], $materialRules), [
+            'reff_id_pelanggan.unique' => 'SR untuk reff_id ini sudah ada. Tidak boleh membuat SR duplikat.'
+        ]);
 
         if ($v->fails()) {
             return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+        }
+
+        // Double check to prevent race condition
+        $existingSr = SrData::where('reff_id_pelanggan', $r->reff_id_pelanggan)->first();
+        if ($existingSr) {
+            return response()->json([
+                'success' => false,
+                'message' => 'SR untuk reff_id ' . $r->reff_id_pelanggan . ' sudah ada.',
+                'existing_id' => $existingSr->id,
+                'existing_status' => $existingSr->status
+            ], 422);
         }
 
         $data = $v->validated();

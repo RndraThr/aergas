@@ -55,8 +55,7 @@ class TelegramService
         try {
             $token = config('services.telegram.bot_token');
             if (!$token) return false;
-            // Optional: panggil getMe untuk verifikasi
-            $response = \Illuminate\Support\Facades\Http::timeout(config('services.telegram.timeout', 30))
+            $response = Http::timeout(config('services.telegram.timeout', 30))
                 ->get(config('services.telegram.api_url') . $token . '/getMe');
             return $response->ok() && ($response->json('ok') === true);
         } catch (\Throwable $e) {

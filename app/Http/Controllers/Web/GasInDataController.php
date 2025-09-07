@@ -68,13 +68,32 @@ class GasInDataController extends Controller
    public function store(Request $r)
    {
        $v = Validator::make($r->all(), [
-           'reff_id_pelanggan' => ['required','string','max:50', Rule::exists('calon_pelanggan','reff_id_pelanggan')],
+           'reff_id_pelanggan' => [
+               'required',
+               'string',
+               'max:50', 
+               Rule::exists('calon_pelanggan','reff_id_pelanggan'),
+               Rule::unique('gas_in_data','reff_id_pelanggan')->whereNull('deleted_at')
+           ],
            'tanggal_gas_in' => ['required','date'],
            'notes' => ['nullable','string'],
+       ], [
+           'reff_id_pelanggan.unique' => 'Gas In untuk reff_id ini sudah ada. Tidak boleh membuat Gas In duplikat.'
        ]);
 
        if ($v->fails()) {
            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+       }
+
+       // Double check to prevent race condition
+       $existingGasIn = GasInData::where('reff_id_pelanggan', $r->reff_id_pelanggan)->first();
+       if ($existingGasIn) {
+           return response()->json([
+               'success' => false,
+               'message' => 'Gas In untuk reff_id ' . $r->reff_id_pelanggan . ' sudah ada.',
+               'existing_id' => $existingGasIn->id,
+               'existing_status' => $existingGasIn->status
+           ], 422);
        }
 
        $data = $v->validated();
