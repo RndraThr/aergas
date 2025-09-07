@@ -121,11 +121,10 @@ class FixDuplicateGasInCommand extends Command
                     $deletedPhotos = PhotoApproval::where('reff_id_pelanggan', $reffId)
                         ->where('module_name', $moduleName)
                         ->where('created_at', '>=', $deleteRecord->created_at)
-                        ->whereNull('deleted_at')
                         ->get();
                         
                     foreach ($deletedPhotos as $photo) {
-                        $photo->delete();
+                        $photo->delete(); // Hard delete (no soft deletes in photo_approvals)
                         $this->line("  📸 Deleted related photo: {$photo->photo_field_name}");
                     }
                 }

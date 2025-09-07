@@ -12,28 +12,18 @@ return new class extends Migration
      */
     public function up(): void
     {
+        echo "\n🔧 Starting duplicate cleanup and constraint addition...\n";
+
+        // Step 1: Hard delete soft deleted records to avoid constraint violations
+        $this->cleanupSoftDeleted();
+        
+        // Step 2: Handle remaining duplicates
         $this->handleDuplicates('sk_data', 'SK');
         $this->handleDuplicates('sr_data', 'SR');
         $this->handleDuplicates('gas_in_data', 'GAS_IN');
 
-        // Add unique constraints (skip if already exists)
-        if (!$this->hasUniqueConstraint('sk_data', 'unique_sk_reff_id')) {
-            Schema::table('sk_data', function (Blueprint $table) {
-                $table->unique('reff_id_pelanggan', 'unique_sk_reff_id');
-            });
-        }
-
-        if (!$this->hasUniqueConstraint('sr_data', 'unique_sr_reff_id')) {
-            Schema::table('sr_data', function (Blueprint $table) {
-                $table->unique('reff_id_pelanggan', 'unique_sr_reff_id');
-            });
-        }
-
-        if (!$this->hasUniqueConstraint('gas_in_data', 'unique_gasin_reff_id')) {
-            Schema::table('gas_in_data', function (Blueprint $table) {
-                $table->unique('reff_id_pelanggan', 'unique_gasin_reff_id');
-            });
-        }
+        // Step 3: Add unique constraints (skip if already exists)
+        $this->addUniqueConstraints();
     }
 
     /**
@@ -41,17 +31,47 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('sk_data', function (Blueprint $table) {
-            $table->dropUnique('unique_sk_reff_id');
-        });
+        try {
+            Schema::table('sk_data', function (Blueprint $table) {
+                $table->dropUnique('unique_sk_reff_id');
+            });
+        } catch (Exception $e) {
+            // Ignore if constraint doesn't exist
+        }
 
-        Schema::table('sr_data', function (Blueprint $table) {
-            $table->dropUnique('unique_sr_reff_id');
-        });
+        try {
+            Schema::table('sr_data', function (Blueprint $table) {
+                $table->dropUnique('unique_sr_reff_id');
+            });
+        } catch (Exception $e) {
+            // Ignore if constraint doesn't exist
+        }
 
-        Schema::table('gas_in_data', function (Blueprint $table) {
-            $table->dropUnique('unique_gasin_reff_id');
-        });
+        try {
+            Schema::table('gas_in_data', function (Blueprint $table) {
+                $table->dropUnique('unique_gasin_reff_id');
+            });
+        } catch (Exception $e) {
+            // Ignore if constraint doesn't exist
+        }
+    }
+
+    /**
+     * Hard delete soft deleted records to avoid constraint conflicts
+     */
+    private function cleanupSoftDeleted(): void
+    {
+        $tables = ['sk_data', 'sr_data', 'gas_in_data'];
+        
+        foreach ($tables as $table) {
+            $deleted = DB::table($table)
+                ->whereNotNull('deleted_at')
+                ->delete();
+                
+            if ($deleted > 0) {
+                echo "  🗑️  Hard deleted {$deleted} soft-deleted records from {$table}\n";
+            }
+        }
     }
 
     /**
@@ -61,11 +81,10 @@ return new class extends Migration
     {
         echo "\n🔍 Checking duplicates in {$tableName}...\n";
 
-        // Find duplicates
+        // Find duplicates (now only active records since soft deleted are gone)
         $duplicates = DB::select("
             SELECT reff_id_pelanggan, COUNT(*) as count 
-            FROM {$tableName} 
-            WHERE deleted_at IS NULL 
+            FROM {$tableName}
             GROUP BY reff_id_pelanggan 
             HAVING count > 1
         ");
@@ -85,34 +104,58 @@ return new class extends Migration
             // Get all records for this reff_id, ordered by creation date (keep oldest)
             $records = DB::table($tableName)
                 ->where('reff_id_pelanggan', $reffId)
-                ->whereNull('deleted_at')
                 ->orderBy('created_at', 'asc')
                 ->get();
 
             if ($records->count() > 1) {
-                // Keep the first (oldest) record, soft delete the rest
+                // Keep the first (oldest) record, delete the rest
                 $recordsToDelete = $records->skip(1);
                 
                 foreach ($recordsToDelete as $record) {
                     DB::table($tableName)
                         ->where('id', $record->id)
-                        ->update(['deleted_at' => now()]);
+                        ->delete();
                     
-                    // Also delete related photo_approvals for newer records (hard delete - no soft deletes)
+                    // Also delete related photo_approvals
                     $moduleNameLower = strtolower($moduleName);
-                    $deletedPhotos = DB::table('photo_approvals')
+                    DB::table('photo_approvals')
                         ->where('reff_id_pelanggan', $reffId)
                         ->where('module_name', $moduleNameLower)
                         ->where('created_at', '>=', $record->created_at)
                         ->delete();
 
                     $totalCleaned++;
-                    echo "  🗑️  Cleaned duplicate ID {$record->id} for reff_id: {$reffId}\n";
+                    echo "  🗑️  Deleted duplicate ID {$record->id} for reff_id: {$reffId}\n";
                 }
             }
         }
 
         echo "✅ Cleaned {$totalCleaned} duplicate records from {$tableName}\n";
+    }
+
+    /**
+     * Add unique constraints if they don't exist
+     */
+    private function addUniqueConstraints(): void
+    {
+        echo "\n🔒 Adding unique constraints...\n";
+
+        $constraints = [
+            'sk_data' => 'unique_sk_reff_id',
+            'sr_data' => 'unique_sr_reff_id', 
+            'gas_in_data' => 'unique_gasin_reff_id'
+        ];
+
+        foreach ($constraints as $tableName => $constraintName) {
+            if (!$this->hasUniqueConstraint($tableName, $constraintName)) {
+                Schema::table($tableName, function (Blueprint $table) use ($constraintName) {
+                    $table->unique('reff_id_pelanggan', $constraintName);
+                });
+                echo "  ✅ Added constraint {$constraintName} to {$tableName}\n";
+            } else {
+                echo "  ⏭️  Constraint {$constraintName} already exists on {$tableName}\n";
+            }
+        }
     }
 
     /**
