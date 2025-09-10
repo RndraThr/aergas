@@ -130,40 +130,91 @@
 
      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
        <template x-for="ph in photoDefs" :key="ph.field">
-         <div class="border rounded-lg p-4">
-           <label class="block text-sm font-medium text-gray-700 mb-2" x-text="ph.label"></label>
+         <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 hover:bg-gray-100 cursor-pointer min-h-[250px]"
+              :class="dragStates[ph.field] ? 'border-blue-400 bg-blue-50 scale-105' : ''"
+              @click="openFileDialog(ph.field)"
+              @dragover.prevent="setDragging(ph.field, true)"
+              @dragleave.prevent="setDragging(ph.field, false)"
+              @drop.prevent="handleDrop($event, ph.field)">
+           
+           <!-- Hidden file input -->
+           <input type="file"
+                  :id="`inp_${ph.field}`"
+                  :accept="acceptString(ph.accept)"
+                  class="hidden"
+                  :disabled="!customer || !reff"
+                  @change="handleFileSelect($event, ph.field)">
 
-           <template x-if="!previews[ph.field]">
-             <div class="h-32 flex items-center justify-center bg-gray-50 rounded border-dashed border text-gray-400">
-               Tidak ada file
-             </div>
-           </template>
+           <!-- Header -->
+           <div class="mb-3">
+             <h4 class="font-semibold text-gray-800" x-text="ph.label"></h4>
+             <p class="text-xs text-gray-500" x-text="`Accept: ${acceptString(ph.accept)}`"></p>
+           </div>
+
+           <!-- Preview Image -->
            <template x-if="previews[ph.field] && !isPdf(ph.field)">
-             <img :src="previews[ph.field]" alt="" class="h-32 w-full object-cover rounded">
-           </template>
-           <template x-if="isPdf(ph.field)">
-             <div class="h-32 flex items-center justify-center bg-gray-50 rounded border">
-               <span class="text-xs text-gray-600">PDF terpilih</span>
+             <div class="relative">
+               <img :src="previews[ph.field]" 
+                    :alt="ph.label"
+                    class="w-full h-40 object-cover rounded border shadow-sm">
+               <button type="button"
+                       @click.stop="previewImage(ph.field)"
+                       class="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded text-xs hover:bg-blue-600">
+                 <i class="fas fa-eye"></i>
+               </button>
+               <button type="button"
+                       @click.stop="clearPick(ph.field)"
+                       class="absolute top-2 left-2 bg-red-500 text-white p-1 rounded text-xs hover:bg-red-600">
+                 <i class="fas fa-trash"></i>
+               </button>
              </div>
            </template>
 
-           <div class="flex items-center gap-2 mt-3">
-             <input class="hidden" type="file"
-                    :accept="acceptString(ph.accept)"
-                    :id="`inp_${ph.field}`"
-                    :disabled="!customer || !reff"
-                    @change="onPick(ph.field, $event)">
-             <label :for="`inp_${ph.field}`"
-                    :class="!customer || !reff ? 'px-3 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed text-sm' : 'px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded cursor-pointer text-sm'">
-               <i class="fas fa-folder-open mr-1"></i>Pilih
-             </label>
+           <!-- Preview PDF -->
+           <template x-if="previews[ph.field] && isPdf(ph.field)">
+             <div class="relative">
+               <div class="w-full h-40 bg-red-50 border border-red-200 rounded flex flex-col items-center justify-center text-red-600">
+                 <i class="fas fa-file-pdf text-3xl mb-2"></i>
+                 <span class="text-sm font-medium" x-text="pickedFiles[ph.field]?.name || 'PDF File'"></span>
+               </div>
+               <button type="button"
+                       @click.stop="previewPdf(ph.field)"
+                       class="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded text-xs hover:bg-blue-600">
+                 <i class="fas fa-external-link-alt"></i>
+               </button>
+               <button type="button"
+                       @click.stop="clearPick(ph.field)"
+                       class="absolute top-2 left-2 bg-red-500 text-white p-1 rounded text-xs hover:bg-red-600">
+                 <i class="fas fa-trash"></i>
+               </button>
+             </div>
+           </template>
 
-             <button type="button" @click="clearPick(ph.field)"
-                     class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm">
-               <i class="fas fa-trash mr-1"></i>Hapus
-             </button>
+           <!-- Empty State -->
+           <template x-if="!previews[ph.field]">
+             <div class="flex flex-col items-center justify-center py-8 text-center">
+               <i class="fas fa-cloud-upload-alt text-3xl mb-3"
+                  :class="dragStates[ph.field] ? 'text-blue-500 animate-bounce' : 'text-gray-400'"></i>
+               <p class="font-medium"
+                  :class="dragStates[ph.field] ? 'text-blue-600' : 'text-gray-600'">
+                 <span x-show="!dragStates[ph.field]">Klik untuk upload</span>
+                 <span x-show="dragStates[ph.field]">Lepaskan file di sini</span>
+               </p>
+               <p class="text-xs mt-1"
+                  :class="dragStates[ph.field] ? 'text-blue-400' : 'text-gray-400'">
+                 <span x-show="!dragStates[ph.field]">Drag & drop juga didukung</span>
+                 <span x-show="dragStates[ph.field]">File siap di-upload</span>
+               </p>
+               
+               <div x-show="!customer || !reff" class="mt-3 text-xs text-red-500">
+                 Isi Reference ID terlebih dahulu
+               </div>
+             </div>
+           </template>
 
-             <span class="text-xs flex-1 text-gray-500" x-text="uploadStatuses[ph.field] || ''"></span>
+           <!-- Status -->
+           <div x-show="uploadStatuses[ph.field]" class="mt-2 text-xs p-2 bg-blue-100 rounded">
+             <span x-text="uploadStatuses[ph.field]"></span>
            </div>
          </div>
        </template>
@@ -201,6 +252,37 @@
      </button>
    </div>
  </form>
+ 
+ <!-- Preview Modal -->
+ <div x-show="showPreviewModal" 
+      x-transition:enter="transition ease-out duration-300"
+      x-transition:enter-start="opacity-0"
+      x-transition:enter-end="opacity-100"
+      x-transition:leave="transition ease-in duration-200"
+      x-transition:leave-start="opacity-100"
+      x-transition:leave-end="opacity-0"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
+      @click="closePreviewModal()"
+      @keydown.escape.window="closePreviewModal()">
+     
+     <div class="max-w-4xl max-h-full p-4" @click.stop>
+         <div class="relative">
+             <img :src="previewImageSrc" 
+                  :alt="previewImageLabel"
+                  class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl">
+             
+             <button type="button"
+                     @click="closePreviewModal()"
+                     class="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-75 transition-all">
+                 <i class="fas fa-times text-lg"></i>
+             </button>
+         </div>
+         
+         <div class="text-center mt-4 text-white">
+             <p class="text-lg font-medium" x-text="previewImageLabel"></p>
+         </div>
+     </div>
+ </div>
 </div>
 @endsection
 
@@ -220,6 +302,7 @@ function gasInCreate() {
    previews: {},
    isPdfMap: {},
    uploadStatuses: {},
+   dragStates: {},
 
    submitting: false,
 
@@ -246,6 +329,147 @@ function gasInCreate() {
      this.isPdfMap[field] = false;
      this.uploadStatuses[field] = '';
      document.getElementById(`inp_${field}`).value = '';
+   },
+
+   // Preview modal state
+   showPreviewModal: false,
+   previewImageSrc: '',
+   previewImageLabel: '',
+
+   previewImage(field) {
+     if (this.previews[field] && !this.isPdf(field)) {
+       this.previewImageSrc = this.previews[field];
+       this.previewImageLabel = this.photoDefs.find(p => p.field === field)?.label || field;
+       this.showPreviewModal = true;
+       document.body.style.overflow = 'hidden';
+     }
+   },
+
+   closePreviewModal() {
+     this.showPreviewModal = false;
+     document.body.style.overflow = '';
+   },
+
+   // Drag & Drop functions
+   setDragging(field, state) {
+     this.dragStates[field] = state;
+   },
+
+   getDragClass(field) {
+     if (!this.customer || !this.reff) {
+       return 'border-gray-200 bg-gray-50 cursor-not-allowed';
+     }
+     
+     if (this.dragStates[field]) {
+       return 'border-blue-400 bg-blue-50 shadow-lg scale-105';
+     }
+     
+     if (this.previews[field]) {
+       return 'border-green-300 bg-green-50';
+     }
+     
+     return 'border-gray-300 hover:border-gray-400 cursor-pointer';
+   },
+
+   openFileDialog(field) {
+     if (!this.customer || !this.reff) return;
+     document.getElementById(`inp_${field}`).click();
+   },
+
+   handleDrop(event, field) {
+     this.setDragging(field, false);
+     
+     if (!this.customer || !this.reff) return;
+     
+     const files = event.dataTransfer.files;
+     if (files.length > 0) {
+       this.processFile(files[0], field);
+     }
+   },
+
+   previewPdf(field) {
+     const file = this.pickedFiles[field];
+     if (file && file.type === 'application/pdf') {
+       const url = URL.createObjectURL(file);
+       window.open(url, '_blank');
+     }
+   },
+
+   formatFileSize(bytes) {
+     if (!bytes || bytes === 0) return '0 Bytes';
+     const k = 1024;
+     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+     const i = Math.floor(Math.log(bytes) / Math.log(k));
+     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+   },
+
+   getStatusClass(field) {
+     const status = this.uploadStatuses[field] || '';
+     if (status.includes('✓') || status.includes('berhasil')) {
+       return 'text-green-600';
+     }
+     if (status.includes('✗') || status.includes('gagal')) {
+       return 'text-red-600';
+     }
+     if (status.includes('siap')) {
+       return 'text-blue-600';
+     }
+     return 'text-gray-600';
+   },
+
+   handleFileSelect(event, field) {
+     const file = event.target.files?.[0];
+     if (file) {
+       this.processFile(file, field);
+     }
+   },
+
+   processFile(file, field) {
+     // Get accepted types for this field
+     const photoDef = this.photoDefs.find(p => p.field === field);
+     const acceptedTypes = photoDef?.accept || ['image/*'];
+     
+     // Validate file type
+     const isValidType = acceptedTypes.some(type => {
+       if (type === 'image/*') return file.type.startsWith('image/');
+       if (type === 'application/pdf') return file.type === 'application/pdf';
+       return file.type === type;
+     });
+     
+     if (!isValidType) {
+       alert(`File type tidak didukung. Hanya menerima: ${acceptedTypes.join(', ')}`);
+       return;
+     }
+     
+     // Validate file size (20MB = 20 * 1024 * 1024)
+     const maxSizeBytes = 20 * 1024 * 1024;
+     if (file.size > maxSizeBytes) {
+       alert('File terlalu besar. Maksimal 20MB.');
+       return;
+     }
+
+     // Check if customer is selected
+     if (!this.customer || !this.reff) {
+       alert('Silakan isi Reference ID dan cari customer terlebih dahulu sebelum upload foto.');
+       document.getElementById(`inp_${field}`).value = '';
+       return;
+     }
+     
+     this.pickedFiles[field] = file;
+     this.isPdfMap[field] = file.type === 'application/pdf';
+     
+     // Create preview for images
+     if (!this.isPdfMap[field]) {
+       const reader = new FileReader();
+       reader.onload = (e) => {
+         this.previews[field] = e.target.result;
+       };
+       reader.readAsDataURL(file);
+     } else {
+       this.previews[field] = 'pdf-placeholder';
+     }
+     
+     this.uploadStatuses[field] = 'File siap untuk diupload';
    },
 
    async findCustomer() {
@@ -397,5 +621,40 @@ function gasInCreate() {
    }
  }
 }
+
+// Drag & Drop Upload Component
 </script>
+
+
+<!-- CSS for Drag & Drop -->
+<style>
+.drag-drop-container {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.drag-drop-container:hover:not(.cursor-not-allowed) {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+}
+
+.drag-drop-container.border-blue-400 {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.drag-drop-container.border-green-300 {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
+.preview-area img {
+    transition: transform 0.3s ease;
+}
+
+.preview-area .group:hover img {
+    transform: scale(1.02);
+}
+
+.drag-drop-container {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+</style>
 @endpush
