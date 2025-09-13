@@ -123,4 +123,4 @@ echo "✓ Services status:"
 systemctl is-active nginx php8.3-fpm 2>/dev/null || echo "Cannot check service status"
 
 echo
-echo "=== Debug Upload Configuration Complete ===
+echo "=== Debug Upload Configuration Complete ==="
