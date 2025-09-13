@@ -14,6 +14,7 @@ return new class extends Migration
             $table->string('nomor_joint'); // Format: KRG-CP001
             $table->unsignedBigInteger('cluster_id');
             $table->unsignedBigInteger('fitting_type_id');
+            $table->unsignedBigInteger('joint_number_id')->nullable();
             $table->string('joint_code', 10); // CP001, EL002, dst
             $table->string('joint_line_from'); // Line number asal
             $table->string('joint_line_to'); // Line number tujuan

@@ -31,10 +31,20 @@ return new class extends Migration
             $table->index(['cluster_id', 'fitting_type_id']);
             $table->index(['is_used', 'is_active']);
         });
+
+        // Add foreign key constraint from jalur_joint_data to jalur_joint_numbers
+        Schema::table('jalur_joint_data', function (Blueprint $table) {
+            $table->foreign('joint_number_id')->references('id')->on('jalur_joint_numbers')->onDelete('set null');
+        });
     }
 
     public function down(): void
     {
+        // Drop foreign key constraint first
+        Schema::table('jalur_joint_data', function (Blueprint $table) {
+            $table->dropForeign(['joint_number_id']);
+        });
+
         Schema::dropIfExists('jalur_joint_numbers');
     }
 };
