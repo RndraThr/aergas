@@ -29,7 +29,9 @@ return new class extends Migration
             // Aksesoris (conditional berdasarkan tipe_bongkaran)
             $table->boolean('aksesoris_cassing')->default(false); // untuk Crossing/Zinker
             $table->boolean('aksesoris_marker_tape')->default(false); // untuk Open Cut
+            $table->decimal('marker_tape_quantity', 10, 2)->nullable(); // quantity for marker tape
             $table->boolean('aksesoris_concrete_slab')->default(false); // untuk Open Cut
+            $table->integer('concrete_slab_quantity')->nullable(); // quantity for concrete slab
             
             $table->enum('status_laporan', [
                 'draft',
