@@ -116,7 +116,7 @@ class JalurJointController extends Controller
 
         // Conditional validation based on upload method
         if ($uploadMethod === 'file') {
-            $validationRules['foto_evidence_joint'] = 'required|image|mimes:jpeg,jpg,png|max:5120';
+            $validationRules['foto_evidence_joint'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
             $validationMessages['foto_evidence_joint.required'] = 'Foto evidence joint wajib diupload.';
             $validationMessages['foto_evidence_joint.image'] = 'File yang diupload harus berupa gambar.';
             $validationMessages['foto_evidence_joint.mimes'] = 'Format foto harus JPG, JPEG, atau PNG.';
@@ -326,7 +326,7 @@ class JalurJointController extends Controller
                     'module_name' => 'jalur_joint',
                     'module_record_id' => $joint->id,
                     'photo_field_name' => 'foto_evidence_joint',
-                    'photo_url' => Storage::disk('public')->url($photoPath),
+                    'photo_url' => Storage::url($photoPath),
                     'photo_status' => 'tracer_pending', // Reset to pending when replaced
                     'uploaded_by' => Auth::id(),
                     'uploaded_at' => now(),
@@ -532,7 +532,7 @@ class JalurJointController extends Controller
     public function uploadPhoto(Request $request, JalurJointData $joint)
     {
         $validated = $request->validate([
-            'photo' => 'required|image|mimes:jpeg,jpg,png|max:5120', // 5MB
+            'photo' => 'required|image|mimes:jpeg,jpg,png|max:35840', // 35MB
             'photo_field_name' => 'required|in:foto_evidence_joint',
             'description' => 'nullable|string|max:255',
         ]);
@@ -582,7 +582,7 @@ class JalurJointController extends Controller
                 ->where('photo_field_name', $validated['photo_field_name'])
                 ->first();
 
-            $photoUrl = str_starts_with($photoPath, 'http') ? $photoPath : Storage::disk('public')->url($photoPath);
+            $photoUrl = str_starts_with($photoPath, 'http') ? $photoPath : Storage::url($photoPath);
             
             $photoData = [
                 'reff_id_pelanggan' => null, // Jalur doesn't have pelanggan

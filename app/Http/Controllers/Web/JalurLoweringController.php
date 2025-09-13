@@ -91,7 +91,7 @@ class JalurLoweringController extends Controller
 
         // Add conditional validation for main photo upload method
         if ($uploadMethod === 'file') {
-            $validationRules['foto_evidence_penggelaran_bongkaran'] = 'required|image|mimes:jpeg,jpg,png|max:5120';
+            $validationRules['foto_evidence_penggelaran_bongkaran'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
         } else {
             $validationRules['foto_evidence_penggelaran_bongkaran_link'] = 'required|url';
         }
@@ -256,7 +256,7 @@ class JalurLoweringController extends Controller
 
         // Add conditional validation for photo updates (not required in edit)
         if ($uploadMethod === 'file') {
-            $validationRules['foto_evidence_penggelaran_bongkaran'] = 'nullable|image|mimes:jpeg,jpg,png|max:5120';
+            $validationRules['foto_evidence_penggelaran_bongkaran'] = 'nullable|image|mimes:jpeg,jpg,png|max:35840';
         } else {
             $validationRules['foto_evidence_penggelaran_bongkaran_link'] = 'nullable|url';
         }
@@ -501,7 +501,7 @@ class JalurLoweringController extends Controller
                 $lowering->lineNumber->line_number, // Using line_number as reffId
                 'JALUR_LOWERING',
                 $validated['photo_field_name'],
-                Storage::disk('public')->url($path),
+                Storage::url($path),
                 Auth::id()
             );
 
@@ -628,7 +628,7 @@ class JalurLoweringController extends Controller
                         'module_name' => 'jalur_lowering',
                         'module_record_id' => $lowering->id,
                         'photo_field_name' => $fieldName,
-                        'photo_url' => Storage::disk('public')->url($fullPath),
+                        'photo_url' => Storage::url($fullPath),
                         'photo_status' => 'tracer_pending', // Reset to pending when replaced
                         'uploaded_by' => Auth::id(),
                         'uploaded_at' => now(),

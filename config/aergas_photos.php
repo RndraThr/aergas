@@ -4,7 +4,7 @@
 return [
     // File upload limits
     'limits' => [
-        'max_bytes' => (int) env('PHOTO_MAX_SIZE_BYTES', 20480 * 1024), // 20MB
+        'max_bytes' => (int) env('PHOTO_MAX_SIZE_BYTES', 35840 * 1024), // 35MB
         'allowed_mime_types' => ['image/jpeg','image/png','image/jpg','image/webp','application/pdf'],
     ],
 

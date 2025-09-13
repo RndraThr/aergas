@@ -179,7 +179,7 @@ class SkDataController extends Controller
     public function precheckGeneric(Request $r)
     {
         $v = Validator::make($r->all(), [
-            'file'      => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:20480'],
+            'file'      => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
             'slot_type' => ['required','string','max:100'],
             'module'    => ['nullable','in:SK'],
         ]);
@@ -262,7 +262,7 @@ class SkDataController extends Controller
     public function uploadAndValidate(Request $r, SkData $sk)
     {
         $v = Validator::make($r->all(), [
-            'file'       => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:20480'],
+            'file'       => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
             'slot_type'  => ['required','string','max:100'],
             'ai_passed'  => ['nullable','boolean'],
             'ai_score'   => ['nullable','numeric'],
@@ -332,7 +332,7 @@ class SkDataController extends Controller
         ]);
 
         $v = Validator::make($r->all(), [
-            'file' => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:20480'],
+            'file' => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
             'slot_type' => ['required','string','max:100'],
         ]);
 

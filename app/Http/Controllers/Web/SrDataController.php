@@ -179,7 +179,7 @@ class SrDataController extends Controller
     public function precheckGeneric(Request $r)
     {
         $v = Validator::make($r->all(), [
-            'file'      => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:20480'],
+            'file'      => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
             'slot_type' => ['required','string','max:100'],
             'module'    => ['nullable','in:SR'],
         ]);
@@ -262,7 +262,7 @@ class SrDataController extends Controller
     public function uploadDraft(Request $r, SrData $sr)
     {
         $v = Validator::make($r->all(), [
-            'file' => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:20480'],
+            'file' => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
             'slot_type' => ['required','string','max:100'],
         ]);
 
@@ -304,7 +304,7 @@ class SrDataController extends Controller
     public function uploadAndValidate(Request $r, SrData $sr)
     {
         $v = Validator::make($r->all(), [
-            'file'       => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:20480'],
+            'file'       => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
             'slot_type'  => ['required','string','max:100'],
             'ai_passed'  => ['nullable','boolean'],
             'ai_score'   => ['nullable','numeric'],

@@ -208,7 +208,7 @@
           <p class="font-medium text-blue-800 mb-1">Catatan Upload:</p>
           <ul class="text-blue-700 space-y-1">
             <li>• Format: JPG/PNG/WEBP untuk foto, PDF untuk dokumen Isometrik</li>
-            <li>• Maksimal 20 MB per file</li>
+            <li>• Maksimal 35 MB per file</li>
             <li>• Foto akan disimpan sebagai draft dan dianalisa AI saat proses approval</li>
             <li>• Pastikan foto sudah jelas dan sesuai dengan yang diminta</li>
           </ul>
