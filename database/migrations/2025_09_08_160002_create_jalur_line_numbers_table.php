@@ -11,7 +11,8 @@ return new class extends Migration
         Schema::create('jalur_line_numbers', function (Blueprint $table) {
             $table->id();
             $table->string('line_number')->unique(); // Format: 63-KRG-LN013
-            $table->enum('diameter', ['63', '180']);
+            $table->string('nama_jalan');
+            $table->enum('diameter', ['63', '90', '110', '160', '180', '200']);
             $table->unsignedBigInteger('cluster_id');
             $table->string('line_code', 10); // LN013, LN014, dst
             $table->decimal('estimasi_panjang', 10, 2); // dalam meter
