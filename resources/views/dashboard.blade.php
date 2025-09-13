@@ -338,13 +338,13 @@
     </div>
 
    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 h-fit">
            <div class="flex items-center justify-between mb-6">
                <h2 class="text-xl font-semibold text-gray-900">Module Statistics</h2>
                <div class="text-sm text-gray-500">Real-time data</div>
            </div>
 
-           <div class="space-y-4">
+           <div class="space-y-3">
                <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                    <div class="flex items-center space-x-3">
                        <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
@@ -395,7 +395,7 @@
            </div>
        </div>
 
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 h-fit">
            <div class="flex items-center justify-between mb-6">
                <h2 class="text-xl font-semibold text-gray-900">Recent Activities</h2>
                <a href="{{ route('notifications.index') }}"
@@ -404,8 +404,8 @@
                </a>
            </div>
 
-           <div class="space-y-4">
-               <template x-for="activity in data.activities" :key="activity.id">
+           <div class="space-y-3 max-h-72 overflow-y-auto">
+               <template x-for="activity in data.activities?.slice(0, 5)" :key="activity.id">
                    <div class="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
                        <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
                            <i class="fas fa-circle text-xs text-gray-400"></i>
@@ -417,8 +417,8 @@
                    </div>
                </template>
 
-               <div x-show="!data.activities || data.activities.length === 0" class="text-center py-8 text-gray-500">
-                   <i class="fas fa-clock text-3xl mb-3 text-gray-300"></i>
+               <div x-show="!data.activities || data.activities.length === 0" class="text-center py-6 text-gray-500">
+                   <i class="fas fa-clock text-2xl mb-2 text-gray-300"></i>
                    <p class="text-sm">No recent activities</p>
                    <p class="text-xs text-gray-400 mt-1">Activities will appear here when available</p>
                </div>

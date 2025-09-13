@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use App\Models\{CalonPelanggan, PhotoApproval, SkData, SrData, GasInData};
+use App\Models\{CalonPelanggan, PhotoApproval, SkData, SrData, GasInData, JalurLoweringData, JalurJointData};
 use App\Services\{PhotoApprovalService, NotificationService};
 use Illuminate\Http\{Request, JsonResponse};
 use Illuminate\Support\Facades\{DB, Log, Auth};
@@ -227,8 +227,11 @@ class TracerApprovalController extends Controller implements HasMiddleware
             $notes = $request->get('notes');
 
             // Validation: Check sequential requirements for individual photo approval
-            if (!$this->canApproveModule($photoApproval->reff_id_pelanggan, $photoApproval->module_name)) {
-                throw new Exception('Module sebelumnya belum selesai di-approve');
+            // Skip validation for jalur modules as they don't have sequential dependencies
+            if (!in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                if (!$this->canApproveModule($photoApproval->reff_id_pelanggan, $photoApproval->module_name)) {
+                    throw new Exception('Module sebelumnya belum selesai di-approve');
+                }
             }
 
             if ($action === 'approve') {
@@ -253,15 +256,27 @@ class TracerApprovalController extends Controller implements HasMiddleware
 
             DB::commit();
 
+            $message = $action === 'approve' ? 'Photo berhasil di-approve' : 'Photo berhasil di-reject';
+            
+            // Check if this is jalur photos and redirect appropriately
+            if (in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                return back()->with('success', $message);
+            }
+            
             return response()->json([
                 'success' => true,
-                'message' => $action === 'approve' ? 'Photo berhasil di-approve' : 'Photo berhasil di-reject',
+                'message' => $message,
                 'data' => $result
             ]);
 
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Approve photo error: ' . $e->getMessage());
+
+            // Check if we're dealing with jalur photos and handle error appropriately
+            if (isset($photoApproval) && in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => false,
@@ -547,8 +562,53 @@ class TracerApprovalController extends Controller implements HasMiddleware
 
     private function updateModuleStatus($photoApproval)
     {
-        // Update module status based on photo approval status
-        // This will be implemented based on existing PhotoApprovalService logic
+        // Update module status for jalur modules when photos are approved/rejected
+        if (in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
+            try {
+                if ($photoApproval->module_name === 'jalur_lowering') {
+                    $loweringData = \App\Models\JalurLoweringData::find($photoApproval->module_record_id);
+                    if ($loweringData && $photoApproval->photo_status === 'tracer_approved') {
+                        // Update to acc_tracer if all required photos for this record are approved
+                        $this->updateJalurStatus($loweringData, 'tracer');
+                    } elseif ($loweringData && $photoApproval->photo_status === 'tracer_rejected') {
+                        // Update to revisi_tracer if any photo is rejected
+                        $loweringData->update(['status_laporan' => 'revisi_tracer']);
+                    }
+                } elseif ($photoApproval->module_name === 'jalur_joint') {
+                    $jointData = \App\Models\JalurJointData::find($photoApproval->module_record_id);
+                    if ($jointData && $photoApproval->photo_status === 'tracer_approved') {
+                        // Update to acc_tracer if all required photos for this record are approved
+                        $this->updateJalurStatus($jointData, 'tracer');
+                    } elseif ($jointData && $photoApproval->photo_status === 'tracer_rejected') {
+                        // Update to revisi_tracer if any photo is rejected
+                        $jointData->update(['status_laporan' => 'revisi_tracer']);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Error updating jalur module status: ' . $e->getMessage());
+            }
+        }
+    }
+
+    private function updateJalurStatus($moduleData, $approverType)
+    {
+        // Get all photo approvals for this record
+        $photoApprovals = \App\Models\PhotoApproval::where('module_record_id', $moduleData->id)
+            ->where('module_name', $moduleData->getModuleName())
+            ->get();
+        
+        // Check if all required photos are approved
+        $requiredPhotos = $moduleData->getRequiredPhotos();
+        $approvedPhotos = $photoApprovals->where('photo_status', $approverType . '_approved')->pluck('photo_field_name')->toArray();
+        
+        // If all required photos are approved, update the module status
+        if (empty(array_diff($requiredPhotos, $approvedPhotos))) {
+            if ($approverType === 'tracer') {
+                $moduleData->update(['status_laporan' => 'acc_tracer']);
+            } elseif ($approverType === 'cgp') {
+                $moduleData->update(['status_laporan' => 'acc_cgp']);
+            }
+        }
     }
 
     private function sendRejectionNotification($photoApproval, $notes)
@@ -567,6 +627,58 @@ class TracerApprovalController extends Controller implements HasMiddleware
 
         } catch (Exception $e) {
             Log::error('Failed to send rejection notification: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get jalur photos for review (separate from customer-based reviews)
+     */
+    public function jalurPhotos(Request $request)
+    {
+        try {
+            $query = PhotoApproval::with(['jalurLowering', 'jalurJoint'])
+                ->whereIn('module_name', ['jalur_lowering', 'jalur_joint']);
+
+            // Filter by status - default to tracer_pending if no filter
+            $statusFilter = $request->get('status_filter', 'tracer_pending');
+            if ($statusFilter) {
+                $query->where('photo_status', $statusFilter);
+            }
+
+            // Filter by module type
+            if ($request->filled('module_type')) {
+                $query->where('module_name', $request->module_type);
+            }
+
+            // Search by nomor joint or line number
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('jalurLowering', function($subQ) use ($search) {
+                        $subQ->whereHas('lineNumber', function($lineQ) use ($search) {
+                            $lineQ->where('line_number', 'like', "%{$search}%");
+                        });
+                    })->orWhereHas('jalurJoint', function($subQ) use ($search) {
+                        $subQ->where('nomor_joint', 'like', "%{$search}%");
+                    });
+                });
+            }
+
+            $photos = $query->orderBy('uploaded_at', 'desc')
+                           ->paginate(20);
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $photos,
+                ]);
+            }
+
+            return view('approvals.tracer.jalur-photos', compact('photos'));
+
+        } catch (Exception $e) {
+            Log::error('Tracer jalur photos error: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan saat memuat foto jalur');
         }
     }
 }

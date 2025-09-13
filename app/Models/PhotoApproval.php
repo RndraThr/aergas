@@ -46,6 +46,16 @@ class PhotoApproval extends Model
         return $this->belongsTo(User::class, 'cgp_user_id');
     }
 
+    public function jalurLowering(): BelongsTo
+    {
+        return $this->belongsTo(JalurLoweringData::class, 'module_record_id');
+    }
+
+    public function jalurJoint(): BelongsTo
+    {
+        return $this->belongsTo(JalurJointData::class, 'module_record_id');
+    }
+
     // --------- Scopes ---------
     public function scopeByModule($q, string $module) { return $q->where('module_name', $module); }
     public function scopePendingTracer($q) { return $q->where('photo_status', 'tracer_pending'); }

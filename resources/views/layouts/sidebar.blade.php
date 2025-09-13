@@ -118,6 +118,62 @@
                 </a>
                 @endif
 
+                @if(in_array(auth()->user()->role, ['jalur', 'admin', 'super_admin']))
+                <!-- Jalur Management with Submenu -->
+                <div x-data="{ jalurOpen: {{ request()->routeIs('jalur.*') ? 'true' : 'false' }} }" class="space-y-1">
+                    <button @click="jalurOpen = !jalurOpen"
+                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('jalur.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <i class="fas fa-road mr-3 text-lg {{ request()->routeIs('jalur.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        <span class="flex-1 text-left">Jalur Management</span>
+                        <svg class="w-5 h-5 transition-transform duration-200" :class="{ 'rotate-180': jalurOpen }"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Submenu -->
+                    <div x-show="jalurOpen" x-collapse class="space-y-1 ml-6 mt-1">
+                        <a href="{{ route('jalur.index') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.index') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-chart-line mr-2 text-sm"></i>
+                            Dashboard
+                        </a>
+                        <a href="{{ route('jalur.clusters.index') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.clusters.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-layer-group mr-2 text-sm"></i>
+                            Clusters
+                        </a>
+                        <a href="{{ route('jalur.line-numbers.index') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.line-numbers.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-list-ol mr-2 text-sm"></i>
+                            Line Numbers
+                        </a>
+                        <a href="{{ route('jalur.lowering.index') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.lowering.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-arrow-down mr-2 text-sm"></i>
+                            Lowering Data
+                        </a>
+                        <a href="{{ route('jalur.joint.index') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.joint.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-link mr-2 text-sm"></i>
+                            Joint Data
+                        </a>
+                        <a href="{{ route('jalur.joint-numbers.index') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.joint-numbers.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-hashtag mr-2 text-sm"></i>
+                            Joint Numbers
+                        </a>
+                        @if(in_array(auth()->user()->role, ['admin', 'super_admin']))
+                        <a href="{{ route('jalur.fitting-types.index') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.fitting-types.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-cogs mr-2 text-sm"></i>
+                            Fitting Types
+                        </a>
+                        @endif
+                    </div>
+                </div>
+                @endif
+
 
                 <!-- Divider -->
                 <div class="border-t border-gray-200 my-4"></div>
@@ -198,16 +254,39 @@
 
                 @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
                 <!-- Import Excel -->
-                <a href="{{ route('imports.calon-pelanggan.form') }}"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('imports.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-file-excel mr-3 text-lg {{ request()->routeIs('imports.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
-                    Import Excel
-                    @if(request()->routeIs('imports.*'))
-                        <div class="ml-auto">
-                            <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
+                <div x-data="{ open: {{ request()->routeIs('imports.*') ? 'true' : 'false' }} }" class="relative">
+                    <button @click="open = !open"
+                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('imports.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <i class="fas fa-file-excel mr-3 text-lg {{ request()->routeIs('imports.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        Import Excel
+                        <div class="ml-auto flex items-center">
+                            @if(request()->routeIs('imports.*'))
+                                <div class="w-2 h-2 bg-aergas-orange rounded-full mr-2"></div>
+                            @endif
+                            <i class="fas fa-chevron-down text-xs transition-transform duration-200" 
+                               :class="{ 'rotate-180': open }"></i>
                         </div>
-                    @endif
-                </a>
+                    </button>
+                    
+                    <!-- Dropdown Menu -->
+                    <div x-show="open" 
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="opacity-100 scale-100"
+                         x-transition:leave-end="opacity-0 scale-95"
+                         class="mt-1 ml-6 space-y-1">
+                        
+                        <!-- Calon Pelanggan Import -->
+                        <a href="{{ route('imports.calon-pelanggan.form') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.calon-pelanggan.*') ? 'bg-aergas-orange/10 text-aergas-navy border-l-2 border-aergas-orange' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
+                            <i class="fas fa-users text-xs mr-3"></i>
+                            Calon Pelanggan
+                        </a>
+                        
+                    </div>
+                </div>
                 @endif
 
                 <!-- File Manager -->

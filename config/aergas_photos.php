@@ -397,6 +397,107 @@ return [
             ]
         ],
 
+        // ====================== JALUR LOWERING MODULE ======================
+        'JALUR_LOWERING' => [
+            'min_required_slots' => 2,
+            'replace_same_slot' => true,
+            'allow_submit_with_warnings' => true,
+
+            'slots' => [
+                'foto_evidence_penggelaran_bongkaran' => [
+                    'label' => 'Evidence Foto Penggelaran & Bongkaran',
+                    'accept' => ['image/*'],
+                    'required' => true,
+                    'prompt' => 'Analisis foto evidence penggelaran dan bongkaran jalur pipa dengan penilaian SKOR (0-100):
+
+                                ELEMEN YANG DIPERIKSA:
+                                1. PIPA TERLIHAT JELAS (30 poin) - Apakah pipa yang dipasang terlihat dengan jelas?
+                                2. AREA KERJA (25 poin) - Apakah area kerja dan jalur terlihat dengan baik?
+                                3. PROGRESS PENGGELARAN (20 poin) - Apakah progress pekerjaan dapat diverifikasi?
+                                4. WATERMARK KAMERA (15 poin) - Apakah ada cap waktu/lokasi dari HP?
+                                5. KUALITAS FOTO (10 poin) - Apakah foto cukup jelas untuk diverifikasi?
+
+                                PANDUAN PENILAIAN:
+                                - 90-100: Semua elemen terlihat jelas dan dapat diverifikasi dengan baik
+                                - 75-89: Sebagian besar elemen ada, progress dapat diidentifikasi
+                                - 60-74: Elemen utama ada tapi beberapa tidak jelas
+                                - 40-59: Foto kurang jelas tapi masih dapat diidentifikasi sebagai pekerjaan jalur
+                                - 0-39: Foto tidak jelas atau tidak relevan dengan pekerjaan
+
+                                Format response: {"score": [nilai], "summary": "penjelasan singkat"}'
+                ],
+
+                'foto_evidence_kedalaman_lowering' => [
+                    'label' => 'Evidence Foto Kedalaman Lowering',
+                    'accept' => ['image/*'],
+                    'required' => true,
+                    'prompt' => 'Analisis foto evidence kedalaman lowering/galian dengan penilaian SKOR (0-100):
+
+                                ELEMEN YANG DIPERIKSA:
+                                1. GALIAN/KEDALAMAN TERLIHAT (30 poin) - Apakah kedalaman galian dapat dilihat dengan jelas?
+                                2. ALAT UKUR/REFERENSI (25 poin) - Apakah ada alat ukur atau referensi kedalaman?
+                                3. PIPA DI DALAM GALIAN (20 poin) - Apakah pipa terlihat sudah terpasang di galian?
+                                4. WATERMARK KAMERA (15 poin) - Apakah ada cap waktu/lokasi dari HP?
+                                5. KUALITAS FOTO (10 poin) - Apakah foto cukup jelas untuk diverifikasi?
+
+                                PANDUAN PENILAIAN:
+                                - 90-100: Kedalaman terlihat jelas dengan referensi pengukuran yang baik
+                                - 75-89: Kedalaman dapat diidentifikasi dengan baik
+                                - 60-74: Galian terlihat tapi kedalaman sulit dipastikan
+                                - 40-59: Foto kurang jelas tapi masih menunjukkan aktivitas penggalian
+                                - 0-39: Foto tidak jelas atau tidak menunjukkan kedalaman galian
+
+                                Format response: {"score": [nilai], "summary": "penjelasan singkat"}'
+                ]
+            ],
+
+            'score_messages' => [
+                'excellent' => 'Foto evidence lowering sangat baik dan memenuhi semua kriteria',
+                'good'      => 'Foto evidence lowering baik dan dapat diterima',
+                'warning'   => 'Foto evidence dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
+                'poor'      => 'Foto evidence masih dapat diproses namun sangat disarankan untuk diperbaiki',
+            ]
+        ],
+
+        // ====================== JALUR JOINT MODULE ======================
+        'JALUR_JOINT' => [
+            'min_required_slots' => 1,
+            'replace_same_slot' => true,
+            'allow_submit_with_warnings' => true,
+
+            'slots' => [
+                'foto_evidence_joint' => [
+                    'label' => 'Evidence Foto Joint/Sambungan',
+                    'accept' => ['image/*'],
+                    'required' => true,
+                    'prompt' => 'Analisis foto evidence joint/sambungan pipa dengan penilaian SKOR (0-100):
+
+                                ELEMEN YANG DIPERIKSA:
+                                1. SAMBUNGAN/FITTING TERLIHAT (35 poin) - Apakah fitting/sambungan terlihat jelas?
+                                2. JENIS FITTING (25 poin) - Apakah jenis fitting dapat diidentifikasi?
+                                3. KONDISI SAMBUNGAN (20 poin) - Apakah sambungan terlihat terpasang dengan baik?
+                                4. WATERMARK KAMERA (15 poin) - Apakah ada cap waktu/lokasi dari HP?
+                                5. KUALITAS FOTO (5 poin) - Apakah foto cukup jelas untuk diverifikasi?
+
+                                PANDUAN PENILAIAN:
+                                - 90-100: Joint/fitting terlihat sangat jelas dan dapat diidentifikasi jenisnya
+                                - 75-89: Sambungan terlihat jelas dan kondisi dapat dinilai
+                                - 60-74: Joint terlihat tapi detail kurang jelas
+                                - 40-59: Foto kurang jelas tapi masih menunjukkan ada sambungan
+                                - 0-39: Foto tidak jelas atau tidak menunjukkan sambungan
+
+                                Format response: {"score": [nilai], "summary": "penjelasan singkat"}'
+                ]
+            ],
+
+            'score_messages' => [
+                'excellent' => 'Foto evidence joint sangat baik dan memenuhi semua kriteria',
+                'good'      => 'Foto evidence joint baik dan dapat diterima',
+                'warning'   => 'Foto evidence dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
+                'poor'      => 'Foto evidence masih dapat diproses namun sangat disarankan untuk diperbaiki',
+            ]
+        ],
+
     ],
 
     // Aliases untuk backward compatibility
@@ -420,6 +521,12 @@ return [
             'foto_bubble_test_sk_url' => 'foto_bubble_test',
             'foto_regulator_url' => 'foto_regulator',
             'foto_kompor_menyala_url' => 'foto_kompor_menyala',
+        ],
+        'JALUR_LOWERING' => [
+            // No aliases needed for now, using direct field names
+        ],
+        'JALUR_JOINT' => [
+            // No aliases needed for now, using direct field names
         ]
     ]
 ];

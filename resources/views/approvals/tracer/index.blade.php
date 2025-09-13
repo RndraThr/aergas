@@ -8,11 +8,14 @@
     <div class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-3xl font-bold text-gray-900">Tracer Approval Dashboard</h1>
-            <p class="text-gray-600 mt-1">Review dan approve foto dari SK, SR, dan Gas In</p>
+            <p class="text-gray-600 mt-1">Review dan approve foto dari SK, SR, Gas In, dan Jalur</p>
         </div>
         <div class="flex space-x-3">
             <a href="{{ route('approvals.tracer.customers') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
                 📋 Lihat Semua Pelanggan
+            </a>
+            <a href="{{ route('approvals.tracer.jalur-photos') }}" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium">
+                🔧 Review Foto Jalur
             </a>
         </div>
     </div>
@@ -144,12 +147,20 @@
                                 </svg>
                             </div>
                             <div>
-                                <h4 class="font-medium text-gray-900">{{ $activity->reff_id_pelanggan }}</h4>
-                                <p class="text-sm text-gray-600">
-                                    {{ $activity->pelanggan->nama_pelanggan ?? 'N/A' }} - 
-                                    <span class="capitalize">{{ $activity->module_type }}</span> - 
-                                    {{ $activity->photo_type }}
-                                </p>
+                                @if($activity->reff_id_pelanggan)
+                                    <h4 class="font-medium text-gray-900">{{ $activity->reff_id_pelanggan }}</h4>
+                                    <p class="text-sm text-gray-600">
+                                        {{ $activity->pelanggan->nama_pelanggan ?? 'N/A' }} - 
+                                        <span class="capitalize">{{ $activity->module_type }}</span> - 
+                                        {{ $activity->photo_type }}
+                                    </p>
+                                @else
+                                    <h4 class="font-medium text-gray-900">Jalur Photo</h4>
+                                    <p class="text-sm text-gray-600">
+                                        <span class="capitalize">{{ str_replace('_', ' ', $activity->module_name) }}</span> - 
+                                        {{ str_replace(['foto_', '_'], ['', ' '], $activity->photo_field_name) }}
+                                    </p>
+                                @endif
                             </div>
                         </div>
                         <div class="text-right">

@@ -101,4 +101,5 @@ class ImportController extends Controller
             }
         }, 'template_import_calon_pelanggan.xlsx');
     }
+
 }

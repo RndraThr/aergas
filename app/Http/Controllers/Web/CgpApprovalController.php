@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use App\Models\{CalonPelanggan, PhotoApproval, SkData, SrData, GasInData};
+use App\Models\{CalonPelanggan, PhotoApproval, SkData, SrData, GasInData, JalurLoweringData, JalurJointData};
 use App\Services\{PhotoApprovalService, NotificationService, FolderOrganizationService};
 use Illuminate\Http\{Request, JsonResponse};
 use Illuminate\Support\Facades\{DB, Log, Auth};
@@ -241,15 +241,27 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
             DB::commit();
 
+            $message = $action === 'approve' ? 'Photo berhasil di-approve' : 'Photo berhasil di-reject';
+            
+            // Check if this is jalur photos and redirect appropriately
+            if (in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                return back()->with('success', $message);
+            }
+            
             return response()->json([
                 'success' => true,
-                'message' => $action === 'approve' ? 'Photo berhasil di-approve' : 'Photo berhasil di-reject',
+                'message' => $message,
                 'data' => $result
             ]);
 
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('CGP approve photo error: ' . $e->getMessage());
+
+            // Check if we're dealing with jalur photos and handle error appropriately
+            if (isset($photoApproval) && in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => false,
@@ -497,8 +509,57 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
     private function updateModuleStatus($photoApproval)
     {
-        // Update module status based on photo approval status
-        // This will be handled by existing PhotoApprovalService logic
+        // Update module status for jalur modules when photos are approved/rejected
+        if (in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
+            try {
+                if ($photoApproval->module_name === 'jalur_lowering') {
+                    $loweringData = \App\Models\JalurLoweringData::find($photoApproval->module_record_id);
+                    if ($loweringData && $photoApproval->photo_status === 'cgp_approved') {
+                        // Move photo to ACC_CGP folder
+                        $this->movePhotoToAccFolder($photoApproval, $loweringData);
+                        // Update to acc_cgp if all required photos for this record are approved
+                        $this->updateJalurStatus($loweringData, 'cgp');
+                    } elseif ($loweringData && $photoApproval->photo_status === 'cgp_rejected') {
+                        // Update to revisi_cgp if any photo is rejected
+                        $loweringData->update(['status_laporan' => 'revisi_cgp']);
+                    }
+                } elseif ($photoApproval->module_name === 'jalur_joint') {
+                    $jointData = \App\Models\JalurJointData::find($photoApproval->module_record_id);
+                    if ($jointData && $photoApproval->photo_status === 'cgp_approved') {
+                        // Move photo to ACC_CGP folder
+                        $this->movePhotoToAccFolder($photoApproval, $jointData);
+                        // Update to acc_cgp if all required photos for this record are approved
+                        $this->updateJalurStatus($jointData, 'cgp');
+                    } elseif ($jointData && $photoApproval->photo_status === 'cgp_rejected') {
+                        // Update to revisi_cgp if any photo is rejected
+                        $jointData->update(['status_laporan' => 'revisi_cgp']);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Error updating jalur module status: ' . $e->getMessage());
+            }
+        }
+    }
+
+    private function updateJalurStatus($moduleData, $approverType)
+    {
+        // Get all photo approvals for this record
+        $photoApprovals = \App\Models\PhotoApproval::where('module_record_id', $moduleData->id)
+            ->where('module_name', $moduleData->getModuleName())
+            ->get();
+        
+        // Check if all required photos are approved
+        $requiredPhotos = $moduleData->getRequiredPhotos();
+        $approvedPhotos = $photoApprovals->where('photo_status', $approverType . '_approved')->pluck('photo_field_name')->toArray();
+        
+        // If all required photos are approved, update the module status
+        if (empty(array_diff($requiredPhotos, $approvedPhotos))) {
+            if ($approverType === 'tracer') {
+                $moduleData->update(['status_laporan' => 'acc_tracer']);
+            } elseif ($approverType === 'cgp') {
+                $moduleData->update(['status_laporan' => 'acc_cgp']);
+            }
+        }
     }
 
     private function sendRejectionNotification($photoApproval, $notes)
@@ -517,6 +578,130 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
         } catch (Exception $e) {
             Log::error('Failed to send CGP rejection notification: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get jalur photos for CGP review (separate from customer-based reviews)
+     */
+    public function jalurPhotos(Request $request)
+    {
+        try {
+            $query = PhotoApproval::with(['jalurLowering', 'jalurJoint'])
+                ->whereIn('module_name', ['jalur_lowering', 'jalur_joint'])
+                ->where('photo_status', 'cgp_pending'); // CGP only reviews after tracer approval
+
+            // Filter by module type
+            if ($request->filled('module_type')) {
+                $query->where('module_name', $request->module_type);
+            }
+
+            // Search by nomor joint or line number
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('jalurLowering', function($subQ) use ($search) {
+                        $subQ->whereHas('lineNumber', function($lineQ) use ($search) {
+                            $lineQ->where('line_number', 'like', "%{$search}%");
+                        });
+                    })->orWhereHas('jalurJoint', function($subQ) use ($search) {
+                        $subQ->where('nomor_joint', 'like', "%{$search}%");
+                    });
+                });
+            }
+
+            $photos = $query->orderBy('uploaded_at', 'desc')
+                           ->paginate(20);
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $photos,
+                ]);
+            }
+
+            return view('approvals.cgp.jalur-photos', compact('photos'));
+
+        } catch (Exception $e) {
+            Log::error('CGP jalur photos error: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan saat memuat foto jalur');
+        }
+    }
+
+    private function movePhotoToAccFolder($photoApproval, $moduleData)
+    {
+        try {
+            $originalUrl = $photoApproval->photo_url;
+            
+            // Skip if photo URL is not a Google Drive URL
+            if (!str_contains($originalUrl, 'drive.google.com') && !str_contains($originalUrl, 'googleusercontent.com')) {
+                Log::info('Skipping non-Google Drive photo move', ['photo_id' => $photoApproval->id, 'url' => $originalUrl]);
+                return;
+            }
+
+            $googleDriveService = app(\App\Services\GoogleDriveService::class);
+            
+            // Determine module path and identifiers
+            if ($photoApproval->module_name === 'jalur_lowering') {
+                $moduleType = 'JALUR_LOWERING';
+                $identifier = $moduleData->lineNumber->line_number;
+                $clusterName = $moduleData->lineNumber->cluster->nama_cluster;
+                $tanggalFolder = \Carbon\Carbon::parse($moduleData->tanggal_jalur)->format('Y-m-d');
+            } else { // jalur_joint
+                $moduleType = 'JALUR_JOINT';
+                $identifier = $moduleData->nomor_joint;
+                $clusterName = $moduleData->cluster->nama_cluster;
+                $tanggalFolder = \Carbon\Carbon::parse($moduleData->tanggal_joint)->format('Y-m-d');
+            }
+
+            // Create ACC_CGP folder path: JALUR_LOWERING_ACC_CGP/Cluster/LineNumber/Date/
+            $accFolderPath = "{$moduleType}_ACC_CGP/{$clusterName}/{$identifier}/{$tanggalFolder}";
+            
+            // Extract file ID from Google Drive URL
+            $fileId = null;
+            if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $originalUrl, $matches)) {
+                $fileId = $matches[1];
+            } elseif (preg_match('/id=([a-zA-Z0-9_-]+)/', $originalUrl, $matches)) {
+                $fileId = $matches[1];
+            } elseif (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $originalUrl, $matches)) {
+                $fileId = $matches[1];
+            }
+
+            if (!$fileId) {
+                Log::warning('Could not extract file ID from photo URL', [
+                    'photo_id' => $photoApproval->id,
+                    'url' => $originalUrl
+                ]);
+                return;
+            }
+
+            // Generate new filename with ACC prefix
+            $timestamp = now()->format('Y-m-d_H-i-s');
+            $fieldSlug = str_replace(['foto_evidence_', '_'], ['', '-'], $photoApproval->photo_field_name);
+            $newFileName = "ACC_CGP_{$identifier}_{$timestamp}_{$fieldSlug}";
+
+            // Copy file to ACC folder
+            $newFileId = $googleDriveService->copyFileToFolder($fileId, $accFolderPath, $newFileName);
+            
+            if ($newFileId) {
+                $newUrl = "https://drive.google.com/file/d/{$newFileId}/view";
+                
+                // Update photo approval with new URL
+                $photoApproval->update(['photo_url' => $newUrl]);
+                
+                Log::info('Photo moved to ACC_CGP folder successfully', [
+                    'photo_id' => $photoApproval->id,
+                    'original_url' => $originalUrl,
+                    'new_url' => $newUrl,
+                    'acc_folder_path' => $accFolderPath
+                ]);
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to move photo to ACC_CGP folder', [
+                'photo_id' => $photoApproval->id,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }

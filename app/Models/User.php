@@ -21,7 +21,7 @@ class User extends Authenticatable
         'last_login'        => 'datetime',
         'is_active'         => 'boolean',
         'password'          => 'hashed', // Laravel 10+
-        'role'              => 'string', // super_admin, admin, sk, sr, mgrt, gas_in, pic, tracer
+        'role'              => 'string', // super_admin, admin, sk, sr, mgrt, gas_in, pic, tracer, jalur
     ];
 
     // --------- Relations ---------
@@ -58,6 +58,11 @@ class User extends Authenticatable
         return $this->role === 'tracer';
     }
 
+    public function isJalur(): bool
+    {
+        return $this->role === 'jalur';
+    }
+
     public function hasRole(string $role): bool
     {
         // Super admin lewat semua
@@ -87,6 +92,7 @@ class User extends Authenticatable
             'mgrt'        => ['admin', 'mgrt'],
             'gas_in'      => ['admin', 'gas_in'],
             'validasi'    => ['admin', 'tracer'],
+            'jalur'       => ['admin', 'jalur'],
             'jalur_pipa'  => ['admin', 'sk', 'sr'], // sesuaikan
             'penyambungan'=> ['admin', 'sr'],       // sesuaikan
         ];

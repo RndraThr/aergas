@@ -2,10 +2,17 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController};
+use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController};
 
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
+});
+
+// Temporary debug route - remove in production
+Route::get('/test-comprehensive', function () {
+    $controller = new \App\Http\Controllers\Web\JalurController();
+    $request = new \Illuminate\Http\Request(['type' => 'comprehensive']);
+    return $controller->getReportData($request);
 });
 
 Route::pattern('id', '[0-9]+');
@@ -297,63 +304,209 @@ Route::middleware('auth')->group(function () {
                 ->name('by-reff');
         });
 
-    // Jalur Pipa Module Routes - BARU DITAMBAHKAN
-    //    Route::prefix('jalur-pipa')->name('jalur-pipa.')->middleware('role:jalur_pipa,tracer,admin,super_admin')->group(function () {
-    //        Route::get('/', [JalurPipaDataController::class, 'index'])->name('index');
-    //        Route::get('/create', [JalurPipaDataController::class, 'create'])->name('create');
-    //        Route::post('/', [JalurPipaDataController::class, 'store'])->name('store');
-    //        Route::get('/{jalurPipa}', [JalurPipaDataController::class, 'show'])->whereNumber('jalurPipa')->name('show');
-    //        Route::get('/{jalurPipa}/edit', [JalurPipaDataController::class, 'edit'])->whereNumber('jalurPipa')->name('edit');
-    //        Route::put('/{jalurPipa}', [JalurPipaDataController::class, 'update'])->whereNumber('jalurPipa')->name('update');
-    //        Route::delete('/{jalurPipa}', [JalurPipaDataController::class, 'destroy'])->whereNumber('jalurPipa')->name('destroy');
+    // Jalur Module Routes
+    Route::prefix('jalur')
+        ->name('jalur.')
+        ->middleware('role:jalur,admin,super_admin')
+        ->group(function () {
+            // Main Jalur Dashboard & Reports
+            Route::get('/', [JalurController::class, 'index'])->name('index');
+            Route::get('/dashboard', [JalurController::class, 'dashboard'])->name('dashboard');
+            Route::get('/reports', [JalurController::class, 'reports'])->name('reports');
+            Route::get('/reports/data', [JalurController::class, 'getReportData'])->name('reports.data');
 
-    //        // Photo Management
-    //        Route::post('/photos/precheck-generic', [JalurPipaDataController::class, 'precheckGeneric'])->name('photos.precheck-generic');
-    //        Route::post('/{jalurPipa}/photos', [JalurPipaDataController::class, 'uploadAndValidate'])->whereNumber('jalurPipa')->name('photos.upload');
-    //        Route::post('/{jalurPipa}/photos/draft', [JalurPipaDataController::class, 'uploadDraft'])->whereNumber('jalurPipa')->name('photos.upload-draft');
-    //        Route::get('/{jalurPipa}/ready-status', [JalurPipaDataController::class, 'readyStatus'])->whereNumber('jalurPipa')->name('ready-status');
+            // Cluster Management (Perencanaan)
+            Route::prefix('clusters')
+                ->name('clusters.')
+                ->group(function () {
+                    Route::get('/', [JalurClusterController::class, 'index'])->name('index');
+                    Route::get('/create', [JalurClusterController::class, 'create'])->name('create');
+                    Route::post('/', [JalurClusterController::class, 'store'])->name('store');
+                    Route::get('/{cluster}', [JalurClusterController::class, 'show'])
+                        ->name('show');
+                    Route::get('/{cluster}/edit', [JalurClusterController::class, 'edit'])
+                        ->name('edit');
+                    Route::put('/{cluster}', [JalurClusterController::class, 'update'])
+                        ->name('update');
+                    Route::delete('/{cluster}', [JalurClusterController::class, 'destroy'])
+                        ->name('destroy');
+                    Route::patch('/{cluster}/toggle', [JalurClusterController::class, 'toggleStatus'])
+                        ->name('toggle');
 
-    //        // Workflow Actions
-    //        Route::post('/{jalurPipa}/approve-tracer', [JalurPipaDataController::class, 'approveTracer'])->whereNumber('jalurPipa')->name('approve-tracer');
-    //        Route::post('/{jalurPipa}/reject-tracer', [JalurPipaDataController::class, 'rejectTracer'])->whereNumber('jalurPipa')->name('reject-tracer');
-    //        Route::post('/{jalurPipa}/approve-cgp', [JalurPipaDataController::class, 'approveCgp'])->whereNumber('jalurPipa')->name('approve-cgp');
-    //        Route::post('/{jalurPipa}/reject-cgp', [JalurPipaDataController::class, 'rejectCgp'])->whereNumber('jalurPipa')->name('reject-cgp');
-    //        Route::post('/{jalurPipa}/schedule', [JalurPipaDataController::class, 'schedule'])->whereNumber('jalurPipa')->name('schedule');
-    //        Route::post('/{jalurPipa}/complete', [JalurPipaDataController::class, 'complete'])->whereNumber('jalurPipa')->name('complete');
+                    // API endpoints
+                    Route::prefix('api')
+                        ->name('api.')
+                        ->group(function () {
+                            Route::get('/', [JalurClusterController::class, 'apiIndex'])->name('index');
+                            Route::get('/{cluster}/line-numbers', [JalurClusterController::class, 'getLineNumbers'])
+                                ->name('line-numbers');
+                        });
+                });
 
-    //        // Find by Reference ID
-    //        Route::get('/by-reff/{reffId}', [JalurPipaDataController::class, 'redirectByReff'])
-    //            ->where('reffId', '[A-Za-z0-9\-]+')->name('by-reff');
-    //    });
+            // Line Number Management
+            Route::prefix('line-numbers')
+                ->name('line-numbers.')
+                ->group(function () {
+                    Route::get('/', [JalurLineNumberController::class, 'index'])->name('index');
+                    Route::get('/create', [JalurLineNumberController::class, 'create'])->name('create');
+                    Route::post('/', [JalurLineNumberController::class, 'store'])->name('store');
+                    Route::get('/{lineNumber}', [JalurLineNumberController::class, 'show'])
+                        ->name('show');
+                    Route::get('/{lineNumber}/edit', [JalurLineNumberController::class, 'edit'])
+                        ->name('edit');
+                    Route::put('/{lineNumber}', [JalurLineNumberController::class, 'update'])
+                        ->name('update');
+                    Route::delete('/{lineNumber}', [JalurLineNumberController::class, 'destroy'])
+                        ->name('destroy');
+                    Route::patch('/{lineNumber}/toggle', [JalurLineNumberController::class, 'toggleStatus'])
+                        ->name('toggle');
+                    Route::put('/{lineNumber}/mc100', [JalurLineNumberController::class, 'updateMC100'])
+                        ->name('update-mc100');
 
-    //    // Penyambungan Module Routes - BARU DITAMBAHKAN
-    //    Route::prefix('penyambungan')->name('penyambungan.')->middleware('role:penyambungan,tracer,admin,super_admin')->group(function () {
-    //        Route::get('/', [PenyambunganPipaDataController::class, 'index'])->name('index');
-    //        Route::get('/create', [PenyambunganPipaDataController::class, 'create'])->name('create');
-    //        Route::post('/', [PenyambunganPipaDataController::class, 'store'])->name('store');
-    //        Route::get('/{penyambungan}', [PenyambunganPipaDataController::class, 'show'])->whereNumber('penyambungan')->name('show');
-    //        Route::get('/{penyambungan}/edit', [PenyambunganPipaDataController::class, 'edit'])->whereNumber('penyambungan')->name('edit');
-    //        Route::put('/{penyambungan}', [PenyambunganPipaDataController::class, 'update'])->whereNumber('penyambungan')->name('update');
-    //        Route::delete('/{penyambungan}', [PenyambunganPipaDataController::class, 'destroy'])->whereNumber('penyambungan')->name('destroy');
+                    // API endpoints
+                    Route::prefix('api')
+                        ->name('api.')
+                        ->group(function () {
+                            Route::get('/', [JalurLineNumberController::class, 'apiIndex'])->name('index');
+                            Route::get('/{lineNumber}/stats', [JalurLineNumberController::class, 'getStats'])
+                                ->name('stats');
+                        });
+                });
 
-    //        // Photo Management
-    //        Route::post('/photos/precheck-generic', [PenyambunganPipaDataController::class, 'precheckGeneric'])->name('photos.precheck-generic');
-    //        Route::post('/{penyambungan}/photos', [PenyambunganPipaDataController::class, 'uploadAndValidate'])->whereNumber('penyambungan')->name('photos.upload');
-    //        Route::post('/{penyambungan}/photos/draft', [PenyambunganPipaDataController::class, 'uploadDraft'])->whereNumber('penyambungan')->name('photos.upload-draft');
-    //        Route::get('/{penyambungan}/ready-status', [PenyambunganPipaDataController::class, 'readyStatus'])->whereNumber('penyambungan')->name('ready-status');
+            // Lowering Data Management
+            Route::prefix('lowering')
+                ->name('lowering.')
+                ->group(function () {
+                    Route::get('/', [JalurLoweringController::class, 'index'])->name('index');
+                    Route::get('/create', [JalurLoweringController::class, 'create'])->name('create');
+                    Route::post('/', [JalurLoweringController::class, 'store'])->name('store');
+                    Route::get('/{lowering}', [JalurLoweringController::class, 'show'])
+                        ->name('show');
+                    Route::get('/{lowering}/edit', [JalurLoweringController::class, 'edit'])
+                        ->name('edit');
+                    Route::put('/{lowering}', [JalurLoweringController::class, 'update'])
+                        ->name('update');
+                    Route::delete('/{lowering}', [JalurLoweringController::class, 'destroy'])
+                        ->name('destroy');
 
-    //        // Workflow Actions
-    //        Route::post('/{penyambungan}/approve-tracer', [PenyambunganPipaDataController::class, 'approveTracer'])->whereNumber('penyambungan')->name('approve-tracer');
-    //        Route::post('/{penyambungan}/reject-tracer', [PenyambunganPipaDataController::class, 'rejectTracer'])->whereNumber('penyambungan')->name('reject-tracer');
-    //        Route::post('/{penyambungan}/approve-cgp', [PenyambunganPipaDataController::class, 'approveCgp'])->whereNumber('penyambungan')->name('approve-cgp');
-    //        Route::post('/{penyambungan}/reject-cgp', [PenyambunganPipaDataController::class, 'rejectCgp'])->whereNumber('penyambungan')->name('reject-cgp');
-    //        Route::post('/{penyambungan}/schedule', [PenyambunganPipaDataController::class, 'schedule'])->whereNumber('penyambungan')->name('schedule');
-    //        Route::post('/{penyambungan}/complete', [PenyambunganPipaDataController::class, 'complete'])->whereNumber('penyambungan')->name('complete');
+                    // Photo upload
+                    Route::post('/{lowering}/photos', [JalurLoweringController::class, 'uploadPhoto'])
+                        ->name('photos.upload');
 
-    //        // Find by Reference ID
-    //        Route::get('/by-reff/{reffId}', [PenyambunganPipaDataController::class, 'redirectByReff'])
-    //            ->where('reffId', '[A-Za-z0-9\-]+')->name('by-reff');
-    //    });
+                    // Approval Actions
+                    Route::post('/{lowering}/approve-tracer', [JalurLoweringController::class, 'approveByTracer'])
+                        ->name('approve-tracer');
+                    Route::post('/{lowering}/reject-tracer', [JalurLoweringController::class, 'rejectByTracer'])
+                        ->name('reject-tracer');
+                    Route::post('/{lowering}/approve-cgp', [JalurLoweringController::class, 'approveByCgp'])
+                        ->name('approve-cgp');
+                    Route::post('/{lowering}/reject-cgp', [JalurLoweringController::class, 'rejectByCgp'])
+                        ->name('reject-cgp');
+
+                    // API endpoints
+                    Route::get('/api/line-numbers', [JalurLoweringController::class, 'getLineNumbers'])
+                        ->name('api.line-numbers');
+                });
+
+            // Joint Data Management
+            Route::prefix('joint')
+                ->name('joint.')
+                ->group(function () {
+                    Route::get('/', [JalurJointController::class, 'index'])->name('index');
+                    Route::get('/create', [JalurJointController::class, 'create'])->name('create');
+                    Route::post('/', [JalurJointController::class, 'store'])->name('store');
+                    Route::get('/{joint}', [JalurJointController::class, 'show'])
+                        ->name('show');
+                    Route::get('/{joint}/edit', [JalurJointController::class, 'edit'])
+                        ->name('edit');
+                    Route::put('/{joint}', [JalurJointController::class, 'update'])
+                        ->name('update');
+                    Route::delete('/{joint}', [JalurJointController::class, 'destroy'])
+                        ->name('destroy');
+
+                    // Photo upload
+                    Route::post('/{joint}/photos', [JalurJointController::class, 'uploadPhoto'])
+                        ->name('photos.upload');
+
+                    // Approval Actions
+                    Route::post('/{joint}/approve-tracer', [JalurJointController::class, 'approveByTracer'])
+                        ->name('approve-tracer');
+                    Route::post('/{joint}/reject-tracer', [JalurJointController::class, 'rejectByTracer'])
+                        ->name('reject-tracer');
+                    Route::post('/{joint}/approve-cgp', [JalurJointController::class, 'approveByCgp'])
+                        ->name('approve-cgp');
+                    Route::post('/{joint}/reject-cgp', [JalurJointController::class, 'rejectByCgp'])
+                        ->name('reject-cgp');
+
+                    // API endpoints
+                    Route::prefix('api')
+                        ->name('api.')
+                        ->group(function () {
+                            Route::get('/fitting-types', [JalurJointController::class, 'getFittingTypes'])
+                                ->name('fitting-types');
+                            Route::get('/available-diameters', [JalurJointController::class, 'getAvailableDiameters'])
+                                ->name('available-diameters');
+                            Route::get('/line-numbers', [JalurJointController::class, 'getLineNumbers'])
+                                ->name('line-numbers');
+                            Route::get('/available-joint-numbers', [JalurJointController::class, 'getAvailableJointNumbers'])
+                                ->name('available-joint-numbers');
+                            Route::get('/check-joint-status', [JalurJointController::class, 'checkJointNumberStatus'])
+                                ->name('check-joint-status');
+                            Route::get('/check-joint-availability', [JalurJointController::class, 'checkJointAvailability'])
+                                ->name('check-joint-availability');
+                        });
+                });
+
+            // Fitting Types Management (Admin only)
+            Route::prefix('fitting-types')
+                ->name('fitting-types.')
+                ->middleware('role:admin,super_admin')
+                ->group(function () {
+                    Route::get('/', [JalurFittingTypeController::class, 'index'])->name('index');
+                    Route::get('/create', [JalurFittingTypeController::class, 'create'])->name('create');
+                    Route::post('/', [JalurFittingTypeController::class, 'store'])->name('store');
+                    Route::get('/{fittingType}', [JalurFittingTypeController::class, 'show'])
+                        ->name('show');
+                    Route::get('/{fittingType}/edit', [JalurFittingTypeController::class, 'edit'])
+                        ->name('edit');
+                    Route::put('/{fittingType}', [JalurFittingTypeController::class, 'update'])
+                        ->name('update');
+                    Route::delete('/{fittingType}', [JalurFittingTypeController::class, 'destroy'])
+                        ->name('destroy');
+                    Route::patch('/{fittingType}/toggle', [JalurFittingTypeController::class, 'toggleStatus'])
+                        ->name('toggle-status');
+                });
+
+            // Joint Numbers Management (Admin only)
+            Route::prefix('joint-numbers')
+                ->name('joint-numbers.')
+                ->middleware('role:admin,super_admin')
+                ->group(function () {
+                    Route::get('/', [JalurJointNumberController::class, 'index'])->name('index');
+                    Route::get('/create', [JalurJointNumberController::class, 'create'])->name('create');
+                    Route::post('/', [JalurJointNumberController::class, 'store'])->name('store');
+                    Route::get('/{jointNumber}', [JalurJointNumberController::class, 'show'])
+                        ->name('show');
+                    Route::get('/{jointNumber}/edit', [JalurJointNumberController::class, 'edit'])
+                        ->name('edit');
+                    Route::put('/{jointNumber}', [JalurJointNumberController::class, 'update'])
+                        ->name('update');
+                    Route::delete('/{jointNumber}', [JalurJointNumberController::class, 'destroy'])
+                        ->name('destroy');
+                    Route::patch('/{jointNumber}/toggle', [JalurJointNumberController::class, 'toggleStatus'])
+                        ->name('toggle-status');
+                    Route::post('/batch-create', [JalurJointNumberController::class, 'batchCreate'])
+                        ->name('batch-create');
+                    
+                    // API routes
+                    Route::prefix('api')
+                        ->name('api.')
+                        ->group(function () {
+                            Route::get('/available-joint-numbers', [JalurJointNumberController::class, 'getAvailableJointNumbers'])
+                                ->name('available-joint-numbers');
+                        });
+                });
+        });
 
     // Photo Approval Management Routes
     Route::prefix('photo-approvals')
@@ -393,6 +546,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/customers/{reffId}/photos', [TracerApprovalController::class, 'customerPhotos'])
                 ->where('reffId', '[A-Za-z0-9\-]+')
                 ->name('photos');
+            Route::get('/jalur-photos', [TracerApprovalController::class, 'jalurPhotos'])->name('jalur-photos');
 
             // Photo Actions
             Route::post('/photos/approve', [TracerApprovalController::class, 'approvePhoto'])->name('approve-photo');
@@ -450,6 +604,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/customers/{reffId}/photos', [CgpApprovalController::class, 'customerPhotos'])
                 ->where('reffId', '[A-Za-z0-9\-]+')
                 ->name('customer-photos');
+            Route::get('/jalur-photos', [CgpApprovalController::class, 'jalurPhotos'])->name('jalur-photos');
 
             // Photo Actions
             Route::post('/photos/approve', [CgpApprovalController::class, 'approvePhoto'])->name('approve-photo');
@@ -491,11 +646,14 @@ Route::middleware('auth')->group(function () {
         ->middleware('role:admin,super_admin,tracer')
         ->group(function () {
             Route::get('/calon-pelanggan', [ImportController::class, 'formCalonPelanggan'])->name('calon-pelanggan.form');
-            Route::get('/calon-pelanggan/template', [ImportController::class, 'downloadTemplateCalonPelanggan'])->name('calon-pelanggan.template'); // TAMBAH INI
+            Route::get('/calon-pelanggan/template', [ImportController::class, 'downloadTemplateCalonPelanggan'])->name('calon-pelanggan.template');
             Route::post('/calon-pelanggan', [ImportController::class, 'importCalonPelanggan'])->name('calon-pelanggan.import');
+            
+            
             Route::get('/report', [ImportController::class, 'downloadReport'])->name('report.download');
         });
 });
+
 
 // Development Routes
 if (app()->environment(['local', 'development'])) {

@@ -343,11 +343,17 @@ class PhotoApprovalService
                 'old_status' => $old, 'new_status' => 'cgp_pending', 'notes' => $notes
             ]);
 
-            $this->notificationService->notifyAdminCgpReview($pa->reff_id_pelanggan, $pa->module_name);
-            $this->telegramService->sendModuleStatusAlert($pa->reff_id_pelanggan, $pa->module_name, 'tracer_review', 'cgp_pending', $user->full_name);
+            // Skip notifications for jalur modules as they don't have customer association
+            if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                $this->notificationService->notifyAdminCgpReview($pa->reff_id_pelanggan, $pa->module_name);
+                $this->telegramService->sendModuleStatusAlert($pa->reff_id_pelanggan, $pa->module_name, 'tracer_review', 'cgp_pending', $user->full_name);
+            }
 
             DB::commit();
-            $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
+            // Skip recalc for jalur modules as they don't have customer association
+            if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
+            }
 
             return $pa->fresh();
         } catch (Exception $e) {
@@ -383,7 +389,10 @@ class PhotoApprovalService
             $this->handlePhotoRejection($pa, $user->full_name, $reason);
 
             DB::commit();
-            $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
+            // Skip recalc for jalur modules as they don't have customer association
+            if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
+            }
 
             return $pa->fresh();
         } catch (Exception $e) {
@@ -415,12 +424,18 @@ class PhotoApprovalService
                 'old_status' => $old, 'new_status' => 'cgp_approved', 'notes' => $notes
             ]);
 
-            $this->checkModuleCompletion($pa->reff_id_pelanggan, $pa->module_name);
-            $this->notificationService->notifyPhotoApproved($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name);
-            $this->telegramService->sendModuleStatusAlert($pa->reff_id_pelanggan, $pa->module_name, 'cgp_review', 'completed', $user->full_name);
+            // Skip completion check and notifications for jalur modules as they don't have customer association
+            if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                $this->checkModuleCompletion($pa->reff_id_pelanggan, $pa->module_name);
+                $this->notificationService->notifyPhotoApproved($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name);
+                $this->telegramService->sendModuleStatusAlert($pa->reff_id_pelanggan, $pa->module_name, 'cgp_review', 'completed', $user->full_name);
+            }
 
             DB::commit();
-            $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
+            // Skip recalc for jalur modules as they don't have customer association
+            if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
+            }
 
             return $pa->fresh();
         } catch (Exception $e) {
@@ -456,7 +471,10 @@ class PhotoApprovalService
             $this->handlePhotoRejection($pa, $user->full_name.' (CGP)', $reason);
 
             DB::commit();
-            $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
+            // Skip recalc for jalur modules as they don't have customer association
+            if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
+            }
 
             return $pa->fresh();
         } catch (Exception $e) {
@@ -827,8 +845,11 @@ class PhotoApprovalService
     private function handlePhotoRejection(PhotoApproval $pa, string $by, string $reason): void
     {
         try {
-            $this->telegramService->sendPhotoRejectionAlert($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name, $by, $reason);
-            $this->notificationService->notifyPhotoRejection($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name, $reason);
+            // Skip notifications for jalur modules as they don't have customer association
+            if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                $this->telegramService->sendPhotoRejectionAlert($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name, $by, $reason);
+                $this->notificationService->notifyPhotoRejection($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name, $reason);
+            }
         } catch (\Throwable $e) {
             // non-fatal
         }
@@ -941,11 +962,67 @@ class PhotoApprovalService
     // --- LEGACY STUB: supaya tidak memutus pemanggil lama ---
     public function processAIValidation(string $reffId, string $module, string $photoField, string $photoUrl, ?int $uploadedBy = null): PhotoApproval
     {
-        // Arahkan ke flow baru: buat PA minimal lalu tandai failed + alasan
-        return PhotoApproval::updateOrCreate(
-            ['reff_id_pelanggan' => $reffId, 'module_name' => strtolower($module), 'photo_field_name' => $photoField],
-            ['photo_url' => $photoUrl, 'photo_status' => 'ai_rejected', 'rejection_reason' => 'Use handleUploadAndValidate flow']
+        $moduleKey = strtoupper($module);
+        $moduleSlug = strtolower($moduleKey);
+        $uid = (int) ($uploadedBy ?? Auth::id());
+
+        // For JALUR modules, skip AI and go directly to tracer_pending
+        if (in_array($moduleKey, ['JALUR_LOWERING', 'JALUR_JOINT'])) {
+            return PhotoApproval::updateOrCreate(
+                [
+                    'reff_id_pelanggan' => $reffId,
+                    'module_name' => $moduleSlug,
+                    'photo_field_name' => $photoField,
+                ],
+                [
+                    'photo_url' => $photoUrl,
+                    'uploaded_by' => $uid,
+                    'uploaded_at' => now(),
+                    'ai_status' => 'passed', // Skip AI - direct pass
+                    'photo_status' => 'tracer_pending', // Direct to tracer review
+                    'ai_notes' => 'Jalur modules skip AI validation',
+                    'ai_last_checked_at' => now(),
+                ]
+            );
+        }
+
+        // For other modules, run normal AI validation
+        $pa = PhotoApproval::updateOrCreate(
+            [
+                'reff_id_pelanggan' => $reffId,
+                'module_name' => $moduleSlug,
+                'photo_field_name' => $photoField,
+            ],
+            [
+                'photo_url' => $photoUrl,
+                'uploaded_by' => $uid,
+                'uploaded_at' => now(),
+                'ai_status' => 'pending',
+                'photo_status' => 'ai_pending',
+            ]
         );
+
+        // Run AI validation for non-jalur modules
+        try {
+            $ai = $this->runAiValidationWithPrompt($photoUrl, $photoField, $moduleKey);
+            
+            // Update PhotoApproval with AI result
+            $photoStatus = $ai['status'] === 'passed' ? 'tracer_pending' : 'ai_rejected';
+            $pa->update([
+                'ai_status' => $ai['status'],
+                'ai_score' => $ai['score'] / 100,
+                'ai_notes' => $ai['reason'],
+                'ai_checks' => $ai['checks'] ?? [],
+                'ai_last_checked_at' => now(),
+                'photo_status' => $photoStatus,
+                'rejection_reason' => $ai['status'] === 'failed' ? $ai['reason'] : null,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("AI validation failed for {$moduleSlug}: " . $e->getMessage());
+            // Keep as ai_pending if AI validation fails
+        }
+
+        return $pa;
     }
 
     /* =====================================================================================
@@ -1043,8 +1120,10 @@ class PhotoApprovalService
 
             DB::commit();
             
-            // Update module status
-            $this->recalcModule($photo->reff_id_pelanggan, $photo->module_name);
+            // Update module status (skip for jalur modules as they don't have customer association)
+            if (!in_array($photo->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                $this->recalcModule($photo->reff_id_pelanggan, $photo->module_name);
+            }
             
             return $photo->fresh();
 
@@ -1094,8 +1173,10 @@ class PhotoApprovalService
 
             DB::commit();
             
-            // Update module status
-            $this->recalcModule($photo->reff_id_pelanggan, $photo->module_name);
+            // Update module status (skip for jalur modules as they don't have customer association)
+            if (!in_array($photo->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                $this->recalcModule($photo->reff_id_pelanggan, $photo->module_name);
+            }
             
             return $photo->fresh();
 

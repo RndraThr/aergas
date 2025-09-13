@@ -1,9 +1,12 @@
 # File Upload Settings
-php_value upload_max_filesize 20M
-php_value post_max_size 25M
+php_value upload_max_filesize 35M
+php_value post_max_size 40M
 php_value max_input_time 300
 php_value max_execution_time 300
 php_value memory_limit 256M
+
+# Apache specific upload limits
+LimitRequestBody 31457280
 
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>

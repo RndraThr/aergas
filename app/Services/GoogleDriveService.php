@@ -493,4 +493,242 @@ class GoogleDriveService
         $i = min($i, count($units) - 1);
         return round($bytes / (1024 ** $i), 2) . ' ' . $units[$i];
     }
+
+    /**
+     * Copy/download file from Google Drive link to our project folder
+     */
+    public function copyFromDriveLink(string $driveLink, string $customPath = '', string $customFileName = ''): array
+    {
+        if (!$this->initialize()) {
+            throw $this->initializationError ?? new Exception('Google Drive service not initialized');
+        }
+
+        try {
+            // Extract file ID from Google Drive link
+            $fileId = $this->extractFileIdFromLink($driveLink);
+            if (!$fileId) {
+                throw new Exception('Cannot extract file ID from Google Drive link');
+            }
+
+            // Get file metadata
+            $file = $this->drive->files->get($fileId, [
+                'fields' => 'id,name,mimeType,size',
+                'supportsAllDrives' => true
+            ]);
+
+            // Check if it's an image
+            if (!str_starts_with($file->mimeType, 'image/')) {
+                throw new Exception('File is not an image: ' . $file->mimeType);
+            }
+
+            // Download file content
+            $response = $this->drive->files->get($fileId, [
+                'alt' => 'media',
+                'supportsAllDrives' => true
+            ]);
+            
+            $content = $response->getBody()->getContents();
+            if (!$content) {
+                throw new Exception('Downloaded file is empty');
+            }
+
+            // Determine file extension from mime type
+            $extension = match($file->mimeType) {
+                'image/jpeg' => '.jpg',
+                'image/png' => '.png',
+                'image/gif' => '.gif',
+                'image/webp' => '.webp',
+                default => '.jpg'
+            };
+
+            // Generate filename if not provided
+            if (!$customFileName) {
+                $customFileName = 'drive_download_' . time();
+            }
+            $customFileName .= $extension;
+
+            // Create target folder path
+            $targetFolderId = $this->rootFolderId;
+            if ($customPath) {
+                $targetFolderId = $this->createNestedFolders($customPath, $this->rootFolderId);
+            }
+
+            // Create new file in our Drive
+            $newFile = new DriveFile();
+            $newFile->setName($customFileName);
+            $newFile->setParents([$targetFolderId]);
+            $newFile->setMimeType($file->mimeType);
+
+            $created = $this->drive->files->create($newFile, [
+                'data' => $content,
+                'mimeType' => $file->mimeType,
+                'uploadType' => 'multipart',
+                'fields' => 'id,name,webViewLink,webContentLink',
+                'supportsAllDrives' => true,
+            ]);
+
+            // Set public permission
+            $permission = new Permission();
+            $permission->setRole('reader');
+            $permission->setType('anyone');
+            $this->drive->permissions->create($created->id, $permission, [
+                'supportsAllDrives' => true
+            ]);
+
+            Log::info('Successfully copied file from Google Drive link', [
+                'source_link' => $driveLink,
+                'source_file_id' => $fileId,
+                'target_file_id' => $created->id,
+                'filename' => $customFileName,
+                'custom_path' => $customPath,
+                'size' => $file->size
+            ]);
+
+            return [
+                'id' => $created->id,
+                'name' => $created->name,
+                'url' => $created->webViewLink,
+                'path' => $customPath ? $customPath . '/' . $customFileName : $customFileName,
+                'size' => $file->size,
+                'mime_type' => $file->mimeType
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Failed to copy from Google Drive link', [
+                'link' => $driveLink,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Extract file ID from various Google Drive link formats
+     */
+    private function extractFileIdFromLink(string $link): ?string
+    {
+        // Handle different Google Drive link formats:
+        // https://drive.google.com/file/d/FILE_ID/view
+        // https://drive.google.com/open?id=FILE_ID
+        // https://drive.google.com/uc?id=FILE_ID
+        
+        if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $link, $matches)) {
+            return $matches[1];
+        }
+        
+        if (preg_match('/[?&]id=([a-zA-Z0-9_-]+)/', $link, $matches)) {
+            return $matches[1];
+        }
+        
+        return null;
+    }
+
+    /**
+     * Create nested folders in Google Drive
+     */
+    private function createNestedFolders(string $path, string $parentId): string
+    {
+        $folders = explode('/', trim($path, '/'));
+        $currentParentId = $parentId;
+
+        foreach ($folders as $folderName) {
+            if (empty($folderName)) continue;
+            
+            // Check if folder already exists
+            $existingFolder = $this->findFolderByName($folderName, $currentParentId);
+            
+            if ($existingFolder) {
+                $currentParentId = $existingFolder->id;
+            } else {
+                // Create new folder
+                $folderMetadata = new DriveFile();
+                $folderMetadata->setName($folderName);
+                $folderMetadata->setParents([$currentParentId]);
+                $folderMetadata->setMimeType('application/vnd.google-apps.folder');
+
+                $folder = $this->drive->files->create($folderMetadata, [
+                    'fields' => 'id',
+                    'supportsAllDrives' => true,
+                ]);
+                
+                $currentParentId = $folder->id;
+            }
+        }
+
+        return $currentParentId;
+    }
+
+    /**
+     * Find folder by name in specific parent
+     */
+    private function findFolderByName(string $name, string $parentId): ?DriveFile
+    {
+        try {
+            $response = $this->drive->files->listFiles([
+                'q' => "name='{$name}' and parents in '{$parentId}' and mimeType='application/vnd.google-apps.folder'",
+                'fields' => 'files(id,name)',
+                'supportsAllDrives' => true,
+                'includeItemsFromAllDrives' => true,
+            ]);
+
+            $files = $response->getFiles();
+            return count($files) > 0 ? $files[0] : null;
+        } catch (Exception $e) {
+            Log::error('Error finding folder by name', [
+                'name' => $name,
+                'parent_id' => $parentId,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    public function copyFileToFolder(string $fileId, string $folderPath, string $newFileName = null): ?string
+    {
+        if (!$this->initialize()) {
+            throw new Exception('Google Drive service not available: ' . $this->getError());
+        }
+
+        try {
+            // Ensure the target folder exists
+            $targetFolderId = $this->ensureNestedFolders($folderPath);
+            
+            // Get original file info
+            $originalFile = $this->drive->files->get($fileId, [
+                'fields' => 'id,name,mimeType',
+                'supportsAllDrives' => true
+            ]);
+
+            // Prepare copy data
+            $copyData = [
+                'name' => $newFileName ?: ('Copy_of_' . $originalFile->getName()),
+                'parents' => [$targetFolderId]
+            ];
+
+            // Create a copy of the file
+            $driveFile = new \Google\Service\Drive\DriveFile($copyData);
+            $copiedFile = $this->drive->files->copy($fileId, $driveFile, [
+                'supportsAllDrives' => true,
+                'fields' => 'id,name,webViewLink'
+            ]);
+
+            Log::info('File copied successfully', [
+                'original_id' => $fileId,
+                'copied_id' => $copiedFile->getId(),
+                'folder_path' => $folderPath,
+                'new_name' => $newFileName
+            ]);
+
+            return $copiedFile->getId();
+
+        } catch (\Exception $e) {
+            Log::error('Failed to copy file to folder', [
+                'file_id' => $fileId,
+                'folder_path' => $folderPath,
+                'new_name' => $newFileName,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
 }
