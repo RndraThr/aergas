@@ -227,7 +227,7 @@
            <p class="font-medium text-blue-800 mb-1">Catatan Upload:</p>
            <ul class="text-blue-700 space-y-1">
              <li>• Format: JPG/PNG/WEBP untuk foto, PDF untuk Berita Acara</li>
-             <li>• Maksimal 20 MB per file</li>
+             <li>• Maksimal 35 MB per file</li>
              <li>• Foto akan disimpan sebagai draft dan dianalisa AI saat proses approval</li>
              <li>• Pastikan objek yang diperlukan terlihat jelas dalam foto</li>
            </ul>
@@ -441,10 +441,10 @@ function gasInCreate() {
        return;
      }
      
-     // Validate file size (20MB = 20 * 1024 * 1024)
-     const maxSizeBytes = 20 * 1024 * 1024;
+     // Validate file size (35MB = 35 * 1024 * 1024)
+     const maxSizeBytes = 35 * 1024 * 1024;
      if (file.size > maxSizeBytes) {
-       alert('File terlalu besar. Maksimal 20MB.');
+       alert('File terlalu besar. Maksimal 35MB.');
        return;
      }
 
