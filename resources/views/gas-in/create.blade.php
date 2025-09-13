@@ -590,6 +590,13 @@ function gasInCreate() {
        fd.append('file', file);
 
        try {
+         console.log(`[DEBUG] Starting upload for ${def.field}:`, {
+           fileSize: file.size,
+           fileName: file.name,
+           fileType: file.type,
+           url: url
+         });
+
          // Add timeout handling
          const controller = new AbortController();
          const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout
@@ -606,16 +613,35 @@ function gasInCreate() {
          
          clearTimeout(timeoutId);
 
-         const j = await res.json().catch(() => ({}));
+         console.log(`[DEBUG] Upload response for ${def.field}:`, {
+           status: res.status,
+           statusText: res.statusText,
+           ok: res.ok,
+           headers: Object.fromEntries(res.headers.entries())
+         });
+
+         const j = await res.json().catch((parseError) => {
+           console.error(`[DEBUG] JSON parse error for ${def.field}:`, parseError);
+           return {};
+         });
+         
+         console.log(`[DEBUG] Parsed response for ${def.field}:`, j);
+
          if (!res.ok || !(j && (j.success === true || j.photo_id))) {
-           throw new Error(j?.message || 'Gagal upload');
+           const errorMsg = j?.message || j?.errors || `HTTP ${res.status}: ${res.statusText}`;
+           throw new Error(errorMsg);
          }
 
          this.uploadStatuses[def.field] = '✓ Uploaded';
+         console.log(`[DEBUG] Upload successful for ${def.field}`);
 
        } catch (e) {
-         console.error('Upload gagal', def.field, e);
-         this.uploadStatuses[def.field] = '✗ Upload gagal';
+         console.error(`[DEBUG] Upload error for ${def.field}:`, {
+           error: e,
+           message: e.message,
+           stack: e.stack
+         });
+         this.uploadStatuses[def.field] = `✗ Upload gagal: ${e.message}`;
        }
      }
    }
