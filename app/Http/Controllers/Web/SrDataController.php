@@ -261,9 +261,30 @@ class SrDataController extends Controller
 
     public function uploadDraft(Request $r, SrData $sr)
     {
+        // Log untuk debugging
+        Log::info('SR uploadDraft attempt', [
+            'sr_id' => $sr->id,
+            'reff_id' => $sr->reff_id_pelanggan,
+            'has_file' => $r->hasFile('file'),
+            'file_valid' => $r->hasFile('file') ? $r->file('file')->isValid() : false,
+            'file_size' => $r->hasFile('file') ? $r->file('file')->getSize() : null,
+            'file_mime' => $r->hasFile('file') ? $r->file('file')->getMimeType() : null,
+            'slot_type' => $r->input('slot_type'),
+        ]);
+
         $v = Validator::make($r->all(), [
-            'file' => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
+            'file' => [
+                'required',
+                'file',
+                'mimes:jpg,jpeg,png,webp,pdf',
+                'max:35840' // 35MB in KB
+            ],
             'slot_type' => ['required','string','max:100'],
+        ], [
+            'file.mimes' => 'File harus berformat JPG, JPEG, PNG, WEBP, atau PDF.',
+            'file.max' => 'Ukuran file maksimal 35MB.',
+            'file.required' => 'File wajib diupload.',
+            'slot_type.required' => 'Slot type wajib diisi.',
         ]);
 
         if ($v->fails()) {

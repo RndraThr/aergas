@@ -621,15 +621,19 @@ function srCreate() {
       const photoDef = this.photoDefs.find(p => p.field === field);
       const acceptedTypes = photoDef?.accept || ['image/*'];
       
-      // Validate file type
-      const isValidType = acceptedTypes.some(type => {
-        if (type === 'image/*') return file.type.startsWith('image/');
-        if (type === 'application/pdf') return file.type === 'application/pdf';
-        return file.type === type;
-      });
+      // Validate file type - strict matching with backend validation
+      const allowedMimeTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/webp',
+        'application/pdf'
+      ];
+
+      const isValidType = allowedMimeTypes.includes(file.type.toLowerCase());
       
       if (!isValidType) {
-        alert(`File type tidak didukung. Hanya menerima: ${acceptedTypes.join(', ')}`);
+        alert(`File type tidak didukung. Hanya menerima: JPG, JPEG, PNG, WEBP, PDF`);
         return;
       }
       
@@ -813,15 +817,35 @@ function srCreate() {
           clearTimeout(timeoutId);
 
           const j = await res.json().catch(() => ({}));
-          if (!res.ok || !(j && (j.success === true || j.photo_id))) {
-            throw new Error(j?.message || 'Gagal upload');
+          if (!res.ok) {
+            if (res.status === 422) {
+              const errorDetails = j?.errors || j?.message || 'Validasi file gagal';
+              throw new Error(`422: ${JSON.stringify(errorDetails)}`);
+            }
+            throw new Error(j?.message || `HTTP ${res.status}: Gagal upload`);
+          }
+
+          if (!(j && (j.success === true || j.photo_id))) {
+            throw new Error(j?.message || 'Response tidak valid dari server');
           }
 
           this.uploadStatuses[def.field] = '✓ Uploaded';
 
         } catch (e) {
           console.error('Upload gagal', def.field, e);
-          this.uploadStatuses[def.field] = '✗ Upload gagal';
+          let errorMsg = '✗ Upload gagal';
+
+          if (e.name === 'AbortError') {
+            errorMsg = '✗ Upload timeout (>2 menit)';
+          } else if (e.message.includes('422')) {
+            errorMsg = '✗ File tidak valid';
+          } else if (e.message.includes('413')) {
+            errorMsg = '✗ File terlalu besar';
+          } else if (e.message.includes('Gagal upload')) {
+            errorMsg = `✗ ${e.message}`;
+          }
+
+          this.uploadStatuses[def.field] = errorMsg;
         }
       }
     }

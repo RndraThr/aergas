@@ -399,12 +399,38 @@ class GasInDataController extends Controller
 
    public function uploadDraft(Request $r, GasInData $gasIn)
     {
+        // Log untuk debugging
+        Log::info('GasIn uploadDraft attempt', [
+            'gasin_id' => $gasIn->id,
+            'reff_id' => $gasIn->reff_id_pelanggan,
+            'has_file' => $r->hasFile('file'),
+            'file_valid' => $r->hasFile('file') ? $r->file('file')->isValid() : false,
+            'file_size' => $r->hasFile('file') ? $r->file('file')->getSize() : null,
+            'file_mime' => $r->hasFile('file') ? $r->file('file')->getMimeType() : null,
+            'slot_type' => $r->input('slot_type'),
+        ]);
+
         $v = Validator::make($r->all(), [
-            'file' => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
+            'file' => [
+                'required',
+                'file',
+                'mimes:jpg,jpeg,png,webp,pdf',
+                'max:35840' // 35MB in KB
+            ],
             'slot_type' => ['required','string','max:100'],
+        ], [
+            'file.mimes' => 'File harus berformat JPG, JPEG, PNG, WEBP, atau PDF.',
+            'file.max' => 'Ukuran file maksimal 35MB.',
+            'file.required' => 'File wajib diupload.',
+            'slot_type.required' => 'Slot type wajib diisi.',
         ]);
 
         if ($v->fails()) {
+            Log::warning('GasIn uploadDraft validation failed', [
+                'gasin_id' => $gasIn->id,
+                'reff_id' => $gasIn->reff_id_pelanggan,
+                'errors' => $v->errors()->toArray()
+            ]);
             return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
         }
 
@@ -421,22 +447,59 @@ class GasInDataController extends Controller
             $meta['customer_name'] = $gasIn->calonPelanggan->nama_pelanggan;
         }
 
-        $res = $svc->uploadDraftOnly(
-            module: 'GAS_IN',
-            reffId: $gasIn->reff_id_pelanggan,
-            slotIncoming: $slotParam,
-            file: $r->file('file'),
-            uploadedBy: Auth::id(),
-            targetFileName: $targetName,
-            meta: $meta
-        );
+        try {
+            $res = $svc->uploadDraftOnly(
+                module: 'GAS_IN',
+                reffId: $gasIn->reff_id_pelanggan,
+                slotIncoming: $slotParam,
+                file: $r->file('file'),
+                uploadedBy: Auth::id(),
+                targetFileName: $targetName,
+                meta: $meta
+            );
 
-        return response()->json([
-            'success' => true,
-            'photo_id' => $res['photo_id'] ?? null,
-            'filename' => $targetName,
-            'message' => 'Upload berhasil tersimpan sebagai draft'
-        ], 201);
+            if (!$res['success']) {
+                Log::warning('GasIn uploadDraftOnly service failed', [
+                    'gasin_id' => $gasIn->id,
+                    'reff_id' => $gasIn->reff_id_pelanggan,
+                    'slot_type' => $slotParam,
+                    'service_message' => $res['message'] ?? 'Unknown error'
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => $res['message'] ?? 'Upload service failed'
+                ], 422);
+            }
+
+            Log::info('GasIn uploadDraft success', [
+                'gasin_id' => $gasIn->id,
+                'reff_id' => $gasIn->reff_id_pelanggan,
+                'photo_id' => $res['photo_id'] ?? null,
+                'filename' => $targetName
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'photo_id' => $res['photo_id'] ?? null,
+                'filename' => $targetName,
+                'message' => 'Upload berhasil tersimpan sebagai draft'
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('GasIn uploadDraft exception', [
+                'gasin_id' => $gasIn->id,
+                'reff_id' => $gasIn->reff_id_pelanggan,
+                'slot_type' => $slotParam,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat upload: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
    public function complete(Request $r, GasInData $gasIn)

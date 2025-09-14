@@ -611,15 +611,19 @@ function skCreate() {
       const photoDef = this.photoDefs.find(p => p.field === field);
       const acceptedTypes = photoDef?.accept || ['image/*'];
       
-      // Validate file type
-      const isValidType = acceptedTypes.some(type => {
-        if (type === 'image/*') return file.type.startsWith('image/');
-        if (type === 'application/pdf') return file.type === 'application/pdf';
-        return file.type === type;
-      });
+      // Validate file type - strict matching with backend validation
+      const allowedMimeTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/webp',
+        'application/pdf'
+      ];
+
+      const isValidType = allowedMimeTypes.includes(file.type.toLowerCase());
       
       if (!isValidType) {
-        alert(`File type tidak didukung. Hanya menerima: ${acceptedTypes.join(', ')}`);
+        alert(`File type tidak didukung. Hanya menerima: JPG, JPEG, PNG, WEBP, PDF`);
         return;
       }
       
