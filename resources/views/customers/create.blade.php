@@ -41,7 +41,8 @@
                     <div class="relative">
                         <input type="text"
                                x-model="form.reff_id_pelanggan"
-                               @input="validateReffId()"
+                               @input.debounce.500ms="validateReffId()"
+                               @blur="validateReffId()"
                                :class="errors.reff_id_pelanggan ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
                                placeholder="REF001, AGS001, etc..."
@@ -186,9 +187,31 @@
             </button>
 
             <div class="flex items-center space-x-3">
+                <div x-show="!formValid && !submitting" class="text-sm text-red-600">
+                    <template x-if="!form.reff_id_pelanggan">
+                        <span>Reference ID diperlukan</span>
+                    </template>
+                    <template x-if="form.reff_id_pelanggan && !reffIdAvailable">
+                        <span>Reference ID belum valid</span>
+                    </template>
+                    <template x-if="!form.nama_pelanggan">
+                        <span>Nama pelanggan diperlukan</span>
+                    </template>
+                    <template x-if="!form.alamat">
+                        <span>Alamat diperlukan</span>
+                    </template>
+                    <template x-if="!form.no_telepon">
+                        <span>Nomor telepon diperlukan</span>
+                    </template>
+                    <template x-if="Object.keys(errors).length > 0">
+                        <span>Perbaiki kesalahan pada form</span>
+                    </template>
+                </div>
+
                 <button type="submit"
                         :disabled="submitting || !formValid"
-                        class="px-6 py-2 bg-gradient-to-r from-aergas-navy to-aergas-orange text-white rounded-lg hover:shadow-lg transition-all duration-300 disabled:opacity-50">
+                        :class="formValid ? 'bg-gradient-to-r from-aergas-navy to-aergas-orange hover:shadow-lg' : 'bg-gray-400 cursor-not-allowed'"
+                        class="px-6 py-2 text-white rounded-lg transition-all duration-300 disabled:opacity-50">
                     <span x-show="!submitting">Daftarkan Pelanggan</span>
                     <span x-show="submitting">
                         <i class="fas fa-spinner animate-spin mr-2"></i>Mendaftarkan...
@@ -221,21 +244,26 @@ function customerCreateData() {
         reffIdAvailable: false,
 
         get formValid() {
-            const valid = this.form.reff_id_pelanggan &&
-                   this.form.nama_pelanggan &&
-                   this.form.alamat &&
-                   this.form.no_telepon &&
-                   this.reffIdAvailable &&
-                   Object.keys(this.errors).length === 0;
-            console.log('Form validation:', {
-                reff_id: !!this.form.reff_id_pelanggan,
-                nama: !!this.form.nama_pelanggan,
-                alamat: !!this.form.alamat,
-                telepon: !!this.form.no_telepon,
-                reffAvailable: this.reffIdAvailable,
-                noErrors: Object.keys(this.errors).length === 0,
+            const hasRequiredFields = this.form.reff_id_pelanggan &&
+                                    this.form.nama_pelanggan &&
+                                    this.form.alamat &&
+                                    this.form.no_telepon;
+
+            const hasNoErrors = Object.keys(this.errors).length === 0;
+
+            const valid = hasRequiredFields && this.reffIdAvailable && hasNoErrors;
+
+            console.log('Form validation check:', {
+                reff_id: this.form.reff_id_pelanggan,
+                nama: this.form.nama_pelanggan,
+                alamat: this.form.alamat,
+                telepon: this.form.no_telepon,
+                reffIdAvailable: this.reffIdAvailable,
+                errorsCount: Object.keys(this.errors).length,
                 errors: this.errors,
-                valid: valid
+                hasRequiredFields: hasRequiredFields,
+                hasNoErrors: hasNoErrors,
+                finalValid: valid
             });
             return valid;
         },
@@ -257,21 +285,37 @@ function customerCreateData() {
                     }
                 });
 
+                console.log('Validation response status:', response.status);
+
                 if (response.status === 404) {
+                    // 404 means customer not found = Reference ID is available
                     this.reffIdAvailable = true;
                     this.errors.reff_id_pelanggan = '';
-                } else {
+                    console.log('Ref ID available (404)');
+                } else if (response.status === 200) {
                     const data = await response.json();
+                    console.log('Validation data:', data);
+
                     if (data.exists) {
                         this.reffIdAvailable = false;
                         this.errors.reff_id_pelanggan = 'Reference ID sudah digunakan';
+                        console.log('Ref ID not available (exists)');
                     } else {
                         this.reffIdAvailable = true;
                         this.errors.reff_id_pelanggan = '';
+                        console.log('Ref ID available (not exists)');
                     }
+                } else {
+                    // Other status codes - assume not available for safety
+                    this.reffIdAvailable = false;
+                    this.errors.reff_id_pelanggan = 'Error validating Reference ID';
+                    console.log('Validation error, status:', response.status);
                 }
             } catch (error) {
+                console.error('Validation error:', error);
+                // On error, assume available for better UX
                 this.reffIdAvailable = true;
+                this.errors.reff_id_pelanggan = '';
             } finally {
                 this.validatingReffId = false;
             }
