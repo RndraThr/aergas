@@ -68,7 +68,22 @@ class SkDataController extends Controller
 
     public function store(Request $r)
     {
-        $materialRules = (new SkData())->getMaterialValidationRules();
+        // Debug logging for production troubleshooting
+        Log::info('SK Store Request Data:', [
+            'all_data' => $r->all(),
+            'files' => $r->hasFile('file') ? 'has files' : 'no files',
+            'request_method' => $r->method(),
+            'content_type' => $r->header('Content-Type'),
+            'user_id' => Auth::id()
+        ]);
+
+        try {
+            $materialRules = (new SkData())->getMaterialValidationRules();
+            Log::info('SK Material Rules:', ['rules' => $materialRules]);
+        } catch (\Exception $e) {
+            Log::error('Failed to get material validation rules:', ['error' => $e->getMessage()]);
+            return response()->json(['success'=>false,'message'=>'Gagal mendapatkan validation rules: ' . $e->getMessage()], 500);
+        }
 
         $v = Validator::make($r->all(), array_merge([
             'reff_id_pelanggan' => [
@@ -85,6 +100,11 @@ class SkDataController extends Controller
         ]);
 
         if ($v->fails()) {
+            Log::warning('SK Store Validation Failed:', [
+                'errors' => $v->errors()->toArray(),
+                'reff_id' => $r->input('reff_id_pelanggan'),
+                'user_id' => Auth::id()
+            ]);
             return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
         }
 
