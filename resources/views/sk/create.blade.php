@@ -771,33 +771,15 @@ function skCreate() {
         formData.append('tanggal_instalasi', this.tanggal);
         if (this.notes) formData.append('notes', this.notes);
 
-        // Debug: Log all material data being sent
-        console.log('SK Material data being sent:', JSON.stringify(this.material, null, 2));
-
         Object.keys(this.material).forEach(key => {
           const value = this.material[key];
           if (value !== '' && value !== null) {
             formData.append(key, value);
-            console.log(`Material field ${key}: ${value}`);
           } else if (key !== 'qty_tee_1_2') {
             // For required fields (all except qty_tee_1_2), send 0 if empty
             formData.append(key, '0');
-            console.log(`Material field ${key}: 0 (default)`);
           }
         });
-
-        // Debug: Log all FormData entries
-        console.log('Complete FormData being sent:');
-        for (let [key, value] of formData.entries()) {
-          console.log(`${key}: ${value}`);
-        }
-
-        // Additional debug: Check for required fields
-        const requiredFields = ['reff_id_pelanggan', 'tanggal_instalasi', 'panjang_pipa_gl_medium_m'];
-        const missingRequired = requiredFields.filter(field => !formData.has(field) || !formData.get(field));
-        if (missingRequired.length > 0) {
-          console.error('Missing required fields:', missingRequired);
-        }
 
         const response = await fetch(@json(route('sk.store')), {
           method: 'POST',
@@ -811,26 +793,7 @@ function skCreate() {
         const result = await response.json().catch(() => ({}));
 
         if (!response.ok || !result.success) {
-          console.error('SK Store Error Details:', {
-            status: response.status,
-            statusText: response.statusText,
-            result: result,
-            errors: result.errors,
-            message: result.message
-          });
-
-          // Show detailed error message
-          let errorMsg = 'Gagal menyimpan SK';
-          if (result.errors) {
-            const errorDetails = Object.entries(result.errors)
-              .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
-              .join('\n');
-            errorMsg += '\n\nDetail error:\n' + errorDetails;
-          } else if (result.message) {
-            errorMsg += ': ' + result.message;
-          }
-
-          throw new Error(errorMsg);
+          throw new Error(result.message || 'Gagal menyimpan SK');
         }
 
         const skId = result.data?.id;
