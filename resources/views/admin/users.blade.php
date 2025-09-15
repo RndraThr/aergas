@@ -96,9 +96,11 @@
                     <option value="admin">Admin</option>
                     <option value="sk">SK</option>
                     <option value="sr">SR</option>
+                    <option value="mgrt">MGRT</option>
                     <option value="gas_in">Gas In</option>
                     <option value="tracer">Tracer</option>
                     <option value="pic">PIC</option>
+                    <option value="jalur">Jalur</option>
                 </select>
             </div>
 
@@ -153,11 +155,29 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                      :class="getRoleBadgeClass(user.role)"
-                                      x-text="user.role ? user.role.replace('_', ' ').toUpperCase() : 'Unknown'">
-                                </span>
+                            <td class="px-6 py-4">
+                                <!-- Multi-role display -->
+                                <div class="flex flex-wrap gap-1">
+                                    <template x-if="user.active_roles && user.active_roles.length > 0">
+                                        <template x-for="roleData in user.active_roles" :key="roleData.role">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                                  :class="getRoleBadgeClass(roleData.role)"
+                                                  x-text="roleData.role.replace('_', ' ').toUpperCase()">
+                                            </span>
+                                        </template>
+                                    </template>
+                                    <!-- Fallback to single role if no multi-roles -->
+                                    <template x-if="!user.active_roles || user.active_roles.length === 0">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                              :class="getRoleBadgeClass(user.role)"
+                                              x-text="user.role ? user.role.replace('_', ' ').toUpperCase() : 'Unknown'">
+                                        </span>
+                                    </template>
+                                </div>
+                                <!-- Role count badge -->
+                                <template x-if="user.active_roles && user.active_roles.length > 1">
+                                    <div class="text-xs text-gray-500 mt-1" x-text="`${user.active_roles.length} roles`"></div>
+                                </template>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
@@ -171,18 +191,26 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end space-x-2">
+                                    <button @click="manageUserRoles(user)"
+                                            class="text-purple-600 hover:text-purple-900 p-1 rounded"
+                                            title="Manage Roles">
+                                        <i class="fas fa-users-cog"></i>
+                                    </button>
                                     <button @click="editUser(user)"
-                                            class="text-blue-600 hover:text-blue-900 p-1 rounded">
+                                            class="text-blue-600 hover:text-blue-900 p-1 rounded"
+                                            title="Edit User">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button @click="toggleUserStatus(user)"
                                             :class="user.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'"
-                                            class="p-1 rounded">
+                                            class="p-1 rounded"
+                                            :title="user.is_active ? 'Deactivate User' : 'Activate User'">
                                         <i :class="user.is_active ? 'fas fa-ban' : 'fas fa-check'"></i>
                                     </button>
                                     <button @click="deleteUser(user)"
                                             x-show="user.role !== 'super_admin' && user.id !== {{ auth()->id() }}"
-                                            class="text-red-600 hover:text-red-900 p-1 rounded">
+                                            class="text-red-600 hover:text-red-900 p-1 rounded"
+                                            title="Delete User">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -313,14 +341,20 @@
                                         @change="clearFieldError('role')"
                                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
                                         required>
-                                    <option value="">Select Role</option>
+                                    <option value="">Select Primary Role</option>
                                     <option value="admin">Admin</option>
                                     <option value="sk">SK</option>
                                     <option value="sr">SR</option>
+                                    <option value="mgrt">MGRT</option>
                                     <option value="gas_in">Gas In</option>
                                     <option value="tracer">Tracer</option>
                                     <option value="pic">PIC</option>
+                                    <option value="jalur">Jalur</option>
                                 </select>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <i class="fas fa-info-circle text-blue-500 mr-1"></i>
+                                    This sets the primary role. You can assign additional roles after creating the user.
+                                </p>
                                 <p x-show="getFieldError('role')"
                                    x-text="getFieldError('role')"
                                    class="text-xs text-red-600 mt-1"></p>
@@ -410,6 +444,117 @@
             </div>
         </div>
     </div>
+
+    <!-- Role Management Modal -->
+    <div x-show="showRoleModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                            <i class="fas fa-users-cog text-purple-600 mr-2"></i>
+                            Manage User Roles
+                        </h3>
+                        <p class="text-sm text-gray-500 mt-1" x-show="selectedUser">
+                            Managing roles for: <span class="font-medium" x-text="selectedUser ? selectedUser.full_name : ''"></span>
+                        </p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Current Roles -->
+                        <div>
+                            <h4 class="text-md font-medium text-gray-900 mb-3">Current Active Roles</h4>
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <template x-for="role in currentUserRoles" :key="role">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+                                          :class="getRoleBadgeClass(role)">
+                                        <span x-text="role.replace('_', ' ').toUpperCase()"></span>
+                                        <button @click="removeRoleFromUser(role)"
+                                                x-show="role !== 'super_admin' || (selectedUser && selectedUser.id !== {{ auth()->id() }})"
+                                                class="ml-2 text-red-500 hover:text-red-700">
+                                            <i class="fas fa-times text-xs"></i>
+                                        </button>
+                                    </span>
+                                </template>
+                                <template x-if="currentUserRoles.length === 0">
+                                    <span class="text-gray-500 italic">No active roles assigned</span>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Available Roles to Add -->
+                        <div>
+                            <h4 class="text-md font-medium text-gray-900 mb-3">Available Roles</h4>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <template x-for="role in availableRolesToAdd" :key="role">
+                                    <button @click="assignRoleToUser(role)"
+                                            class="flex items-center justify-center px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                                            :class="getRoleButtonClass(role)">
+                                        <i class="fas fa-plus text-xs mr-2"></i>
+                                        <span class="text-sm" x-text="role.replace('_', ' ').toUpperCase()"></span>
+                                    </button>
+                                </template>
+                                <template x-if="availableRolesToAdd.length === 0">
+                                    <div class="col-span-full text-center text-gray-500 italic py-4">
+                                        All available roles are already assigned
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Quick Multi-Role Assignments -->
+                        <div>
+                            <h4 class="text-md font-medium text-gray-900 mb-3">Quick Multi-Role Assignments</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <button @click="assignMultipleRoles(['sr', 'gas_in'])"
+                                        class="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-yellow-100 to-orange-100 border border-yellow-300 rounded-lg hover:from-yellow-200 hover:to-orange-200 transition-colors">
+                                    <i class="fas fa-fire text-orange-600 mr-2"></i>
+                                    <span class="text-sm font-medium text-gray-700">SR + GasIn</span>
+                                </button>
+                                <button @click="assignMultipleRoles(['sk', 'sr'])"
+                                        class="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-green-100 to-yellow-100 border border-green-300 rounded-lg hover:from-green-200 hover:to-yellow-200 transition-colors">
+                                    <i class="fas fa-tools text-green-600 mr-2"></i>
+                                    <span class="text-sm font-medium text-gray-700">SK + SR</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Role Assignment History -->
+                        <div x-show="roleHistory.length > 0">
+                            <h4 class="text-md font-medium text-gray-900 mb-3">Recent Role Changes</h4>
+                            <div class="max-h-32 overflow-y-auto bg-gray-50 rounded-lg p-3">
+                                <template x-for="history in roleHistory" :key="history.id">
+                                    <div class="text-xs text-gray-600 mb-1">
+                                        <span class="font-medium" x-text="history.action === 'assign_role' ? 'Added' : 'Removed'"></span>
+                                        <span x-text="history.role || 'Unknown'"></span>
+                                        <span x-text="history.assigned_at_human || history.created_at_human"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button"
+                            @click="closeRoleModal()"
+                            class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
@@ -422,7 +567,12 @@ function userManagement() {
         loading: false,
         submitting: false,
         showModal: false,
+        showRoleModal: false,
         editingUser: null,
+        selectedUser: null,
+        currentUserRoles: [],
+        availableRoles: ['super_admin', 'admin', 'sk', 'sr', 'mgrt', 'gas_in', 'pic', 'tracer', 'jalur'],
+        roleHistory: [],
         fieldErrors: {},
         passwordChecks: {
             length: false,
@@ -462,7 +612,7 @@ function userManagement() {
                     page: this.filters.page
                 });
 
-                const response = await fetch(`{{ route('admin.api.users') }}?${params}`, {
+                const response = await fetch(`{{ route('admin.api.users.with-roles') }}?${params}`, {
                     headers: {
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': window.csrfToken
@@ -481,6 +631,7 @@ function userManagement() {
                         to: result.data.to
                     };
                     this.stats = result.stats || {};
+                    this.availableRoles = result.available_roles || this.availableRoles;
                 }
             } catch (error) {
                 window.showToast('error', 'Failed to load users');
@@ -640,7 +791,7 @@ function userManagement() {
                 this.fieldErrors.email = 'Please enter a valid email address';
             }
 
-            const validRoles = ['admin', 'sk', 'sr', 'gas_in', 'tracer', 'pic'];
+            const validRoles = ['admin', 'sk', 'sr', 'mgrt', 'gas_in', 'tracer', 'pic', 'jalur'];
             if (!this.form.role || !validRoles.includes(this.form.role)) {
                 errors.push('Please select a valid role');
                 this.fieldErrors.role = 'Please select a valid role';
@@ -826,6 +977,156 @@ function userManagement() {
             });
         },
 
+        // =============== ROLE MANAGEMENT METHODS ===============
+
+        get availableRolesToAdd() {
+            return this.availableRoles.filter(role => !this.currentUserRoles.includes(role));
+        },
+
+        async manageUserRoles(user) {
+            this.selectedUser = user;
+            this.showRoleModal = true;
+            await this.loadUserRoles(user);
+        },
+
+        async loadUserRoles(user) {
+            try {
+                const response = await fetch(`{{ route('admin.api.users.roles', ':id') }}`.replace(':id', user.id), {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': window.csrfToken
+                    }
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    this.currentUserRoles = result.data.active_roles || [];
+                    this.roleHistory = result.data.all_roles || [];
+                } else {
+                    window.showToast('error', 'Failed to load user roles');
+                }
+            } catch (error) {
+                window.showToast('error', 'Failed to load user roles');
+            }
+        },
+
+        async assignRoleToUser(role) {
+            if (!this.selectedUser) return;
+
+            try {
+                const response = await fetch(`{{ route('admin.api.users.roles.assign', ':id') }}`.replace(':id', this.selectedUser.id), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': window.csrfToken
+                    },
+                    body: JSON.stringify({ role: role })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    window.showToast('success', result.message);
+                    await this.loadUserRoles(this.selectedUser);
+                    this.loadUsers(); // Refresh main user list
+                } else {
+                    window.showToast('error', result.message || 'Failed to assign role');
+                }
+            } catch (error) {
+                window.showToast('error', 'Failed to assign role');
+            }
+        },
+
+        async removeRoleFromUser(role) {
+            if (!this.selectedUser) return;
+
+            if (!confirm(`Are you sure you want to remove the "${role.replace('_', ' ').toUpperCase()}" role from this user?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`{{ route('admin.api.users.roles.remove', ':id') }}`.replace(':id', this.selectedUser.id), {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': window.csrfToken
+                    },
+                    body: JSON.stringify({ role: role })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    window.showToast('success', result.message);
+                    await this.loadUserRoles(this.selectedUser);
+                    this.loadUsers(); // Refresh main user list
+                } else {
+                    window.showToast('error', result.message || 'Failed to remove role');
+                }
+            } catch (error) {
+                window.showToast('error', 'Failed to remove role');
+            }
+        },
+
+        async assignMultipleRoles(roles) {
+            if (!this.selectedUser) return;
+
+            const rolesToAdd = roles.filter(role => !this.currentUserRoles.includes(role));
+            if (rolesToAdd.length === 0) {
+                window.showToast('info', 'User already has all these roles');
+                return;
+            }
+
+            if (!confirm(`Assign ${rolesToAdd.map(r => r.replace('_', ' ').toUpperCase()).join(', ')} roles to this user?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`{{ route('admin.api.users.roles.sync', ':id') }}`.replace(':id', this.selectedUser.id), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': window.csrfToken
+                    },
+                    body: JSON.stringify({
+                        roles: [...new Set([...this.currentUserRoles, ...rolesToAdd])]
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    window.showToast('success', result.message);
+                    await this.loadUserRoles(this.selectedUser);
+                    this.loadUsers(); // Refresh main user list
+                } else {
+                    window.showToast('error', result.message || 'Failed to assign roles');
+                }
+            } catch (error) {
+                window.showToast('error', 'Failed to assign roles');
+            }
+        },
+
+        closeRoleModal() {
+            this.showRoleModal = false;
+            this.selectedUser = null;
+            this.currentUserRoles = [];
+            this.roleHistory = [];
+        },
+
+        getRoleButtonClass(role) {
+            const roleClasses = {
+                'super_admin': 'hover:border-purple-400 hover:bg-purple-50',
+                'admin': 'hover:border-blue-400 hover:bg-blue-50',
+                'sk': 'hover:border-green-400 hover:bg-green-50',
+                'sr': 'hover:border-yellow-400 hover:bg-yellow-50',
+                'gas_in': 'hover:border-orange-400 hover:bg-orange-50',
+                'tracer': 'hover:border-indigo-400 hover:bg-indigo-50',
+                'pic': 'hover:border-pink-400 hover:bg-pink-50'
+            };
+            return roleClasses[role] || 'hover:border-gray-400 hover:bg-gray-50';
+        },
+
         getRoleBadgeClass(role) {
             const roleClasses = {
                 'super_admin': 'bg-purple-100 text-purple-800',
@@ -833,8 +1134,10 @@ function userManagement() {
                 'sk': 'bg-green-100 text-green-800',
                 'sr': 'bg-yellow-100 text-yellow-800',
                 'gas_in': 'bg-orange-100 text-orange-800',
+                'mgrt': 'bg-red-100 text-red-800',
                 'tracer': 'bg-indigo-100 text-indigo-800',
-                'pic': 'bg-pink-100 text-pink-800'
+                'pic': 'bg-pink-100 text-pink-800',
+                'jalur': 'bg-teal-100 text-teal-800'
             };
             return roleClasses[role] || 'bg-gray-100 text-gray-800';
         }
