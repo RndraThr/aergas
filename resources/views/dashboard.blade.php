@@ -96,10 +96,13 @@
                        </div>
                    </div>
                    @if(auth()->user()->hasAnyRole(['tracer', 'admin', 'super_admin']))
-                       <a href="{{ route('photos.index') }}"
-                          class="inline-flex items-center text-yellow-600 hover:text-yellow-800 text-sm font-medium transition-colors">
-                           Review now <i class="fas fa-arrow-right ml-1"></i>
-                       </a>
+                       <span class="text-yellow-600 text-sm font-medium">
+                           @if(auth()->user()->hasAnyRole(['tracer', 'super_admin']))
+                               Pending Review
+                           @elseif(auth()->user()->hasAnyRole(['admin', 'super_admin']))
+                               CGP Review
+                           @endif
+                       </span>
                    @else
                        <span class="text-yellow-600 text-sm font-medium">In progress</span>
                    @endif
