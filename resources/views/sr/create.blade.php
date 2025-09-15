@@ -263,7 +263,7 @@
                @dragover.prevent="setDragging(ph.field, true)"
                @dragleave.prevent="setDragging(ph.field, false)"
                @drop.prevent="handleDrop($event, ph.field)">
-            
+
             <!-- Hidden file input -->
             <input type="file"
                    :id="`inp_${ph.field}`"
@@ -281,7 +281,7 @@
             <!-- Preview Image -->
             <template x-if="previews[ph.field] && !isPdf(ph.field)">
               <div class="relative">
-                <img :src="previews[ph.field]" 
+                <img :src="previews[ph.field]"
                      :alt="ph.label"
                      class="w-full h-40 object-cover rounded border shadow-sm">
                 <button type="button"
@@ -332,7 +332,7 @@
                   <span x-show="!dragStates[ph.field]">Drag & drop juga didukung</span>
                   <span x-show="dragStates[ph.field]">File siap di-upload</span>
                 </p>
-                
+
                 <div x-show="!customer || !reff" class="mt-3 text-xs text-red-500">
                   Isi Reference ID terlebih dahulu
                 </div>
@@ -393,9 +393,9 @@
       </div>
     </template>
   </form>
-  
+
   <!-- Preview Modal -->
-  <div x-show="showPreviewModal" 
+  <div x-show="showPreviewModal"
        x-transition:enter="transition ease-out duration-300"
        x-transition:enter-start="opacity-0"
        x-transition:enter-end="opacity-100"
@@ -405,20 +405,20 @@
        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
        @click="closePreviewModal()"
        @keydown.escape.window="closePreviewModal()">
-      
+
       <div class="max-w-4xl max-h-full p-4" @click.stop>
           <div class="relative">
-              <img :src="previewImageSrc" 
+              <img :src="previewImageSrc"
                    :alt="previewImageLabel"
                    class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl">
-              
+
               <button type="button"
                       @click="closePreviewModal()"
                       class="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-75 transition-all">
                   <i class="fas fa-times text-lg"></i>
               </button>
           </div>
-          
+
           <div class="text-center mt-4 text-white">
               <p class="text-lg font-medium" x-text="previewImageLabel"></p>
           </div>
@@ -551,15 +551,15 @@ function srCreate() {
       if (!this.customer || !this.reff) {
         return 'border-gray-200 bg-gray-50 cursor-not-allowed';
       }
-      
+
       if (this.dragStates[field]) {
         return 'border-blue-400 bg-blue-50 shadow-lg scale-105';
       }
-      
+
       if (this.previews[field]) {
         return 'border-green-300 bg-green-50';
       }
-      
+
       return 'border-gray-300 hover:border-gray-400 cursor-pointer';
     },
 
@@ -570,9 +570,9 @@ function srCreate() {
 
     handleDrop(event, field) {
       this.setDragging(field, false);
-      
+
       if (!this.customer || !this.reff) return;
-      
+
       const files = event.dataTransfer.files;
       if (files.length > 0) {
         this.processFile(files[0], field);
@@ -620,19 +620,19 @@ function srCreate() {
       // Get accepted types for this field
       const photoDef = this.photoDefs.find(p => p.field === field);
       const acceptedTypes = photoDef?.accept || ['image/*'];
-      
+
       // Validate file type
       const isValidType = acceptedTypes.some(type => {
         if (type === 'image/*') return file.type.startsWith('image/');
         if (type === 'application/pdf') return file.type === 'application/pdf';
         return file.type === type;
       });
-      
+
       if (!isValidType) {
         alert(`File type tidak didukung. Hanya menerima: ${acceptedTypes.join(', ')}`);
         return;
       }
-      
+
       // Validate file size (35MB = 35 * 1024 * 1024)
       const maxSizeBytes = 35 * 1024 * 1024;
       if (file.size > maxSizeBytes) {
@@ -646,10 +646,10 @@ function srCreate() {
         document.getElementById(`inp_${field}`).value = '';
         return;
       }
-      
+
       this.pickedFiles[field] = file;
       this.isPdfMap[field] = file.type === 'application/pdf';
-      
+
       // Create preview for images
       if (!this.isPdfMap[field]) {
         const reader = new FileReader();
@@ -660,7 +660,7 @@ function srCreate() {
       } else {
         this.previews[field] = 'pdf-placeholder';
       }
-      
+
       this.uploadStatuses[field] = 'File siap untuk diupload';
     },
 
@@ -799,7 +799,7 @@ function srCreate() {
           // Add timeout handling
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout
-          
+
           const res = await fetch(url, {
             method: 'POST',
             headers: {
@@ -809,7 +809,7 @@ function srCreate() {
             body: fd,
             signal: controller.signal
           });
-          
+
           clearTimeout(timeoutId);
 
           const j = await res.json().catch(() => ({}));

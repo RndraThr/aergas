@@ -96,7 +96,6 @@
                     <option value="admin">Admin</option>
                     <option value="sk">SK</option>
                     <option value="sr">SR</option>
-                    <option value="mgrt">MGRT</option>
                     <option value="gas_in">Gas In</option>
                     <option value="tracer">Tracer</option>
                     <option value="pic">PIC</option>
@@ -345,8 +344,7 @@
                                     <option value="admin">Admin</option>
                                     <option value="sk">SK</option>
                                     <option value="sr">SR</option>
-                                    <option value="mgrt">MGRT</option>
-                                    <option value="gas_in">Gas In</option>
+                                                    <option value="gas_in">Gas In</option>
                                     <option value="tracer">Tracer</option>
                                     <option value="pic">PIC</option>
                                     <option value="jalur">Jalur</option>
@@ -571,7 +569,7 @@ function userManagement() {
         editingUser: null,
         selectedUser: null,
         currentUserRoles: [],
-        availableRoles: ['super_admin', 'admin', 'sk', 'sr', 'mgrt', 'gas_in', 'pic', 'tracer', 'jalur'],
+        availableRoles: ['super_admin', 'admin', 'sk', 'sr', 'gas_in', 'pic', 'tracer', 'jalur'],
         roleHistory: [],
         fieldErrors: {},
         passwordChecks: {
@@ -791,7 +789,7 @@ function userManagement() {
                 this.fieldErrors.email = 'Please enter a valid email address';
             }
 
-            const validRoles = ['admin', 'sk', 'sr', 'mgrt', 'gas_in', 'tracer', 'pic', 'jalur'];
+            const validRoles = ['admin', 'sk', 'sr', 'gas_in', 'tracer', 'pic', 'jalur'];
             if (!this.form.role || !validRoles.includes(this.form.role)) {
                 errors.push('Please select a valid role');
                 this.fieldErrors.role = 'Please select a valid role';
@@ -1134,7 +1132,6 @@ function userManagement() {
                 'sk': 'bg-green-100 text-green-800',
                 'sr': 'bg-yellow-100 text-yellow-800',
                 'gas_in': 'bg-orange-100 text-orange-800',
-                'mgrt': 'bg-red-100 text-red-800',
                 'tracer': 'bg-indigo-100 text-indigo-800',
                 'pic': 'bg-pink-100 text-pink-800',
                 'jalur': 'bg-teal-100 text-teal-800'

@@ -22,7 +22,7 @@ class User extends Authenticatable
         'last_login'        => 'datetime',
         'is_active'         => 'boolean',
         'password'          => 'hashed', // Laravel 10+
-        'role'              => 'string', // super_admin, admin, sk, sr, mgrt, gas_in, pic, tracer, jalur
+        'role'              => 'string', // super_admin, admin, sk, sr, gas_in, pic, tracer, jalur
     ];
 
     // --------- Relations ---------
@@ -163,7 +163,6 @@ class User extends Authenticatable
             'customers'   => ['admin', 'tracer'],
             'sk'          => ['admin', 'sk'],
             'sr'          => ['admin', 'sr'],
-            'mgrt'        => ['admin', 'mgrt'],
             'gas_in'      => ['admin', 'gas_in'],
             'validasi'    => ['admin', 'tracer'],
             'jalur'       => ['admin', 'jalur'],

@@ -29,7 +29,6 @@ class UserRole extends Model
         'admin',
         'sk',
         'sr',
-        'mgrt',
         'gas_in',
         'pic',
         'tracer',
