@@ -47,6 +47,10 @@ class JalurLoweringController extends Controller
             $query->byTipeBongkaran($request->tipe_bongkaran);
         }
 
+        if ($request->filled('tipe_material')) {
+            $query->where('tipe_material', $request->tipe_material);
+        }
+
         $loweringData = $query->latest()->paginate(15);
         $clusters = JalurCluster::active()->get();
         $lineNumbers = JalurLineNumber::active()->with('cluster')->get();
@@ -76,6 +80,7 @@ class JalurLoweringController extends Controller
             'nama_jalan' => 'required|string|max:255',
             'tanggal_jalur' => 'required|date',
             'tipe_bongkaran' => 'required|in:Manual Boring,Open Cut,Crossing,Zinker,HDD,Manual Boring - PK,Crossing - PK',
+            'tipe_material' => 'required|in:Aspal,Tanah,Paving',
             'penggelaran' => 'required|numeric|min:0.01',
             'bongkaran' => 'required|numeric|min:0.01',
             'kedalaman_lowering' => 'required|numeric|min:1',
@@ -241,6 +246,7 @@ class JalurLoweringController extends Controller
             'nama_jalan' => 'required|string|max:255',
             'tanggal_jalur' => 'required|date',
             'tipe_bongkaran' => 'required|in:Manual Boring,Open Cut,Crossing,Zinker,HDD,Manual Boring - PK,Crossing - PK',
+            'tipe_material' => 'required|in:Aspal,Tanah,Paving',
             'penggelaran' => 'required|numeric|min:0.01',
             'bongkaran' => 'required|numeric|min:0.01',
             'kedalaman_lowering' => 'required|numeric|min:1',

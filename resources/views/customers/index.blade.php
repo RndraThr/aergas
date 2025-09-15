@@ -200,7 +200,10 @@
                     <template x-for="customer in customers" :key="customer.reff_id_pelanggan">
                         <tr class="hover:bg-gray-50 transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="font-medium text-gray-900" x-text="customer.reff_id_pelanggan"></div>
+                                <div class="font-medium text-gray-900" x-text="formatReffId(customer.reff_id_pelanggan)"></div>
+                                <div x-show="formatReffId(customer.reff_id_pelanggan) !== customer.reff_id_pelanggan" class="text-xs text-gray-500">
+                                    Original: <span x-text="customer.reff_id_pelanggan"></span>
+                                </div>
                             </td>
 
                             <td class="px-6 py-4">
@@ -419,6 +422,19 @@ function customersData() {
 
         init() {
             this.addProgressPercentage();
+        },
+
+        formatReffId(reffId) {
+            if (!reffId) return '';
+
+            const value = reffId.toString().trim();
+
+            // Check if input is exactly 6 digits
+            if (/^\d{6}$/.test(value)) {
+                return '00' + value;
+            }
+
+            return value.toUpperCase();
         },
 
         addProgressPercentage() {

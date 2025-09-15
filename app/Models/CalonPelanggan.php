@@ -185,4 +185,42 @@ class CalonPelanggan extends Model
 
         return true;
     }
+
+    /**
+     * Get formatted display Reference ID (add 00 prefix for 6-digit numbers)
+     */
+    public function getDisplayReffIdAttribute(): string
+    {
+        if (!$this->reff_id_pelanggan) {
+            return '';
+        }
+
+        $value = trim($this->reff_id_pelanggan);
+
+        // Check if input is exactly 6 digits
+        if (preg_match('/^\d{6}$/', $value)) {
+            return '00' . $value;
+        }
+
+        return strtoupper($value);
+    }
+
+    /**
+     * Static helper for formatting any reference ID
+     */
+    public static function formatReffId(?string $reffId): string
+    {
+        if (!$reffId) {
+            return '';
+        }
+
+        $value = trim($reffId);
+
+        // Check if input is exactly 6 digits
+        if (preg_match('/^\d{6}$/', $value)) {
+            return '00' . $value;
+        }
+
+        return strtoupper($value);
+    }
 }

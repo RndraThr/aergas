@@ -119,6 +119,25 @@
                     @enderror
                 </div>
 
+                <!-- Tipe Material Bongkaran -->
+                <div class="mb-6">
+                    <label for="tipe_material" class="block text-sm font-medium text-gray-700 mb-2">
+                        Tipe Material Bongkaran <span class="text-red-500">*</span>
+                    </label>
+                    <select id="tipe_material" name="tipe_material"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tipe_material') border-red-500 @enderror"
+                            required>
+                        <option value="">Pilih Tipe Material</option>
+                        <option value="Aspal" {{ old('tipe_material') === 'Aspal' ? 'selected' : '' }}>Aspal</option>
+                        <option value="Tanah" {{ old('tipe_material') === 'Tanah' ? 'selected' : '' }}>Tanah</option>
+                        <option value="Paving" {{ old('tipe_material') === 'Paving' ? 'selected' : '' }}>Paving</option>
+                    </select>
+                    @error('tipe_material')
+                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                    <p class="text-xs text-gray-500 mt-1">Pilih jenis material yang akan dibongkar untuk lowering</p>
+                </div>
+
                 <!-- Aksesoris (conditional) -->
                 <div id="aksesoris-section" class="mb-6 hidden">
                     <label class="block text-sm font-medium text-gray-700 mb-3">Aksesoris</label>

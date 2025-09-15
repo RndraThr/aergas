@@ -775,6 +775,9 @@ function skCreate() {
           const value = this.material[key];
           if (value !== '' && value !== null) {
             formData.append(key, value);
+          } else if (key !== 'qty_tee_1_2') {
+            // For required fields (all except qty_tee_1_2), send 0 if empty
+            formData.append(key, '0');
           }
         });
 

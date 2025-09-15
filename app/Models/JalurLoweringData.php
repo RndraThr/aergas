@@ -27,6 +27,7 @@ class JalurLoweringData extends BaseModuleModel
         'concrete_slab_quantity' => 'integer',
         'cassing_quantity' => 'decimal:2',
         'cassing_type' => 'string',
+        'tipe_material' => 'string',
         'tracer_approved_at' => 'datetime',
         'cgp_approved_at' => 'datetime',
     ];

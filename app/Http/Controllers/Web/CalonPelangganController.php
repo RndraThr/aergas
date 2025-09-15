@@ -354,8 +354,48 @@ class CalonPelangganController extends Controller
                 }
             }
 
-            // apply perubahan lain
-            $customer->fill($data)->save();
+            // Check if status is changing from 'pending' to 'lanjut' or 'batal'
+            $isChangingToValidated = $customer->status === 'pending' &&
+                                     isset($data['status']) &&
+                                     $data['status'] === 'lanjut';
+
+            $isChangingToRejected = $customer->status === 'pending' &&
+                                    isset($data['status']) &&
+                                    $data['status'] === 'batal';
+
+            // If validating customer, use proper validation method
+            if ($isChangingToValidated) {
+                Log::info('Customer validation: pending -> lanjut', [
+                    'reff_id' => $customer->reff_id_pelanggan,
+                    'user_id' => Auth::id(),
+                    'notes' => $request->input('validation_notes')
+                ]);
+
+                // Use model's validateCustomer method for proper validation tracking
+                $customer->validateCustomer(Auth::id(), $request->input('validation_notes'));
+
+                // Remove status from data since it's already handled by validateCustomer
+                unset($data['status']);
+            }
+            // If rejecting customer validation
+            elseif ($isChangingToRejected) {
+                Log::info('Customer validation: pending -> batal', [
+                    'reff_id' => $customer->reff_id_pelanggan,
+                    'user_id' => Auth::id(),
+                    'notes' => $request->input('validation_notes')
+                ]);
+
+                // Use model's rejectValidation method
+                $customer->rejectValidation(Auth::id(), $request->input('validation_notes'));
+
+                // Remove status from data since it's already handled by rejectValidation
+                unset($data['status']);
+            }
+
+            // Apply other changes
+            if (!empty($data)) {
+                $customer->fill($data)->save();
+            }
 
             // NOTE: jika ada tabel lain yang refer ke reff_id_pelanggan dan tidak pakai
             // ON UPDATE CASCADE, Anda perlu update manual di tabel-tabel itu.

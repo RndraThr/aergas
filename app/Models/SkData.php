@@ -216,7 +216,7 @@ class SkData extends BaseModuleModel
     public function getMaterialValidationRules(): array
     {
         return [
-            'panjang_pipa_gl_medium_m' => 'required|numeric|min:0.1|max:1000',
+            'panjang_pipa_gl_medium_m' => 'required|numeric|min:0|max:1000',
             'qty_elbow_1_2_galvanis' => 'required|integer|min:0|max:100',
             'qty_sockdraft_galvanis_1_2' => 'required|integer|min:0|max:100',
             'qty_ball_valve_1_2' => 'required|integer|min:0|max:100',

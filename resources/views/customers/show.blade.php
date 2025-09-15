@@ -14,7 +14,12 @@
 
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">{{ $customer->nama_pelanggan }}</h1>
-                <p class="text-gray-600">{{ $customer->reff_id_pelanggan }}</p>
+                <p class="text-gray-600">
+                    <span class="font-medium">{{ $customer->display_reff_id }}</span>
+                    @if($customer->display_reff_id !== $customer->reff_id_pelanggan)
+                        <span class="text-xs text-gray-500 ml-2">(Original: {{ $customer->reff_id_pelanggan }})</span>
+                    @endif
+                </p>
 
                 <div class="flex items-center space-x-4 mt-2">
                     <span class="inline-flex px-3 py-1 text-sm font-semibold rounded-full
@@ -141,7 +146,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-500">Reference ID</label>
-                        <div class="mt-1 text-sm text-gray-900">{{ $customer->reff_id_pelanggan }}</div>
+                        <div class="mt-1 text-sm text-gray-900">
+                            <span class="font-medium">{{ $customer->display_reff_id }}</span>
+                            @if($customer->display_reff_id !== $customer->reff_id_pelanggan)
+                                <span class="text-xs text-gray-500 ml-2">({{ $customer->reff_id_pelanggan }})</span>
+                            @endif
+                        </div>
                     </div>
 
                     <div>

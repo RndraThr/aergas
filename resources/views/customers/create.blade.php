@@ -45,7 +45,7 @@
                                @blur="validateReffId()"
                                :class="errors.reff_id_pelanggan ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
-                               placeholder="REF001, AGS001, etc..."
+                               placeholder="123456, REF001, AGS001, etc..."
                                required>
                         <div x-show="validatingReffId" class="absolute right-3 top-1/2 transform -translate-y-1/2">
                             <i class="fas fa-spinner animate-spin text-gray-400"></i>
@@ -54,6 +54,15 @@
                     <div x-show="errors.reff_id_pelanggan" class="mt-1 text-sm text-red-600" x-text="errors.reff_id_pelanggan"></div>
                     <div x-show="reffIdAvailable && form.reff_id_pelanggan" class="mt-1 text-sm text-green-600">
                         <i class="fas fa-check mr-1"></i>Reference ID tersedia
+                    </div>
+
+                    <!-- Preview Display -->
+                    <div x-show="form.reff_id_pelanggan && displayReffId !== form.reff_id_pelanggan" class="mt-1 text-sm text-blue-600">
+                        <i class="fas fa-eye mr-1"></i>Akan ditampilkan sebagai: <span class="font-semibold" x-text="displayReffId"></span>
+                    </div>
+
+                    <div class="mt-1 text-xs text-gray-500">
+                        💡 Tip: 6 angka (123456) akan ditampilkan sebagai "00123456" di sistem
                     </div>
                 </div>
 
@@ -146,17 +155,18 @@
             </div>
         </div>
 
+
         <div class="bg-gradient-to-r from-aergas-navy/5 to-aergas-orange/5 rounded-xl p-6 border border-aergas-orange/20">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Ringkasan Registrasi</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div>
-                    <span class="text-gray-600">Status Awal:</span>
-                    <div class="font-medium text-yellow-600">Pending Validation</div>
+                    <span class="text-gray-600">Reference ID:</span>
+                    <div class="font-medium text-aergas-navy" x-text="displayReffId || 'Belum diisi'"></div>
                 </div>
                 <div>
-                    <span class="text-gray-600">Progress:</span>
-                    <div class="font-medium text-blue-600">Validasi</div>
+                    <span class="text-gray-600">Status Awal:</span>
+                    <div class="font-medium text-yellow-600">Pending Validation</div>
                 </div>
                 <div>
                     <span class="text-gray-600">Tanggal Registrasi:</span>
@@ -243,6 +253,7 @@ function customerCreateData() {
         validatingReffId: false,
         reffIdAvailable: false,
 
+
         get formValid() {
             const hasRequiredFields = this.form.reff_id_pelanggan &&
                                     this.form.nama_pelanggan &&
@@ -253,29 +264,33 @@ function customerCreateData() {
 
             const valid = hasRequiredFields && this.reffIdAvailable && hasNoErrors;
 
-            console.log('Form validation check:', {
-                reff_id: this.form.reff_id_pelanggan,
-                nama: this.form.nama_pelanggan,
-                alamat: this.form.alamat,
-                telepon: this.form.no_telepon,
-                reffIdAvailable: this.reffIdAvailable,
-                errorsCount: Object.keys(this.errors).length,
-                errors: this.errors,
-                hasRequiredFields: hasRequiredFields,
-                hasNoErrors: hasNoErrors,
-                finalValid: valid
-            });
             return valid;
+        },
+
+        get displayReffId() {
+            if (!this.form.reff_id_pelanggan) return '';
+
+            const value = this.form.reff_id_pelanggan.toString().trim();
+
+            // Check if input is exactly 6 digits
+            if (/^\d{6}$/.test(value)) {
+                return '00' + value;
+            }
+
+            return value.toUpperCase();
         },
 
         async validateReffId() {
             if (!this.form.reff_id_pelanggan || this.form.reff_id_pelanggan.length < 3) {
                 this.reffIdAvailable = false;
+                // Clear error when field is too short
+                delete this.errors.reff_id_pelanggan;
                 return;
             }
 
             this.validatingReffId = true;
-            this.errors.reff_id_pelanggan = '';
+            // Completely remove the error instead of setting to empty string
+            delete this.errors.reff_id_pelanggan;
 
             try {
                 const response = await fetch(`/customers/validate-reff/${this.form.reff_id_pelanggan}`, {
@@ -285,52 +300,42 @@ function customerCreateData() {
                     }
                 });
 
-                console.log('Validation response status:', response.status);
-
                 if (response.status === 404) {
                     // 404 means customer not found = Reference ID is available
                     this.reffIdAvailable = true;
-                    this.errors.reff_id_pelanggan = '';
-                    console.log('Ref ID available (404)');
+                    delete this.errors.reff_id_pelanggan;
                 } else if (response.status === 200) {
                     const data = await response.json();
-                    console.log('Validation data:', data);
 
                     if (data.exists) {
                         this.reffIdAvailable = false;
                         this.errors.reff_id_pelanggan = 'Reference ID sudah digunakan';
-                        console.log('Ref ID not available (exists)');
                     } else {
                         this.reffIdAvailable = true;
-                        this.errors.reff_id_pelanggan = '';
-                        console.log('Ref ID available (not exists)');
+                        delete this.errors.reff_id_pelanggan;
                     }
                 } else {
                     // Other status codes - assume not available for safety
                     this.reffIdAvailable = false;
                     this.errors.reff_id_pelanggan = 'Error validating Reference ID';
-                    console.log('Validation error, status:', response.status);
                 }
             } catch (error) {
                 console.error('Validation error:', error);
                 // On error, assume available for better UX
                 this.reffIdAvailable = true;
-                this.errors.reff_id_pelanggan = '';
+                delete this.errors.reff_id_pelanggan;
             } finally {
                 this.validatingReffId = false;
             }
         },
 
         async submitForm() {
-            console.log('Submit form called, formValid:', this.formValid);
             if (!this.formValid) {
-                console.log('Form not valid, aborting submit');
                 return;
             }
 
             this.submitting = true;
             this.errors = {};
-            console.log('Submitting form data:', this.form);
 
             try {
                 const response = await fetch('{{ route('customers.store') }}', {
@@ -344,7 +349,6 @@ function customerCreateData() {
                 });
 
                 const data = await response.json();
-                console.log('Response data:', data);
 
                 if (data.success) {
                     window.showToast('success', 'Pelanggan berhasil didaftarkan!');
