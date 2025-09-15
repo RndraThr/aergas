@@ -188,8 +188,8 @@
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">WORKFLOW</span>
                 </div>
 
-                @if(auth()->user()->hasRole('admin'))
-                <!-- Tracer Internal Review (role admin) -->
+                @if(auth()->user()->hasAnyRole(['admin']) && !auth()->user()->hasAnyRole(['tracer', 'super_admin']))
+                <!-- Admin-only users see single Photo Review for tracer function -->
                 <a href="{{ route('approvals.tracer.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i class="fas fa-search mr-3 text-lg {{ request()->routeIs('approvals.tracer.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
@@ -202,9 +202,9 @@
                     @endif
                 </a>
                 @endif
-                
-                @if(auth()->user()->hasRole('tracer'))
-                <!-- CGP Final Review (role tracer) -->
+
+                @if(auth()->user()->hasAnyRole(['tracer']) && !auth()->user()->hasAnyRole(['admin', 'super_admin']))
+                <!-- Tracer-only users see single Photo Review for CGP function -->
                 <a href="{{ route('approvals.cgp.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i class="fas fa-clipboard-check mr-3 text-lg {{ request()->routeIs('approvals.cgp.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
@@ -218,8 +218,8 @@
                 </a>
                 @endif
 
-                @if(auth()->user()->hasRole('super_admin'))
-                <!-- Super Admin: Access to both Tracer and CGP interfaces -->
+                @if(auth()->user()->hasAnyRole(['super_admin']) || (auth()->user()->hasAnyRole(['admin']) && auth()->user()->hasAnyRole(['tracer'])))
+                <!-- Super admin or multi-role users (admin+tracer) see separate Tracer Review and CGP Review -->
                 <a href="{{ route('approvals.tracer.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i class="fas fa-search mr-3 text-lg {{ request()->routeIs('approvals.tracer.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
@@ -231,7 +231,7 @@
                         <span class="ml-auto bg-blue-500 text-white text-xs px-2 py-1 rounded-full">{{ $pendingTracer }}</span>
                     @endif
                 </a>
-                
+
                 <a href="{{ route('approvals.cgp.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i class="fas fa-clipboard-check mr-3 text-lg {{ request()->routeIs('approvals.cgp.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
