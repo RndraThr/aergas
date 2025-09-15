@@ -36,8 +36,15 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="text-sm font-semibold text-gray-900 truncate">{{ auth()->user()->name }}</div>
-                    <div class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full inline-block mt-1">
-                        {{ ucfirst(str_replace('_', ' ', auth()->user()->role)) }}
+                    <div class="flex flex-wrap gap-1 mt-1">
+                        @php
+                            $userRoles = auth()->user()->getAllActiveRoles();
+                        @endphp
+                        @foreach($userRoles as $role)
+                            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                {{ ucfirst(str_replace('_', ' ', $role)) }}
+                            </span>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -76,7 +83,7 @@
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">MODULES</span>
                 </div>
 
-                @if(in_array(auth()->user()->role, ['sk', 'tracer', 'admin', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['sk', 'tracer', 'admin', 'super_admin']))
                 <!-- SK Data -->
                 <a href="{{ route('sk.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('sk.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -90,7 +97,7 @@
                 </a>
                 @endif
 
-                @if(in_array(auth()->user()->role, ['sr', 'tracer', 'admin', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['sr', 'tracer', 'admin', 'super_admin']))
                 <!-- SR Data -->
                 <a href="{{ route('sr.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('sr.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -104,7 +111,7 @@
                 </a>
                 @endif
 
-                @if(in_array(auth()->user()->role, ['gas_in', 'tracer', 'admin', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['gas_in', 'tracer', 'admin', 'super_admin']))
                 <!-- Gas In Data -->
                 <a href="{{ route('gas-in.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('gas-in.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -118,7 +125,7 @@
                 </a>
                 @endif
 
-                @if(in_array(auth()->user()->role, ['jalur', 'admin', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['jalur', 'admin', 'super_admin']))
                 <!-- Jalur Management with Submenu -->
                 <div x-data="{ jalurOpen: {{ request()->routeIs('jalur.*') ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="jalurOpen = !jalurOpen"
@@ -163,7 +170,7 @@
                             <i class="fas fa-hashtag mr-2 text-sm"></i>
                             Joint Numbers
                         </a>
-                        @if(in_array(auth()->user()->role, ['admin', 'super_admin']))
+                        @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                         <a href="{{ route('jalur.fitting-types.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.fitting-types.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                             <i class="fas fa-cogs mr-2 text-sm"></i>
@@ -181,7 +188,7 @@
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">WORKFLOW</span>
                 </div>
 
-                @if(auth()->user()->role === 'admin')
+                @if(auth()->user()->hasRole('admin'))
                 <!-- Tracer Internal Review (role admin) -->
                 <a href="{{ route('approvals.tracer.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -196,7 +203,7 @@
                 </a>
                 @endif
                 
-                @if(auth()->user()->role === 'tracer')
+                @if(auth()->user()->hasRole('tracer'))
                 <!-- CGP Final Review (role tracer) -->
                 <a href="{{ route('approvals.cgp.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -211,7 +218,7 @@
                 </a>
                 @endif
 
-                @if(auth()->user()->role === 'super_admin')
+                @if(auth()->user()->hasRole('super_admin'))
                 <!-- Super Admin: Access to both Tracer and CGP interfaces -->
                 <a href="{{ route('approvals.tracer.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -252,7 +259,7 @@
                 </div>
 
 
-                @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
                 <!-- Import Excel -->
                 <div x-data="{ open: {{ request()->routeIs('imports.*') ? 'true' : 'false' }} }" class="relative">
                     <button @click="open = !open"
@@ -305,7 +312,7 @@
                     <span class="ml-auto text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Soon</span>
                 </a>
 
-                @if(auth()->user()->role === 'super_admin' || auth()->user()->role === 'admin')
+                @if(auth()->user()->hasAnyRole(['super_admin', 'admin']))
                     <!-- Divider -->
                     <div class="border-t border-gray-200 my-4"></div>
                     <div class="px-3 mb-2">

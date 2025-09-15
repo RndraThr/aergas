@@ -11,9 +11,14 @@
            <h1 class="text-3xl font-bold text-gray-900">Dashboard AERGAS</h1>
            <p class="text-gray-600 mt-1">
                Selamat datang kembali, <span class="font-semibold text-aergas-navy">{{ auth()->user()->name }}</span>!
-               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-aergas-orange/10 text-aergas-orange">
-                   {{ ucfirst(str_replace('_', ' ', auth()->user()->role)) }}
-               </span>
+               @php
+                   $userRoles = auth()->user()->getAllActiveRoles();
+               @endphp
+               @foreach($userRoles as $role)
+                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-aergas-orange/10 text-aergas-orange mr-1">
+                       {{ ucfirst(str_replace('_', ' ', $role)) }}
+                   </span>
+               @endforeach
            </p>
        </div>
        <div class="flex items-center space-x-3">
@@ -79,9 +84,9 @@
                        </div>
                        <div>
                            <span class="text-gray-600 text-sm font-medium">
-                               @if(in_array(auth()->user()->role, ['tracer', 'super_admin']))
+                               @if(auth()->user()->hasAnyRole(['tracer', 'super_admin']))
                                    Pending Review
-                               @elseif(in_array(auth()->user()->role, ['admin', 'super_admin']))
+                               @elseif(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                                    CGP Review
                                @else
                                    Progress
@@ -90,7 +95,7 @@
                            <div class="text-2xl font-bold text-gray-900" x-text="data.totals?.in_progress || 0">0</div>
                        </div>
                    </div>
-                   @if(in_array(auth()->user()->role, ['tracer', 'admin', 'super_admin']))
+                   @if(auth()->user()->hasAnyRole(['tracer', 'admin', 'super_admin']))
                        <a href="{{ route('photos.index') }}"
                           class="inline-flex items-center text-yellow-600 hover:text-yellow-800 text-sm font-medium transition-colors">
                            Review now <i class="fas fa-arrow-right ml-1"></i>
@@ -220,7 +225,7 @@
        </div>
 
        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-           @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
+           @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
            <div class="group p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl hover:from-blue-100 hover:to-blue-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
                 onclick="window.location.href='{{ route('customers.create') }}'">
                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
@@ -240,7 +245,7 @@
                <div class="text-xs text-gray-600 mt-1">Browse customer list</div>
            </div>
 
-           @if(in_array(auth()->user()->role, ['sk', 'tracer', 'admin', 'super_admin']))
+           @if(auth()->user()->hasAnyRole(['sk', 'tracer', 'admin', 'super_admin']))
            <div class="group p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl hover:from-green-100 hover:to-green-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
                 onclick="window.location.href='{{ route('sk.create') }}'">
                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
@@ -260,7 +265,16 @@
            </div>
            @endif
 
-           @if(in_array(auth()->user()->role, ['sr', 'tracer', 'admin', 'super_admin']))
+           @if(auth()->user()->hasAnyRole(['sr', 'tracer', 'admin', 'super_admin']))
+           <div class="group p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
+                onclick="window.location.href='{{ route('sr.create') }}'">
+               <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
+                   <i class="fas fa-plus text-white"></i>
+               </div>
+               <div class="text-sm font-semibold text-gray-900">Create SR</div>
+               <div class="text-xs text-gray-600 mt-1">New Sambungan Rumah</div>
+           </div>
+
            <div class="group p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
                 onclick="window.location.href='{{ route('sr.index') }}'">
                <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
@@ -271,7 +285,16 @@
            </div>
            @endif
 
-           @if(in_array(auth()->user()->role, ['gas_in', 'tracer', 'admin', 'super_admin']))
+           @if(auth()->user()->hasAnyRole(['gas_in', 'tracer', 'admin', 'super_admin']))
+           <div class="group p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl hover:from-orange-100 hover:to-orange-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
+                onclick="window.location.href='{{ route('gas-in.create') }}'">
+               <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
+                   <i class="fas fa-plus text-white"></i>
+               </div>
+               <div class="text-sm font-semibold text-gray-900">Create Gas In</div>
+               <div class="text-xs text-gray-600 mt-1">New Gas In entry</div>
+           </div>
+
            <div class="group p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl hover:from-orange-100 hover:to-orange-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
                 onclick="window.location.href='{{ route('gas-in.index') }}'">
                <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
@@ -282,7 +305,7 @@
            </div>
            @endif
 
-           @if(in_array(auth()->user()->role, ['tracer', 'admin', 'super_admin']))
+           @if(auth()->user()->hasAnyRole(['tracer', 'admin', 'super_admin']))
            <div class="group p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl hover:from-purple-100 hover:to-purple-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
                 onclick="window.location.href='{{ route('photos.index') }}'">
                <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
@@ -426,7 +449,7 @@
        </div>
    </div>
 
-   @if(in_array(auth()->user()->role, ['tracer', 'super_admin']))
+   @if(auth()->user()->hasAnyRole(['tracer', 'super_admin']))
    <div class="bg-gradient-to-r from-aergas-navy/5 to-aergas-orange/5 rounded-xl p-6 border border-aergas-orange/20">
        <h3 class="text-lg font-semibold text-gray-900 mb-4">Tracer Dashboard</h3>
        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -446,7 +469,7 @@
    </div>
    @endif
 
-   @if(in_array(auth()->user()->role, ['admin', 'super_admin']))
+   @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
    <div class="bg-gradient-to-r from-aergas-navy/5 to-aergas-orange/5 rounded-xl p-6 border border-aergas-orange/20">
        <h3 class="text-lg font-semibold text-gray-900 mb-4">Admin Dashboard</h3>
        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
