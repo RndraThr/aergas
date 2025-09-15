@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserRole;
 use App\Models\CalonPelanggan;
 use App\Models\PhotoApproval;
 use App\Models\SkData;
@@ -14,6 +15,7 @@ use App\Models\AuditLog;
 use App\Services\TelegramService;
 use App\Services\OpenAIService;
 use App\Services\GoogleDriveService;
+use App\Traits\HasMultiRoleAuth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
@@ -24,6 +26,8 @@ use Exception;
 
 class AdminController extends Controller
 {
+    use HasMultiRoleAuth;
+
     private TelegramService $telegramService;
     private OpenAIService $openAIService;
 
@@ -637,5 +641,288 @@ class AdminController extends Controller
             $i++;
         }
         return number_format($bytes, 2) . ' ' . $units[$i];
+    }
+
+    // ============== MULTI-ROLE MANAGEMENT ==============
+
+    /**
+     * Get user with all roles
+     */
+    public function getUserWithRoles(int $id): JsonResponse
+    {
+        try {
+            $user = User::with(['activeRoles', 'userRoles.assignedByUser'])
+                ->findOrFail($id);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'user' => $user,
+                    'active_roles' => $user->activeRoles->pluck('role')->toArray(),
+                    'all_roles' => $user->userRoles()->with('assignedByUser')->get(),
+                    'available_roles' => UserRole::AVAILABLE_ROLES,
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+    }
+
+    /**
+     * Assign role to user
+     */
+    public function assignRoleToUser(Request $request, int $id): JsonResponse
+    {
+        $roleCheck = $this->requiresAnyRole(['super_admin', 'admin']);
+        if ($roleCheck !== true) return $roleCheck;
+
+        $validator = Validator::make($request->all(), [
+            'role' => 'required|in:' . implode(',', UserRole::AVAILABLE_ROLES),
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $user = User::findOrFail($id);
+            $role = $request->role;
+
+            // Prevent non-super-admin from assigning super_admin role
+            if ($role === 'super_admin' && !$request->user()->isSuperAdmin()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only super admin can assign super admin role'
+                ], 403);
+            }
+
+            $userRole = $user->assignRole($role, $request->user()->id);
+
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'assign_role',
+                'model_type' => 'User',
+                'model_id' => $user->id,
+                'description' => "Assigned role '{$role}' to user {$user->username}",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Role '{$role}' assigned successfully",
+                'data' => $userRole
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error assigning role', [
+                'user_id' => $id,
+                'role' => $request->role,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to assign role'
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove role from user
+     */
+    public function removeRoleFromUser(Request $request, int $id): JsonResponse
+    {
+        $roleCheck = $this->requiresAnyRole(['super_admin', 'admin']);
+        if ($roleCheck !== true) return $roleCheck;
+
+        $validator = Validator::make($request->all(), [
+            'role' => 'required|in:' . implode(',', UserRole::AVAILABLE_ROLES),
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $user = User::findOrFail($id);
+            $role = $request->role;
+
+            // Prevent removing super_admin from super_admin unless requester is also super_admin
+            if ($role === 'super_admin' && !$request->user()->isSuperAdmin()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only super admin can remove super admin role'
+                ], 403);
+            }
+
+            $removed = $user->removeRole($role);
+
+            if ($removed) {
+                AuditLog::create([
+                    'user_id' => $request->user()->id,
+                    'action' => 'remove_role',
+                    'model_type' => 'User',
+                    'model_id' => $user->id,
+                    'description' => "Removed role '{$role}' from user {$user->username}",
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => "Role '{$role}' removed successfully"
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => "User does not have role '{$role}'"
+                ], 422);
+            }
+
+        } catch (Exception $e) {
+            Log::error('Error removing role', [
+                'user_id' => $id,
+                'role' => $request->role,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to remove role'
+            ], 500);
+        }
+    }
+
+    /**
+     * Sync user roles (replace all roles with new set)
+     */
+    public function syncUserRoles(Request $request, int $id): JsonResponse
+    {
+        $roleCheck = $this->requiresAnyRole(['super_admin', 'admin']);
+        if ($roleCheck !== true) return $roleCheck;
+
+        $validator = Validator::make($request->all(), [
+            'roles' => 'required|array',
+            'roles.*' => 'in:' . implode(',', UserRole::AVAILABLE_ROLES),
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $user = User::findOrFail($id);
+            $newRoles = $request->roles;
+
+            // Prevent non-super-admin from assigning super_admin role
+            if (in_array('super_admin', $newRoles) && !$request->user()->isSuperAdmin()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only super admin can assign super admin role'
+                ], 403);
+            }
+
+            DB::beginTransaction();
+
+            $oldRoles = $user->getAllActiveRoles();
+            $user->syncRoles($newRoles, $request->user()->id);
+
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'sync_roles',
+                'model_type' => 'User',
+                'model_id' => $user->id,
+                'old_values' => ['roles' => $oldRoles],
+                'new_values' => ['roles' => $newRoles],
+                'description' => "Synced roles for user {$user->username}",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User roles updated successfully',
+                'data' => [
+                    'old_roles' => $oldRoles,
+                    'new_roles' => $newRoles,
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Error syncing user roles', [
+                'user_id' => $id,
+                'roles' => $request->roles,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update user roles'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all users with their active roles
+     */
+    public function getUsersWithRoles(Request $request): JsonResponse
+    {
+        try {
+            $query = User::with(['activeRoles']);
+
+            // Filter by role
+            if ($request->filled('role')) {
+                $query->whereHas('activeRoles', function ($q) use ($request) {
+                    $q->where('role', $request->role);
+                });
+            }
+
+            // Filter by active status
+            if ($request->filled('is_active')) {
+                $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
+            }
+
+            // Search
+            if ($request->filled('search')) {
+                $s = $request->search;
+                $query->where(function ($q) use ($s) {
+                    $q->where('full_name', 'LIKE', "%{$s}%")
+                      ->orWhere('username', 'LIKE', "%{$s}%")
+                      ->orWhere('email', 'LIKE', "%{$s}%");
+                });
+            }
+
+            $users = $query->orderBy('full_name')
+                          ->paginate((int) $request->get('per_page', 15));
+
+            return response()->json([
+                'success' => true,
+                'data' => $users,
+                'available_roles' => UserRole::AVAILABLE_ROLES,
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error fetching users with roles', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch users'
+            ], 500);
+        }
     }
 }

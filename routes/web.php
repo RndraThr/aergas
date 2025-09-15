@@ -59,6 +59,21 @@ Route::middleware('auth')->group(function () {
                     Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])
                         ->whereNumber('id')
                         ->name('users.delete');
+
+                    // Multi-role management routes
+                    Route::get('/users-with-roles', [AdminController::class, 'getUsersWithRoles'])->name('users.with-roles');
+                    Route::get('/users/{id}/roles', [AdminController::class, 'getUserWithRoles'])
+                        ->whereNumber('id')
+                        ->name('users.roles');
+                    Route::post('/users/{id}/roles/assign', [AdminController::class, 'assignRoleToUser'])
+                        ->whereNumber('id')
+                        ->name('users.roles.assign');
+                    Route::delete('/users/{id}/roles/remove', [AdminController::class, 'removeRoleFromUser'])
+                        ->whereNumber('id')
+                        ->name('users.roles.remove');
+                    Route::put('/users/{id}/roles/sync', [AdminController::class, 'syncUserRoles'])
+                        ->whereNumber('id')
+                        ->name('users.roles.sync');
                     Route::get('/system-stats', [AdminController::class, 'getSystemStats'])->name('system-stats');
                     Route::get('/test-integrations', [AdminController::class, 'testIntegrations'])->name('test-integrations');
                     Route::get('/google-drive-stats', [AdminController::class, 'getGoogleDriveStats'])->name('google-drive-stats');

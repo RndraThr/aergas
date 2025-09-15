@@ -6,6 +6,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class User extends Authenticatable
 {
@@ -33,6 +34,16 @@ class User extends Authenticatable
     public function cgpApprovedPhotos(): HasMany
     {
         return $this->hasMany(PhotoApproval::class, 'cgp_user_id');
+    }
+
+    public function userRoles(): HasMany
+    {
+        return $this->hasMany(UserRole::class);
+    }
+
+    public function activeRoles(): HasMany
+    {
+        return $this->hasMany(UserRole::class)->where('is_active', true);
     }
 
     // --------- Role helpers ---------
@@ -65,8 +76,15 @@ class User extends Authenticatable
 
     public function hasRole(string $role): bool
     {
-        // Super admin lewat semua
+        // Super admin lewat semua (dari single role atau multi-role)
         if ($this->isSuperAdmin()) return true;
+
+        // Check multi-role system first
+        if ($this->activeRoles()->where('role', $role)->exists()) {
+            return true;
+        }
+
+        // Fallback to single role system (backward compatibility)
         return $this->role === $role;
     }
 
@@ -76,8 +94,64 @@ class User extends Authenticatable
             // dukung pemisah koma/pipe/titik koma
             $roles = array_map('trim', preg_split('/[,\|;]+/', $roles));
         }
+
+        // Super admin lewat semua
         if ($this->isSuperAdmin()) return true;
+
+        // Check multi-role system first
+        if ($this->activeRoles()->whereIn('role', $roles)->exists()) {
+            return true;
+        }
+
+        // Fallback to single role system (backward compatibility)
         return in_array($this->role, $roles, true);
+    }
+
+    public function getAllActiveRoles(): array
+    {
+        $multiRoles = $this->activeRoles()->pluck('role')->toArray();
+
+        // If no multi-roles, fallback to single role
+        if (empty($multiRoles) && $this->role) {
+            return [$this->role];
+        }
+
+        return $multiRoles;
+    }
+
+    public function assignRole(string $role, ?int $assignedBy = null): UserRole
+    {
+        return UserRole::firstOrCreate([
+            'user_id' => $this->id,
+            'role' => $role,
+        ], [
+            'is_active' => true,
+            'assigned_at' => now(),
+            'assigned_by' => $assignedBy,
+        ]);
+    }
+
+    public function removeRole(string $role): bool
+    {
+        return $this->userRoles()->where('role', $role)->delete() > 0;
+    }
+
+    public function syncRoles(array $roles, ?int $assignedBy = null): void
+    {
+        // Deactivate all current roles
+        $this->userRoles()->update(['is_active' => false]);
+
+        // Assign new roles
+        foreach ($roles as $role) {
+            UserRole::updateOrCreate([
+                'user_id' => $this->id,
+                'role' => $role,
+            ], [
+                'is_active' => true,
+                'assigned_at' => now(),
+                'assigned_by' => $assignedBy,
+            ]);
+        }
     }
 
     // Akses modul (dipakai di Blade: canAccessModule('sk'), dll)
@@ -97,6 +171,10 @@ class User extends Authenticatable
             'penyambungan'=> ['admin', 'sr'],       // sesuaikan
         ];
 
-        return in_array($this->role, $map[$module] ?? [], true);
+        $allowedRoles = $map[$module] ?? [];
+
+        // Check multi-role system
+        $userRoles = $this->getAllActiveRoles();
+        return !empty(array_intersect($userRoles, $allowedRoles));
     }
 }
