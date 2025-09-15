@@ -60,8 +60,16 @@ class AdminController extends Controller
         try {
             $query = User::query();
 
+            // Filter by role (multi-role support)
             if ($request->filled('role')) {
-                $query->where('role', $request->role);
+                $query->where(function ($q) use ($request) {
+                    // Check multi-role system first
+                    $q->whereHas('activeRoles', function ($roleQuery) use ($request) {
+                        $roleQuery->where('role', $request->role);
+                    })
+                    // Fallback to single role system for backward compatibility
+                    ->orWhere('role', $request->role);
+                });
             }
             if ($request->filled('is_active')) {
                 $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
@@ -483,11 +491,31 @@ class AdminController extends Controller
 
     private function getUserStats(): array
     {
+        // Get role counts from multi-role system
+        $roleStats = UserRole::where('is_active', true)
+            ->selectRaw('role, COUNT(DISTINCT user_id) as count')
+            ->groupBy('role')
+            ->pluck('count', 'role')
+            ->toArray();
+
+        // Add users who don't have multi-roles (fallback to primary role)
+        $usersWithoutMultiRoles = User::whereDoesntHave('activeRoles')
+            ->whereNotNull('role')
+            ->selectRaw('role, COUNT(*) as count')
+            ->groupBy('role')
+            ->pluck('count', 'role')
+            ->toArray();
+
+        // Merge role stats
+        foreach ($usersWithoutMultiRoles as $role => $count) {
+            $roleStats[$role] = ($roleStats[$role] ?? 0) + $count;
+        }
+
         return [
             'total'        => User::count(),
             'active'       => User::where('is_active', true)->count(),
             'inactive'     => User::where('is_active', false)->count(),
-            'by_role'      => User::selectRaw('role, COUNT(*) as count')->groupBy('role')->pluck('count','role')->toArray(),
+            'by_role'      => $roleStats,
             'recent_logins'=> User::whereNotNull('last_login')->where('last_login','>=',now()->subDays(7))->count(),
         ];
     }
@@ -911,9 +939,13 @@ class AdminController extends Controller
             $users = $query->orderBy('full_name')
                           ->paginate((int) $request->get('per_page', 15));
 
+            // Get comprehensive user stats
+            $stats = $this->getUserStats();
+
             return response()->json([
                 'success' => true,
                 'data' => $users,
+                'stats' => $stats,
                 'available_roles' => UserRole::AVAILABLE_ROLES,
             ]);
 
