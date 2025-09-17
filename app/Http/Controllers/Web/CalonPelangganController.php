@@ -80,7 +80,8 @@ class CalonPelangganController extends Controller
                 'in_progress_customers' => CalonPelanggan::whereIn('status', ['in_progress', 'lanjut'])
                                                        ->whereNotIn('progress_status', ['done', 'batal'])
                                                        ->count(),
-                'completed_cancelled'   => CalonPelanggan::whereIn('progress_status', ['done', 'batal'])
+                'completed_customers'   => CalonPelanggan::where('progress_status', 'done')->count(),
+                'cancelled_customers'   => CalonPelanggan::where('progress_status', 'batal')
                                                        ->orWhere('status', 'batal')
                                                        ->count(),
             ];

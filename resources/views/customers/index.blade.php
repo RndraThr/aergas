@@ -35,7 +35,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <x-stat-card
             title="Total Pelanggan"
             :value="$stats['total_customers'] ?? 0"
@@ -64,11 +64,18 @@
             description="Pelanggan sedang dalam tahap SK/SR/Gas In"
         />
         <x-stat-card
-            title="Selesai/Batal"
-            :value="$stats['completed_cancelled'] ?? 0"
-            icon="fas fa-flag-checkered"
-            color="gray"
-            description="Pelanggan selesai atau dibatalkan"
+            title="Selesai"
+            :value="$stats['completed_customers'] ?? 0"
+            icon="fas fa-check-circle"
+            color="green"
+            description="Pelanggan telah selesai (done)"
+        />
+        <x-stat-card
+            title="Batal"
+            :value="$stats['cancelled_customers'] ?? 0"
+            icon="fas fa-times-circle"
+            color="red"
+            description="Pelanggan dibatalkan"
         />
     </div>
 
@@ -128,6 +135,16 @@
                     :class="quickFilter === 'in_progress' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
                     class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
                 <i class="fas fa-tasks mr-1"></i> Dalam Proses
+            </button>
+            <button @click="setQuickFilter('completed')"
+                    :class="quickFilter === 'completed' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
+                <i class="fas fa-check-circle mr-1"></i> Selesai
+            </button>
+            <button @click="setQuickFilter('cancelled')"
+                    :class="quickFilter === 'cancelled' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    class="px-3 py-1 rounded-full text-sm font-medium transition-colors">
+                <i class="fas fa-times-circle mr-1"></i> Batal
             </button>
             <button @click="setQuickFilter('today')"
                     :class="quickFilter === 'today' ? 'bg-aergas-orange text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
@@ -537,6 +554,12 @@ function customersData() {
                     break;
                 case 'in_progress':
                     this.filters.status = 'in_progress';
+                    break;
+                case 'completed':
+                    this.filters.progress_status = 'done';
+                    break;
+                case 'cancelled':
+                    this.filters.progress_status = 'batal';
                     break;
                 case 'today':
                     this.filters.date_from = new Date().toISOString().split('T')[0];
