@@ -139,7 +139,14 @@
                     </button>
 
                     <!-- Submenu -->
-                    <div x-show="jalurOpen" x-collapse class="space-y-1 ml-6 mt-1">
+                    <div x-show="jalurOpen"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 transform -translate-y-1"
+                         x-transition:enter-end="opacity-100 transform translate-y-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 transform translate-y-0"
+                         x-transition:leave-end="opacity-0 transform -translate-y-1"
+                         class="space-y-1 ml-6 mt-1">
                         <a href="{{ route('jalur.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.index') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                             <i class="fas fa-chart-line mr-2 text-sm"></i>
@@ -250,6 +257,18 @@
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('notifications.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i class="fas fa-bell mr-3 text-lg {{ request()->routeIs('notifications.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                     Notifications
+                </a>
+
+                <!-- Reports -->
+                <a href="{{ route('reports.dashboard') }}"
+                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('reports.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                    <i class="fas fa-chart-bar mr-3 text-lg {{ request()->routeIs('reports.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    Reports
+                    @if(request()->routeIs('reports.*'))
+                        <div class="ml-auto">
+                            <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
+                        </div>
+                    @endif
                 </a>
 
                 <!-- Divider -->

@@ -213,7 +213,7 @@
                                     </div>
                                     <div>
                                         <div class="text-sm font-medium text-gray-900" x-text="customer.nama_pelanggan"></div>
-                                        <div class="text-sm text-gray-500" x-text="customer.jenis_pelanggan || 'residensial'"></div>
+                                        <div class="text-sm text-gray-500" x-text="customer.jenis_pelanggan || 'pengembangan'"></div>
                                     </div>
                                 </div>
                             </td>

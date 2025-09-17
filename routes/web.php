@@ -2,18 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController};
+use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController};
 
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
 });
 
-// Temporary debug route - remove in production
-Route::get('/test-comprehensive', function () {
-    $controller = new \App\Http\Controllers\Web\JalurController();
-    $request = new \Illuminate\Http\Request(['type' => 'comprehensive']);
-    return $controller->getReportData($request);
-});
 
 Route::pattern('id', '[0-9]+');
 Route::get('/auth/check', [AuthController::class, 'check'])->name('auth.check');
@@ -33,6 +27,52 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/data', [DashboardController::class, 'getData'])->name('dashboard.data');
     Route::get('/dashboard/installation-trend', [DashboardController::class, 'getInstallationTrend'])->name('dashboard.installation-trend');
     Route::get('/dashboard/activity-metrics', [DashboardController::class, 'getActivityMetrics'])->name('dashboard.activity-metrics');
+
+    // Report Dashboard Routes
+    Route::get('/reports/test', function() {
+        // Auto login test user for testing
+        $testUser = \App\Models\User::where('email', 'test@test.com')->first();
+        if (!$testUser) {
+            return response()->json(['error' => 'Test user not found'], 404);
+        }
+
+        \Illuminate\Support\Facades\Auth::login($testUser);
+
+        // Test the actual controller method to catch errors
+        try {
+            $controller = new \App\Http\Controllers\Web\ReportDashboardController();
+            $request = new \Illuminate\Http\Request(['ajax' => true]);
+            $response = $controller->index($request);
+
+            $data = null;
+            if ($response instanceof \Illuminate\Http\JsonResponse) {
+                $responseData = $response->getData(true);
+                $data = $responseData['data'] ?? null;
+            }
+
+            return response()->json([
+                'test' => 'Reports controller working',
+                'user' => auth()->user()?->name,
+                'response_type' => get_class($response),
+                'has_data' => $response instanceof \Illuminate\Http\JsonResponse,
+                'evidence_counts' => [
+                    'sk' => $data['module_stats']['sk']['evidence_uploaded']['total'] ?? 'not found',
+                    'sr' => $data['module_stats']['sr']['evidence_uploaded']['total'] ?? 'not found',
+                    'gas_in' => $data['module_stats']['gas_in']['evidence_uploaded']['total'] ?? 'not found',
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'test' => 'Reports controller ERROR',
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => basename($e->getFile()),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    });
+    Route::get('/reports', [ReportDashboardController::class, 'index'])->name('reports.dashboard');
+    Route::get('/reports/export', [ReportDashboardController::class, 'export'])->name('reports.export');
 
     // Admin Routes
     Route::middleware(['role:super_admin,admin'])
@@ -568,45 +608,6 @@ Route::middleware('auth')->group(function () {
             Route::post('/modules/approve', [TracerApprovalController::class, 'approveModule'])->name('approve-module');
             Route::post('/ai-review', [TracerApprovalController::class, 'aiReview'])->name('ai-review');
 
-            // Debug route (temporary)
-            Route::get('/debug', function () {
-                $customers = \App\Models\CalonPelanggan::with(['skData', 'srData', 'gasInData'])
-                    ->limit(10)
-                    ->get();
-                $photos = \App\Models\PhotoApproval::limit(10)->get(['id', 'reff_id_pelanggan', 'module_name', 'photo_field_name', 'photo_url', 'photo_status']);
-                $customer416009 = \App\Models\CalonPelanggan::with(['skData'])
-                    ->where('reff_id_pelanggan', '416009')
-                    ->first();
-                $sk416009 = \App\Models\SkData::where('reff_id_pelanggan', '416009')->first();
-
-                return response()->json([
-                    'customers_count' => $customers->count(),
-                    'photos_count' => $photos->count(),
-                    'customer_416009_exists' => !is_null($customer416009),
-                    'customer_416009_has_sk' => $customer416009 ? !is_null($customer416009->skData) : false,
-                    'sk_416009_direct' => !is_null($sk416009),
-                    'customers' => $customers->map(function ($c) {
-                        return [
-                            'reff_id' => $c->reff_id_pelanggan,
-                            'has_sk' => !is_null($c->skData),
-                            'sk_tracer_approved' => $c->skData ? $c->skData->tracer_approved_at : null,
-                            'has_sr' => !is_null($c->srData),
-                            'has_gas_in' => !is_null($c->gasInData),
-                        ];
-                    }),
-                    'photos' => $photos->map(function ($p) {
-                        return [
-                            'id' => $p->id,
-                            'reff_id' => $p->reff_id_pelanggan,
-                            'module' => $p->module_name,
-                            'field' => $p->photo_field_name,
-                            'url' => $p->photo_url,
-                            'url_length' => strlen($p->photo_url ?? ''),
-                            'status' => $p->photo_status,
-                        ];
-                    }),
-                ]);
-            })->name('debug');
         });
 
     // CGP Approval Interface Routes (untuk role tracer sebagai CGP Review)

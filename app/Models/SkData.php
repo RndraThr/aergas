@@ -9,6 +9,53 @@ use Illuminate\Support\Facades\Schema;
 use App\Models\FileStorage;
 use App\Models\PhotoApproval;
 
+/**
+ * Class SkData
+ *
+ * @property int $id
+ * @property string $reff_id_pelanggan
+ * @property string|null $nomor_sk
+ * @property string $status
+ * @property string|null $module_status
+ * @property string|null $overall_photo_status
+ * @property \Carbon\Carbon|null $tanggal_instalasi
+ * @property string|null $notes
+ * @property string|null $ai_overall_status
+ * @property \Carbon\Carbon|null $ai_checked_at
+ * @property \Carbon\Carbon|null $tracer_approved_at
+ * @property int|null $tracer_approved_by
+ * @property string|null $tracer_notes
+ * @property \Carbon\Carbon|null $cgp_approved_at
+ * @property int|null $cgp_approved_by
+ * @property string|null $cgp_notes
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property float|null $panjang_pipa_gl_medium_m
+ * @property int|null $qty_elbow_1_2_galvanis
+ * @property int|null $qty_sockdraft_galvanis_1_2
+ * @property int|null $qty_ball_valve_1_2
+ * @property int|null $qty_nipel_selang_1_2
+ * @property int|null $qty_elbow_reduce_3_4_1_2
+ * @property int|null $qty_long_elbow_3_4_male_female
+ * @property int|null $qty_klem_pipa_1_2
+ * @property int|null $qty_double_nipple_1_2
+ * @property int|null $qty_seal_tape
+ * @property int|null $qty_tee_1_2
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ * @property \Carbon\Carbon|null $deleted_at
+ *
+ * @property-read \App\Models\CalonPelanggan|null $calonPelanggan
+ * @property-read \App\Models\User|null $createdBy
+ * @property-read \App\Models\User|null $updatedBy
+ * @property-read \App\Models\User|null $tracerApprovedBy
+ * @property-read \App\Models\User|null $cgpApprovedBy
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\PhotoApproval[] $photoApprovals
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\FileStorage[] $files
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\AuditLog[] $auditLogs
+ * @property-read string $status_badge
+ * @property-read array $material_summary
+ */
 class SkData extends BaseModuleModel
 {
     use SoftDeletes;

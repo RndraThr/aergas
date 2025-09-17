@@ -144,6 +144,11 @@
                      title="Edit SK">
                     <i class="fas fa-edit mr-1"></i>Edit
                   </a>
+                  <button onclick="confirmDelete({{ $row->id }}, '{{ $row->reff_id_pelanggan }}')"
+                          class="px-3 py-1.5 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                          title="Hapus SK">
+                    <i class="fas fa-trash mr-1"></i>Hapus
+                  </button>
                 @endif
               </div>
             </td>
@@ -173,4 +178,175 @@
     </div>
   @endif
 </div>
+
+{{-- Delete Confirmation Modal --}}
+<div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center transition-opacity duration-300">
+  <div id="deleteModalContent" class="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 scale-95 opacity-0">
+    <div class="flex items-center mb-4">
+      <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900">Konfirmasi Hapus</h3>
+        <p class="text-sm text-gray-600">Tindakan ini tidak dapat dibatalkan</p>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <p class="text-gray-700">
+        Apakah Anda yakin ingin menghapus SK dengan Reff ID:
+        <span id="deleteReffId" class="font-semibold text-red-600"></span>?
+      </p>
+      <p class="text-sm text-gray-500 mt-2">
+        Semua data terkait termasuk foto dan approval history akan terhapus permanent.
+      </p>
+    </div>
+
+    <div class="flex gap-3">
+      <button onclick="closeDeleteModal()"
+              class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+        <i class="fas fa-times mr-2"></i>Batal
+      </button>
+      <button id="deleteButton" onclick="executeDelete()"
+              class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+        <i class="fas fa-trash mr-2"></i>Hapus
+      </button>
+    </div>
+  </div>
+</div>
+
+{{-- Success Toast --}}
+<div id="successToast" class="fixed top-4 right-4 bg-green-600 text-white px-6 py-4 rounded-lg shadow-2xl transform translate-x-full transition-transform duration-300 z-50">
+  <div class="flex items-center">
+    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
+      <i class="fas fa-check text-white"></i>
+    </div>
+    <div>
+      <p class="font-semibold">Data Berhasil Dihapus</p>
+      <p class="text-sm text-green-100">SK telah dihapus dari sistem</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let deleteId = null;
+let isDeleting = false;
+
+function confirmDelete(id, reffId) {
+  deleteId = id;
+  document.getElementById('deleteReffId').textContent = reffId;
+  showDeleteModal();
+}
+
+function showDeleteModal() {
+  const modal = document.getElementById('deleteModal');
+  const modalContent = document.getElementById('deleteModalContent');
+
+  modal.classList.remove('hidden');
+
+  // Trigger animation after DOM update
+  setTimeout(() => {
+    modal.classList.remove('bg-opacity-50');
+    modal.classList.add('bg-opacity-50');
+    modalContent.classList.remove('scale-95', 'opacity-0');
+    modalContent.classList.add('scale-100', 'opacity-100');
+  }, 10);
+}
+
+function closeDeleteModal() {
+  if (isDeleting) return; // Prevent closing during delete operation
+
+  const modal = document.getElementById('deleteModal');
+  const modalContent = document.getElementById('deleteModalContent');
+
+  modalContent.classList.remove('scale-100', 'opacity-100');
+  modalContent.classList.add('scale-95', 'opacity-0');
+
+  setTimeout(() => {
+    modal.classList.add('hidden');
+    deleteId = null;
+  }, 300);
+}
+
+async function executeDelete() {
+  if (!deleteId || isDeleting) return;
+
+  isDeleting = true;
+  const deleteButton = document.getElementById('deleteButton');
+  const originalContent = deleteButton.innerHTML;
+
+  // Show loading state
+  deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menghapus...';
+  deleteButton.disabled = true;
+  deleteButton.classList.add('cursor-not-allowed', 'opacity-75');
+
+  try {
+    // Use fetch for better control
+    const response = await fetch(`/sk/${deleteId}`, {
+      method: 'DELETE',
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      }
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      // Close modal with animation
+      closeDeleteModal();
+
+      // Show success toast
+      showSuccessToast();
+
+      // Wait for modal to close, then refresh page
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    } else {
+      throw new Error('Delete failed');
+    }
+  } catch (error) {
+    console.error('Delete error:', error);
+
+    // Reset button state
+    deleteButton.innerHTML = originalContent;
+    deleteButton.disabled = false;
+    deleteButton.classList.remove('cursor-not-allowed', 'opacity-75');
+
+    // Show error (you can enhance this with an error toast)
+    alert('Terjadi kesalahan saat menghapus data. Silakan coba lagi.');
+  } finally {
+    isDeleting = false;
+  }
+}
+
+function showSuccessToast() {
+  const toast = document.getElementById('successToast');
+  toast.classList.remove('translate-x-full');
+  toast.classList.add('translate-x-0');
+
+  // Auto hide after 3 seconds
+  setTimeout(() => {
+    toast.classList.remove('translate-x-0');
+    toast.classList.add('translate-x-full');
+  }, 3000);
+}
+
+// Close modal when clicking outside (only if not deleting)
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this && !isDeleting) {
+    closeDeleteModal();
+  }
+});
+
+// Close modal with ESC key (only if not deleting)
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && !isDeleting) {
+    closeDeleteModal();
+  }
+});
+</script>
+
 @endsection

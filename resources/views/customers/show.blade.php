@@ -166,7 +166,7 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-500">Jenis Pelanggan</label>
-                        <div class="mt-1 text-sm text-gray-900">{{ ucfirst($customer->jenis_pelanggan ?? 'residensial') }}</div>
+                        <div class="mt-1 text-sm text-gray-900">{{ ucfirst(str_replace('_', ' ', $customer->jenis_pelanggan ?? 'pengembangan')) }}</div>
                     </div>
 
                     <div>

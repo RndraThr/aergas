@@ -7,6 +7,40 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Class GasInData
+ *
+ * @property int $id
+ * @property string $reff_id_pelanggan
+ * @property string $status
+ * @property string|null $module_status
+ * @property string|null $overall_photo_status
+ * @property \Carbon\Carbon|null $tanggal_gas_in
+ * @property string|null $notes
+ * @property string|null $ai_overall_status
+ * @property \Carbon\Carbon|null $ai_checked_at
+ * @property \Carbon\Carbon|null $tracer_approved_at
+ * @property int|null $tracer_approved_by
+ * @property string|null $tracer_notes
+ * @property \Carbon\Carbon|null $cgp_approved_at
+ * @property int|null $cgp_approved_by
+ * @property string|null $cgp_notes
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ * @property \Carbon\Carbon|null $deleted_at
+ *
+ * @property-read \App\Models\CalonPelanggan|null $calonPelanggan
+ * @property-read \App\Models\User|null $createdBy
+ * @property-read \App\Models\User|null $updatedBy
+ * @property-read \App\Models\User|null $tracerApprovedBy
+ * @property-read \App\Models\User|null $cgpApprovedBy
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\PhotoApproval[] $photoApprovals
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\FileStorage[] $files
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\AuditLog[] $auditLogs
+ * @property-read string $status_badge
+ */
 class GasInData extends BaseModuleModel
 {
    use SoftDeletes;

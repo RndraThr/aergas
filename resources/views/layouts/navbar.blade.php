@@ -12,6 +12,13 @@
       </div>
 
       <div class="flex items-center gap-3">
+        {{-- Reports --}}
+        <a href="{{ route('reports.dashboard') }}"
+           class="relative inline-flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100"
+           title="Reports">
+          <i class="fa-solid fa-chart-line"></i>
+        </a>
+
         {{-- Notifications --}}
         <a href="{{ route('notifications.index') }}"
            class="relative inline-flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100"
@@ -53,6 +60,9 @@
               </a>
               <a href="{{ route('dashboard') }}" class="block px-3 py-2 text-sm hover:bg-gray-50">
                 <i class="fa-solid fa-gauge-high mr-2"></i> Dashboard
+              </a>
+              <a href="{{ route('reports.dashboard') }}" class="block px-3 py-2 text-sm hover:bg-gray-50">
+                <i class="fa-solid fa-chart-line mr-2"></i> Reports
               </a>
             </div>
             <div class="py-1 border-t">

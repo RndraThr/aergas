@@ -138,9 +138,67 @@ class GasInDataController extends Controller
    public function destroy(GasInData $gasIn)
    {
        $old = $gasIn->toArray();
-       $gasIn->delete();
-       $this->audit('delete', $gasIn, $old, []);
-       return response()->json(['success'=>true, 'deleted'=>true]);
+
+       try {
+           // Get all related photos/files
+           $photoApprovals = $gasIn->photoApprovals;
+
+           // Track file IDs and folder paths for deletion
+           $fileIdsToDelete = [];
+           $folderPathsToDelete = [];
+
+           foreach ($photoApprovals as $photo) {
+               // Collect Google Drive file IDs
+               if ($photo->drive_file_id) {
+                   $fileIdsToDelete[] = $photo->drive_file_id;
+               }
+
+               // Collect folder paths (extract folder path from storage_path)
+               if ($photo->storage_path) {
+                   // Extract folder path (everything before the filename)
+                   $folderPath = dirname($photo->storage_path);
+                   if ($folderPath && $folderPath !== '.' && !in_array($folderPath, $folderPathsToDelete)) {
+                       $folderPathsToDelete[] = $folderPath;
+                   }
+               }
+           }
+
+           // Delete the database record first
+           $gasIn->delete();
+
+           // Delete files from Google Drive
+           if (!empty($fileIdsToDelete)) {
+               $this->deleteFilesFromDrive($fileIdsToDelete);
+           }
+
+           // Delete folders from Google Drive (if empty)
+           if (!empty($folderPathsToDelete)) {
+               $this->deleteFoldersFromDrive($folderPathsToDelete);
+           }
+
+           $this->audit('delete', $gasIn, $old, [
+               'deleted_files' => count($fileIdsToDelete),
+               'deleted_folders' => count($folderPathsToDelete)
+           ]);
+
+           return response()->json([
+               'success' => true,
+               'deleted' => true,
+               'files_deleted' => count($fileIdsToDelete),
+               'folders_deleted' => count($folderPathsToDelete)
+           ]);
+
+       } catch (\Exception $e) {
+           Log::error('Gas In delete error', [
+               'gas_in_id' => $gasIn->id,
+               'error' => $e->getMessage()
+           ]);
+
+           return response()->json([
+               'success' => false,
+               'message' => 'Terjadi kesalahan saat menghapus data dan file terkait.'
+           ], 500);
+       }
    }
 
    public function redirectByReff(string $reffId)

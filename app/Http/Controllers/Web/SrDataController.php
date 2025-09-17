@@ -143,9 +143,67 @@ class SrDataController extends Controller
     public function destroy(SrData $sr)
     {
         $old = $sr->toArray();
-        $sr->delete();
-        $this->audit('delete', $sr, $old, []);
-        return response()->json(['success'=>true, 'deleted'=>true]);
+
+        try {
+            // Get all related photos/files
+            $photoApprovals = $sr->photoApprovals;
+
+            // Track file IDs and folder paths for deletion
+            $fileIdsToDelete = [];
+            $folderPathsToDelete = [];
+
+            foreach ($photoApprovals as $photo) {
+                // Collect Google Drive file IDs
+                if ($photo->drive_file_id) {
+                    $fileIdsToDelete[] = $photo->drive_file_id;
+                }
+
+                // Collect folder paths (extract folder path from storage_path)
+                if ($photo->storage_path) {
+                    // Extract folder path (everything before the filename)
+                    $folderPath = dirname($photo->storage_path);
+                    if ($folderPath && $folderPath !== '.' && !in_array($folderPath, $folderPathsToDelete)) {
+                        $folderPathsToDelete[] = $folderPath;
+                    }
+                }
+            }
+
+            // Delete the database record first
+            $sr->delete();
+
+            // Delete files from Google Drive
+            if (!empty($fileIdsToDelete)) {
+                $this->deleteFilesFromDrive($fileIdsToDelete);
+            }
+
+            // Delete folders from Google Drive (if empty)
+            if (!empty($folderPathsToDelete)) {
+                $this->deleteFoldersFromDrive($folderPathsToDelete);
+            }
+
+            $this->audit('delete', $sr, $old, [
+                'deleted_files' => count($fileIdsToDelete),
+                'deleted_folders' => count($folderPathsToDelete)
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'deleted' => true,
+                'files_deleted' => count($fileIdsToDelete),
+                'folders_deleted' => count($folderPathsToDelete)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('SR delete error', [
+                'sr_id' => $sr->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menghapus data dan file terkait.'
+            ], 500);
+        }
     }
 
     public function redirectByReff(string $reffId)
@@ -523,7 +581,7 @@ class SrDataController extends Controller
     {
         try {
             $result = $beritaAcaraService->generateSrBeritaAcara($sr);
-            
+
             if (!$result['success']) {
                 return response()->json([
                     'success' => false,
@@ -543,6 +601,83 @@ class SrDataController extends Controller
                 'success' => false,
                 'message' => 'Gagal generate Berita Acara: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Delete files from Google Drive
+     */
+    private function deleteFilesFromDrive(array $fileIds): void
+    {
+        try {
+            $storage = \Storage::disk('gdrive');
+
+            foreach ($fileIds as $fileId) {
+                try {
+                    // Check if file exists before deleting
+                    if ($storage->exists($fileId)) {
+                        $storage->delete($fileId);
+                        Log::info('Deleted file from Google Drive', ['file_id' => $fileId]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to delete file from Google Drive', [
+                        'file_id' => $fileId,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Google Drive file deletion error', [
+                'file_ids' => $fileIds,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Delete folders from Google Drive (if empty)
+     */
+    private function deleteFoldersFromDrive(array $folderPaths): void
+    {
+        try {
+            $storage = \Storage::disk('gdrive');
+
+            // Sort folders by depth (deepest first) to delete from bottom up
+            usort($folderPaths, function($a, $b) {
+                return substr_count($b, '/') - substr_count($a, '/');
+            });
+
+            foreach ($folderPaths as $folderPath) {
+                try {
+                    // Check if folder exists and is empty
+                    if ($storage->exists($folderPath)) {
+                        $files = $storage->files($folderPath);
+                        $directories = $storage->directories($folderPath);
+
+                        // Only delete if folder is empty
+                        if (empty($files) && empty($directories)) {
+                            $storage->deleteDirectory($folderPath);
+                            Log::info('Deleted empty folder from Google Drive', ['folder_path' => $folderPath]);
+                        } else {
+                            Log::info('Folder not empty, keeping it', [
+                                'folder_path' => $folderPath,
+                                'files_count' => count($files),
+                                'directories_count' => count($directories)
+                            ]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to delete folder from Google Drive', [
+                        'folder_path' => $folderPath,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Google Drive folder deletion error', [
+                'folder_paths' => $folderPaths,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }

@@ -8,6 +8,27 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
+/**
+ * Class User
+ *
+ * @property int $id
+ * @property string $name
+ * @property string $full_name
+ * @property string $email
+ * @property \Carbon\Carbon|null $email_verified_at
+ * @property string $password
+ * @property string $role
+ * @property bool $is_active
+ * @property \Carbon\Carbon|null $last_login
+ * @property string|null $remember_token
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ *
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\PhotoApproval[] $tracerApprovedPhotos
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\PhotoApproval[] $cgpApprovedPhotos
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\UserRole[] $userRoles
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\UserRole[] $activeRoles
+ */
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;

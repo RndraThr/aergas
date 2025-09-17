@@ -22,7 +22,7 @@ return new class extends Migration
             ])->default('validasi');
             $table->text('keterangan')->nullable();
             $table->string('wilayah_area', 100)->nullable();
-            $table->string('jenis_pelanggan', 50)->default('residensial');
+            $table->string('jenis_pelanggan', 50)->default('pengembangan');
             $table->timestamp('tanggal_registrasi')->useCurrent();
             $table->timestamps();
         });

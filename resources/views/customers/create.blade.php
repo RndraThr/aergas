@@ -126,9 +126,9 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Pelanggan</label>
                     <select x-model="form.jenis_pelanggan"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
-                        <option value="residensial">Residensial</option>
-                        <option value="komersial">Komersial</option>
-                        <option value="industri">Industri</option>
+                        <option value="pengembangan">Pengembangan</option>
+                        <option value="penetrasi">Penetrasi</option>
+                        <option value="on_the_spot">On The Spot</option>
                     </select>
                 </div>
 
@@ -244,7 +244,7 @@ function customerCreateData() {
             email: '',
             kelurahan: '',
             padukuhan: '',
-            jenis_pelanggan: 'residensial',
+            jenis_pelanggan: 'pengembangan',
             keterangan: ''
         },
 
@@ -381,7 +381,7 @@ function customerCreateData() {
                     email: '',
                     kelurahan: '',
                     padukuhan: '',
-                    jenis_pelanggan: 'residensial',
+                    jenis_pelanggan: 'pengembangan',
                     keterangan: ''
                 };
                 this.errors = {};

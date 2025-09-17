@@ -7,6 +7,36 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * Class CalonPelanggan
+ *
+ * @property string $reff_id_pelanggan
+ * @property string $nama_pelanggan
+ * @property string $alamat
+ * @property string $no_telepon
+ * @property string|null $email
+ * @property string|null $kelurahan
+ * @property string|null $padukuhan
+ * @property string $status
+ * @property string $progress_status
+ * @property string|null $jenis_pelanggan
+ * @property string|null $keterangan
+ * @property \Carbon\Carbon|null $tanggal_registrasi
+ * @property \Carbon\Carbon|null $validated_at
+ * @property int|null $validated_by
+ * @property string|null $validation_notes
+ * @property \Carbon\Carbon|null $last_login
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ *
+ * @property-read \App\Models\SkData|null $skData
+ * @property-read \App\Models\SrData|null $srData
+ * @property-read \App\Models\GasInData|null $gasInData
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\PhotoApproval[] $photoApprovals
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\AuditLog[] $auditLogs
+ * @property-read \App\Models\User|null $validatedBy
+ * @property-read string $display_reff_id
+ */
 class CalonPelanggan extends Model
 {
     use HasFactory;
