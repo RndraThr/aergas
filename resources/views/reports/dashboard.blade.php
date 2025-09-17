@@ -254,10 +254,11 @@
                                          :class="{
                                              'bg-gradient-to-r from-blue-400 to-blue-600': jenis === 'pengembangan',
                                              'bg-gradient-to-r from-green-400 to-green-600': jenis === 'penetrasi',
-                                             'bg-gradient-to-r from-purple-400 to-purple-600': jenis === 'on_the_spot'
+                                             'bg-gradient-to-r from-purple-400 to-purple-600': jenis === 'on_the_spot_penetrasi',
+                                             'bg-gradient-to-r from-orange-400 to-orange-600': jenis === 'on_the_spot_pengembangan'
                                          }"></div>
                                     <div>
-                                        <span class="font-semibold text-gray-900 capitalize" x-text="jenis.replace('_', ' ')"></span>
+                                        <span class="font-semibold text-gray-900" x-text="formatJenisPelanggan(jenis)"></span>
                                         <div class="text-sm text-gray-500" x-text="'Customer category'"></div>
                                     </div>
                                 </div>
@@ -271,7 +272,8 @@
                                      :class="{
                                          'bg-gradient-to-r from-blue-400 to-blue-600': jenis === 'pengembangan',
                                          'bg-gradient-to-r from-green-400 to-green-600': jenis === 'penetrasi',
-                                         'bg-gradient-to-r from-purple-400 to-purple-600': jenis === 'on_the_spot'
+                                         'bg-gradient-to-r from-purple-400 to-purple-600': jenis === 'on_the_spot_penetrasi',
+                                         'bg-gradient-to-r from-orange-400 to-orange-600': jenis === 'on_the_spot_pengembangan'
                                      }"
                                      :style="'width: ' + (data.total_customers > 0 ? Math.round((stats.total / data.total_customers) * 100) : 0) + '%'"></div>
                             </div>
@@ -370,11 +372,12 @@
                                              :class="{
                                                  'bg-gradient-to-br from-blue-400 to-blue-600': jenis === 'pengembangan',
                                                  'bg-gradient-to-br from-green-400 to-green-600': jenis === 'penetrasi',
-                                                 'bg-gradient-to-br from-purple-400 to-purple-600': jenis === 'on_the_spot'
+                                                 'bg-gradient-to-br from-purple-400 to-purple-600': jenis === 'on_the_spot_penetrasi',
+                                                 'bg-gradient-to-br from-orange-400 to-orange-600': jenis === 'on_the_spot_pengembangan'
                                              }">
                                         </div>
                                         <div>
-                                            <h5 class="font-bold text-gray-900 capitalize text-lg" x-text="jenis.replace('_', ' ')"></h5>
+                                            <h5 class="font-bold text-gray-900 text-lg" x-text="formatJenisPelanggan(jenis)"></h5>
                                             <p class="text-xs text-gray-500">Customer Type</p>
                                         </div>
                                     </div>
@@ -503,6 +506,16 @@ function reportDashboard() {
             } finally {
                 this.loading = false;
             }
+        },
+
+        formatJenisPelanggan(jenis) {
+            const jenisMap = {
+                'pengembangan': 'Pengembangan',
+                'penetrasi': 'Penetrasi',
+                'on_the_spot_penetrasi': 'On The Spot Penetrasi',
+                'on_the_spot_pengembangan': 'On The Spot Pengembangan'
+            };
+            return jenisMap[jenis] || jenis.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         },
 
         async refreshData() {
