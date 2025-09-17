@@ -100,7 +100,8 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                         <option value="pengembangan">Pengembangan</option>
                         <option value="penetrasi">Penetrasi</option>
-                        <option value="on_the_spot">On The Spot</option>
+                        <option value="on_the_spot_penetrasi">On The Spot Penetrasi</option>
+                        <option value="on_the_spot_pengembangan">On The Spot Pengembangan</option>
                     </select>
                 </div>
 

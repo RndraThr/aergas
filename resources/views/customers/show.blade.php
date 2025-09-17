@@ -166,7 +166,17 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-500">Jenis Pelanggan</label>
-                        <div class="mt-1 text-sm text-gray-900">{{ ucfirst(str_replace('_', ' ', $customer->jenis_pelanggan ?? 'pengembangan')) }}</div>
+                        <div class="mt-1 text-sm text-gray-900">
+                            @php
+                                $jenisMap = [
+                                    'pengembangan' => 'Pengembangan',
+                                    'penetrasi' => 'Penetrasi',
+                                    'on_the_spot_penetrasi' => 'On The Spot Penetrasi',
+                                    'on_the_spot_pengembangan' => 'On The Spot Pengembangan'
+                                ];
+                            @endphp
+                            {{ $jenisMap[$customer->jenis_pelanggan ?? 'pengembangan'] ?? 'Pengembangan' }}
+                        </div>
                     </div>
 
                     <div>

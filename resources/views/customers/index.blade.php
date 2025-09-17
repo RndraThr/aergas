@@ -213,7 +213,7 @@
                                     </div>
                                     <div>
                                         <div class="text-sm font-medium text-gray-900" x-text="customer.nama_pelanggan"></div>
-                                        <div class="text-sm text-gray-500" x-text="customer.jenis_pelanggan || 'pengembangan'"></div>
+                                        <div class="text-sm text-gray-500" x-text="formatJenisPelanggan(customer.jenis_pelanggan || 'pengembangan')"></div>
                                     </div>
                                 </div>
                             </td>
@@ -435,6 +435,16 @@ function customersData() {
             }
 
             return value.toUpperCase();
+        },
+
+        formatJenisPelanggan(jenis) {
+            const jenisMap = {
+                'pengembangan': 'Pengembangan',
+                'penetrasi': 'Penetrasi',
+                'on_the_spot_penetrasi': 'On The Spot Penetrasi',
+                'on_the_spot_pengembangan': 'On The Spot Pengembangan'
+            };
+            return jenisMap[jenis] || 'Pengembangan';
         },
 
         addProgressPercentage() {

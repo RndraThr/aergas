@@ -182,7 +182,7 @@ class CalonPelangganController extends Controller
             'no_telepon'       => 'required|string|max:20|regex:/^[0-9+\-\s]+$/',
             'kelurahan'        => 'nullable|string|max:120',
             'padukuhan'        => 'nullable|string|max:120',
-            'jenis_pelanggan'  => 'nullable|in:pengembangan,penetrasi,on_the_spot',
+            'jenis_pelanggan'  => 'nullable|in:pengembangan,penetrasi,on_the_spot_penetrasi,on_the_spot_pengembangan',
             'keterangan'       => 'nullable|string|max:500',
             'status'           => 'sometimes|in:pending,lanjut,in_progress,batal',
             'progress_status'  => 'sometimes|in:validasi,sk,sr,gas_in,done,batal',
@@ -313,7 +313,7 @@ class CalonPelangganController extends Controller
                 'progress_status' => 'sometimes|in:validasi,sk,sr,gas_in,done,batal',
                 'kelurahan'       => 'nullable|string|max:120',
                 'padukuhan'       => 'nullable|string|max:120',
-                'jenis_pelanggan' => 'nullable|in:pengembangan,penetrasi,on_the_spot',
+                'jenis_pelanggan' => 'nullable|in:pengembangan,penetrasi,on_the_spot_penetrasi,on_the_spot_pengembangan',
                 'keterangan'      => 'nullable|string|max:500',
                 'email'           => 'nullable|email'
             ];
