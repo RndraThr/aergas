@@ -223,7 +223,7 @@
     </div>
     <div>
       <p class="font-semibold">Data Berhasil Dihapus</p>
-      <p class="text-sm text-green-100">SK telah dihapus dari sistem</p>
+      <p class="text-sm text-green-100" id="deleteDetails">SK telah dihapus dari sistem</p>
     </div>
   </div>
 </div>
@@ -297,13 +297,13 @@ async function executeDelete() {
       // Close modal with animation
       closeDeleteModal();
 
-      // Show success toast
-      showSuccessToast();
+      // Show success toast with file deletion info
+      showSuccessToast(result);
 
       // Wait for modal to close, then refresh page
       setTimeout(() => {
         window.location.reload();
-      }, 800);
+      }, 1200);
     } else {
       throw new Error('Delete failed');
     }
@@ -322,16 +322,25 @@ async function executeDelete() {
   }
 }
 
-function showSuccessToast() {
+function showSuccessToast(result = {}) {
   const toast = document.getElementById('successToast');
+  const details = document.getElementById('deleteDetails');
+
+  // Update toast message with folder deletion info
+  let message = 'SK telah dihapus dari sistem';
+  if (result.folders_deleted > 0) {
+    message += ` termasuk ${result.folders_deleted} folder di Google Drive`;
+  }
+  details.textContent = message;
+
   toast.classList.remove('translate-x-full');
   toast.classList.add('translate-x-0');
 
-  // Auto hide after 3 seconds
+  // Auto hide after 4 seconds (longer to read the message)
   setTimeout(() => {
     toast.classList.remove('translate-x-0');
     toast.classList.add('translate-x-full');
-  }, 3000);
+  }, 4000);
 }
 
 // Close modal when clicking outside (only if not deleting)

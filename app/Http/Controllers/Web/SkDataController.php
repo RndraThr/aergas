@@ -148,16 +148,10 @@ class SkDataController extends Controller
             // Get all related photos/files
             $photoApprovals = $sk->photoApprovals;
 
-            // Track file IDs and folder paths for deletion
-            $fileIdsToDelete = [];
+            // Track folder paths for deletion
             $folderPathsToDelete = [];
 
             foreach ($photoApprovals as $photo) {
-                // Collect Google Drive file IDs
-                if ($photo->drive_file_id) {
-                    $fileIdsToDelete[] = $photo->drive_file_id;
-                }
-
                 // Collect folder paths (extract folder path from storage_path)
                 if ($photo->storage_path) {
                     // Extract folder path (everything before the filename)
@@ -171,26 +165,22 @@ class SkDataController extends Controller
             // Delete the database record first
             $sk->delete();
 
-            // Delete files from Google Drive
-            if (!empty($fileIdsToDelete)) {
-                $this->deleteFilesFromDrive($fileIdsToDelete);
-            }
-
-            // Delete folders from Google Drive (if empty)
+            // Delete folders from Google Drive (this will delete all files in the folders)
+            $deletedFolders = 0;
             if (!empty($folderPathsToDelete)) {
-                $this->deleteFoldersFromDrive($folderPathsToDelete);
+                $deletedFolders = $this->deleteFoldersFromDrive($folderPathsToDelete);
             }
 
             $this->audit('delete', $sk, $old, [
-                'deleted_files' => count($fileIdsToDelete),
-                'deleted_folders' => count($folderPathsToDelete)
+                'deleted_folders' => $deletedFolders,
+                'attempted_folders' => count($folderPathsToDelete)
             ]);
 
             return response()->json([
                 'success' => true,
                 'deleted' => true,
-                'files_deleted' => count($fileIdsToDelete),
-                'folders_deleted' => count($folderPathsToDelete)
+                'files_deleted' => $deletedFolders > 0 ? 'All files in folders' : 0,
+                'folders_deleted' => $deletedFolders
             ]);
 
         } catch (\Exception $e) {
@@ -673,66 +663,25 @@ class SkDataController extends Controller
     }
 
     /**
-     * Delete files from Google Drive
+     * Delete folders from Google Drive
      */
-    private function deleteFilesFromDrive(array $fileIds): void
+    private function deleteFoldersFromDrive(array $folderPaths): int
     {
+        $deletedCount = 0;
+
         try {
-            $storage = \Storage::disk('gdrive');
-
-            foreach ($fileIds as $fileId) {
-                try {
-                    // Check if file exists before deleting
-                    if ($storage->exists($fileId)) {
-                        $storage->delete($fileId);
-                        Log::info('Deleted file from Google Drive', ['file_id' => $fileId]);
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Failed to delete file from Google Drive', [
-                        'file_id' => $fileId,
-                        'error' => $e->getMessage()
-                    ]);
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error('Google Drive file deletion error', [
-                'file_ids' => $fileIds,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Delete folders from Google Drive (if empty)
-     */
-    private function deleteFoldersFromDrive(array $folderPaths): void
-    {
-        try {
-            $storage = \Storage::disk('gdrive');
-
-            // Sort folders by depth (deepest first) to delete from bottom up
-            usort($folderPaths, function($a, $b) {
-                return substr_count($b, '/') - substr_count($a, '/');
-            });
+            $googleDriveService = app(\App\Services\GoogleDriveService::class);
 
             foreach ($folderPaths as $folderPath) {
                 try {
-                    // Check if folder exists and is empty
-                    if ($storage->exists($folderPath)) {
-                        $files = $storage->files($folderPath);
-                        $directories = $storage->directories($folderPath);
-
-                        // Only delete if folder is empty
-                        if (empty($files) && empty($directories)) {
-                            $storage->deleteDirectory($folderPath);
-                            Log::info('Deleted empty folder from Google Drive', ['folder_path' => $folderPath]);
-                        } else {
-                            Log::info('Folder not empty, keeping it', [
-                                'folder_path' => $folderPath,
-                                'files_count' => count($files),
-                                'directories_count' => count($directories)
-                            ]);
-                        }
+                    if ($googleDriveService->deleteFolder($folderPath)) {
+                        $deletedCount++;
+                        Log::info('Deleted folder from Google Drive', ['folder_path' => $folderPath]);
+                    } else {
+                        Log::warning('Failed to delete folder from Google Drive', [
+                            'folder_path' => $folderPath,
+                            'reason' => 'Service returned false'
+                        ]);
                     }
                 } catch (\Exception $e) {
                     Log::warning('Failed to delete folder from Google Drive', [
@@ -747,5 +696,8 @@ class SkDataController extends Controller
                 'error' => $e->getMessage()
             ]);
         }
+
+        return $deletedCount;
     }
+
 }

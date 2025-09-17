@@ -377,6 +377,79 @@ class GoogleDriveService
         }
     }
 
+    /**
+     * Delete folder by path
+     */
+    public function deleteFolder(string $folderPath): bool
+    {
+        if (!$this->initialize()) {
+            Log::warning('Google Drive service not available for delete folder operation', ['folder_path' => $folderPath, 'error' => $this->getError()]);
+            return false;
+        }
+
+        try {
+            $folderId = $this->getFolderIdByPath($folderPath);
+            if (!$folderId) {
+                Log::info('Folder not found, skipping deletion', ['folder_path' => $folderPath]);
+                return false;
+            }
+
+            // Delete the folder (this will also delete all files inside)
+            $this->drive->files->delete($folderId, [
+                'supportsAllDrives' => true,
+            ]);
+
+            Log::info('Deleted folder from Google Drive', ['folder_path' => $folderPath, 'folder_id' => $folderId]);
+            return true;
+
+        } catch (\Throwable $e) {
+            Log::warning('Google Drive folder deletion failed', ['folder_path' => $folderPath, 'error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /**
+     * Get folder ID by path
+     */
+    private function getFolderIdByPath(string $path): ?string
+    {
+        try {
+            $path = trim($path, "/ \t\n\r\0\x0B");
+            if ($path === '') {
+                return $this->rootFolderId;
+            }
+
+            $parts = array_values(array_filter(explode('/', $path), fn ($v) => $v !== ''));
+            $parentId = $this->rootFolderId;
+
+            foreach ($parts as $name) {
+                $quoted = addcslashes($name, "'\\");
+                $q = "mimeType='application/vnd.google-apps.folder' and name='{$quoted}' and '{$parentId}' in parents and trashed=false";
+
+                $list = $this->drive->files->listFiles([
+                    'q'      => $q,
+                    'fields' => 'files(id,name)',
+                    'pageSize' => 1,
+                    'supportsAllDrives' => true,
+                    'includeItemsFromAllDrives' => true,
+                ]);
+
+                $files = $list->getFiles();
+                if (empty($files)) {
+                    return null; // Folder not found
+                }
+
+                $parentId = $files[0]->getId();
+            }
+
+            return $parentId;
+
+        } catch (\Throwable $e) {
+            Log::error('Error getting folder ID by path', ['path' => $path, 'error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
     public function testConnection(): array
     {
         if (!$this->initialize()) {
