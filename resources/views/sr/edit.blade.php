@@ -70,7 +70,7 @@
       <h2 class="font-semibold text-gray-800">Edit Material SR</h2>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">
           Tanggal Pemasangan <span class="text-red-500">*</span>
@@ -86,6 +86,27 @@
             <option value="{{ $option }}">{{ $option }}</option>
           @endforeach
         </select>
+      </div>
+    </div>
+
+    <!-- MGRT Information Section -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <h3 class="text-sm font-medium text-blue-800 mb-3">
+        <i class="fas fa-gas-pump mr-2"></i>Informasi Meter Gas Rumah Tangga (MGRT)
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">No Seri MGRT</label>
+          <input type="text" x-model="noSeriMgrt" maxlength="50"
+                 class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                 placeholder="Masukkan nomor seri MGRT">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Merk/Brand MGRT</label>
+          <input type="text" x-model="merkBrandMgrt" maxlength="50"
+                 class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                 placeholder="Masukkan merk/brand MGRT">
+        </div>
       </div>
     </div>
 
@@ -244,6 +265,8 @@ function srEdit() {
       qty_sealtape: @json($sr->qty_sealtape ?? '')
     },
     jenisTapping: @json($sr->jenis_tapping ?? ''),
+    noSeriMgrt: @json($sr->no_seri_mgrt ?? ''),
+    merkBrandMgrt: @json($sr->merk_brand_mgrt ?? ''),
     updating: false,
 
     init() {},
@@ -292,6 +315,8 @@ function srEdit() {
 
         if (this.createdBy) formData.append('created_by', this.createdBy);
         if (this.jenisTapping) formData.append('jenis_tapping', this.jenisTapping);
+        if (this.noSeriMgrt) formData.append('no_seri_mgrt', this.noSeriMgrt);
+        if (this.merkBrandMgrt) formData.append('merk_brand_mgrt', this.merkBrandMgrt);
 
         const response = await fetch(@json(route('sr.update', $sr->id)), {
           method: 'POST',

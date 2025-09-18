@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController};
+use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController};
 
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -73,6 +73,8 @@ Route::middleware('auth')->group(function () {
     });
     Route::get('/reports', [ReportDashboardController::class, 'index'])->name('reports.dashboard');
     Route::get('/reports/export', [ReportDashboardController::class, 'export'])->name('reports.export');
+    Route::get('/reports/comprehensive', [ComprehensiveReportController::class, 'index'])->name('reports.comprehensive');
+    Route::get('/reports/comprehensive/export', [ComprehensiveReportController::class, 'export'])->name('reports.comprehensive.export');
 
     // Admin Routes
     Route::middleware(['role:super_admin,admin'])

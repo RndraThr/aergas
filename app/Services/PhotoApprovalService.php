@@ -886,7 +886,11 @@ class PhotoApprovalService
                 ->count();
 
             if ($done >= count($required)) {
-                $mod->update(['module_status' => 'completed', 'overall_photo_status' => 'completed']);
+                $mod->update([
+                    'status' => 'completed',
+                    'module_status' => 'completed',
+                    'overall_photo_status' => 'completed'
+                ]);
                 try { $this->notificationService->notifyModuleCompletion($reffId, $moduleSlug); } catch (\Throwable) {}
                 $this->updateCustomerProgress($reffId, $moduleSlug);
             }

@@ -319,6 +319,8 @@ class SrData extends BaseModuleModel
             'panjang_casing_1_inch_m' => 'required|numeric|min:0|max:100', // ✅ Ubah dari min:0.1
             'qty_sealtape' => 'required|integer|min:0|max:100',
             'jenis_tapping' => 'nullable|in:63x20,90x20,63x32,180x90,180x63,125x63,90x63,180x32,125x32,90x32',
+            'no_seri_mgrt' => 'nullable|string|max:50',
+            'merk_brand_mgrt' => 'nullable|string|max:50',
             'panjang_pipa_pe_m' => 'nullable|numeric|min:0|max:1000',
             'panjang_casing_crossing_m' => 'nullable|numeric|min:0|max:100',
         ];

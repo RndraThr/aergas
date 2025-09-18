@@ -36,46 +36,136 @@
     </div>
   </div>
 
-  <div class="bg-white rounded-xl card-shadow p-6">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+  <!-- SK Information -->
+  <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl shadow-lg p-6 border border-green-200">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+        <i class="fas fa-wrench text-white text-lg"></i>
+      </div>
       <div>
-        <div class="text-xs text-gray-500">Created By</div>
+        <h2 class="text-xl font-semibold text-gray-800">SK Information</h2>
+        <p class="text-green-600 text-sm font-medium">Service connection installation</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created By</div>
         @if($sk->createdBy)
-          <div class="flex items-center mt-1">
-            <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-              <span class="text-xs font-medium text-blue-600">
+          <div class="flex items-center">
+            <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-3 shadow">
+              <span class="text-xs font-semibold text-white">
                 {{ strtoupper(substr($sk->createdBy->name, 0, 1)) }}
               </span>
             </div>
-            <span class="font-medium">{{ $sk->createdBy->name }}</span>
+            <div>
+              <div class="font-semibold text-gray-900">{{ $sk->createdBy->name }}</div>
+              <div class="text-xs text-gray-500">{{ ucwords(str_replace('_', ' ', $sk->createdBy->role ?? '')) }}</div>
+            </div>
           </div>
         @else
           <div class="font-medium text-gray-400">-</div>
         @endif
       </div>
-      <div>
-        <div class="text-xs text-gray-500">Tanggal Instalasi</div>
-        <div class="font-medium">{{ $sk->tanggal_instalasi ? $sk->tanggal_instalasi->format('d/m/Y') : '-' }}</div>
+
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tanggal Instalasi</div>
+        <div class="flex items-center">
+          <i class="fas fa-calendar-alt text-green-500 mr-2"></i>
+          <div class="font-semibold text-gray-900">
+            {{ $sk->tanggal_instalasi ? $sk->tanggal_instalasi->format('d F Y') : 'Belum ditentukan' }}
+          </div>
+        </div>
+        @if($sk->tanggal_instalasi)
+          <div class="text-xs text-gray-500">
+            {{ $sk->tanggal_instalasi->diffForHumans() }}
+          </div>
+        @endif
       </div>
-      <div>
-        <div class="text-xs text-gray-500">Status</div>
-        <span class="px-2 py-0.5 rounded text-xs
-          @class([
-            'bg-gray-100 text-gray-700' => $sk->status === 'draft',
-            'bg-blue-100 text-blue-800' => $sk->status === 'ready_for_tracer',
-            'bg-yellow-100 text-yellow-800' => $sk->status === 'scheduled',
-            'bg-purple-100 text-purple-800' => $sk->status === 'tracer_approved',
-            'bg-amber-100 text-amber-800' => $sk->status === 'cgp_approved',
-            'bg-red-100 text-red-800' => str_contains($sk->status,'rejected'),
-            'bg-green-100 text-green-800' => $sk->status === 'completed',
-          ])
-        ">{{ strtoupper($sk->status) }}</span>
+
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status</div>
+        <div>
+          <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium
+            @class([
+              'bg-gray-100 text-gray-700 border border-gray-200' => $sk->status === 'draft',
+              'bg-blue-100 text-blue-800 border border-blue-200' => $sk->status === 'ready_for_tracer',
+              'bg-yellow-100 text-yellow-800 border border-yellow-200' => $sk->status === 'approved_scheduled',
+              'bg-purple-100 text-purple-800 border border-purple-200' => $sk->status === 'tracer_approved',
+              'bg-amber-100 text-amber-800 border border-amber-200' => $sk->status === 'cgp_approved',
+              'bg-red-100 text-red-800 border border-red-200' => str_contains($sk->status,'rejected'),
+              'bg-green-100 text-green-800 border border-green-200' => $sk->status === 'completed',
+            ])
+          ">
+            <div class="w-2 h-2 rounded-full mr-2
+              @class([
+                'bg-gray-400' => $sk->status === 'draft',
+                'bg-blue-500' => $sk->status === 'ready_for_tracer',
+                'bg-yellow-500' => $sk->status === 'approved_scheduled',
+                'bg-purple-500' => $sk->status === 'tracer_approved',
+                'bg-amber-500' => $sk->status === 'cgp_approved',
+                'bg-red-500' => str_contains($sk->status,'rejected'),
+                'bg-green-500' => $sk->status === 'completed',
+              ])
+            "></div>
+            {{ ucwords(str_replace('_', ' ', $sk->status)) }}
+          </span>
+        </div>
       </div>
-      <div>
-        <div class="text-xs text-gray-500">Created At</div>
-        <div class="font-medium">{{ $sk->created_at ? $sk->created_at->format('d/m/Y H:i') : '-' }}</div>
+
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created At</div>
+        <div class="flex items-center">
+          <i class="fas fa-clock text-green-500 mr-2"></i>
+          <div>
+            <div class="font-semibold text-gray-900">
+              {{ $sk->created_at ? $sk->created_at->format('d/m/Y H:i') : '-' }}
+            </div>
+            @if($sk->created_at)
+              <div class="text-xs text-gray-500">
+                {{ $sk->created_at->diffForHumans() }}
+              </div>
+            @endif
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Module Status Progress -->
+    @if($sk->ai_overall_status || $sk->tracer_approved_at || $sk->cgp_approved_at)
+      <div class="mt-6 pt-6 border-t border-green-200">
+        <div class="flex items-center gap-4">
+          <div class="text-sm font-medium text-gray-700">Progress:</div>
+
+          @if($sk->ai_overall_status)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full mr-2 {{ $sk->ai_overall_status === 'ready' ? 'bg-green-500' : 'bg-yellow-500' }}"></div>
+              <span class="text-sm {{ $sk->ai_overall_status === 'ready' ? 'text-green-700' : 'text-yellow-700' }}">
+                AI: {{ ucfirst($sk->ai_overall_status) }}
+              </span>
+            </div>
+          @endif
+
+          @if($sk->tracer_approved_at)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
+              <span class="text-sm text-purple-700">
+                Tracer: {{ $sk->tracer_approved_at->format('d/m/Y H:i') }}
+              </span>
+            </div>
+          @endif
+
+          @if($sk->cgp_approved_at)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+              <span class="text-sm text-green-700">
+                CGP: {{ $sk->cgp_approved_at->format('d/m/Y H:i') }}
+              </span>
+            </div>
+          @endif
+        </div>
+      </div>
+    @endif
   </div>
 
   @if($sk->calonPelanggan)
@@ -98,10 +188,16 @@
     </div>
   @endif
 
-  <div class="bg-white rounded-xl card-shadow p-6">
-    <div class="flex items-center gap-3 mb-4">
-      <i class="fas fa-clipboard-list text-orange-600"></i>
-      <h2 class="font-semibold text-gray-800">Material SK</h2>
+  <!-- Material SK Section -->
+  <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow">
+        <i class="fas fa-clipboard-list text-white"></i>
+      </div>
+      <div>
+        <h2 class="text-lg font-semibold text-gray-800">Material SK</h2>
+        <p class="text-green-600 text-sm">Service connection materials</p>
+      </div>
     </div>
 
     @php
@@ -154,20 +250,88 @@
         @endforeach
       </div>
 
-      <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+      <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
         <div class="flex justify-between items-center">
-          <span class="font-medium text-blue-800">Total Fitting:</span>
-          <span class="font-bold text-blue-900 text-lg">{{ $totalFitting }} pcs</span>
+          <span class="font-medium text-green-800">Total Fitting:</span>
+          <span class="font-bold text-green-900 text-lg">{{ $totalFitting }} pcs</span>
         </div>
         @if($sk->panjang_pipa_gl_medium_m)
           <div class="flex justify-between items-center mt-2">
-            <span class="font-medium text-blue-800">Total Pipa:</span>
-            <span class="font-bold text-blue-900 text-lg">{{ $sk->panjang_pipa_gl_medium_m }} meter</span>
+            <span class="font-medium text-green-800">Total Pipa:</span>
+            <span class="font-bold text-green-900 text-lg">{{ $sk->panjang_pipa_gl_medium_m }} meter</span>
           </div>
         @endif
       </div>
     @endif
   </div>
+
+  <!-- Workflow Actions -->
+  @if(in_array(auth()->user()->role, ['tracer', 'admin', 'super_admin']))
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+          <i class="fas fa-tasks text-white"></i>
+        </div>
+        <div>
+          <h3 class="text-xl font-semibold text-gray-800">Workflow Actions</h3>
+          <p class="text-gray-600 text-sm">Available actions based on your role and current status</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        @if($sk->canApproveTracer() && in_array(auth()->user()->role, ['tracer', 'super_admin']))
+          <button @click="approveTracer()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-check text-2xl mb-2"></i>
+            <span class="font-semibold">Approve Tracer</span>
+            <span class="text-xs opacity-80 text-center">Validate and approve as tracer</span>
+          </button>
+
+          <button @click="rejectTracer()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-times text-2xl mb-2"></i>
+            <span class="font-semibold">Reject Tracer</span>
+            <span class="text-xs opacity-80 text-center">Reject with comments</span>
+          </button>
+        @endif
+
+        @if($sk->canApproveCgp() && in_array(auth()->user()->role, ['admin', 'super_admin']))
+          <button @click="approveCgp()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-check-double text-2xl mb-2"></i>
+            <span class="font-semibold">Approve CGP</span>
+            <span class="text-xs opacity-80 text-center">Final CGP approval</span>
+          </button>
+
+          <button @click="rejectCgp()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-times-circle text-2xl mb-2"></i>
+            <span class="font-semibold">Reject CGP</span>
+            <span class="text-xs opacity-80 text-center">Reject with comments</span>
+          </button>
+        @endif
+
+        @if($sk->canSchedule())
+          <button @click="scheduleSk()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-calendar-alt text-2xl mb-2"></i>
+            <span class="font-semibold">Schedule SK</span>
+            <span class="text-xs opacity-80 text-center">Set installation date</span>
+          </button>
+        @endif
+
+        @if($sk->canComplete())
+          <button @click="completeSk()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-check-circle text-2xl mb-2"></i>
+            <span class="font-semibold">Complete SK</span>
+            <span class="text-xs opacity-80 text-center">Mark as completed</span>
+          </button>
+        @endif
+      </div>
+    </div>
+  @endif
 
   <div class="bg-white rounded-xl card-shadow p-6 space-y-4">
     <div class="flex items-center gap-3">
@@ -278,7 +442,155 @@
 <script>
 function skShow() {
   return {
-    init() {}
+    init() {},
+
+    async approveTracer() {
+      const notes = prompt('Catatan approval (opsional):');
+      if (notes === null) return;
+      try {
+        const response = await fetch(`{{ route('sk.approve-tracer', $sk->id) }}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify({ notes })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          window.showToast('success', 'SK berhasil di-approve tracer');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          window.showToast('error', result.message || 'Gagal approve');
+        }
+      } catch (error) {
+        window.showToast('error', 'Error: ' + error.message);
+      }
+    },
+
+    async rejectTracer() {
+      const notes = prompt('Alasan reject (wajib):');
+      if (!notes) return;
+      try {
+        const response = await fetch(`{{ route('sk.reject-tracer', $sk->id) }}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify({ notes })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          window.showToast('success', 'SK berhasil di-reject tracer');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          window.showToast('error', result.message || 'Gagal reject');
+        }
+      } catch (error) {
+        window.showToast('error', 'Error: ' + error.message);
+      }
+    },
+
+    async approveCgp() {
+      const notes = prompt('Catatan approval (opsional):');
+      if (notes === null) return;
+      try {
+        const response = await fetch(`{{ route('sk.approve-cgp', $sk->id) }}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify({ notes })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          window.showToast('success', 'SK berhasil di-approve CGP');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          window.showToast('error', result.message || 'Gagal approve');
+        }
+      } catch (error) {
+        window.showToast('error', 'Error: ' + error.message);
+      }
+    },
+
+    async rejectCgp() {
+      const notes = prompt('Alasan reject (wajib):');
+      if (!notes) return;
+      try {
+        const response = await fetch(`{{ route('sk.reject-cgp', $sk->id) }}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify({ notes })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          window.showToast('success', 'SK berhasil di-reject CGP');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          window.showToast('error', result.message || 'Gagal reject');
+        }
+      } catch (error) {
+        window.showToast('error', 'Error: ' + error.message);
+      }
+    },
+
+    async scheduleSk() {
+      const date = prompt('Tanggal jadwal instalasi (YYYY-MM-DD):');
+      if (!date) return;
+      try {
+        const response = await fetch(`{{ route('sk.schedule', $sk->id) }}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify({ scheduled_date: date })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          window.showToast('success', 'SK berhasil dijadwalkan');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          window.showToast('error', result.message || 'Gagal jadwalkan');
+        }
+      } catch (error) {
+        window.showToast('error', 'Error: ' + error.message);
+      }
+    },
+
+    async completeSk() {
+      if (!confirm('Apakah Anda yakin ingin menandai SK ini sebagai selesai?')) return;
+      try {
+        const response = await fetch(`{{ route('sk.complete', $sk->id) }}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          }
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          window.showToast('success', 'SK berhasil diselesaikan');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          window.showToast('error', result.message || 'Gagal menyelesaikan');
+        }
+      } catch (error) {
+        window.showToast('error', 'Error: ' + error.message);
+      }
+    }
   }
 }
 

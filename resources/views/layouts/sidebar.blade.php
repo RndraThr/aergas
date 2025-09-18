@@ -259,17 +259,27 @@
                     Notifications
                 </a>
 
-                <!-- Reports -->
-                <a href="{{ route('reports.dashboard') }}"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('reports.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-chart-bar mr-3 text-lg {{ request()->routeIs('reports.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
-                    Reports
-                    @if(request()->routeIs('reports.*'))
-                        <div class="ml-auto">
-                            <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
-                        </div>
-                    @endif
-                </a>
+                <!-- Reports with Submenu -->
+                <div class="relative" x-data="{ open: {{ request()->routeIs('reports.*') ? 'true' : 'false' }} }">
+                    <button @click="open = !open"
+                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('reports.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <i class="fas fa-chart-bar mr-3 text-lg {{ request()->routeIs('reports.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        Reports
+                        <i class="fas fa-chevron-down ml-auto text-xs transition-transform duration-200" :class="open ? 'rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform scale-y-90" x-transition:enter-end="opacity-100 transform scale-y-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 transform scale-y-100" x-transition:leave-end="opacity-0 transform scale-y-90" class="mt-1 space-y-1 transform-origin-top">
+                        <a href="{{ route('reports.dashboard') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('reports.dashboard') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-chart-line mr-2 text-sm"></i>
+                            Dashboard
+                        </a>
+                        <a href="{{ route('reports.comprehensive') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('reports.comprehensive') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-table mr-2 text-sm"></i>
+                            Laporan Lengkap
+                        </a>
+                    </div>
+                </div>
 
                 <!-- Divider -->
                 <div class="border-t border-gray-200 my-4"></div>

@@ -36,73 +36,172 @@
     </div>
   </div>
 
-  <div class="bg-white rounded-xl card-shadow p-6">
-    <div class="flex items-center gap-3 mb-4">
-      <i class="fas fa-info-circle text-blue-600"></i>
-      <h2 class="font-semibold text-gray-800">Informasi SR</h2>
-    </div>
-    
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+  <!-- SR Information -->
+  <div class="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl shadow-lg p-6 border border-yellow-200">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-12 h-12 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+        <i class="fas fa-road text-white text-lg"></i>
+      </div>
       <div>
-        <div class="text-xs text-gray-500">Petugas SR</div>
+        <h2 class="text-xl font-semibold text-gray-800">SR Information</h2>
+        <p class="text-yellow-600 text-sm font-medium">Service regulator installation</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created By</div>
         @if($sr->createdBy)
-          <div class="flex items-center mt-1">
-            <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-              <span class="text-xs font-medium text-blue-600">
+          <div class="flex items-center">
+            <div class="w-8 h-8 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center mr-3 shadow">
+              <span class="text-xs font-semibold text-white">
                 {{ strtoupper(substr($sr->createdBy->name, 0, 1)) }}
               </span>
             </div>
-            <span class="font-medium">{{ $sr->createdBy->name }}</span>
+            <div>
+              <div class="font-semibold text-gray-900">{{ $sr->createdBy->name }}</div>
+              <div class="text-xs text-gray-500">{{ ucwords(str_replace('_', ' ', $sr->createdBy->role ?? '')) }}</div>
+            </div>
           </div>
         @else
           <div class="font-medium text-gray-400">-</div>
         @endif
       </div>
-      <div>
-        <div class="text-xs text-gray-500">Tanggal Pemasangan</div>
-        <div class="font-medium">{{ $sr->tanggal_pemasangan ? $sr->tanggal_pemasangan->format('d/m/Y') : '-' }}</div>
+
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tanggal Pemasangan</div>
+        <div class="flex items-center">
+          <i class="fas fa-calendar-alt text-yellow-500 mr-2"></i>
+          <div class="font-semibold text-gray-900">
+            {{ $sr->tanggal_pemasangan ? $sr->tanggal_pemasangan->format('d F Y') : 'Belum ditentukan' }}
+          </div>
+        </div>
+        @if($sr->tanggal_pemasangan)
+          <div class="text-xs text-gray-500">
+            {{ $sr->tanggal_pemasangan->diffForHumans() }}
+          </div>
+        @endif
       </div>
-      <div>
-        <div class="text-xs text-gray-500">Status</div>
-        <span class="px-2 py-0.5 rounded text-xs
-          @class([
-            'bg-gray-100 text-gray-700' => $sr->status === 'draft',
-            'bg-blue-100 text-blue-800' => $sr->status === 'ready_for_tracer',
-            'bg-yellow-100 text-yellow-800' => $sr->status === 'scheduled',
-            'bg-purple-100 text-purple-800' => $sr->status === 'tracer_approved',
-            'bg-amber-100 text-amber-800' => $sr->status === 'cgp_approved',
-            'bg-red-100 text-red-800' => str_contains($sr->status,'rejected'),
-            'bg-green-100 text-green-800' => $sr->status === 'completed',
-          ])
-        ">{{ strtoupper($sr->status) }}</span>
+
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status</div>
+        <div>
+          <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium
+            @class([
+              'bg-gray-100 text-gray-700 border border-gray-200' => $sr->status === 'draft',
+              'bg-blue-100 text-blue-800 border border-blue-200' => $sr->status === 'ready_for_tracer',
+              'bg-yellow-100 text-yellow-800 border border-yellow-200' => $sr->status === 'approved_scheduled',
+              'bg-purple-100 text-purple-800 border border-purple-200' => $sr->status === 'tracer_approved',
+              'bg-amber-100 text-amber-800 border border-amber-200' => $sr->status === 'cgp_approved',
+              'bg-red-100 text-red-800 border border-red-200' => str_contains($sr->status,'rejected'),
+              'bg-green-100 text-green-800 border border-green-200' => $sr->status === 'completed',
+            ])
+          ">
+            <div class="w-2 h-2 rounded-full mr-2
+              @class([
+                'bg-gray-400' => $sr->status === 'draft',
+                'bg-blue-500' => $sr->status === 'ready_for_tracer',
+                'bg-yellow-500' => $sr->status === 'approved_scheduled',
+                'bg-purple-500' => $sr->status === 'tracer_approved',
+                'bg-amber-500' => $sr->status === 'cgp_approved',
+                'bg-red-500' => str_contains($sr->status,'rejected'),
+                'bg-green-500' => $sr->status === 'completed',
+              ])
+            "></div>
+            {{ ucwords(str_replace('_', ' ', $sr->status)) }}
+          </span>
+        </div>
       </div>
-      <div>
-        <div class="text-xs text-gray-500">Created At</div>
-        <div class="font-medium">{{ $sr->created_at ? $sr->created_at->format('d/m/Y H:i') : '-' }}</div>
+
+      <div class="space-y-1">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created At</div>
+        <div class="flex items-center">
+          <i class="fas fa-clock text-yellow-500 mr-2"></i>
+          <div>
+            <div class="font-semibold text-gray-900">
+              {{ $sr->created_at ? $sr->created_at->format('d/m/Y H:i') : '-' }}
+            </div>
+            @if($sr->created_at)
+              <div class="text-xs text-gray-500">
+                {{ $sr->created_at->diffForHumans() }}
+              </div>
+            @endif
+          </div>
+        </div>
       </div>
     </div>
 
-    @if($sr->no_seri_mgrt || $sr->merk_brand_mgrt || $sr->notes)
-      <div class="mt-6 pt-4 border-t border-gray-200">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          @if($sr->no_seri_mgrt)
-            <div>
-              <div class="text-xs text-gray-500">No. Seri MGRT</div>
-              <div class="font-medium text-blue-600">{{ $sr->no_seri_mgrt }}</div>
+    <!-- MGRT Information Section -->
+    @if($sr->no_seri_mgrt || $sr->merk_brand_mgrt || $sr->jenis_tapping || $sr->notes)
+      <div class="mt-6 pt-6 border-t border-yellow-200">
+        <div class="mb-4">
+          <h3 class="text-sm font-medium text-gray-700 flex items-center">
+            <i class="fas fa-gas-pump text-yellow-500 mr-2"></i>
+            Additional Information
+          </h3>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          @if($sr->jenis_tapping)
+            <div class="space-y-1">
+              <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Jenis Tapping</div>
+              <div class="font-semibold text-gray-900">{{ $sr->jenis_tapping }}</div>
             </div>
           @endif
-          
+
+          @if($sr->no_seri_mgrt)
+            <div class="space-y-1">
+              <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">No. Seri MGRT</div>
+              <div class="font-semibold text-yellow-600">{{ $sr->no_seri_mgrt }}</div>
+            </div>
+          @endif
+
           @if($sr->merk_brand_mgrt)
-            <div>
-              <div class="text-xs text-gray-500">Merk/Brand MGRT</div>
-              <div class="font-medium">{{ $sr->merk_brand_mgrt }}</div>
+            <div class="space-y-1">
+              <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Merk/Brand MGRT</div>
+              <div class="font-semibold text-gray-900">{{ $sr->merk_brand_mgrt }}</div>
             </div>
           @endif
 
           @if($sr->notes)
-            <div class="md:col-span-{{ $sr->no_seri_mgrt && $sr->merk_brand_mgrt ? '1' : ($sr->no_seri_mgrt || $sr->merk_brand_mgrt ? '2' : '3') }}">
-              <div class="text-xs text-gray-500">Catatan Petugas</div>
-              <div class="font-medium text-gray-700">{{ $sr->notes }}</div>
+            <div class="space-y-1 {{ !$sr->jenis_tapping && !$sr->no_seri_mgrt && !$sr->merk_brand_mgrt ? 'md:col-span-2 lg:col-span-4' : 'lg:col-span-1' }}">
+              <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Catatan Petugas</div>
+              <div class="font-medium text-gray-700 text-sm">{{ $sr->notes }}</div>
+            </div>
+          @endif
+        </div>
+      </div>
+    @endif
+
+    <!-- Module Status Progress -->
+    @if($sr->ai_overall_status || $sr->tracer_approved_at || $sr->cgp_approved_at)
+      <div class="mt-6 pt-6 border-t border-yellow-200">
+        <div class="flex items-center gap-4">
+          <div class="text-sm font-medium text-gray-700">Progress:</div>
+
+          @if($sr->ai_overall_status)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full mr-2 {{ $sr->ai_overall_status === 'ready' ? 'bg-yellow-500' : 'bg-amber-500' }}"></div>
+              <span class="text-sm {{ $sr->ai_overall_status === 'ready' ? 'text-yellow-700' : 'text-amber-700' }}">
+                AI: {{ ucfirst($sr->ai_overall_status) }}
+              </span>
+            </div>
+          @endif
+
+          @if($sr->tracer_approved_at)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
+              <span class="text-sm text-purple-700">
+                Tracer: {{ $sr->tracer_approved_at->format('d/m/Y H:i') }}
+              </span>
+            </div>
+          @endif
+
+          @if($sr->cgp_approved_at)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+              <span class="text-sm text-green-700">
+                CGP: {{ $sr->cgp_approved_at->format('d/m/Y H:i') }}
+              </span>
             </div>
           @endif
         </div>
@@ -225,10 +324,16 @@
     </div>
   @endif
 
-  <div class="bg-white rounded-xl card-shadow p-6">
-    <div class="flex items-center gap-3 mb-4">
-      <i class="fas fa-clipboard-list text-orange-600"></i>
-      <h2 class="font-semibold text-gray-800">Material SR</h2>
+  <!-- Material SR Section -->
+  <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center shadow">
+        <i class="fas fa-clipboard-list text-white"></i>
+      </div>
+      <div>
+        <h2 class="text-lg font-semibold text-gray-800">Material SR</h2>
+        <p class="text-yellow-600 text-sm">Service regulator materials</p>
+      </div>
     </div>
 
     @php
@@ -277,24 +382,92 @@
         @endforeach
       </div>
 
-      <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+      <div class="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
         <div class="flex justify-between items-center">
-          <span class="font-medium text-blue-800">Total Items:</span>
-          <span class="font-bold text-blue-900 text-lg">{{ $totalItems }} pcs</span>
+          <span class="font-medium text-yellow-800">Total Items:</span>
+          <span class="font-bold text-yellow-900 text-lg">{{ $totalItems }} pcs</span>
         </div>
         <div class="flex justify-between items-center mt-2">
-          <span class="font-medium text-blue-800">Total Lengths:</span>
-          <span class="font-bold text-blue-900 text-lg">{{ $totalLengths }} meter</span>
+          <span class="font-medium text-yellow-800">Total Lengths:</span>
+          <span class="font-bold text-yellow-900 text-lg">{{ $totalLengths }} meter</span>
         </div>
         @if($sr->jenis_tapping)
           <div class="flex justify-between items-center mt-2">
-            <span class="font-medium text-blue-800">Jenis Tapping:</span>
-            <span class="font-bold text-blue-900 text-lg">{{ $sr->jenis_tapping }}</span>
+            <span class="font-medium text-yellow-800">Jenis Tapping:</span>
+            <span class="font-bold text-yellow-900 text-lg">{{ $sr->jenis_tapping }}</span>
           </div>
         @endif
       </div>
     @endif
   </div>
+
+  <!-- Workflow Actions -->
+  @if(in_array(auth()->user()->role, ['tracer', 'admin', 'super_admin']))
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center">
+          <i class="fas fa-tasks text-white"></i>
+        </div>
+        <div>
+          <h3 class="text-xl font-semibold text-gray-800">Workflow Actions</h3>
+          <p class="text-gray-600 text-sm">Available actions based on your role and current status</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        @if($sr->canApproveTracer() && in_array(auth()->user()->role, ['tracer', 'super_admin']))
+          <button @click="approveTracer()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-check text-2xl mb-2"></i>
+            <span class="font-semibold">Approve Tracer</span>
+            <span class="text-xs opacity-80 text-center">Validate and approve as tracer</span>
+          </button>
+
+          <button @click="rejectTracer()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-times text-2xl mb-2"></i>
+            <span class="font-semibold">Reject Tracer</span>
+            <span class="text-xs opacity-80 text-center">Reject with comments</span>
+          </button>
+        @endif
+
+        @if($sr->canApproveCgp() && in_array(auth()->user()->role, ['admin', 'super_admin']))
+          <button @click="approveCgp()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-check-double text-2xl mb-2"></i>
+            <span class="font-semibold">Approve CGP</span>
+            <span class="text-xs opacity-80 text-center">Final CGP approval</span>
+          </button>
+
+          <button @click="rejectCgp()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-times-circle text-2xl mb-2"></i>
+            <span class="font-semibold">Reject CGP</span>
+            <span class="text-xs opacity-80 text-center">Reject with comments</span>
+          </button>
+        @endif
+
+        @if($sr->canSchedule())
+          <button @click="scheduleSr()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-calendar-alt text-2xl mb-2"></i>
+            <span class="font-semibold">Schedule SR</span>
+            <span class="text-xs opacity-80 text-center">Set installation date</span>
+          </button>
+        @endif
+
+        @if($sr->canComplete())
+          <button @click="completeSr()"
+                  class="group flex flex-col items-center p-4 bg-gradient-to-br from-yellow-500 to-amber-600 text-white rounded-xl hover:from-yellow-600 hover:to-amber-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <i class="fas fa-check-circle text-2xl mb-2"></i>
+            <span class="font-semibold">Complete SR</span>
+            <span class="text-xs opacity-80 text-center">Mark as completed</span>
+          </button>
+        @endif
+      </div>
+    </div>
+  @endif
 
   <div class="bg-white rounded-xl card-shadow p-6 space-y-4">
     <div class="flex items-center gap-3">
@@ -405,7 +578,145 @@
 <script>
 function srShow() {
   return {
-    init() {}
+    init() {},
+
+    async approveTracer() {
+      if (confirm('Are you sure you want to approve this SR?')) {
+        try {
+          const response = await fetch(`/sr/{{ $sr->id }}/approve-tracer`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+          });
+
+          if (response.ok) {
+            location.reload();
+          } else {
+            alert('Failed to approve SR');
+          }
+        } catch (error) {
+          alert('Error: ' + error.message);
+        }
+      }
+    },
+
+    async rejectTracer() {
+      const reason = prompt('Please provide a reason for rejection:');
+      if (reason) {
+        try {
+          const response = await fetch(`/sr/{{ $sr->id }}/reject-tracer`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ reason })
+          });
+
+          if (response.ok) {
+            location.reload();
+          } else {
+            alert('Failed to reject SR');
+          }
+        } catch (error) {
+          alert('Error: ' + error.message);
+        }
+      }
+    },
+
+    async approveCgp() {
+      if (confirm('Are you sure you want to approve this SR as CGP?')) {
+        try {
+          const response = await fetch(`/sr/{{ $sr->id }}/approve-cgp`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+          });
+
+          if (response.ok) {
+            location.reload();
+          } else {
+            alert('Failed to approve SR as CGP');
+          }
+        } catch (error) {
+          alert('Error: ' + error.message);
+        }
+      }
+    },
+
+    async rejectCgp() {
+      const reason = prompt('Please provide a reason for CGP rejection:');
+      if (reason) {
+        try {
+          const response = await fetch(`/sr/{{ $sr->id }}/reject-cgp`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ reason })
+          });
+
+          if (response.ok) {
+            location.reload();
+          } else {
+            alert('Failed to reject SR as CGP');
+          }
+        } catch (error) {
+          alert('Error: ' + error.message);
+        }
+      }
+    },
+
+    async scheduleSr() {
+      const date = prompt('Please enter the scheduled date (YYYY-MM-DD):');
+      if (date) {
+        try {
+          const response = await fetch(`/sr/{{ $sr->id }}/schedule`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ scheduled_date: date })
+          });
+
+          if (response.ok) {
+            location.reload();
+          } else {
+            alert('Failed to schedule SR');
+          }
+        } catch (error) {
+          alert('Error: ' + error.message);
+        }
+      }
+    },
+
+    async completeSr() {
+      if (confirm('Are you sure you want to mark this SR as completed?')) {
+        try {
+          const response = await fetch(`/sr/{{ $sr->id }}/complete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+          });
+
+          if (response.ok) {
+            location.reload();
+          } else {
+            alert('Failed to complete SR');
+          }
+        } catch (error) {
+          alert('Error: ' + error.message);
+        }
+      }
+    }
   }
 }
 
