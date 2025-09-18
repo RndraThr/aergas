@@ -109,7 +109,7 @@
                 <!-- Tipe Bongkaran -->
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-3">
-                        Tipe Bongkaran <span class="text-red-500">*</span>
+                        Tipe Bongkaran
                     </label>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         @php
@@ -123,7 +123,7 @@
                                        value="{{ $tipe }}"
                                        {{ old('tipe_bongkaran', $lowering->tipe_bongkaran) === $tipe ? 'checked' : '' }}
                                        class="sr-only"
-                                       onchange="updateTipeBongkaran()" required>
+                                       onchange="updateTipeBongkaran()">
                                 <div class="flex-1 text-center">
                                     <div class="text-sm font-medium">{{ $tipe }}</div>
                                 </div>
@@ -148,6 +148,7 @@
                         <option value="Aspal" {{ old('tipe_material', $lowering->tipe_material) === 'Aspal' ? 'selected' : '' }}>Aspal</option>
                         <option value="Tanah" {{ old('tipe_material', $lowering->tipe_material) === 'Tanah' ? 'selected' : '' }}>Tanah</option>
                         <option value="Paving" {{ old('tipe_material', $lowering->tipe_material) === 'Paving' ? 'selected' : '' }}>Paving</option>
+                        <option value="Beton" {{ old('tipe_material', $lowering->tipe_material) === 'Beton' ? 'selected' : '' }}>Beton</option>
                     </select>
                     @error('tipe_material')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>

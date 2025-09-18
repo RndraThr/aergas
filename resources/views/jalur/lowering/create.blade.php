@@ -100,11 +100,11 @@
                 <!-- Tipe Bongkaran & Aksesoris -->
                 <div class="mb-6">
                     <label for="tipe_bongkaran" class="block text-sm font-medium text-gray-700 mb-2">
-                        Tipe Bongkaran <span class="text-red-500">*</span>
+                        Tipe Bongkaran
                     </label>
-                    <select id="tipe_bongkaran" name="tipe_bongkaran" 
+                    <select id="tipe_bongkaran" name="tipe_bongkaran"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tipe_bongkaran') border-red-500 @enderror"
-                            required onchange="updateAksesoris()">
+                            onchange="updateAksesoris()">
                         <option value="">Pilih Tipe Bongkaran</option>
                         <option value="Manual Boring" {{ old('tipe_bongkaran') === 'Manual Boring' ? 'selected' : '' }}>Manual Boring</option>
                         <option value="Open Cut" {{ old('tipe_bongkaran') === 'Open Cut' ? 'selected' : '' }}>Open Cut</option>
@@ -131,6 +131,7 @@
                         <option value="Aspal" {{ old('tipe_material') === 'Aspal' ? 'selected' : '' }}>Aspal</option>
                         <option value="Tanah" {{ old('tipe_material') === 'Tanah' ? 'selected' : '' }}>Tanah</option>
                         <option value="Paving" {{ old('tipe_material') === 'Paving' ? 'selected' : '' }}>Paving</option>
+                        <option value="Beton" {{ old('tipe_material') === 'Beton' ? 'selected' : '' }}>Beton</option>
                     </select>
                     @error('tipe_material')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
