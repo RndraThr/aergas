@@ -6,8 +6,9 @@
                 @click="sidebarOpen = !sidebarOpen" aria-label="Toggle sidebar">
           <i class="fa-solid fa-bars"></i>
         </button>
-        <a href="{{ route('dashboard') }}" class="font-semibold tracking-tight">
-          {{ config('app.name','Aergas') }}
+        <a href="{{ route('dashboard') }}" class="flex items-center justify-center space-x-3">
+          <img src="{{ asset('assets/CGP.png') }}" alt="CGP Logo" class="h-10 w-auto">
+          <img src="{{ asset('assets/AERGAS_PNG.png') }}" alt="AERGAS Logo" class="h-9 w-auto">
         </a>
       </div>
 

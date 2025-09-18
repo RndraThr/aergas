@@ -17,10 +17,13 @@
 
         <!-- Logo -->
         <div class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-aergas-navy to-aergas-navy/90 border-b border-aergas-navy/20 flex-shrink-0">
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center justify-center space-x-3 flex-1">
+                <img src="{{ asset('assets/CGP.png') }}"
+                     alt="CGP Logo"
+                     class="h-10 w-auto filter brightness-0 invert">
                 <img src="{{ asset('assets/AERGAS_PNG.png') }}"
                      alt="AERGAS Logo"
-                     class="h-8 w-auto filter brightness-0 invert">
+                     class="h-9 w-auto filter brightness-0 invert">
             </div>
             <button @click="sidebarOpen = false"
                     class="lg:hidden p-2 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition-colors">

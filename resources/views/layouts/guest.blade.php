@@ -40,11 +40,14 @@
     <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0">
         <!-- Header Logo Section -->
         <div class="mb-8">
-            <a href="/">
+            <div class="flex items-center justify-center gap-4">
+                <img src="{{ asset('assets/CGP.png') }}"
+                     alt="CGP Logo"
+                     class="w-16 h-auto filter drop-shadow-lg bg-white bg-opacity-10 rounded-xl p-3 backdrop-blur-sm border border-gray-300 border-opacity-40">
                 <img src="{{ asset('assets/AERGAS_PNG.png') }}"
                      alt="AERGAS Logo"
-                     class="w-32 h-auto filter drop-shadow-lg">
-            </a>
+                     class="w-32 h-auto filter drop-shadow-lg bg-white bg-opacity-90 rounded-xl p-3 backdrop-blur-sm">
+            </div>
         </div>
 
         <!-- Content Container -->
