@@ -81,13 +81,22 @@ class JalurController extends Controller
             $totalLines = $cluster->lineNumbers->count();
             $completedLines = $cluster->lineNumbers->where('status_line', 'completed')->count();
             $totalEstimate = $cluster->lineNumbers->sum('estimasi_panjang');
-            // Calculate actual from both actual_mc100 field and total penggelaran from lowering data  
+            // Calculate actual from both actual_mc100 field and total penggelaran from lowering data
             $totalActualFromField = $cluster->lineNumbers->whereNotNull('actual_mc100')->sum('actual_mc100');
             $totalPenggelaran = $cluster->lineNumbers->sum('total_penggelaran');
-            
+
             // Use actual_mc100 if available, otherwise use total_penggelaran as actual
             $totalActual = $totalActualFromField > 0 ? $totalActualFromField : $totalPenggelaran;
-            
+
+            // Calculate progress based on actual work done vs estimate, not just completed count
+            $progressPercentage = 0;
+            if ($totalEstimate > 0) {
+                $progressPercentage = min(100, ($totalPenggelaran / $totalEstimate) * 100);
+            }
+
+            // Calculate how many lines have meaningful progress (penggelaran > 0)
+            $linesWithProgress = $cluster->lineNumbers->where('total_penggelaran', '>', 0)->count();
+
             // Only calculate variance if we have actual data
             $variance = ($totalActual > 0 && $totalEstimate > 0) ? $totalActual - $totalEstimate : null;
 
@@ -96,7 +105,8 @@ class JalurController extends Controller
                 'code' => $cluster->code_cluster,
                 'total_lines' => $totalLines,
                 'completed_lines' => $completedLines,
-                'progress_percentage' => $totalLines > 0 ? ($completedLines / $totalLines) * 100 : 0,
+                'lines_with_progress' => $linesWithProgress,
+                'progress_percentage' => round($progressPercentage, 1),
                 'total_estimate' => $totalEstimate,
                 'total_penggelaran' => $totalPenggelaran,
                 'total_actual' => $totalActual,

@@ -98,12 +98,18 @@ class JalurLineNumber extends Model
     public function updateStatus(): void
     {
         $status = 'draft';
-        
+
+        // Check if there's any lowering data
         if ($this->loweringData()->count() > 0) {
             $status = 'in_progress';
         }
-        
+
+        // Mark as completed if:
+        // 1. actual_mc100 is set (final measurement), OR
+        // 2. total_penggelaran reaches or exceeds estimasi_panjang (work complete)
         if ($this->actual_mc100 !== null) {
+            $status = 'completed';
+        } elseif ($this->estimasi_panjang > 0 && $this->total_penggelaran >= $this->estimasi_panjang) {
             $status = 'completed';
         }
 
