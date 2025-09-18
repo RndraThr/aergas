@@ -100,11 +100,11 @@
                 <!-- Tipe Bongkaran & Aksesoris -->
                 <div class="mb-6">
                     <label for="tipe_bongkaran" class="block text-sm font-medium text-gray-700 mb-2">
-                        Tipe Bongkaran
+                        Tipe Bongkaran <span class="text-red-500">*</span>
                     </label>
                     <select id="tipe_bongkaran" name="tipe_bongkaran"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tipe_bongkaran') border-red-500 @enderror"
-                            onchange="updateAksesoris()">
+                            required onchange="updateAksesoris()">
                         <option value="">Pilih Tipe Bongkaran</option>
                         <option value="Manual Boring" {{ old('tipe_bongkaran') === 'Manual Boring' ? 'selected' : '' }}>Manual Boring</option>
                         <option value="Open Cut" {{ old('tipe_bongkaran') === 'Open Cut' ? 'selected' : '' }}>Open Cut</option>
@@ -122,11 +122,10 @@
                 <!-- Tipe Material Bongkaran -->
                 <div class="mb-6">
                     <label for="tipe_material" class="block text-sm font-medium text-gray-700 mb-2">
-                        Tipe Material Bongkaran <span class="text-red-500">*</span>
+                        Tipe Material Bongkaran
                     </label>
                     <select id="tipe_material" name="tipe_material"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tipe_material') border-red-500 @enderror"
-                            required>
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tipe_material') border-red-500 @enderror">
                         <option value="">Pilih Tipe Material</option>
                         <option value="Aspal" {{ old('tipe_material') === 'Aspal' ? 'selected' : '' }}>Aspal</option>
                         <option value="Tanah" {{ old('tipe_material') === 'Tanah' ? 'selected' : '' }}>Tanah</option>

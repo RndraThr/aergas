@@ -109,7 +109,7 @@
                 <!-- Tipe Bongkaran -->
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-3">
-                        Tipe Bongkaran
+                        Tipe Bongkaran <span class="text-red-500">*</span>
                     </label>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         @php
@@ -123,7 +123,7 @@
                                        value="{{ $tipe }}"
                                        {{ old('tipe_bongkaran', $lowering->tipe_bongkaran) === $tipe ? 'checked' : '' }}
                                        class="sr-only"
-                                       onchange="updateTipeBongkaran()">
+                                       onchange="updateTipeBongkaran()" required>
                                 <div class="flex-1 text-center">
                                     <div class="text-sm font-medium">{{ $tipe }}</div>
                                 </div>
@@ -138,12 +138,11 @@
                 <!-- Tipe Material -->
                 <div class="mb-6">
                     <label for="tipe_material" class="block text-sm font-medium text-gray-700 mb-2">
-                        Tipe Material Bongkaran <span class="text-red-500">*</span>
+                        Tipe Material Bongkaran
                     </label>
                     <select id="tipe_material"
                             name="tipe_material"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tipe_material') border-red-500 @enderror"
-                            required>
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tipe_material') border-red-500 @enderror">
                         <option value="">Pilih Tipe Material</option>
                         <option value="Aspal" {{ old('tipe_material', $lowering->tipe_material) === 'Aspal' ? 'selected' : '' }}>Aspal</option>
                         <option value="Tanah" {{ old('tipe_material', $lowering->tipe_material) === 'Tanah' ? 'selected' : '' }}>Tanah</option>
