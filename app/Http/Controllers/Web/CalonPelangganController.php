@@ -420,7 +420,7 @@ class CalonPelangganController extends Controller
             return redirect()->route('customers.show', $targetReff)
                             ->with('success', 'Pelanggan berhasil diperbarui');
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error updating customer', ['reff_id' => $reffId, 'error' => $e->getMessage()]);
 
             if ($request->expectsJson() || $request->ajax()) {

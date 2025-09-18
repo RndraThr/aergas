@@ -36,11 +36,11 @@ Route::middleware('auth')->group(function () {
             return response()->json(['error' => 'Test user not found'], 404);
         }
 
-        \Illuminate\Support\Facades\Auth::login($testUser);
+        Auth::login($testUser);
 
         // Test the actual controller method to catch errors
         try {
-            $controller = new \App\Http\Controllers\Web\ReportDashboardController();
+            $controller = new ReportDashboardController();
             $request = new \Illuminate\Http\Request(['ajax' => true]);
             $response = $controller->index($request);
 
@@ -52,7 +52,7 @@ Route::middleware('auth')->group(function () {
 
             return response()->json([
                 'test' => 'Reports controller working',
-                'user' => auth()->user()?->name,
+                'user' => Auth::user()?->name,
                 'response_type' => get_class($response),
                 'has_data' => $response instanceof \Illuminate\Http\JsonResponse,
                 'evidence_counts' => [
@@ -554,7 +554,7 @@ Route::middleware('auth')->group(function () {
                         ->name('toggle-status');
                     Route::post('/batch-create', [JalurJointNumberController::class, 'batchCreate'])
                         ->name('batch-create');
-                    
+
                     // API routes
                     Route::prefix('api')
                         ->name('api.')
@@ -666,8 +666,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/calon-pelanggan', [ImportController::class, 'formCalonPelanggan'])->name('calon-pelanggan.form');
             Route::get('/calon-pelanggan/template', [ImportController::class, 'downloadTemplateCalonPelanggan'])->name('calon-pelanggan.template');
             Route::post('/calon-pelanggan', [ImportController::class, 'importCalonPelanggan'])->name('calon-pelanggan.import');
-            
-            
+
+
             Route::get('/report', [ImportController::class, 'downloadReport'])->name('report.download');
         });
 });
