@@ -600,8 +600,25 @@ class GoogleDriveService
                 'supportsAllDrives' => true
             ]);
 
-            // Google Drive API returns content directly, not wrapped in response object
-            $content = $response;
+            // Handle different response types
+            Log::debug('Google Drive response type', [
+                'type' => gettype($response),
+                'class' => get_class($response),
+                'size' => is_string($response) ? strlen($response) : 'unknown'
+            ]);
+
+            if ($response instanceof \GuzzleHttp\Psr7\Response) {
+                $content = $response->getBody()->getContents();
+                Log::debug('Extracted content from Guzzle response', ['size' => strlen($content)]);
+            } elseif (is_string($response)) {
+                $content = $response;
+                Log::debug('Using string response directly', ['size' => strlen($content)]);
+            } else {
+                // Try to convert to string
+                $content = (string) $response;
+                Log::debug('Converted response to string', ['size' => strlen($content)]);
+            }
+
             if (!$content) {
                 throw new Exception('Downloaded file is empty');
             }
@@ -633,13 +650,39 @@ class GoogleDriveService
             $newFile->setParents([$targetFolderId]);
             $newFile->setMimeType($file->mimeType);
 
-            $created = $this->drive->files->create($newFile, [
-                'data' => $content,
-                'mimeType' => $file->mimeType,
-                'uploadType' => 'multipart',
-                'fields' => 'id,name,webViewLink,webContentLink',
-                'supportsAllDrives' => true,
+            Log::info('Creating file in Google Drive', [
+                'filename' => $customFileName,
+                'mime_type' => $file->mimeType,
+                'content_size' => strlen($content),
+                'target_folder' => $targetFolderId
             ]);
+
+            try {
+                // Create a temporary stream from content
+                $stream = \GuzzleHttp\Psr7\Utils::streamFor($content);
+
+                $created = $this->drive->files->create($newFile, [
+                    'data' => $stream,
+                    'mimeType' => $file->mimeType,
+                    'uploadType' => 'media',
+                    'fields' => 'id,name,webViewLink,webContentLink',
+                    'supportsAllDrives' => true,
+                ]);
+
+                Log::info('File created successfully in Google Drive', [
+                    'file_id' => $created->id,
+                    'filename' => $created->name
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to create file in Google Drive', [
+                    'filename' => $customFileName,
+                    'content_type' => gettype($content),
+                    'content_size' => strlen($content),
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
 
             // Set public permission
             $permission = new Permission();
