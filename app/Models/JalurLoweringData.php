@@ -12,6 +12,8 @@ class JalurLoweringData extends BaseModuleModel
 {
     use HasFactory, SoftDeletes;
 
+    private static array $originalDates = [];
+
     protected $table = 'jalur_lowering_data';
     protected $guarded = [];
 
@@ -202,11 +204,10 @@ class JalurLoweringData extends BaseModuleModel
         });
 
         static::updating(function (JalurLoweringData $lowering) {
-            // Store original date before update for comparison
+            // Store original date before update for comparison using static array
             $originalDate = $lowering->getOriginal('tanggal_jalur');
             if ($originalDate) {
-                // Store as temporary property that won't be saved to DB
-                $lowering->tempOriginalTanggalJalur = $originalDate;
+                self::$originalDates[$lowering->id] = $originalDate;
             }
         });
 
@@ -214,8 +215,8 @@ class JalurLoweringData extends BaseModuleModel
             $lowering->updateLineNumberTotals();
 
             // Check if tanggal_jalur was changed and trigger folder reorganization
-            if (isset($lowering->tempOriginalTanggalJalur)) {
-                $oldDate = $lowering->tempOriginalTanggalJalur;
+            if (isset(self::$originalDates[$lowering->id])) {
+                $oldDate = self::$originalDates[$lowering->id];
                 $newDate = $lowering->tanggal_jalur->format('Y-m-d');
 
                 // Convert old date to string format if it's a Carbon instance
@@ -227,8 +228,8 @@ class JalurLoweringData extends BaseModuleModel
                     $lowering->handleDateChangeFolderReorganization($oldDate, $newDate);
                 }
 
-                // Clean up temporary property
-                unset($lowering->tempOriginalTanggalJalur);
+                // Clean up static array entry
+                unset(self::$originalDates[$lowering->id]);
             }
         });
 
