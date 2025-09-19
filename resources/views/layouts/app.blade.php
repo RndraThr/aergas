@@ -424,7 +424,57 @@
         }
     </script>
 
+    <!-- Global Pagination Helper -->
+    <script>
+    // Global function to handle back navigation with pagination state
+    window.goBackWithPagination = function(baseRoute, module = null) {
+        // Determine storage key based on route or module
+        let storageKey = 'pagination_state';
+        if (module) {
+            storageKey = `${module}_pagination_state`;
+        } else if (baseRoute.includes('/sk')) {
+            storageKey = 'sk_pagination_state';
+        } else if (baseRoute.includes('/sr')) {
+            storageKey = 'sr_pagination_state';
+        } else if (baseRoute.includes('/gas-in')) {
+            storageKey = 'gas_in_pagination_state';
+        }
 
+        const savedState = localStorage.getItem(storageKey);
+
+        if (savedState) {
+            try {
+                const state = JSON.parse(savedState);
+                // Check if state is recent (within 10 minutes)
+                if (Date.now() - state.timestamp < 600000) {
+                    const url = new URL(baseRoute, window.location.origin);
+
+                    // Add pagination and search parameters
+                    if (state.page && state.page !== '1') {
+                        url.searchParams.set('page', state.page);
+                    }
+
+                    if (state.search) {
+                        const savedParams = new URLSearchParams(state.search);
+                        for (const [key, value] of savedParams) {
+                            if (key !== 'page') {
+                                url.searchParams.set(key, value);
+                            }
+                        }
+                    }
+
+                    window.location.href = url.href;
+                    return;
+                }
+            } catch (e) {
+                console.log('Error parsing pagination state:', e);
+            }
+        }
+
+        // Fallback to base route if no valid state
+        window.location.href = baseRoute;
+    };
+    </script>
 
     @stack('scripts')
 </body>

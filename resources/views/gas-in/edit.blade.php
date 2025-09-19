@@ -33,7 +33,7 @@
     </div>
     <div class="flex gap-2">
       <a href="{{ route('gas-in.show',$gasIn->id) }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Detail</a>
-      <a href="{{ route('gas-in.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Kembali</a>
+      <a href="javascript:void(0)" onclick="goBackWithPagination('{{ route('gas-in.index') }}')" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Kembali</a>
     </div>
   </div>
 

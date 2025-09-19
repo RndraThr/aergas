@@ -32,7 +32,7 @@
         </a>
       @endif
       
-      <a href="{{ route('sr.index') }}" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Kembali</a>
+      <a href="javascript:void(0)" onclick="goBackWithPagination('{{ route('sr.index') }}')" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Kembali</a>
     </div>
   </div>
 
@@ -742,5 +742,43 @@ document.addEventListener('keydown', function(e) {
     closeImageModal();
   }
 });
+
+// Function to go back with pagination state
+function goBackWithPagination(baseRoute) {
+  const storageKey = 'sr_pagination_state';
+  const savedState = localStorage.getItem(storageKey);
+
+  if (savedState) {
+    try {
+      const state = JSON.parse(savedState);
+      // Check if state is recent (within 10 minutes)
+      if (Date.now() - state.timestamp < 600000) {
+        const url = new URL(baseRoute, window.location.origin);
+
+        // Add pagination and search parameters
+        if (state.page && state.page !== '1') {
+          url.searchParams.set('page', state.page);
+        }
+
+        if (state.search) {
+          const savedParams = new URLSearchParams(state.search);
+          for (const [key, value] of savedParams) {
+            if (key !== 'page') {
+              url.searchParams.set(key, value);
+            }
+          }
+        }
+
+        window.location.href = url.href;
+        return;
+      }
+    } catch (e) {
+      console.log('Error parsing pagination state:', e);
+    }
+  }
+
+  // Fallback to base route if no valid state
+  window.location.href = baseRoute;
+}
 </script>
 @endpush

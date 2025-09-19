@@ -32,7 +32,7 @@
         </a>
       @endif
       
-      <a href="{{ route('sk.index') }}" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Kembali</a>
+      <a href="javascript:void(0)" onclick="goBackWithPagination('{{ route('sk.index') }}')" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Kembali</a>
     </div>
   </div>
 

@@ -34,7 +34,7 @@
      <h1 class="text-3xl font-bold text-gray-800">Buat Gas In</h1>
      <p class="text-gray-600 mt-1">Masukkan Reference ID untuk auto-fill data customer</p>
    </div>
-   <a href="{{ route('gas-in.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Kembali</a>
+   <a href="javascript:void(0)" onclick="goBackWithPagination('{{ route('gas-in.index') }}')" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Kembali</a>
  </div>
 
  @if ($errors->any())
@@ -237,7 +237,7 @@
    </div>
 
    <div class="flex justify-end gap-3 pt-2">
-     <a href="{{ route('gas-in.index') }}" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">
+     <a href="javascript:void(0)" onclick="goBackWithPagination('{{ route('gas-in.index') }}')" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">
        <i class="fas fa-arrow-left mr-2"></i>Batal
      </a>
      <button type="submit"
