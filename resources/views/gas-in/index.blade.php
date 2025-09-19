@@ -351,6 +351,80 @@ document.addEventListener('keydown', function(e) {
     closeDeleteModal();
   }
 });
+
+// Pagination state persistence
+document.addEventListener('DOMContentLoaded', function() {
+  const storageKey = 'gas_in_pagination_state';
+
+  // Save current page state when navigating to detail page
+  document.querySelectorAll('a[href*="/gas-in/"]').forEach(link => {
+    if (link.href.includes('/gas-in/') && !link.href.includes('/create') && !link.href.includes('/edit')) {
+      link.addEventListener('click', function() {
+        const currentUrl = new URL(window.location.href);
+        const currentPage = currentUrl.searchParams.get('page') || '1';
+        const searchParams = currentUrl.search;
+
+        localStorage.setItem(storageKey, JSON.stringify({
+          page: currentPage,
+          search: searchParams,
+          timestamp: Date.now()
+        }));
+      });
+    }
+  });
+
+  // Handle back button and restore state
+  window.addEventListener('pageshow', function(event) {
+    if (event.persisted || performance.navigation.type === 2) {
+      // Page came from cache (back button)
+      const savedState = localStorage.getItem(storageKey);
+      if (savedState) {
+        try {
+          const state = JSON.parse(savedState);
+          // Check if state is recent (within 10 minutes)
+          if (Date.now() - state.timestamp < 600000) {
+            const currentUrl = new URL(window.location.href);
+            const currentPage = currentUrl.searchParams.get('page') || '1';
+
+            // Only redirect if we're on page 1 and saved state has different page
+            if (currentPage === '1' && state.page !== '1') {
+              currentUrl.searchParams.set('page', state.page);
+              // Restore other search parameters if any
+              if (state.search) {
+                const savedParams = new URLSearchParams(state.search);
+                for (const [key, value] of savedParams) {
+                  if (key !== 'page') {
+                    currentUrl.searchParams.set(key, value);
+                  }
+                }
+              }
+              window.location.href = currentUrl.href;
+            }
+          }
+        } catch (e) {
+          console.log('Error parsing pagination state:', e);
+        }
+      }
+    }
+  });
+
+  // Clean up old states periodically
+  const cleanupOldStates = () => {
+    const savedState = localStorage.getItem(storageKey);
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState);
+        if (Date.now() - state.timestamp > 600000) { // 10 minutes
+          localStorage.removeItem(storageKey);
+        }
+      } catch (e) {
+        localStorage.removeItem(storageKey);
+      }
+    }
+  };
+
+  cleanupOldStates();
+});
 </script>
 
 @endsection
