@@ -944,40 +944,6 @@ class GoogleDriveService
         return null;
     }
 
-    /**
-     * Get folder ID by path
-     */
-    private function getFolderIdByPath(string $path): ?string
-    {
-        try {
-            $pathParts = explode('/', trim($path, '/'));
-            $currentFolderId = null; // Start from root
-
-            foreach ($pathParts as $folderName) {
-                $query = "name='{$folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-                if ($currentFolderId) {
-                    $query .= " and '{$currentFolderId}' in parents";
-                }
-
-                $results = $this->drive->files->listFiles(['q' => $query]);
-                $folders = $results->getFiles();
-
-                if (empty($folders)) {
-                    return null; // Folder not found
-                }
-
-                $currentFolderId = $folders[0]->getId();
-            }
-
-            return $currentFolderId;
-        } catch (\Exception $e) {
-            Log::error('Failed to get folder ID by path', [
-                'path' => $path,
-                'error' => $e->getMessage()
-            ]);
-            return null;
-        }
-    }
 
     /**
      * Delete folder if empty
