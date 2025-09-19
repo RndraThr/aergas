@@ -224,6 +224,12 @@ class JalurLoweringData extends BaseModuleModel
                     $oldDate = $oldDate->format('Y-m-d');
                 }
 
+                \Log::info('Date change detected', [
+                    'lowering_id' => $lowering->id,
+                    'old_date' => $oldDate,
+                    'new_date' => $newDate
+                ]);
+
                 if ($oldDate !== $newDate) {
                     $lowering->handleDateChangeFolderReorganization($oldDate, $newDate);
                 }
@@ -245,11 +251,11 @@ class JalurLoweringData extends BaseModuleModel
     {
         try {
             // Only reorganize if there are photos to move
-            $hasPhotos = \App\Models\PhotoApproval::where('module_name', 'jalur_lowering')
+            $photos = \App\Models\PhotoApproval::where('module_name', 'jalur_lowering')
                 ->where('module_record_id', $this->id)
-                ->exists();
+                ->get();
 
-            if (!$hasPhotos) {
+            if ($photos->isEmpty()) {
                 \Log::info('No photos to reorganize for date change', [
                     'lowering_id' => $this->id,
                     'old_date' => $oldDate,
@@ -258,29 +264,58 @@ class JalurLoweringData extends BaseModuleModel
                 return;
             }
 
-            // Get Google Drive service
-            $googleDriveService = app(\App\Services\GoogleDriveService::class);
-
-            // Dispatch reorganization job
-            \App\Jobs\ReorganizeJalurLoweringFolder::dispatch(
-                $this->id,
-                $oldDate,
-                $newDate
-            )->onQueue('default');
-
-            \Log::info('Folder reorganization job queued', [
-                'lowering_id' => $this->id,
-                'old_date' => $oldDate,
-                'new_date' => $newDate
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Failed to queue folder reorganization', [
+            \Log::info('Starting folder reorganization', [
                 'lowering_id' => $this->id,
                 'old_date' => $oldDate,
                 'new_date' => $newDate,
-                'error' => $e->getMessage()
+                'photo_count' => $photos->count()
             ]);
+
+            // Get Google Drive service
+            $googleDriveService = app(\App\Services\GoogleDriveService::class);
+
+            // Run reorganization immediately for better user experience
+            $result = $googleDriveService->reorganizeJalurLoweringFiles(
+                $this->id,
+                $oldDate,
+                $newDate
+            );
+
+            \Log::info('Folder reorganization completed', [
+                'lowering_id' => $this->id,
+                'old_date' => $oldDate,
+                'new_date' => $newDate,
+                'result' => $result
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to reorganize folders after date change', [
+                'lowering_id' => $this->id,
+                'old_date' => $oldDate,
+                'new_date' => $newDate,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Fallback: queue the job if immediate execution fails
+            try {
+                \App\Jobs\ReorganizeJalurLoweringFolder::dispatch(
+                    $this->id,
+                    $oldDate,
+                    $newDate
+                )->onQueue('default');
+
+                \Log::info('Folder reorganization job queued as fallback', [
+                    'lowering_id' => $this->id,
+                    'old_date' => $oldDate,
+                    'new_date' => $newDate
+                ]);
+            } catch (\Exception $jobException) {
+                \Log::error('Failed to queue reorganization job as fallback', [
+                    'lowering_id' => $this->id,
+                    'error' => $jobException->getMessage()
+                ]);
+            }
         }
     }
 }
