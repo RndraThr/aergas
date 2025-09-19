@@ -203,20 +203,32 @@ class JalurLoweringData extends BaseModuleModel
 
         static::updating(function (JalurLoweringData $lowering) {
             // Store original date before update for comparison
-            $lowering->_originalTanggalJalur = $lowering->getOriginal('tanggal_jalur');
+            $originalDate = $lowering->getOriginal('tanggal_jalur');
+            if ($originalDate) {
+                // Store as temporary property that won't be saved to DB
+                $lowering->tempOriginalTanggalJalur = $originalDate;
+            }
         });
 
         static::updated(function (JalurLoweringData $lowering) {
             $lowering->updateLineNumberTotals();
 
             // Check if tanggal_jalur was changed and trigger folder reorganization
-            if (isset($lowering->_originalTanggalJalur) &&
-                $lowering->_originalTanggalJalur !== $lowering->tanggal_jalur->format('Y-m-d')) {
+            if (isset($lowering->tempOriginalTanggalJalur)) {
+                $oldDate = $lowering->tempOriginalTanggalJalur;
+                $newDate = $lowering->tanggal_jalur->format('Y-m-d');
 
-                $lowering->handleDateChangeFolderReorganization(
-                    $lowering->_originalTanggalJalur,
-                    $lowering->tanggal_jalur->format('Y-m-d')
-                );
+                // Convert old date to string format if it's a Carbon instance
+                if ($oldDate instanceof \Carbon\Carbon) {
+                    $oldDate = $oldDate->format('Y-m-d');
+                }
+
+                if ($oldDate !== $newDate) {
+                    $lowering->handleDateChangeFolderReorganization($oldDate, $newDate);
+                }
+
+                // Clean up temporary property
+                unset($lowering->tempOriginalTanggalJalur);
             }
         });
 
