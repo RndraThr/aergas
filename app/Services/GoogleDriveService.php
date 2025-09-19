@@ -804,4 +804,202 @@ class GoogleDriveService
             throw $e;
         }
     }
+
+    /**
+     * Reorganize jalur lowering files when date changes
+     */
+    public function reorganizeJalurLoweringFiles(int $loweringId, string $oldDate, string $newDate): array
+    {
+        try {
+            Log::info('Starting jalur lowering folder reorganization', [
+                'lowering_id' => $loweringId,
+                'old_date' => $oldDate,
+                'new_date' => $newDate
+            ]);
+
+            // Get lowering data with relationships
+            $lowering = \App\Models\JalurLoweringData::with(['lineNumber.cluster'])->find($loweringId);
+            if (!$lowering) {
+                throw new \Exception("Lowering data not found: {$loweringId}");
+            }
+
+            $lineNumber = $lowering->lineNumber->line_number;
+            $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+
+            // Build old and new folder paths
+            $oldFolderPath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$oldDate}";
+            $newFolderPath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$newDate}";
+
+            Log::info('Folder paths for reorganization', [
+                'old_path' => $oldFolderPath,
+                'new_path' => $newFolderPath
+            ]);
+
+            // Get all photos for this lowering
+            $photos = \App\Models\PhotoApproval::where('module_name', 'jalur_lowering')
+                ->where('module_record_id', $loweringId)
+                ->get();
+
+            if ($photos->isEmpty()) {
+                Log::info('No photos found for reorganization', ['lowering_id' => $loweringId]);
+                return [
+                    'success' => true,
+                    'moved_count' => 0,
+                    'message' => 'No photos to reorganize'
+                ];
+            }
+
+            // Create new folder structure
+            $newFolderId = $this->ensurePathExists($newFolderPath);
+
+            $movedFiles = [];
+            $errors = [];
+
+            foreach ($photos as $photo) {
+                try {
+                    // Extract file ID from photo URL
+                    $fileId = $this->extractFileIdFromUrl($photo->photo_url);
+                    if (!$fileId) {
+                        $errors[] = "Could not extract file ID from URL: {$photo->photo_url}";
+                        continue;
+                    }
+
+                    // Move file to new folder
+                    $result = $this->moveFileToFolder($fileId, $newFolderId);
+
+                    // Update photo URL to reflect new path
+                    $newUrl = str_replace($oldDate, $newDate, $photo->photo_url);
+                    $photo->update(['photo_url' => $newUrl]);
+
+                    $movedFiles[] = [
+                        'photo_id' => $photo->id,
+                        'field_name' => $photo->photo_field_name,
+                        'old_url' => $photo->photo_url,
+                        'new_url' => $newUrl
+                    ];
+
+                    Log::info('File moved successfully', [
+                        'photo_id' => $photo->id,
+                        'file_id' => $fileId,
+                        'new_folder' => $newFolderPath
+                    ]);
+
+                } catch (\Exception $e) {
+                    $errors[] = "Failed to move photo {$photo->id}: " . $e->getMessage();
+                    Log::error('Failed to move individual file', [
+                        'photo_id' => $photo->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Try to remove old folder if empty
+            try {
+                $oldFolderId = $this->getFolderIdByPath($oldFolderPath);
+                if ($oldFolderId) {
+                    $this->deleteEmptyFolder($oldFolderId);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Could not clean up old folder', [
+                    'old_path' => $oldFolderPath,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            $result = [
+                'success' => true,
+                'moved_count' => count($movedFiles),
+                'moved_files' => $movedFiles,
+                'errors' => $errors,
+                'old_path' => $oldFolderPath,
+                'new_path' => $newFolderPath
+            ];
+
+            Log::info('Jalur lowering folder reorganization completed', $result);
+            return $result;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to reorganize jalur lowering folder', [
+                'lowering_id' => $loweringId,
+                'old_date' => $oldDate,
+                'new_date' => $newDate,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Extract file ID from Google Drive URL
+     */
+    private function extractFileIdFromUrl(string $url): ?string
+    {
+        // Handle various Google Drive URL formats
+        if (preg_match('/\/file\/d\/([a-zA-Z0-9-_]+)/', $url, $matches)) {
+            return $matches[1];
+        }
+        if (preg_match('/id=([a-zA-Z0-9-_]+)/', $url, $matches)) {
+            return $matches[1];
+        }
+        return null;
+    }
+
+    /**
+     * Get folder ID by path
+     */
+    private function getFolderIdByPath(string $path): ?string
+    {
+        try {
+            $pathParts = explode('/', trim($path, '/'));
+            $currentFolderId = null; // Start from root
+
+            foreach ($pathParts as $folderName) {
+                $query = "name='{$folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+                if ($currentFolderId) {
+                    $query .= " and '{$currentFolderId}' in parents";
+                }
+
+                $results = $this->drive->files->listFiles(['q' => $query]);
+                $folders = $results->getFiles();
+
+                if (empty($folders)) {
+                    return null; // Folder not found
+                }
+
+                $currentFolderId = $folders[0]->getId();
+            }
+
+            return $currentFolderId;
+        } catch (\Exception $e) {
+            Log::error('Failed to get folder ID by path', [
+                'path' => $path,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Delete folder if empty
+     */
+    private function deleteEmptyFolder(string $folderId): bool
+    {
+        try {
+            // Check if folder is empty
+            $files = $this->drive->files->listFiles(['q' => "'{$folderId}' in parents and trashed=false"]);
+            if ($files->getFiles()) {
+                return false; // Folder not empty
+            }
+
+            // Delete empty folder
+            $this->drive->files->delete($folderId);
+            return true;
+        } catch (\Exception $e) {
+            Log::warning('Could not delete empty folder', [
+                'folder_id' => $folderId,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
 }

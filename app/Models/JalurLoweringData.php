@@ -201,12 +201,73 @@ class JalurLoweringData extends BaseModuleModel
             $lowering->updateLineNumberTotals();
         });
 
+        static::updating(function (JalurLoweringData $lowering) {
+            // Store original date before update for comparison
+            $lowering->_originalTanggalJalur = $lowering->getOriginal('tanggal_jalur');
+        });
+
         static::updated(function (JalurLoweringData $lowering) {
             $lowering->updateLineNumberTotals();
+
+            // Check if tanggal_jalur was changed and trigger folder reorganization
+            if (isset($lowering->_originalTanggalJalur) &&
+                $lowering->_originalTanggalJalur !== $lowering->tanggal_jalur->format('Y-m-d')) {
+
+                $lowering->handleDateChangeFolderReorganization(
+                    $lowering->_originalTanggalJalur,
+                    $lowering->tanggal_jalur->format('Y-m-d')
+                );
+            }
         });
 
         static::deleted(function (JalurLoweringData $lowering) {
             $lowering->updateLineNumberTotals();
         });
+    }
+
+    /**
+     * Handle folder reorganization when tanggal_jalur changes
+     */
+    protected function handleDateChangeFolderReorganization(string $oldDate, string $newDate): void
+    {
+        try {
+            // Only reorganize if there are photos to move
+            $hasPhotos = \App\Models\PhotoApproval::where('module_name', 'jalur_lowering')
+                ->where('module_record_id', $this->id)
+                ->exists();
+
+            if (!$hasPhotos) {
+                \Log::info('No photos to reorganize for date change', [
+                    'lowering_id' => $this->id,
+                    'old_date' => $oldDate,
+                    'new_date' => $newDate
+                ]);
+                return;
+            }
+
+            // Get Google Drive service
+            $googleDriveService = app(\App\Services\GoogleDriveService::class);
+
+            // Dispatch reorganization job
+            \App\Jobs\ReorganizeJalurLoweringFolder::dispatch(
+                $this->id,
+                $oldDate,
+                $newDate
+            )->onQueue('default');
+
+            \Log::info('Folder reorganization job queued', [
+                'lowering_id' => $this->id,
+                'old_date' => $oldDate,
+                'new_date' => $newDate
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to queue folder reorganization', [
+                'lowering_id' => $this->id,
+                'old_date' => $oldDate,
+                'new_date' => $newDate,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }
