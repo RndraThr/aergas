@@ -853,6 +853,25 @@ class GoogleDriveService
             // Create new folder structure
             $newFolderId = $this->ensurePathExists($newFolderPath);
 
+            if (!$newFolderId) {
+                Log::error('Failed to create/find new folder structure', [
+                    'new_folder_path' => $newFolderPath,
+                    'lowering_id' => $loweringId
+                ]);
+
+                return [
+                    'success' => false,
+                    'error' => 'Failed to create new folder structure',
+                    'moved_files' => [],
+                    'errors' => ['Could not create folder: ' . $newFolderPath]
+                ];
+            }
+
+            Log::info('New folder structure ready', [
+                'new_folder_id' => $newFolderId,
+                'new_folder_path' => $newFolderPath
+            ]);
+
             $movedFiles = [];
             $errors = [];
 
@@ -867,6 +886,16 @@ class GoogleDriveService
 
                     // Move file to new folder
                     $result = $this->moveFileToFolder($fileId, $newFolderId);
+
+                    if (!$result) {
+                        $errors[] = "Failed to move file for photo {$photo->id}";
+                        Log::warning('File move failed', [
+                            'photo_id' => $photo->id,
+                            'file_id' => $fileId,
+                            'new_folder_id' => $newFolderId
+                        ]);
+                        continue;
+                    }
 
                     // Update photo URL to reflect new path
                     $newUrl = str_replace($oldDate, $newDate, $photo->photo_url);
@@ -951,20 +980,56 @@ class GoogleDriveService
     private function ensurePathExists(string $path): ?string
     {
         try {
+            if (!$this->initialize()) {
+                Log::error('Google Drive service not initialized for ensurePathExists');
+                return null;
+            }
+
             $pathParts = explode('/', trim($path, '/'));
             $currentFolderId = $this->rootFolderId;
 
-            foreach ($pathParts as $folderName) {
+            Log::info('Ensuring path exists', [
+                'path' => $path,
+                'parts' => $pathParts,
+                'root_folder_id' => $currentFolderId
+            ]);
+
+            foreach ($pathParts as $index => $folderName) {
+                if (empty($folderName)) continue;
+
+                // Escape folder name for query
+                $escapedName = addslashes($folderName);
+
                 // Check if folder exists
-                $query = "name='{$folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+                $query = "name='{$escapedName}' and mimeType='application/vnd.google-apps.folder' and trashed=false";
                 if ($currentFolderId) {
                     $query .= " and '{$currentFolderId}' in parents";
                 }
 
+                Log::debug('Searching for folder', [
+                    'folder_name' => $folderName,
+                    'query' => $query,
+                    'parent_id' => $currentFolderId
+                ]);
+
                 $results = $this->drive->files->listFiles(['q' => $query]);
+
+                if (!$results) {
+                    Log::error('Google Drive API returned null results', [
+                        'query' => $query,
+                        'folder_name' => $folderName
+                    ]);
+                    return null;
+                }
+
                 $folders = $results->getFiles();
 
                 if (empty($folders)) {
+                    Log::info('Creating new folder', [
+                        'folder_name' => $folderName,
+                        'parent_id' => $currentFolderId
+                    ]);
+
                     // Create folder
                     $fileMetadata = new DriveFile([
                         'name' => $folderName,
@@ -976,17 +1041,39 @@ class GoogleDriveService
                         'fields' => 'id'
                     ]);
 
+                    if (!$folder || !$folder->getId()) {
+                        Log::error('Failed to create folder', [
+                            'folder_name' => $folderName,
+                            'parent_id' => $currentFolderId
+                        ]);
+                        return null;
+                    }
+
                     $currentFolderId = $folder->getId();
+                    Log::info('Folder created successfully', [
+                        'folder_name' => $folderName,
+                        'folder_id' => $currentFolderId
+                    ]);
                 } else {
                     $currentFolderId = $folders[0]->getId();
+                    Log::debug('Found existing folder', [
+                        'folder_name' => $folderName,
+                        'folder_id' => $currentFolderId
+                    ]);
                 }
             }
+
+            Log::info('Path ensured successfully', [
+                'path' => $path,
+                'final_folder_id' => $currentFolderId
+            ]);
 
             return $currentFolderId;
         } catch (Exception $e) {
             Log::error('Failed to ensure path exists', [
                 'path' => $path,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             return null;
         }
@@ -995,11 +1082,36 @@ class GoogleDriveService
     /**
      * Move file to a specific folder
      */
-    private function moveFileToFolder(string $fileId, string $newFolderId): bool
+    private function moveFileToFolder(string $fileId, ?string $newFolderId): bool
     {
         try {
+            if (!$newFolderId) {
+                Log::error('Cannot move file: new folder ID is null', [
+                    'file_id' => $fileId
+                ]);
+                return false;
+            }
+
+            if (!$this->initialize()) {
+                Log::error('Google Drive service not initialized for moveFileToFolder');
+                return false;
+            }
+
+            Log::info('Moving file to folder', [
+                'file_id' => $fileId,
+                'new_folder_id' => $newFolderId
+            ]);
+
             // Get current file metadata
             $file = $this->drive->files->get($fileId, ['fields' => 'parents']);
+
+            if (!$file || !$file->parents) {
+                Log::error('Cannot get file parents', [
+                    'file_id' => $fileId
+                ]);
+                return false;
+            }
+
             $previousParents = implode(',', $file->parents);
 
             // Move file to new folder
@@ -1009,12 +1121,19 @@ class GoogleDriveService
                 'fields' => 'id, parents'
             ]);
 
+            Log::info('File moved successfully', [
+                'file_id' => $fileId,
+                'new_folder_id' => $newFolderId,
+                'previous_parents' => $previousParents
+            ]);
+
             return true;
         } catch (Exception $e) {
             Log::error('Failed to move file to folder', [
                 'file_id' => $fileId,
                 'new_folder_id' => $newFolderId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             return false;
         }
