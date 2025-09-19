@@ -6,6 +6,7 @@ use App\Jobs\ReorganizeJalurLoweringFolder;
 use App\Models\JalurLoweringData;
 use App\Models\PhotoApproval;
 use App\Services\GoogleDriveService;
+use Google\Service\Drive;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -148,7 +149,7 @@ class ReorganizeJalurFolders extends Command
             return;
         }
 
-        $this->warn("Found {count($mismatched)} lowering records with folder mismatches:");
+        $this->warn("Found " . count($mismatched) . " lowering records with folder mismatches:");
 
         foreach ($mismatched as $item) {
             $lowering = $item['lowering'];
@@ -206,7 +207,9 @@ class ReorganizeJalurFolders extends Command
     {
         $clusterName = str_replace(' ', '_', $lowering->lineNumber->cluster->nama_cluster);
         $lineNumber = $lowering->lineNumber->line_number;
-        $date = $lowering->tanggal_jalur->format('Y-m-d');
+        $date = $lowering->tanggal_jalur instanceof \Carbon\Carbon
+            ? $lowering->tanggal_jalur->format('Y-m-d')
+            : $lowering->tanggal_jalur;
 
         return "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$date}";
     }
@@ -218,14 +221,30 @@ class ReorganizeJalurFolders extends Command
             if (preg_match('/\/file\/d\/([a-zA-Z0-9-_]+)/', $url, $matches)) {
                 $fileId = $matches[1];
 
+                // Use reflection to access private drive property
+                $reflection = new \ReflectionClass($service);
+                $driveProperty = $reflection->getProperty('drive');
+                $driveProperty->setAccessible(true);
+                $drive = $driveProperty->getValue($service);
+
+                if (!$drive) {
+                    // Initialize service if not already done
+                    $initMethod = $reflection->getMethod('initialize');
+                    $initMethod->setAccessible(true);
+                    if (!$initMethod->invoke($service)) {
+                        return null;
+                    }
+                    $drive = $driveProperty->getValue($service);
+                }
+
                 // Get file metadata from Google Drive
-                $file = $service->getGoogleDriveService()->files->get($fileId, [
+                $file = $drive->files->get($fileId, [
                     'fields' => 'parents'
                 ]);
 
                 if (!empty($file->parents)) {
                     $parentId = $file->parents[0];
-                    return $service->getFolderPath($parentId);
+                    return $this->buildFolderPath($parentId, $drive);
                 }
             }
         } catch (\Exception $e) {
@@ -236,6 +255,42 @@ class ReorganizeJalurFolders extends Command
         }
 
         return null;
+    }
+
+    private function buildFolderPath(string $folderId, Drive $drive): ?string
+    {
+        try {
+            $path = [];
+            $currentId = $folderId;
+
+            // Build path by walking up the hierarchy
+            while ($currentId && $currentId !== 'root') {
+                $folder = $drive->files->get($currentId, [
+                    'fields' => 'name,parents'
+                ]);
+
+                array_unshift($path, $folder->name);
+
+                if (!empty($folder->parents)) {
+                    $currentId = $folder->parents[0];
+                } else {
+                    break;
+                }
+
+                // Prevent infinite loops
+                if (count($path) > 20) {
+                    break;
+                }
+            }
+
+            return implode('/', $path);
+        } catch (\Exception $e) {
+            Log::warning('Failed to build folder path', [
+                'folder_id' => $folderId,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
 
     private function performReorganization(JalurLoweringData $lowering, GoogleDriveService $service)
@@ -259,7 +314,9 @@ class ReorganizeJalurFolders extends Command
             return;
         }
 
-        $newDate = $lowering->tanggal_jalur->format('Y-m-d');
+        $newDate = $lowering->tanggal_jalur instanceof \Carbon\Carbon
+            ? $lowering->tanggal_jalur->format('Y-m-d')
+            : $lowering->tanggal_jalur;
 
         if ($oldDate === $newDate) {
             $this->info("Dates match for lowering ID: {$lowering->id}, no reorganization needed");

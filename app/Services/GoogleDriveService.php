@@ -599,8 +599,9 @@ class GoogleDriveService
                 'alt' => 'media',
                 'supportsAllDrives' => true
             ]);
-            
-            $content = $response->getBody()->getContents();
+
+            // Google Drive API returns content directly, not wrapped in response object
+            $content = $response;
             if (!$content) {
                 throw new Exception('Downloaded file is empty');
             }
@@ -756,7 +757,7 @@ class GoogleDriveService
         }
     }
 
-    public function copyFileToFolder(string $fileId, string $folderPath, string $newFileName = null): ?string
+    public function copyFileToFolder(string $fileId, string $folderPath, ?string $newFileName = null): ?string
     {
         if (!$this->initialize()) {
             throw new Exception('Google Drive service not available: ' . $this->getError());
@@ -944,6 +945,80 @@ class GoogleDriveService
         return null;
     }
 
+    /**
+     * Ensure folder path exists, creating folders as needed
+     */
+    private function ensurePathExists(string $path): ?string
+    {
+        try {
+            $pathParts = explode('/', trim($path, '/'));
+            $currentFolderId = $this->rootFolderId;
+
+            foreach ($pathParts as $folderName) {
+                // Check if folder exists
+                $query = "name='{$folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+                if ($currentFolderId) {
+                    $query .= " and '{$currentFolderId}' in parents";
+                }
+
+                $results = $this->drive->files->listFiles(['q' => $query]);
+                $folders = $results->getFiles();
+
+                if (empty($folders)) {
+                    // Create folder
+                    $fileMetadata = new DriveFile([
+                        'name' => $folderName,
+                        'mimeType' => 'application/vnd.google-apps.folder',
+                        'parents' => $currentFolderId ? [$currentFolderId] : []
+                    ]);
+
+                    $folder = $this->drive->files->create($fileMetadata, [
+                        'fields' => 'id'
+                    ]);
+
+                    $currentFolderId = $folder->getId();
+                } else {
+                    $currentFolderId = $folders[0]->getId();
+                }
+            }
+
+            return $currentFolderId;
+        } catch (Exception $e) {
+            Log::error('Failed to ensure path exists', [
+                'path' => $path,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Move file to a specific folder
+     */
+    private function moveFileToFolder(string $fileId, string $newFolderId): bool
+    {
+        try {
+            // Get current file metadata
+            $file = $this->drive->files->get($fileId, ['fields' => 'parents']);
+            $previousParents = implode(',', $file->parents);
+
+            // Move file to new folder
+            $this->drive->files->update($fileId, new DriveFile(), [
+                'addParents' => $newFolderId,
+                'removeParents' => $previousParents,
+                'fields' => 'id, parents'
+            ]);
+
+            return true;
+        } catch (Exception $e) {
+            Log::error('Failed to move file to folder', [
+                'file_id' => $fileId,
+                'new_folder_id' => $newFolderId,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
 
     /**
      * Delete folder if empty
