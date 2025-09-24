@@ -67,6 +67,7 @@ class DashboardController extends Controller implements HasMiddleware
                 'totals' => $this->getTotalStats($from, $to, $kelurahan, $padukuhan),
                 'modules' => $this->getModuleStats($from, $to, $kelurahan, $padukuhan),
                 'charts' => $this->getChartData($from, $to, $kelurahan, $padukuhan),
+                'donut_stats' => $this->getDonutChartData(),
                 'activities' => $this->getRecentActivities(10),
                 'photos' => $this->getPhotoStats(),
                 'performance' => $this->getPerformanceMetrics(),
@@ -98,27 +99,69 @@ class DashboardController extends Controller implements HasMiddleware
                 'draft' => SkData::where('module_status', 'draft')->count(),
                 'ready' => SkData::where('module_status', 'tracer_review')->count(),
                 'completed' => SkData::where('module_status', 'completed')->count(),
+                'in_progress' => SkData::whereIn('module_status', ['ai_validation', 'tracer_review', 'cgp_review'])->count(),
+                'rejected' => SkData::where('module_status', 'rejected')->count(),
             ],
             'sr' => [
                 'total' => SrData::count(),
                 'draft' => SrData::where('module_status', 'draft')->count(),
                 'ready' => SrData::where('module_status', 'tracer_review')->count(),
                 'completed' => SrData::where('module_status', 'completed')->count(),
+                'in_progress' => SrData::whereIn('module_status', ['ai_validation', 'tracer_review', 'cgp_review'])->count(),
+                'rejected' => SrData::where('module_status', 'rejected')->count(),
             ],
             'gas_in' => [
                 'total' => GasInData::count(),
                 'draft' => GasInData::where('module_status', 'draft')->count(),
                 'ready' => GasInData::where('module_status', 'tracer_review')->count(),
                 'completed' => GasInData::where('module_status', 'completed')->count(),
+                'in_progress' => GasInData::whereIn('module_status', ['ai_validation', 'tracer_review', 'cgp_review'])->count(),
+                'rejected' => GasInData::where('module_status', 'rejected')->count(),
             ],
+        ];
+
+        // Calculate pie chart data for modules
+        $pieChartData = [
+            'total_by_module' => [
+                'labels' => ['SK Module', 'SR Module', 'Gas In Module'],
+                'data' => [
+                    $moduleData['sk']['total'],
+                    $moduleData['sr']['total'],
+                    $moduleData['gas_in']['total']
+                ],
+                'colors' => ['#EF4444', '#10B981', '#3B82F6']
+            ],
+            'completion_status' => [
+                'labels' => ['Completed', 'In Progress', 'Draft', 'Rejected'],
+                'data' => [
+                    $moduleData['sk']['completed'] + $moduleData['sr']['completed'] + $moduleData['gas_in']['completed'],
+                    $moduleData['sk']['in_progress'] + $moduleData['sr']['in_progress'] + $moduleData['gas_in']['in_progress'],
+                    $moduleData['sk']['draft'] + $moduleData['sr']['draft'] + $moduleData['gas_in']['draft'],
+                    $moduleData['sk']['rejected'] + $moduleData['sr']['rejected'] + $moduleData['gas_in']['rejected']
+                ],
+                'colors' => ['#10B981', '#F59E0B', '#6B7280', '#EF4444']
+            ],
+            'progress_distribution' => [
+                'labels' => ['Validasi', 'SK', 'SR', 'Gas In', 'Done', 'Batal'],
+                'data' => [
+                    $progressCounts['validasi'] ?? 0,
+                    $progressCounts['sk'] ?? 0,
+                    $progressCounts['sr'] ?? 0,
+                    $progressCounts['gas_in'] ?? 0,
+                    $progressCounts['done'] ?? 0,
+                    $progressCounts['batal'] ?? 0
+                ],
+                'colors' => ['#8B5CF6', '#EF4444', '#10B981', '#3B82F6', '#059669', '#DC2626']
+            ]
         ];
 
         return [
             'progress_distribution' => $progressCounts,
             'module_details' => $moduleData,
+            'pie_charts' => $pieChartData,
             // Also include direct module access for frontend compatibility
             'sk' => $moduleData['sk'],
-            'sr' => $moduleData['sr'],  
+            'sr' => $moduleData['sr'],
             'gas_in' => $moduleData['gas_in'],
         ];
     }
@@ -168,6 +211,52 @@ class DashboardController extends Controller implements HasMiddleware
         }
 
         return $result;
+    }
+
+
+    /**
+     * Get data for donut/pie charts
+     */
+    private function getDonutChartData(): array
+    {
+        // Photo approval status distribution
+        $photoStats = [
+            'approved' => PhotoApproval::where('photo_status', 'cgp_approved')->count(),
+            'pending_cgp' => PhotoApproval::where('photo_status', 'cgp_pending')->count(),
+            'pending_tracer' => PhotoApproval::where('photo_status', 'tracer_pending')->count(),
+            'ai_validation' => PhotoApproval::where('photo_status', 'ai_pending')->count(),
+            'rejected' => PhotoApproval::whereIn('photo_status', ['ai_rejected', 'tracer_rejected', 'cgp_rejected'])->count(),
+        ];
+
+        // Customer jenis distribution
+        $jenisStats = CalonPelanggan::select('jenis_pelanggan')
+            ->selectRaw('count(*) as total')
+            ->whereNotNull('jenis_pelanggan')
+            ->groupBy('jenis_pelanggan')
+            ->get()
+            ->mapWithKeys(function($item) {
+                return [ucfirst(str_replace('_', ' ', $item->jenis_pelanggan)) => $item->total];
+            })
+            ->toArray();
+
+        return [
+            'photo_approval' => [
+                'labels' => ['Approved', 'Pending CGP', 'Pending Tracer', 'AI Validation', 'Rejected'],
+                'data' => [
+                    $photoStats['approved'],
+                    $photoStats['pending_cgp'],
+                    $photoStats['pending_tracer'],
+                    $photoStats['ai_validation'],
+                    $photoStats['rejected']
+                ],
+                'colors' => ['#10B981', '#F59E0B', '#3B82F6', '#8B5CF6', '#EF4444']
+            ],
+            'customer_types' => [
+                'labels' => array_keys($jenisStats),
+                'data' => array_values($jenisStats),
+                'colors' => ['#6366F1', '#EC4899', '#14B8A6', '#F97316', '#84CC16']
+            ]
+        ];
     }
 
 

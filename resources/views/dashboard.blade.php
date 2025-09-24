@@ -35,6 +35,7 @@
        </div>
    </div>
 
+   <!-- Summary Cards -->
    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
        <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border border-gray-100">
            <div class="flex items-center justify-between">
@@ -131,7 +132,137 @@
        </div>
    </div>
 
-   <!-- Module Status Cards -->
+   <!-- Modern Chart Section -->
+   <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+       <!-- Module Distribution Pie Chart -->
+       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+           <div class="flex items-center justify-between mb-4">
+               <h3 class="text-lg font-semibold text-gray-900">Module Distribution</h3>
+               <div class="text-sm text-gray-500">Total Data</div>
+           </div>
+           <div class="relative h-64">
+               <canvas id="moduleDistributionChart" class="w-full h-full"></canvas>
+           </div>
+           <div class="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+               <div class="flex flex-col items-center">
+                   <div class="w-3 h-3 bg-red-500 rounded-full mb-1"></div>
+                   <span class="text-gray-600">SK Module</span>
+                   <span class="font-medium" x-text="data.modules?.sk?.total || 0">0</span>
+               </div>
+               <div class="flex flex-col items-center">
+                   <div class="w-3 h-3 bg-green-500 rounded-full mb-1"></div>
+                   <span class="text-gray-600">SR Module</span>
+                   <span class="font-medium" x-text="data.modules?.sr?.total || 0">0</span>
+               </div>
+               <div class="flex flex-col items-center">
+                   <div class="w-3 h-3 bg-blue-500 rounded-full mb-1"></div>
+                   <span class="text-gray-600">Gas In</span>
+                   <span class="font-medium" x-text="data.modules?.gas_in?.total || 0">0</span>
+               </div>
+           </div>
+       </div>
+
+       <!-- Completion Status Pie Chart -->
+       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+           <div class="flex items-center justify-between mb-4">
+               <h3 class="text-lg font-semibold text-gray-900">Completion Status</h3>
+               <div class="text-sm text-gray-500">Overall Progress</div>
+           </div>
+           <div class="relative h-64">
+               <canvas id="completionStatusChart" class="w-full h-full"></canvas>
+           </div>
+           <div class="mt-4 grid grid-cols-2 gap-2 text-center text-xs">
+               <div class="flex flex-col items-center">
+                   <div class="w-3 h-3 bg-green-500 rounded-full mb-1"></div>
+                   <span class="text-gray-600">Completed</span>
+               </div>
+               <div class="flex flex-col items-center">
+                   <div class="w-3 h-3 bg-yellow-500 rounded-full mb-1"></div>
+                   <span class="text-gray-600">In Progress</span>
+               </div>
+               <div class="flex flex-col items-center">
+                   <div class="w-3 h-3 bg-gray-500 rounded-full mb-1"></div>
+                   <span class="text-gray-600">Draft</span>
+               </div>
+               <div class="flex flex-col items-center">
+                   <div class="w-3 h-3 bg-red-500 rounded-full mb-1"></div>
+                   <span class="text-gray-600">Rejected</span>
+               </div>
+           </div>
+       </div>
+
+       <!-- Photo Approval Status -->
+       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+           <div class="flex items-center justify-between mb-4">
+               <h3 class="text-lg font-semibold text-gray-900">Photo Approval</h3>
+               <div class="text-sm text-gray-500">Status Overview</div>
+           </div>
+           <div class="relative h-64">
+               <canvas id="photoApprovalChart" class="w-full h-full"></canvas>
+           </div>
+           <div class="mt-4 space-y-2 text-xs">
+               <div class="flex items-center justify-between">
+                   <div class="flex items-center">
+                       <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                       <span class="text-gray-600">Approved</span>
+                   </div>
+                   <span class="font-medium" x-text="data.donut_stats?.photo_approval?.data?.[0] || 0">0</span>
+               </div>
+               <div class="flex items-center justify-between">
+                   <div class="flex items-center">
+                       <div class="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+                       <span class="text-gray-600">Pending</span>
+                   </div>
+                   <span class="font-medium" x-text="(data.donut_stats?.photo_approval?.data?.[1] || 0) + (data.donut_stats?.photo_approval?.data?.[2] || 0)">0</span>
+               </div>
+           </div>
+       </div>
+   </div>
+
+   <!-- Installation Trend Chart -->
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
+            <h2 class="text-xl font-semibold text-gray-900">Installation Trend</h2>
+
+            <!-- Chart Controls -->
+            <div class="flex items-center space-x-3">
+                <select x-model="chartPeriod" @change="updateChart()"
+                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                </select>
+
+                <select x-model="chartDays" @change="updateChart()"
+                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
+                    <option value="7">Last 7 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="365">Last year</option>
+                </select>
+
+                <select x-model="chartModule" @change="updateChart()"
+                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
+                    <option value="all">All Modules</option>
+                    <option value="sk">SK Only</option>
+                    <option value="sr">SR Only</option>
+                    <option value="gas_in">Gas In Only</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="relative h-80">
+            <canvas id="installationChart" class="w-full h-full"></canvas>
+            <div x-show="chartLoading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75">
+                <div class="flex items-center space-x-2 text-gray-600">
+                    <i class="fas fa-spinner animate-spin"></i>
+                    <span>Loading chart...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   <!-- Module Status Cards - Moved Below -->
    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
            <div class="flex items-center justify-between mb-4">
@@ -320,48 +451,6 @@
            @endif
        </div>
    </div>
-   <!-- Installation Trend Chart -->
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
-            <h2 class="text-xl font-semibold text-gray-900">Installation Trend</h2>
-
-            <!-- Chart Controls -->
-            <div class="flex items-center space-x-3">
-                <select x-model="chartPeriod" @change="updateChart()"
-                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                </select>
-
-                <select x-model="chartDays" @change="updateChart()"
-                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
-                    <option value="7">Last 7 days</option>
-                    <option value="30">Last 30 days</option>
-                    <option value="90">Last 90 days</option>
-                    <option value="365">Last year</option>
-                </select>
-
-                <select x-model="chartModule" @change="updateChart()"
-                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
-                    <option value="all">All Modules</option>
-                    <option value="sk">SK Only</option>
-                    <option value="sr">SR Only</option>
-                    <option value="gas_in">Gas In Only</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="relative h-80">
-            <canvas id="installationChart" class="w-full h-full"></canvas>
-            <div x-show="chartLoading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75">
-                <div class="flex items-center space-x-2 text-gray-600">
-                    <i class="fas fa-spinner animate-spin"></i>
-                    <span>Loading chart...</span>
-                </div>
-            </div>
-        </div>
-    </div>
 
    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 h-fit">
@@ -505,7 +594,18 @@ function dashboardData() {
         data: {
             totals: {},
             photos: {},
-            modules: { module_details: { sk: {}, sr: {}, gas_in: {} } },
+            modules: {
+                module_details: { sk: {}, sr: {}, gas_in: {} },
+                pie_charts: {
+                    total_by_module: { labels: [], data: [], colors: [] },
+                    completion_status: { labels: [], data: [], colors: [] },
+                    progress_distribution: { labels: [], data: [], colors: [] }
+                }
+            },
+            donut_stats: {
+                photo_approval: { labels: [], data: [], colors: [] },
+                customer_types: { labels: [], data: [], colors: [] }
+            },
             activities: [],
             performance: { sla_compliance: {} }
         },
@@ -518,12 +618,15 @@ function dashboardData() {
         chartModule: 'all',
         chartLoading: false,
         installationChart: null,
+        moduleDistributionChart: null,
+        completionStatusChart: null,
+        photoApprovalChart: null,
         chartUpdateTimeout: null,
 
         init() {
             this.loadData();
             this.$nextTick(() => {
-                this.initInstallationChart();
+                this.initAllCharts();
             });
 
             setInterval(() => {
@@ -546,16 +649,31 @@ function dashboardData() {
                     this.data = {
                         totals: result.data.totals || {},
                         photos: result.data.photos || {},
-                        modules: result.data.modules || { module_details: { sk: {}, sr: {}, gas_in: {} } },
+                        modules: result.data.modules || {
+                            module_details: { sk: {}, sr: {}, gas_in: {} },
+                            pie_charts: {
+                                total_by_module: { labels: [], data: [], colors: [] },
+                                completion_status: { labels: [], data: [], colors: [] },
+                                progress_distribution: { labels: [], data: [], colors: [] }
+                            }
+                        },
+                        donut_stats: result.data.donut_stats || {
+                            photo_approval: { labels: [], data: [], colors: [] },
+                            customer_types: { labels: [], data: [], colors: [] }
+                        },
                         activities: result.data.activities || [],
                         performance: result.data.performance || { sla_compliance: {} }
                     };
+
+                    // Update pie charts after data load
+                    this.$nextTick(() => {
+                        this.updatePieCharts();
+                    });
                 }
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
             }
         },
-
 
         async refreshData() {
             this.loading = true;
@@ -573,15 +691,186 @@ function dashboardData() {
                 if (result.success) {
                     this.data = result.data;
                     this.lastUpdated = new Date().toLocaleTimeString('id-ID');
-                    window.showToast('success', 'Dashboard updated successfully');
+
+                    // Update all charts
+                    this.$nextTick(() => {
+                        this.updatePieCharts();
+                    });
+
+                    window.showToast && window.showToast('success', 'Dashboard updated successfully');
                 } else {
                     throw new Error(result.message || 'Failed to refresh data');
                 }
             } catch (error) {
                 console.error('Error refreshing dashboard:', error);
-                window.showToast('error', 'Failed to refresh dashboard');
+                window.showToast && window.showToast('error', 'Failed to refresh dashboard');
             } finally {
                 this.loading = false;
+            }
+        },
+
+        initAllCharts() {
+            this.initInstallationChart();
+            this.initModuleDistributionChart();
+            this.initCompletionStatusChart();
+            this.initPhotoApprovalChart();
+        },
+
+        initModuleDistributionChart() {
+            const canvas = document.getElementById('moduleDistributionChart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+
+            if (this.moduleDistributionChart) {
+                this.moduleDistributionChart.destroy();
+            }
+
+            this.moduleDistributionChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['SK Module', 'SR Module', 'Gas In'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#EF4444', '#10B981', '#3B82F6'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverBorderWidth: 3,
+                        cutout: '60%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            cornerRadius: 8,
+                        }
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true
+                    }
+                }
+            });
+        },
+
+        initCompletionStatusChart() {
+            const canvas = document.getElementById('completionStatusChart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+
+            if (this.completionStatusChart) {
+                this.completionStatusChart.destroy();
+            }
+
+            this.completionStatusChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Completed', 'In Progress', 'Draft', 'Rejected'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#10B981', '#F59E0B', '#6B7280', '#EF4444'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverBorderWidth: 3,
+                        cutout: '60%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            cornerRadius: 8,
+                        }
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true
+                    }
+                }
+            });
+        },
+
+        initPhotoApprovalChart() {
+            const canvas = document.getElementById('photoApprovalChart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+
+            if (this.photoApprovalChart) {
+                this.photoApprovalChart.destroy();
+            }
+
+            this.photoApprovalChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Approved', 'Pending CGP', 'Pending Tracer', 'AI Validation', 'Rejected'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: ['#10B981', '#F59E0B', '#3B82F6', '#8B5CF6', '#EF4444'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverBorderWidth: 3,
+                        cutout: '60%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            cornerRadius: 8,
+                        }
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true
+                    }
+                }
+            });
+        },
+
+        updatePieCharts() {
+            // Update module distribution chart
+            if (this.moduleDistributionChart && this.data.modules.pie_charts?.total_by_module) {
+                const moduleData = this.data.modules.pie_charts.total_by_module;
+                this.moduleDistributionChart.data.datasets[0].data = moduleData.data || [0, 0, 0];
+                this.moduleDistributionChart.update('none');
+            }
+
+            // Update completion status chart
+            if (this.completionStatusChart && this.data.modules.pie_charts?.completion_status) {
+                const completionData = this.data.modules.pie_charts.completion_status;
+                this.completionStatusChart.data.datasets[0].data = completionData.data || [0, 0, 0, 0];
+                this.completionStatusChart.update('none');
+            }
+
+            // Update photo approval chart
+            if (this.photoApprovalChart && this.data.donut_stats?.photo_approval) {
+                const photoData = this.data.donut_stats.photo_approval;
+                this.photoApprovalChart.data.datasets[0].data = photoData.data || [0, 0, 0, 0, 0];
+                this.photoApprovalChart.update('none');
             }
         },
 
