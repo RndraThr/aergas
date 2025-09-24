@@ -142,6 +142,11 @@
            </div>
            <div class="relative h-64">
                <canvas id="moduleDistributionChart" class="w-full h-full"></canvas>
+               <!-- Center Text for Donut -->
+               <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                   <div class="text-2xl font-bold text-gray-700" x-text="(data.modules?.sk?.total || 0) + (data.modules?.sr?.total || 0) + (data.modules?.gas_in?.total || 0)">0</div>
+                   <div class="text-sm text-gray-500 font-medium">Total Records</div>
+               </div>
            </div>
            <div class="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
                <div class="flex flex-col items-center">
@@ -170,6 +175,11 @@
            </div>
            <div class="relative h-64">
                <canvas id="completionStatusChart" class="w-full h-full"></canvas>
+               <!-- Center Text for Donut -->
+               <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                   <div class="text-2xl font-bold text-green-600" x-text="data.modules?.pie_charts?.completion_status?.data?.[0] || 0">0</div>
+                   <div class="text-sm text-gray-500 font-medium">Completed</div>
+               </div>
            </div>
            <div class="mt-4 grid grid-cols-2 gap-2 text-center text-xs">
                <div class="flex flex-col items-center">
@@ -199,6 +209,11 @@
            </div>
            <div class="relative h-64">
                <canvas id="photoApprovalChart" class="w-full h-full"></canvas>
+               <!-- Center Text for Donut -->
+               <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                   <div class="text-xl font-bold text-green-600" x-text="data.donut_stats?.photo_approval?.data?.[0] || 0">0</div>
+                   <div class="text-sm text-gray-500 font-medium">Approved</div>
+               </div>
            </div>
            <div class="mt-4 space-y-2 text-xs">
                <div class="flex items-center justify-between">
@@ -589,6 +604,20 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
 <script>
+// Global Chart.js error handler to prevent canvas errors
+Chart.defaults.animation.duration = 0; // Disable animations to reduce errors
+
+// Override Chart.js canvas helper to add null checks
+const originalGetContext = HTMLCanvasElement.prototype.getContext;
+HTMLCanvasElement.prototype.getContext = function(type, options) {
+    if (!this || !this.parentNode || !document.contains(this)) {
+        console.warn('Canvas not in DOM, skipping getContext');
+        return null;
+    }
+    return originalGetContext.call(this, type, options);
+};
+</script>
+<script>
 function dashboardData() {
     return {
         data: {
@@ -622,16 +651,108 @@ function dashboardData() {
         completionStatusChart: null,
         photoApprovalChart: null,
         chartUpdateTimeout: null,
+        isDestroyed: false,
+        chartInitialized: false,
+        domObserver: null,
 
         init() {
+            this.isDestroyed = false;
             this.loadData();
-            this.$nextTick(() => {
-                this.initAllCharts();
-            });
+
+            // Wait for DOM to be fully ready before initializing charts
+            setTimeout(() => {
+                if (!this.isDestroyed) {
+                    this.$nextTick(() => {
+                        this.initAllCharts();
+                    });
+                }
+            }, 200);
 
             setInterval(() => {
-                this.refreshData();
+                if (!this.isDestroyed) {
+                    this.refreshData();
+                }
             }, 300000);
+
+            // Add visibility change handler
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && !this.isDestroyed && this.chartInitialized) {
+                    setTimeout(() => {
+                        this.validateAndRepairCharts();
+                    }, 500);
+                }
+            });
+
+            // Add beforeunload handler to clean up charts
+            window.addEventListener('beforeunload', () => {
+                this.destroy();
+            });
+
+            // Add page hide handler for mobile
+            window.addEventListener('pagehide', () => {
+                this.destroy();
+            });
+
+            // Add DOM observer to watch for canvas removal
+            this.setupDOMObserver();
+        },
+
+        destroy() {
+            this.isDestroyed = true;
+            this.chartInitialized = false;
+
+            if (this.chartUpdateTimeout) {
+                clearTimeout(this.chartUpdateTimeout);
+            }
+
+            this.destroyAllCharts();
+
+            if (this.domObserver) {
+                this.domObserver.disconnect();
+                this.domObserver = null;
+            }
+        },
+
+        setupDOMObserver() {
+            if (!window.MutationObserver) return;
+
+            this.domObserver = new MutationObserver((mutations) => {
+                if (this.isDestroyed) return;
+
+                let needsValidation = false;
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'childList') {
+                        mutation.removedNodes.forEach((node) => {
+                            if (node.nodeType === Node.ELEMENT_NODE) {
+                                const canvasRemoved = node.querySelector && (
+                                    node.querySelector('#moduleDistributionChart') ||
+                                    node.querySelector('#completionStatusChart') ||
+                                    node.querySelector('#photoApprovalChart') ||
+                                    node.id === 'moduleDistributionChart' ||
+                                    node.id === 'completionStatusChart' ||
+                                    node.id === 'photoApprovalChart'
+                                );
+
+                                if (canvasRemoved) {
+                                    console.warn('Canvas removed from DOM, destroying corresponding charts');
+                                    needsValidation = true;
+                                }
+                            }
+                        });
+                    }
+                });
+
+                if (needsValidation) {
+                    setTimeout(() => {
+                        this.validateAndRepairCharts();
+                    }, 100);
+                }
+            });
+
+            this.domObserver.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
         },
 
         async loadData() {
@@ -692,10 +813,12 @@ function dashboardData() {
                     this.data = result.data;
                     this.lastUpdated = new Date().toLocaleTimeString('id-ID');
 
-                    // Update all charts
-                    this.$nextTick(() => {
-                        this.updatePieCharts();
-                    });
+                    // Update all charts with delay to ensure DOM is ready
+                    setTimeout(() => {
+                        this.$nextTick(() => {
+                            this.updatePieCharts();
+                        });
+                    }, 50);
 
                     window.showToast && window.showToast('success', 'Dashboard updated successfully');
                 } else {
@@ -710,65 +833,188 @@ function dashboardData() {
         },
 
         initAllCharts() {
-            this.initInstallationChart();
-            this.initModuleDistributionChart();
-            this.initCompletionStatusChart();
-            this.initPhotoApprovalChart();
+            if (this.isDestroyed) return;
+
+            console.log('Initializing all charts...');
+
+            // Destroy existing charts first
+            this.destroyAllCharts();
+
+            // Initialize new charts with delays
+            setTimeout(() => this.initInstallationChart(), 50);
+            setTimeout(() => this.initModuleDistributionChart(), 100);
+            setTimeout(() => this.initCompletionStatusChart(), 150);
+            setTimeout(() => this.initPhotoApprovalChart(), 200);
+
+            // Mark as initialized
+            setTimeout(() => {
+                this.chartInitialized = true;
+                console.log('All charts initialized');
+            }, 300);
+        },
+
+        destroyAllCharts() {
+            const charts = [
+                'installationChart',
+                'moduleDistributionChart',
+                'completionStatusChart',
+                'photoApprovalChart'
+            ];
+
+            charts.forEach(chartName => {
+                if (this[chartName]) {
+                    try {
+                        console.log(`Destroying ${chartName}`);
+                        this[chartName].destroy();
+                    } catch (e) {
+                        console.warn(`Error destroying ${chartName}:`, e);
+                    }
+                    this[chartName] = null;
+                }
+            });
+        },
+
+        validateAndRepairCharts() {
+            if (this.isDestroyed || !this.chartInitialized) return;
+
+            const chartsToCheck = [
+                { name: 'moduleDistributionChart', init: this.initModuleDistributionChart },
+                { name: 'completionStatusChart', init: this.initCompletionStatusChart },
+                { name: 'photoApprovalChart', init: this.initPhotoApprovalChart }
+            ];
+
+            chartsToCheck.forEach(({ name, init }) => {
+                if (!this.isChartValid(this[name])) {
+                    console.warn(`Chart ${name} is invalid, reinitializing...`);
+                    this[name] = null;
+                    setTimeout(() => init.call(this), 100);
+                }
+            });
         },
 
         initModuleDistributionChart() {
+            if (this.isDestroyed) return;
+
             const canvas = document.getElementById('moduleDistributionChart');
-            if (!canvas) return;
-
-            const ctx = canvas.getContext('2d');
-
-            if (this.moduleDistributionChart) {
-                this.moduleDistributionChart.destroy();
+            if (!canvas) {
+                console.warn('moduleDistributionChart canvas not found');
+                return;
             }
 
-            this.moduleDistributionChart = new Chart(ctx, {
+            // Additional check - ensure canvas is actually attached to DOM
+            if (!document.contains(canvas)) {
+                console.warn('moduleDistributionChart canvas not in DOM');
+                return;
+            }
+
+            let ctx;
+            try {
+                ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    console.warn('Could not get 2d context from moduleDistributionChart canvas');
+                    return;
+                }
+            } catch (e) {
+                console.warn('Error getting context from moduleDistributionChart canvas:', e);
+                return;
+            }
+
+            if (this.moduleDistributionChart) {
+                try {
+                    this.moduleDistributionChart.destroy();
+                } catch (e) {
+                    console.warn('Error destroying moduleDistributionChart:', e);
+                }
+                this.moduleDistributionChart = null;
+            }
+
+            if (this.isDestroyed) return; // Double check before creating
+
+            try {
+                this.moduleDistributionChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['SK Module', 'SR Module', 'Gas In'],
                     datasets: [{
                         data: [0, 0, 0],
                         backgroundColor: ['#EF4444', '#10B981', '#3B82F6'],
-                        borderWidth: 2,
+                        borderWidth: 3,
                         borderColor: '#ffffff',
-                        hoverBorderWidth: 3,
-                        cutout: '60%'
+                        hoverBorderWidth: 4,
+                        hoverBackgroundColor: ['#DC2626', '#059669', '#2563EB'],
+                        cutout: '65%'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: 10
+                    },
                     plugins: {
                         legend: {
                             display: false
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
                             titleColor: '#fff',
                             bodyColor: '#fff',
                             cornerRadius: 8,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
                         }
                     },
                     animation: {
                         animateScale: true,
-                        animateRotate: true
+                        animateRotate: true,
+                        duration: 1000
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
                     }
                 }
-            });
+                });
+
+                console.log('moduleDistributionChart initialized successfully');
+            } catch (e) {
+                console.error('Error creating moduleDistributionChart:', e);
+                this.moduleDistributionChart = null;
+            }
         },
 
         initCompletionStatusChart() {
             const canvas = document.getElementById('completionStatusChart');
-            if (!canvas) return;
+            if (!canvas) {
+                console.warn('completionStatusChart canvas not found');
+                return;
+            }
 
-            const ctx = canvas.getContext('2d');
+            let ctx;
+            try {
+                ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    console.warn('Could not get 2d context from completionStatusChart canvas');
+                    return;
+                }
+            } catch (e) {
+                console.warn('Error getting context from completionStatusChart canvas:', e);
+                return;
+            }
 
             if (this.completionStatusChart) {
-                this.completionStatusChart.destroy();
+                try {
+                    this.completionStatusChart.destroy();
+                } catch (e) {
+                    console.warn('Error destroying completionStatusChart:', e);
+                }
+                this.completionStatusChart = null;
             }
 
             this.completionStatusChart = new Chart(ctx, {
@@ -778,29 +1024,46 @@ function dashboardData() {
                     datasets: [{
                         data: [0, 0, 0, 0],
                         backgroundColor: ['#10B981', '#F59E0B', '#6B7280', '#EF4444'],
-                        borderWidth: 2,
+                        borderWidth: 3,
                         borderColor: '#ffffff',
-                        hoverBorderWidth: 3,
-                        cutout: '60%'
+                        hoverBorderWidth: 4,
+                        hoverBackgroundColor: ['#059669', '#D97706', '#4B5563', '#DC2626'],
+                        cutout: '65%'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: 10
+                    },
                     plugins: {
                         legend: {
                             display: false
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
                             titleColor: '#fff',
                             bodyColor: '#fff',
                             cornerRadius: 8,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
                         }
                     },
                     animation: {
                         animateScale: true,
-                        animateRotate: true
+                        animateRotate: true,
+                        duration: 1000
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
                     }
                 }
             });
@@ -808,12 +1071,30 @@ function dashboardData() {
 
         initPhotoApprovalChart() {
             const canvas = document.getElementById('photoApprovalChart');
-            if (!canvas) return;
+            if (!canvas) {
+                console.warn('photoApprovalChart canvas not found');
+                return;
+            }
 
-            const ctx = canvas.getContext('2d');
+            let ctx;
+            try {
+                ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    console.warn('Could not get 2d context from photoApprovalChart canvas');
+                    return;
+                }
+            } catch (e) {
+                console.warn('Error getting context from photoApprovalChart canvas:', e);
+                return;
+            }
 
             if (this.photoApprovalChart) {
-                this.photoApprovalChart.destroy();
+                try {
+                    this.photoApprovalChart.destroy();
+                } catch (e) {
+                    console.warn('Error destroying photoApprovalChart:', e);
+                }
+                this.photoApprovalChart = null;
             }
 
             this.photoApprovalChart = new Chart(ctx, {
@@ -823,55 +1104,141 @@ function dashboardData() {
                     datasets: [{
                         data: [0, 0, 0, 0, 0],
                         backgroundColor: ['#10B981', '#F59E0B', '#3B82F6', '#8B5CF6', '#EF4444'],
-                        borderWidth: 2,
+                        borderWidth: 3,
                         borderColor: '#ffffff',
-                        hoverBorderWidth: 3,
-                        cutout: '60%'
+                        hoverBorderWidth: 4,
+                        hoverBackgroundColor: ['#059669', '#D97706', '#2563EB', '#7C3AED', '#DC2626'],
+                        cutout: '65%'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: 10
+                    },
                     plugins: {
                         legend: {
                             display: false
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
                             titleColor: '#fff',
                             bodyColor: '#fff',
                             cornerRadius: 8,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
                         }
                     },
                     animation: {
                         animateScale: true,
-                        animateRotate: true
+                        animateRotate: true,
+                        duration: 1000
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
                     }
                 }
             });
         },
 
         updatePieCharts() {
-            // Update module distribution chart
-            if (this.moduleDistributionChart && this.data.modules.pie_charts?.total_by_module) {
-                const moduleData = this.data.modules.pie_charts.total_by_module;
-                this.moduleDistributionChart.data.datasets[0].data = moduleData.data || [0, 0, 0];
-                this.moduleDistributionChart.update('none');
-            }
+            try {
+                // Update module distribution chart
+                if (this.moduleDistributionChart && this.data.modules.pie_charts?.total_by_module) {
+                    const moduleData = this.data.modules.pie_charts.total_by_module;
+                    const newData = moduleData.data || [0, 0, 0];
 
-            // Update completion status chart
-            if (this.completionStatusChart && this.data.modules.pie_charts?.completion_status) {
-                const completionData = this.data.modules.pie_charts.completion_status;
-                this.completionStatusChart.data.datasets[0].data = completionData.data || [0, 0, 0, 0];
-                this.completionStatusChart.update('none');
-            }
+                    // Check if chart is still valid
+                    if (this.isChartValid(this.moduleDistributionChart)) {
+                        this.moduleDistributionChart.data.datasets[0].data = newData;
+                        this.moduleDistributionChart.update('none');
+                    } else {
+                        this.moduleDistributionChart = null;
+                        this.initModuleDistributionChart();
+                    }
+                }
 
-            // Update photo approval chart
-            if (this.photoApprovalChart && this.data.donut_stats?.photo_approval) {
-                const photoData = this.data.donut_stats.photo_approval;
-                this.photoApprovalChart.data.datasets[0].data = photoData.data || [0, 0, 0, 0, 0];
-                this.photoApprovalChart.update('none');
+                // Update completion status chart
+                if (this.completionStatusChart && this.data.modules.pie_charts?.completion_status) {
+                    const completionData = this.data.modules.pie_charts.completion_status;
+                    const newData = completionData.data || [0, 0, 0, 0];
+
+                    // Check if chart is still valid
+                    if (this.isChartValid(this.completionStatusChart)) {
+                        this.completionStatusChart.data.datasets[0].data = newData;
+                        this.completionStatusChart.update('none');
+                    } else {
+                        this.completionStatusChart = null;
+                        this.initCompletionStatusChart();
+                    }
+                }
+
+                // Update photo approval chart
+                if (this.photoApprovalChart && this.data.donut_stats?.photo_approval) {
+                    const photoData = this.data.donut_stats.photo_approval;
+                    const newData = photoData.data || [0, 0, 0, 0, 0];
+
+                    // Check if chart is still valid
+                    if (this.isChartValid(this.photoApprovalChart)) {
+                        this.photoApprovalChart.data.datasets[0].data = newData;
+                        this.photoApprovalChart.update('none');
+                    } else {
+                        this.photoApprovalChart = null;
+                        this.initPhotoApprovalChart();
+                    }
+                }
+            } catch (error) {
+                console.warn('Error updating pie charts:', error);
+                // Reinitialize all charts if update fails
+                this.reinitializeCharts();
             }
+        },
+
+        isChartValid(chart) {
+            try {
+                return chart &&
+                       chart.canvas &&
+                       chart.canvas.getContext &&
+                       chart.canvas.getContext('2d') &&
+                       chart.data &&
+                       chart.data.datasets &&
+                       chart.data.datasets[0];
+            } catch (e) {
+                return false;
+            }
+        },
+
+        reinitializeCharts() {
+            // Clean up existing charts
+            [this.moduleDistributionChart, this.completionStatusChart, this.photoApprovalChart].forEach(chart => {
+                if (chart) {
+                    try {
+                        chart.destroy();
+                    } catch (e) {
+                        console.warn('Error destroying chart during reinit:', e);
+                    }
+                }
+            });
+
+            // Reset chart references
+            this.moduleDistributionChart = null;
+            this.completionStatusChart = null;
+            this.photoApprovalChart = null;
+
+            // Reinitialize after a short delay
+            setTimeout(() => {
+                this.$nextTick(() => {
+                    this.initAllCharts();
+                });
+            }, 200);
         },
 
         async initInstallationChart() {
