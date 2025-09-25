@@ -294,6 +294,32 @@ class SkData extends BaseModuleModel
         ];
     }
 
+    /**
+     * Check if this SK data can be edited by current user
+     */
+    public function canEdit(): bool
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+
+        // Super admin dan admin selalu bisa edit (kecuali yang sudah completed)
+        if ($user->hasAnyRole(['super_admin', 'admin'])) {
+            return !in_array($this->module_status, ['completed']);
+        }
+
+        // Tracer bisa edit yang rejected untuk perbaikan
+        if ($user->hasAnyRole(['tracer'])) {
+            return in_array($this->module_status, ['draft', 'ai_validation', 'tracer_review', 'rejected']);
+        }
+
+        // User role SK hanya bisa edit draft dan rejected
+        if ($user->hasAnyRole(['sk'])) {
+            return in_array($this->module_status, ['draft', 'rejected']);
+        }
+
+        return false;
+    }
+
     public function recomputeAiOverallStatus(): void
     {
         $module = strtoupper($this->getModuleName());

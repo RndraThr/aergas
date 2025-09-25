@@ -19,8 +19,14 @@
       <p class="text-gray-600 mt-1">Reff ID: <b>{{ $sk->reff_id_pelanggan }}</b></p>
     </div>
     <div class="flex gap-2">
-      @if($sk->status === 'draft')
-        <a href="{{ route('sk.edit',$sk->id) }}" class="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Edit</a>
+      @if($sk->canEdit() || in_array($sk->module_status, ['draft', 'ai_validation', 'tracer_review', 'rejected']) && in_array(auth()->user()->role, ['admin', 'super_admin', 'sk', 'tracer']))
+        <a href="{{ route('sk.edit',$sk->id) }}" class="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+          @if($sk->module_status === 'rejected')
+            <i class="fas fa-edit mr-1"></i>Perbaiki
+          @else
+            Edit
+          @endif
+        </a>
       @endif
       
       @if(in_array(auth()->user()->role, ['admin', 'super_admin', 'tracer']))

@@ -397,6 +397,32 @@ class SrData extends BaseModuleModel
         return $this->status === self::STATUS_CGP_APPROVED;
     }
 
+    /**
+     * Check if this SR data can be edited by current user
+     */
+    public function canEdit(): bool
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+
+        // Super admin dan admin selalu bisa edit (kecuali yang sudah completed)
+        if ($user->hasAnyRole(['super_admin', 'admin'])) {
+            return !in_array($this->module_status, ['completed']);
+        }
+
+        // Tracer bisa edit yang rejected untuk perbaikan
+        if ($user->hasAnyRole(['tracer'])) {
+            return in_array($this->module_status, ['draft', 'ai_validation', 'tracer_review', 'rejected']);
+        }
+
+        // User role SR hanya bisa edit draft dan rejected
+        if ($user->hasAnyRole(['sr'])) {
+            return in_array($this->module_status, ['draft', 'rejected']);
+        }
+
+        return false;
+    }
+
     public function canComplete(): bool
     {
         return $this->status === self::STATUS_SCHEDULED && !empty($this->tanggal_pemasangan);

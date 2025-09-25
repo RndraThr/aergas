@@ -204,6 +204,32 @@ class GasInData extends BaseModuleModel
        return $this->status === self::STATUS_TRACER_APPROVED;
    }
 
+   /**
+    * Check if this Gas In data can be edited by current user
+    */
+   public function canEdit(): bool
+   {
+       $user = auth()->user();
+       if (!$user) return false;
+
+       // Super admin dan admin selalu bisa edit (kecuali yang sudah completed)
+       if ($user->hasAnyRole(['super_admin', 'admin'])) {
+           return !in_array($this->module_status, ['completed']);
+       }
+
+       // Tracer bisa edit yang rejected untuk perbaikan
+       if ($user->hasAnyRole(['tracer'])) {
+           return in_array($this->module_status, ['draft', 'ai_validation', 'tracer_review', 'rejected']);
+       }
+
+       // User role gas_in hanya bisa edit draft dan rejected
+       if ($user->hasAnyRole(['gas_in'])) {
+           return in_array($this->module_status, ['draft', 'rejected']);
+       }
+
+       return false;
+   }
+
    public function canSchedule(): bool
    {
        return $this->status === self::STATUS_CGP_APPROVED;
