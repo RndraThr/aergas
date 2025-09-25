@@ -30,14 +30,14 @@
                class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
       </div>
       <div>
-        <select name="status" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
+        <select name="module_status" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
           <option value="">Semua Status</option>
-          <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Draft</option>
-          <option value="ready_for_tracer" {{ request('status') == 'ready_for_tracer' ? 'selected' : '' }}>Ready for Tracer</option>
-          <option value="tracer_approved" {{ request('status') == 'tracer_approved' ? 'selected' : '' }}>Tracer Approved</option>
-          <option value="cgp_approved" {{ request('status') == 'cgp_approved' ? 'selected' : '' }}>CGP Approved</option>
-          <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
-          <option value="rejected" {{ str_contains(request('status'), 'rejected') ? 'selected' : '' }}>Rejected</option>
+          <option value="draft" {{ request('module_status') == 'draft' ? 'selected' : '' }}>Draft</option>
+          <option value="ai_validation" {{ request('module_status') == 'ai_validation' ? 'selected' : '' }}>AI Validation</option>
+          <option value="tracer_review" {{ request('module_status') == 'tracer_review' ? 'selected' : '' }}>Tracer Review</option>
+          <option value="cgp_review" {{ request('module_status') == 'cgp_review' ? 'selected' : '' }}>CGP Review</option>
+          <option value="completed" {{ request('module_status') == 'completed' ? 'selected' : '' }}>Completed</option>
+          <option value="rejected" {{ request('module_status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
         </select>
       </div>
       <div>
@@ -119,17 +119,29 @@
               {{ $row->tanggal_instalasi ? $row->tanggal_instalasi->format('d/m/Y') : '-' }}
             </td>
             <td class="px-4 py-3">
+              @php
+                $displayStatus = $row->module_status ?? $row->status;
+                $statusMap = [
+                  'not_started' => 'Not Started',
+                  'draft' => 'Draft',
+                  'ai_validation' => 'AI Validation',
+                  'tracer_review' => 'Tracer Review',
+                  'cgp_review' => 'CGP Review',
+                  'completed' => 'Completed',
+                  'rejected' => 'Rejected'
+                ];
+                $statusText = $statusMap[$displayStatus] ?? ucwords(str_replace('_', ' ', $displayStatus));
+              @endphp
               <span class="px-2 py-1 text-xs font-medium rounded-full
                 @class([
-                  'bg-gray-100 text-gray-700' => $row->status === 'draft',
-                  'bg-blue-100 text-blue-800' => $row->status === 'ready_for_tracer',
-                  'bg-yellow-100 text-yellow-800' => $row->status === 'scheduled',
-                  'bg-purple-100 text-purple-800' => $row->status === 'tracer_approved',
-                  'bg-amber-100 text-amber-800' => $row->status === 'cgp_approved',
-                  'bg-red-100 text-red-800' => str_contains($row->status,'rejected'),
-                  'bg-green-100 text-green-800' => $row->status === 'completed',
+                  'bg-gray-100 text-gray-700' => in_array($displayStatus, ['not_started', 'draft']),
+                  'bg-purple-100 text-purple-800' => $displayStatus === 'ai_validation',
+                  'bg-blue-100 text-blue-800' => $displayStatus === 'tracer_review',
+                  'bg-yellow-100 text-yellow-800' => $displayStatus === 'cgp_review',
+                  'bg-green-100 text-green-800' => $displayStatus === 'completed',
+                  'bg-red-100 text-red-800' => $displayStatus === 'rejected',
                 ])
-              ">{{ ucwords(str_replace('_', ' ', $row->status)) }}</span>
+              ">{{ $statusText }}</span>
             </td>
             <td class="px-4 py-3 text-right">
               <div class="flex justify-end gap-1">
@@ -138,7 +150,7 @@
                    title="Lihat Detail">
                   <i class="fas fa-eye mr-1"></i>Detail
                 </a>
-                @if($row->status === 'draft')
+                @if($row->canEdit() || in_array($displayStatus, ['draft', 'ai_validation', 'tracer_review', 'rejected']))
                   <a href="{{ route('sk.edit',$row->id) }}"
                      class="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                      title="Edit SK">

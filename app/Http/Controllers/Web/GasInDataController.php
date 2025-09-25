@@ -28,8 +28,13 @@ class GasInDataController extends Controller
            $term = trim((string) $r->get('q'));
            $q->where(function($w) use ($term) {
                $w->where('reff_id_pelanggan','like',"%{$term}%")
-                 ->orWhere('status','like',"%{$term}%");
+                 ->orWhere('status','like',"%{$term}%")
+                 ->orWhere('module_status','like',"%{$term}%");
            });
+       }
+
+       if ($r->filled('module_status')) {
+           $q->where('module_status', $r->get('module_status'));
        }
 
        $gasIn = $q->paginate((int) $r->get('per_page', 15))->withQueryString();
