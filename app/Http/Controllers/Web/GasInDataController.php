@@ -114,10 +114,10 @@ class GasInDataController extends Controller
 
    public function update(Request $r, GasInData $gasIn)
    {
-       if ($gasIn->status !== GasInData::STATUS_DRAFT) {
+       if (!$gasIn->canEdit()) {
            return response()->json([
                'success'=>false,
-               'message'=>'Hanya boleh edit saat status draft.'
+               'message'=>'Tidak diizinkan untuk mengedit data ini. Status: ' . ($gasIn->module_status ?? $gasIn->status)
            ], 422);
        }
 

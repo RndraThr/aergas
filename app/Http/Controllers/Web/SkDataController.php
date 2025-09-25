@@ -117,10 +117,10 @@ class SkDataController extends Controller
 
     public function update(Request $r, SkData $sk)
     {
-        if ($sk->status !== SkData::STATUS_DRAFT) {
+        if (!$sk->canEdit()) {
             return response()->json([
                 'success'=>false,
-                'message'=>'Hanya boleh edit saat status draft.'
+                'message'=>'Tidak diizinkan untuk mengedit data ini. Status: ' . ($sk->module_status ?? $sk->status)
             ], 422);
         }
 

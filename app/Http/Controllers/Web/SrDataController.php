@@ -117,10 +117,10 @@ class SrDataController extends Controller
 
     public function update(Request $r, SrData $sr)
     {
-        if ($sr->status !== SrData::STATUS_DRAFT) {
+        if (!$sr->canEdit()) {
             return response()->json([
                 'success'=>false,
-                'message'=>'Hanya boleh edit saat status draft.'
+                'message'=>'Tidak diizinkan untuk mengedit data ini. Status: ' . ($sr->module_status ?? $sr->status)
             ], 422);
         }
 
