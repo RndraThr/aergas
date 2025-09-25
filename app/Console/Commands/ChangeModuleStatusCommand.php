@@ -218,9 +218,18 @@ class ChangeModuleStatusCommand extends Command
             // Update module
             $model->update($updateData);
 
-            // Update photo approvals
+            // Update photo approvals - map to correct photo_status values
+            $photoStatusMap = [
+                'draft' => 'draft',
+                'ai_validation' => 'ai_pending',
+                'tracer_review' => 'tracer_pending',
+                'cgp_review' => 'cgp_pending',
+                'completed' => 'cgp_approved',
+                'rejected' => 'cgp_rejected'
+            ];
+
             $photoUpdate = [
-                'status' => $targetStatus,
+                'photo_status' => $photoStatusMap[$targetStatus] ?? 'draft',
                 'updated_at' => now(),
             ];
 
@@ -229,11 +238,10 @@ class ChangeModuleStatusCommand extends Command
                 case 'draft':
                 case 'ai_validation':
                     $photoUpdate = array_merge($photoUpdate, [
-                        'tracer_status' => null,
                         'tracer_user_id' => null,
                         'tracer_approved_at' => null,
                         'tracer_notes' => null,
-                        'cgp_status' => null,
+                        'tracer_rejected_at' => null,
                         'cgp_user_id' => null,
                         'cgp_approved_at' => null,
                         'cgp_notes' => null,
@@ -243,17 +251,32 @@ class ChangeModuleStatusCommand extends Command
 
                 case 'tracer_review':
                     $photoUpdate = array_merge($photoUpdate, [
-                        'cgp_status' => null,
                         'cgp_user_id' => null,
                         'cgp_approved_at' => null,
                         'cgp_notes' => null,
                         'cgp_rejected_at' => null,
                     ]);
                     break;
+
+                case 'completed':
+                    // Set approvals if not exists
+                    if (!isset($photoUpdate['tracer_approved_at'])) {
+                        $photoUpdate['tracer_approved_at'] = now();
+                        $photoUpdate['tracer_user_id'] = 1;
+                    }
+                    if (!isset($photoUpdate['cgp_approved_at'])) {
+                        $photoUpdate['cgp_approved_at'] = now();
+                        $photoUpdate['cgp_user_id'] = 1;
+                    }
+                    break;
             }
 
+            // Map module name to database format
+            $moduleMap = ['sk' => 'sk', 'sr' => 'sr', 'gas_in' => 'gas_in'];
+            $dbModuleName = $moduleMap[strtolower($module)] ?? strtolower($module);
+
             PhotoApproval::where('reff_id_pelanggan', $reffId)
-                ->where('module_name', strtoupper($module))
+                ->where('module_name', $dbModuleName)
                 ->update($photoUpdate);
 
             return [

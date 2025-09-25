@@ -155,11 +155,13 @@ class ResetToTracerReviewCommand extends Command
             ]);
 
             // Reset photo approvals to tracer_review
+            $moduleMap = ['sk' => 'sk', 'sr' => 'sr', 'gas_in' => 'gas_in'];
+            $dbModuleName = $moduleMap[strtolower($module)] ?? strtolower($module);
+
             PhotoApproval::where('reff_id_pelanggan', $reffId)
-                ->where('module_name', strtoupper($module))
+                ->where('module_name', $dbModuleName)
                 ->update([
-                    'status' => 'tracer_review',
-                    'cgp_status' => null,
+                    'photo_status' => 'tracer_pending',
                     'cgp_user_id' => null,
                     'cgp_approved_at' => null,
                     'cgp_notes' => null,
