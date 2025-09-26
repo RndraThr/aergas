@@ -275,15 +275,32 @@
     <!-- Photo Sections -->
     @foreach(['sk', 'sr', 'gas_in'] as $module)
         @php
-            $modulePhotos = $photos[$module] ?? [];
-            $moduleReady = ($module === 'sk' && $cgpStatus['sk_ready']) || 
-                          ($module === 'sr' && $cgpStatus['sr_ready']) || 
-                          ($module === 'gas_in' && $cgpStatus['gas_in_ready']);
-            $moduleCompleted = ($module === 'sk' && $cgpStatus['sk_completed']) || 
-                              ($module === 'sr' && $cgpStatus['sr_completed']) || 
-                              ($module === 'gas_in' && $cgpStatus['gas_in_completed']);
-            $moduleAvailable = $moduleReady || $moduleCompleted;
-        @endphp
+        $modulePhotos = $photos[$module] ?? [];
+
+        $desiredOrder = [
+            'isometrik_scan',
+            'pneumatic_start',
+            'pneumatic_finish',
+            'valve',
+            'berita_acara',
+        ];
+
+        $modulePhotos = collect($modulePhotos)
+            ->sortBy(function ($p) use ($desiredOrder) {
+                $key = $p->photo_key ?? \Illuminate\Support\Str::slug($p->photo_field_name, '_');
+                $idx = array_search($key, $desiredOrder, true);
+                return $idx === false ? PHP_INT_MAX : $idx;
+            })
+            ->values();
+
+        $moduleReady = ($module === 'sk' && $cgpStatus['sk_ready']) || 
+                       ($module === 'sr' && $cgpStatus['sr_ready']) || 
+                       ($module === 'gas_in' && $cgpStatus['gas_in_ready']);
+        $moduleCompleted = ($module === 'sk' && $cgpStatus['sk_completed']) || 
+                           ($module === 'sr' && $cgpStatus['sr_completed']) || 
+                           ($module === 'gas_in' && $cgpStatus['gas_in_completed']);
+        $moduleAvailable = $moduleReady || $moduleCompleted;
+    @endphp
 
         @if($moduleAvailable)
         <div class="bg-white rounded-lg shadow mb-6">

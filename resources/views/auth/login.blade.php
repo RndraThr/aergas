@@ -457,6 +457,32 @@
                 background: rgba(45, 55, 72, 1);
             }
         }
+
+        .login-container.has-watermark { 
+            position: relative; 
+            overflow: hidden; 
+        }
+
+        .login-container.has-watermark::after{
+            content: "";
+            position: absolute;
+            inset: 0; 
+            background: url('{{ asset('assets/CGP5.png') }}') no-repeat center;
+            background-size: 80% auto;
+            opacity: 0.06;
+            filter: grayscale(100%) contrast(120%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .login-container.has-watermark > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (prefers-color-scheme: dark) {
+        .login-container.has-watermark::after { opacity: 0.05; }
+        }
     </style>
 </head>
 <body>
@@ -470,11 +496,12 @@
     </div>
 
     <div class="login-container">
-        <div class="logo-container">
-            <div class="logos-wrapper">
+        <div class="login-container has-watermark">
+            <div class="logo-container">
+                <div class="logos-wrapper">
                 <img src="{{ asset('assets/CGP.png') }}" alt="CGP Logo" class="logo cgp-logo">
                 <img src="{{ asset('assets/AERGAS_PNG.png') }}" alt="AERGAS Logo" class="logo aergas-logo">
-            </div>
+                </div>
             <div class="system-subtitle">AI-Enabled Reporting for Gas Infrastructure</div>
         </div>
 

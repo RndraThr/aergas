@@ -104,8 +104,30 @@ return [
                 'isometrik_scan' => [
                     'label' => 'Scan Isometrik SK (TTD Lengkap)',
                     'accept' => ['image/*', 'application/pdf'],
-                    'required' => false,
+                    'required' => true,
                     'prompt' => 'Analisis dokumen isometrik SK dengan penilaian SKOR (0-100):
+
+                                ELEMEN YANG DIPERIKSA:
+                                1. GAMBAR ISOMETRIK (30 poin) - Apakah ada diagram/gambar teknis terlihat?
+                                2. TANDA TANGAN PIC (25 poin) - Apakah ada TTD/paraf di area PIC?
+                                3. TANDA TANGAN PELANGGAN (25 poin) - Apakah ada TTD/paraf di area Pelanggan?
+                                4. TANDA TANGAN WASPANG (20 poin) - Apakah ada TTD/paraf di area Waspang?
+
+                                PANDUAN PENILAIAN:
+                                - 90-100: Gambar jelas + 3 tanda tangan lengkap dan jelas
+                                - 75-89: Gambar ada + 2-3 tanda tangan terlihat (bisa berupa paraf/cap)
+                                - 60-74: Gambar ada + 1-2 tanda tangan teridentifikasi
+                                - 40-59: Dokumen terlihat tapi tanda tangan tidak jelas/tidak ada
+                                - 0-39: Bukan dokumen isometrik atau tidak dapat dibaca
+
+                                CATATAN: Tanda tangan bisa berupa coretan, paraf, cap, atau nama tulisan tangan.
+                                TIDAK harus 3 TTD sempurna untuk mendapat skor tinggi.',
+                ],
+                'berita_acara' => [
+                    'label' => 'Scan Berita Acara',
+                    'accept' => ['image/*'],
+                    'required' => true,
+                    'prompt' => 'Analisis dokumen berita acara dengan penilaian SKOR (0-100):
 
                                 ELEMEN YANG DIPERIKSA:
                                 1. GAMBAR ISOMETRIK (30 poin) - Apakah ada diagram/gambar teknis terlihat?
@@ -507,6 +529,7 @@ return [
             'foto_pneumatic_finish_sk_url' => 'pneumatic_finish',
             'foto_valve_sk_url' => 'valve',
             'foto_isometrik_scan_sk_url' => 'isometrik_scan',
+            'foto_berita_acara_sk_url' => 'berita_acara',
         ],
         'SR' => [
             'foto_pneumatic_start_sr_url' => 'pneumatic_start',
