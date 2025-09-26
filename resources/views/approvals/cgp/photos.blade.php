@@ -272,6 +272,262 @@
         </div>
     </div>
 
+    @if($customer)
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-6">
+    <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-user text-white"></i>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-800">Customer Information</h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div>
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Reference ID</div>
+        <div class="font-semibold text-blue-700">{{ $customer->reff_id_pelanggan }}</div>
+        </div>
+        <div>
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Nama Pelanggan</div>
+        <div class="font-semibold text-gray-900">{{ $customer->nama_pelanggan ?? '-' }}</div>
+        </div>
+        <div>
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">No. Telepon</div>
+        <div class="font-medium text-gray-700">
+            @if(!empty($customer->no_telepon))
+            <a href="tel:{{ $customer->no_telepon }}" class="text-indigo-600 hover:text-indigo-800">
+                <i class="fas fa-phone mr-1"></i>{{ $customer->no_telepon }}
+            </a>
+            @else
+            <span class="text-gray-400">-</span>
+            @endif
+        </div>
+        </div>
+        <div class="lg:col-span-3">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Alamat</div>
+        <div class="font-medium text-gray-700">{{ $customer->alamat ?? '-' }}</div>
+        </div>
+        <div>
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Kelurahan</div>
+        <div class="font-medium text-gray-700">
+            @if($customer->kelurahan)
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <i class="fas fa-map-marker-alt mr-1"></i>{{ $customer->kelurahan }}
+            </span>
+            @else
+            <span class="text-gray-400">-</span>
+            @endif
+        </div>
+        </div>
+        <div>
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Padukuhan</div>
+        <div class="font-medium text-gray-700">
+            @if($customer->padukuhan)
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                <i class="fas fa-home mr-1"></i>{{ $customer->padukuhan }}
+            </span>
+            @else
+            <span class="text-gray-400">-</span>
+            @endif
+        </div>
+        </div>
+    </div>
+
+    @php
+        $status = $customer->status ?? '';
+        $progress = $customer->progress_status ?? '';
+    @endphp
+
+    <div class="mt-6 pt-6 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tanggal Registrasi</div>
+        <div class="font-medium text-gray-700">
+            {{ optional($customer->tanggal_registrasi)->format('d F Y') ?? '-' }}
+        </div>
+        </div>
+        <div>
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status Customer</div>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+            @class([
+            'bg-green-100 text-green-800' => $status === 'lanjut',
+            'bg-yellow-100 text-yellow-800' => $status === 'pending',
+            'bg-gray-100 text-gray-800' => $status === 'menunda',
+            'bg-red-100 text-red-800' => $status === 'batal',
+            // fallback jika status di luar daftar
+            'bg-blue-100 text-blue-800' => !in_array($status, ['lanjut','pending','menunda','batal']),
+            ])
+        ">
+            {{ strtoupper($status ?: '-') }}
+        </span>
+        </div>
+        <div>
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Progress Status</div>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+            @class([
+            'bg-green-100 text-green-800'   => $progress === 'done',
+            'bg-blue-100 text-blue-800'     => $progress === 'gas_in',
+            'bg-purple-100 text-purple-800' => $progress === 'sr',
+            'bg-orange-100 text-orange-800' => $progress === 'sk',
+            'bg-yellow-100 text-yellow-800' => $progress === 'validasi',
+            'bg-gray-100 text-gray-800'     => in_array($progress, ['pending','batal']),
+            // fallback jika progress di luar daftar
+            'bg-slate-100 text-slate-800'   => !in_array($progress, ['done','gas_in','sr','sk','validasi','pending','batal']),
+            ])
+        ">
+            {{ ucwords(str_replace('_',' ', $progress ?: '-')) }}
+        </span>
+        </div>
+    </div>
+    </div>
+    @endif
+
+    @if($customer->skData)
+    @php
+    $sk = $customer->skData;
+    $materialLabels = [
+        'panjang_pipa_gl_medium_m' => 'Panjang Pipa 1/2" GL Medium (meter)',
+        'qty_elbow_1_2_galvanis' => 'Elbow 1/2" Galvanis (Pcs)',
+        'qty_sockdraft_galvanis_1_2' => 'SockDraft Galvanis Dia 1/2" (Pcs)',
+        'qty_ball_valve_1_2' => 'Ball Valve 1/2" (Pcs)',
+        'qty_nipel_selang_1_2' => 'Nipel Selang 1/2" (Pcs)',
+        'qty_elbow_reduce_3_4_1_2' => 'Elbow Reduce 3/4" x 1/2" (Pcs)',
+        'qty_long_elbow_3_4_male_female' => 'Long Elbow 3/4" Male Female (Pcs)',
+        'qty_klem_pipa_1_2' => 'Klem Pipa 1/2" (Pcs)',
+        'qty_double_nipple_1_2' => 'Double Nipple 1/2" (Pcs)',
+        'qty_seal_tape' => 'Seal Tape (Pcs)',
+        'qty_tee_1_2' => 'Tee 1/2" (Pcs)',
+    ];
+    $materialData = [];
+    $totalFitting = 0;
+    foreach($materialLabels as $field => $label) {
+        $val = (float)($sk->$field ?? 0);
+        if($val > 0) {
+        $materialData[] = ['label' => $label, 'value' => $val, 'field' => $field];
+        if($field !== 'panjang_pipa_gl_medium_m') $totalFitting += $val;
+        }
+    }
+    @endphp
+
+    <div class="bg-white rounded-lg shadow mb-6 border border-gray-200">
+        <div class="p-6">
+            <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow">
+                <i class="fas fa-clipboard-list text-white"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Material SK</h2>
+                <p class="text-sm text-green-600">Service connection materials</p>
+            </div>
+            </div>
+
+            @if(empty($materialData))
+            <div class="text-center py-6 text-gray-500">Belum ada data material</div>
+            @else
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($materialData as $m)
+                <div class="bg-gray-50 p-4 rounded-lg border">
+                    <div class="text-xs text-gray-500 mb-1">{{ $m['label'] }}</div>
+                    <div class="font-bold text-lg text-gray-800">
+                    {{ $m['value'] }}
+                    @if($m['field'] === 'panjang_pipa_gl_medium_m')
+                        <span class="text-sm font-normal text-gray-600">meter</span>
+                    @else
+                        <span class="text-sm font-normal text-gray-600">pcs</span>
+                    @endif
+                    </div>
+                </div>
+                @endforeach
+            </div>
+
+            <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                <div class="flex justify-between items-center">
+                <span class="font-medium text-green-800">Total Fitting:</span>
+                <span class="font-bold text-green-900 text-lg">{{ $totalFitting }} pcs</span>
+                </div>
+                @if($sk->panjang_pipa_gl_medium_m)
+                <div class="flex justify-between items-center mt-2">
+                    <span class="font-medium text-green-800">Total Pipa:</span>
+                    <span class="font-bold text-green-900 text-lg">{{ (float)$sk->panjang_pipa_gl_medium_m }} meter</span>
+                </div>
+                @endif
+            </div>
+            @endif
+        </div>
+    </div>
+    @endif
+    
+    @if($customer->srData)
+    @php
+    $sr = $customer->srData;
+    $labels = $sr->getMaterialLabels();
+    $materialData = [];
+    $totalItems = 0;
+    $totalLengths = 0;
+
+    foreach($sr->getRequiredMaterialItems() as $field => $val) {
+        $v = (float)($val ?? 0);
+        if($v > 0) {
+        $materialData[] = ['label' => $labels[$field] ?? $field, 'value' => $v, 'field' => $field];
+        if(str_contains($field, 'panjang_')) $totalLengths += $v; else $totalItems += $v;
+        }
+    }
+    foreach($sr->getOptionalMaterialItems() as $field => $val) {
+        $v = (float)($val ?? 0);
+        if($v > 0) $materialData[] = ['label' => $labels[$field] ?? $field, 'value' => $v, 'field' => $field];
+    }
+    @endphp
+
+    <div class="bg-white rounded-lg shadow mb-6 border border-gray-200">
+    <div class="p-6">
+        <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center shadow">
+            <i class="fas fa-clipboard-list text-white"></i>
+        </div>
+        <div>
+            <h2 class="text-lg font-semibold text-gray-900">Material SR</h2>
+            <p class="text-sm text-yellow-600">Service regulator materials</p>
+        </div>
+        </div>
+
+        @if(empty($materialData))
+        <div class="text-center py-6 text-gray-500">Belum ada data material</div>
+        @else
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            @foreach($materialData as $m)
+            <div class="bg-gray-50 p-4 rounded-lg border">
+                <div class="text-xs text-gray-500 mb-1">{{ $m['label'] }}</div>
+                <div class="font-bold text-lg text-gray-800">
+                {{ $m['value'] }}
+                @if(str_contains($m['field'], 'panjang_'))
+                    <span class="text-sm font-normal text-gray-600">meter</span>
+                @else
+                    <span class="text-sm font-normal text-gray-600">pcs</span>
+                @endif
+                </div>
+            </div>
+            @endforeach
+        </div>
+
+        <div class="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
+            <div class="flex justify-between items-center">
+            <span class="font-medium text-yellow-800">Total Items:</span>
+            <span class="font-bold text-yellow-900 text-lg">{{ $totalItems }} pcs</span>
+            </div>
+            <div class="flex justify-between items-center mt-2">
+            <span class="font-medium text-yellow-800">Total Lengths:</span>
+            <span class="font-bold text-yellow-900 text-lg">{{ $totalLengths }} meter</span>
+            </div>
+            @if($sr->jenis_tapping)
+            <div class="flex justify-between items-center mt-2">
+                <span class="font-medium text-yellow-800">Jenis Tapping:</span>
+                <span class="font-bold text-yellow-900 text-lg">{{ $sr->jenis_tapping }}</span>
+            </div>
+            @endif
+        </div>
+        @endif
+    </div>
+    </div>
+    @endif
+
     <!-- Photo Sections -->
     @foreach(['sk', 'sr', 'gas_in'] as $module)
         @php
