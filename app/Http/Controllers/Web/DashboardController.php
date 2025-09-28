@@ -45,9 +45,10 @@ class DashboardController extends Controller implements HasMiddleware
         $this->applyFilters($base, $from, $to, $kelurahan, $padukuhan);
 
         $total = (clone $base)->count();
-        $done = (clone $base)->where('progress_status', 'done')->count();
-        $batal = (clone $base)->where('progress_status', 'batal')->count();
-        $inProgress = $total - $done - $batal;
+        $totalActive = (clone $base)->where('status', '!=', 'batal')->count(); // Exclude batal customers
+        $done = (clone $base)->where('progress_status', 'done')->where('status', '!=', 'batal')->count();
+        $batal = (clone $base)->where('status', 'batal')->count(); // Use status batal, not progress_status
+        $inProgress = $totalActive - $done;
 
         return [
             'total_customers' => $total,
@@ -55,7 +56,7 @@ class DashboardController extends Controller implements HasMiddleware
             'done' => $done,
             'batal' => $batal,
             'pending_validasi' => (clone $base)->where('status', 'pending')->count(),
-            'completion_rate' => $total > 0 ? round(($done / $total) * 100, 1) : 0,
+            'completion_rate' => $totalActive > 0 ? round(($done / $totalActive) * 100, 1) : 0, // Base on active customers only
         ];
     }
     public function getData(Request $request): JsonResponse
@@ -74,10 +75,17 @@ class DashboardController extends Controller implements HasMiddleware
                 'updated_at' => now(),
             ];
 
+            // Add customers data for maps if requested
+            if ($request->has('include_coordinates')) {
+                $data['customers'] = $this->getCustomersForMaps($from, $to, $kelurahan, $padukuhan);
+                $data['maps_stats'] = $this->getMapsStats($from, $to, $kelurahan, $padukuhan);
+                $data['filter_options'] = $this->getFilterOptions();
+            }
+
             return response()->json(['success' => true, 'data' => $data]);
         } catch (Exception $e) {
             Log::error('Dashboard data error', ['error' => $e->getMessage()]);
-            return response()->json(data: ['success' => false, 'message' => 'Terjadi kesalahan'], status: 500);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan'], 500);
         }
     }
 
@@ -676,5 +684,115 @@ private function generateDateLabels(Carbon $startDate, Carbon $endDate, string $
             ->pluck('count', 'period');
 
         return $this->fillMissingPeriods($results->toArray(), $startDate, $endDate, $period);
+    }
+
+    /**
+     * Get customers data with coordinates for maps display
+     */
+    private function getCustomersForMaps(?Carbon $from, ?Carbon $to, ?string $kelurahan, ?string $padukuhan): array
+    {
+        $query = CalonPelanggan::withCoordinates(); // Use our new scope
+
+        // Apply filters
+        $this->applyFilters($query, $from, $to, $kelurahan, $padukuhan);
+
+        return $query->select([
+                'reff_id_pelanggan',
+                'nama_pelanggan',
+                'alamat',
+                'kelurahan',
+                'padukuhan',
+                'latitude',
+                'longitude',
+                'status',
+                'progress_status',
+                'jenis_pelanggan',
+                'tanggal_registrasi'
+            ])
+            ->limit(500) // Limit to prevent performance issues
+            ->get()
+            ->map(function ($customer) {
+                return $customer->getMarkerInfo();
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get statistics specifically for maps component
+     */
+    private function getMapsStats(?Carbon $from, ?Carbon $to, ?string $kelurahan, ?string $padukuhan): array
+    {
+        $base = CalonPelanggan::query();
+        $this->applyFilters($base, $from, $to, $kelurahan, $padukuhan);
+
+        // Get counts based on coordinates (for coordinate-specific stats only)
+        $totalCustomers = (clone $base)->count();
+        $customersWithCoordinates = (clone $base)->withCoordinates()->count();
+        $customersWithoutCoordinates = $totalCustomers - $customersWithCoordinates;
+
+        // Progress status counts for ACTIVE customers only (exclude status batal)
+        $activeBase = (clone $base)->where('status', '!=', 'batal');
+        $totalActiveCustomers = $activeBase->count();
+        $done = (clone $activeBase)->where('progress_status', 'done')->count();
+        $batalProgress = (clone $base)->where('progress_status', 'batal')->count(); // Keep for reference
+
+        // Status counts for reference (if needed)
+        $allStatusCounts = [
+            'pending' => (clone $base)->where('status', 'pending')->count(),
+            'lanjut' => (clone $base)->where('status', 'lanjut')->count(),
+            'in_progress' => (clone $base)->where('status', 'in_progress')->count(),
+            'batal' => (clone $base)->where('status', 'batal')->count(),
+        ];
+
+        // Progress status counts for pending review calculation (active customers only)
+        $progressCounts = [
+            'validasi' => (clone $activeBase)->where('progress_status', 'validasi')->count(),
+            'sk' => (clone $activeBase)->where('progress_status', 'sk')->count(),
+            'sr' => (clone $activeBase)->where('progress_status', 'sr')->count(),
+            'gas_in' => (clone $activeBase)->where('progress_status', 'gas_in')->count(),
+        ];
+
+        // Calculate pending review (active customers that are not done)
+        $pendingReview = $totalActiveCustomers - $done;
+
+        // Photo approval stats (global, not filtered)
+        $photoApproved = PhotoApproval::where('photo_status', 'cgp_approved')->count();
+        $totalPhotos = PhotoApproval::count();
+
+        return [
+            'total_customers' => $totalCustomers,
+            'customers_with_coordinates' => $customersWithCoordinates,
+            'customers_without_coordinates' => $customersWithoutCoordinates,
+            'coordinate_coverage_rate' => $totalCustomers > 0 ? round(($customersWithCoordinates / $totalCustomers) * 100, 1) : 0,
+            'status_counts' => $allStatusCounts,
+            'done' => $done,
+            'batal' => $allStatusCounts['batal'], // Use status batal count
+            'pending_review' => $pendingReview,
+            'photo_approved_count' => $photoApproved,
+            'total_photos' => $totalPhotos,
+            'photo_approval_rate' => $totalPhotos > 0 ? round(($photoApproved / $totalPhotos) * 100, 1) : 0,
+            'completion_rate' => $totalActiveCustomers > 0 ? round(($done / $totalActiveCustomers) * 100, 1) : 0, // Base on active customers
+        ];
+    }
+
+    /**
+     * Get filter options for maps
+     */
+    private function getFilterOptions(): array
+    {
+        return [
+            'kelurahan' => CalonPelanggan::distinct()
+                ->whereNotNull('kelurahan')
+                ->where('kelurahan', '!=', '')
+                ->orderBy('kelurahan')
+                ->pluck('kelurahan')
+                ->toArray(),
+            'padukuhan' => CalonPelanggan::distinct()
+                ->whereNotNull('padukuhan')
+                ->where('padukuhan', '!=', '')
+                ->orderBy('padukuhan')
+                ->pluck('padukuhan')
+                ->toArray(),
+        ];
     }
 }

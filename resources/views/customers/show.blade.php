@@ -69,6 +69,25 @@
         </div>
     </div>
 
+    @if($customer->status === 'batal')
+    <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">Customer Dibatalkan</h3>
+                <div class="mt-2 text-sm text-red-700">
+                    <p>Customer ini telah dibatalkan dan tidak dapat melanjutkan ke proses berikutnya (SK, SR, Gas In).</p>
+                    @if($customer->keterangan)
+                        <p class="mt-1"><strong>Alasan:</strong> {{ $customer->keterangan }}</p>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Progress Overview</h3>
 

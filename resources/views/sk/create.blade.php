@@ -89,21 +89,36 @@
       <p class="text-sm mt-1" :class="reffMsgClass()" x-text="reffMsg"></p>
 
       <template x-if="customer">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded border">
-          <div>
-            <div class="text-xs text-gray-500">Nama Pelanggan</div>
-            <div class="font-medium" x-text="customer.nama_pelanggan"></div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-500">No. Telepon</div>
-            <div class="font-medium" x-text="customer.no_telepon || '-'"></div>
-          </div>
-          <div class="md:col-span-2">
-            <div class="text-xs text-gray-500">Alamat</div>
-            <div class="font-medium" x-text="customer.alamat || '-' "></div>
-            <div class="text-sm text-gray-600 mt-1">
-              <span class="mr-4">Kelurahan: <b x-text="customer.kelurahan || '-'"></b></span>
-              <span>Padukuhan: <b x-text="customer.padukuhan || '-'"></b></span>
+        <div class="space-y-3">
+          <!-- Customer cancelled warning -->
+          <template x-if="customer.status === 'batal'">
+            <div class="bg-red-50 border border-red-200 p-4 rounded">
+              <div class="flex items-start">
+                <i class="fas fa-exclamation-triangle text-red-600 mr-2 mt-0.5"></i>
+                <div>
+                  <p class="font-medium text-red-800">Customer Dibatalkan</p>
+                  <p class="text-red-700 text-sm mt-1">Customer ini memiliki status "batal" dan tidak dapat melanjutkan ke modul SK. Silakan hubungi admin untuk informasi lebih lanjut.</p>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded border">
+            <div>
+              <div class="text-xs text-gray-500">Nama Pelanggan</div>
+              <div class="font-medium" x-text="customer.nama_pelanggan"></div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">No. Telepon</div>
+              <div class="font-medium" x-text="customer.no_telepon || '-'"></div>
+            </div>
+            <div class="md:col-span-2">
+              <div class="text-xs text-gray-500">Alamat</div>
+              <div class="font-medium" x-text="customer.alamat || '-' "></div>
+              <div class="text-sm text-gray-600 mt-1">
+                <span class="mr-4">Kelurahan: <b x-text="customer.kelurahan || '-'"></b></span>
+                <span>Padukuhan: <b x-text="customer.padukuhan || '-'"></b></span>
+              </div>
             </div>
           </div>
         </div>
@@ -405,7 +420,7 @@
         <i class="fas fa-arrow-left mr-2"></i>Batal
       </a>
       <button type="submit"
-              :disabled="submitting || !customer || !reff || !tanggal || !isMaterialComplete()"
+              :disabled="submitting || !customer || !reff || !tanggal || !isMaterialComplete() || (customer && customer.status === 'batal')"
               class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
         <template x-if="!submitting">
           <span><i class="fas fa-save mr-2"></i>Simpan</span>
@@ -762,6 +777,10 @@ function skCreate() {
       if (this.submitting) return;
       if (!this.customer || !this.reff || !this.tanggal) {
         alert('Silakan lengkapi data customer dan tanggal instalasi.');
+        return;
+      }
+      if (this.customer && this.customer.status === 'batal') {
+        alert('Customer dengan status "batal" tidak dapat melanjutkan ke modul SK.');
         return;
       }
       if (!this.isMaterialComplete()) {

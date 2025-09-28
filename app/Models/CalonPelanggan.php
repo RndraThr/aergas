@@ -52,6 +52,9 @@ class CalonPelanggan extends Model
         'tanggal_registrasi' => 'datetime',
         'validated_at'       => 'datetime',
         'last_login'         => 'datetime',
+        'coordinate_updated_at' => 'datetime',
+        'latitude'           => 'decimal:8',
+        'longitude'          => 'decimal:8',
         'status'             => 'string',        // pending | lanjut | in_progress | batal
         'progress_status'    => 'string',        // validasi | sk | sr | gas_in | done | batal
     ];
@@ -96,10 +99,107 @@ class CalonPelanggan extends Model
         });
     }
 
+    /**
+     * Scope to exclude cancelled customers
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('status', '!=', 'batal');
+    }
+
+    /**
+     * Scope to get customers with coordinates
+     */
+    public function scopeWithCoordinates($query)
+    {
+        return $query->whereNotNull('latitude')
+                    ->whereNotNull('longitude')
+                    ->where('latitude', '!=', 0)
+                    ->where('longitude', '!=', 0);
+    }
+
+    /**
+     * Check if customer is cancelled
+     */
+    public function isCancelled(): bool
+    {
+        return $this->status === 'batal';
+    }
+
+    /**
+     * Check if customer can proceed to next module
+     */
+    public function canProceedToModule(string $module): bool
+    {
+        if ($this->isCancelled()) {
+            return false;
+        }
+
+        return $this->getNextAvailableModule() === $module;
+    }
+
+    /**
+     * Check if customer has coordinates
+     */
+    public function hasCoordinates(): bool
+    {
+        return !is_null($this->latitude) && !is_null($this->longitude)
+               && $this->latitude != 0 && $this->longitude != 0;
+    }
+
+    /**
+     * Get coordinates array
+     */
+    public function getCoordinates(): ?array
+    {
+        if (!$this->hasCoordinates()) {
+            return null;
+        }
+
+        return [
+            'lat' => (float) $this->latitude,
+            'lng' => (float) $this->longitude
+        ];
+    }
+
+    /**
+     * Set coordinates
+     */
+    public function setCoordinates(float $lat, float $lng, string $source = 'manual'): void
+    {
+        $this->update([
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'coordinate_source' => $source,
+            'coordinate_updated_at' => now()
+        ]);
+    }
+
+    /**
+     * Get marker info for maps
+     */
+    public function getMarkerInfo(): array
+    {
+        return [
+            'id' => $this->reff_id_pelanggan,
+            'reff_id' => $this->display_reff_id,
+            'title' => $this->nama_pelanggan,
+            'alamat' => $this->alamat,
+            'kelurahan' => $this->kelurahan,
+            'padukuhan' => $this->padukuhan,
+            'status' => $this->status,
+            'progress_status' => $this->progress_status,
+            'progress_percentage' => $this->getProgressPercentage(),
+            'coordinates' => $this->getCoordinates(),
+            'tanggal_registrasi' => $this->tanggal_registrasi?->format('Y-m-d'),
+        ];
+    }
+
     protected $fillable = [
         'reff_id_pelanggan','nama_pelanggan','alamat','no_telepon','email',
         'kelurahan','padukuhan','status','progress_status','jenis_pelanggan','keterangan',
         'tanggal_registrasi','validated_at','validated_by','validation_notes',
+        'latitude','longitude','coordinate_source','coordinate_updated_at',
     ];
 
     /* =========================
@@ -108,6 +208,11 @@ class CalonPelanggan extends Model
 
     public function getProgressPercentage(): int
     {
+        // Jika status customer sudah batal, tidak ada progress
+        if ($this->status === 'batal') {
+            return 0;
+        }
+
         $steps = ['validasi','sk','sr','gas_in','done'];
         $idx = array_search($this->progress_status, $steps, true);
         if ($idx === false) return 0;
@@ -155,24 +260,6 @@ class CalonPelanggan extends Model
         return $baseUrl ? $baseUrl . '?reff_id=' . $this->reff_id_pelanggan : null;
     }
 
-    /**
-     * Boleh lanjut ke modul X?
-     * - sk: status pelanggan harus validated/in_progress
-     * - sr: SK completed
-     * - gas_in: SK & SR completed
-     * - mgrt, jalur_pipa, penyambungan: (sementara) true atau tambahkan rule saat sudah fix
-     */
-    public function canProceedToModule(string $module): bool
-    {
-        $module = strtolower($module);
-
-        return match ($module) {
-            'sk' => in_array($this->status, ['lanjut','in_progress'], true),
-            'sr' => ($this->skData?->module_status === 'completed'),
-            'gas_in' => ($this->skData?->module_status === 'completed') && ($this->srData?->module_status === 'completed'),
-            default => false,
-        };
-    }
 
     /**
      * Check if customer is validated
@@ -252,5 +339,36 @@ class CalonPelanggan extends Model
         }
 
         return strtoupper($value);
+    }
+
+
+    /**
+     * Get marker color based on status
+     */
+    public function getMarkerColor(): string
+    {
+        return match ($this->status) {
+            'pending' => '#3B82F6',      // blue
+            'lanjut' => '#10B981',       // green
+            'in_progress' => '#F59E0B',  // yellow
+            'batal' => '#EF4444',        // red
+            default => '#6B7280',        // gray
+        };
+    }
+
+    /**
+     * Get marker icon based on progress status
+     */
+    public function getMarkerIcon(): string
+    {
+        return match ($this->progress_status) {
+            'validasi' => 'fa-user-check',
+            'sk' => 'fa-wrench',
+            'sr' => 'fa-home',
+            'gas_in' => 'fa-fire',
+            'done' => 'fa-check-circle',
+            'batal' => 'fa-times-circle',
+            default => 'fa-map-marker',
+        };
     }
 }

@@ -72,11 +72,20 @@ class GasInDataController extends Controller
 
    public function store(Request $r)
    {
+       // Check if customer status is batal
+       $customer = \App\Models\CalonPelanggan::where('reff_id_pelanggan', $r->reff_id_pelanggan)->first();
+       if ($customer && $customer->status === 'batal') {
+           return response()->json([
+               'success' => false,
+               'message' => 'Tidak dapat membuat Gas In untuk customer dengan status batal. Customer ini sudah dibatalkan.'
+           ], 422);
+       }
+
        $v = Validator::make($r->all(), [
            'reff_id_pelanggan' => [
                'required',
                'string',
-               'max:50', 
+               'max:50',
                Rule::exists('calon_pelanggan','reff_id_pelanggan'),
                Rule::unique('gas_in_data','reff_id_pelanggan')->whereNull('deleted_at')
            ],

@@ -188,6 +188,9 @@ class CalonPelangganController extends Controller
             'status'           => 'sometimes|in:pending,lanjut,in_progress,batal',
             'progress_status'  => 'sometimes|in:validasi,sk,sr,gas_in,done,batal',
             'email'            => 'nullable|email',
+            'latitude'         => 'nullable|numeric|between:-90,90',
+            'longitude'        => 'nullable|numeric|between:-180,180',
+            'coordinate_source' => 'nullable|in:manual,gps,maps,survey',
         ]);
 
         if ($validator->fails()) {
@@ -205,6 +208,7 @@ class CalonPelangganController extends Controller
             $data = $request->only([
                 'reff_id_pelanggan','nama_pelanggan','alamat','no_telepon',
                 'kelurahan','padukuhan','keterangan','jenis_pelanggan','status','progress_status','email',
+                'latitude','longitude','coordinate_source'
             ]);
 
             // default kalau tidak dikirim
@@ -212,6 +216,11 @@ class CalonPelangganController extends Controller
             $data['status']            = $data['status']           ?? 'pending';
             $data['progress_status']   = $data['progress_status']  ?? 'validasi';
             $data['tanggal_registrasi'] = now();
+
+            // Set coordinate_updated_at if coordinates are provided
+            if (!empty($data['latitude']) && !empty($data['longitude'])) {
+                $data['coordinate_updated_at'] = now();
+            }
 
             DB::beginTransaction();
 
@@ -316,7 +325,10 @@ class CalonPelangganController extends Controller
                 'padukuhan'       => 'nullable|string|max:120',
                 'jenis_pelanggan' => 'nullable|in:pengembangan,penetrasi,on_the_spot_penetrasi,on_the_spot_pengembangan',
                 'keterangan'      => 'nullable|string|max:500',
-                'email'           => 'nullable|email'
+                'email'           => 'nullable|email',
+                'latitude'        => 'nullable|numeric|between:-90,90',
+                'longitude'       => 'nullable|numeric|between:-180,180',
+                'coordinate_source' => 'nullable|in:manual,gps,maps,survey'
             ];
 
             // jika boleh ubah reff, tambahkan rule unik (excluded current key)
@@ -344,8 +356,15 @@ class CalonPelangganController extends Controller
             // siapkan data update biasa
             $data = $request->only([
                 'nama_pelanggan','alamat','no_telepon','status',
-                'progress_status','kelurahan','padukuhan','jenis_pelanggan','keterangan','email'
+                'progress_status','kelurahan','padukuhan','jenis_pelanggan','keterangan','email',
+                'latitude','longitude','coordinate_source'
             ]);
+
+            // Update coordinate_updated_at if coordinates are being updated
+            if (($request->filled('latitude') && $request->filled('longitude')) &&
+                ($customer->latitude !== $request->latitude || $customer->longitude !== $request->longitude)) {
+                $data['coordinate_updated_at'] = now();
+            }
 
             // kalau boleh dan ada reff baru -> uppercase & set
             if ($canEditReff && $request->filled('reff_id_pelanggan')) {
@@ -471,6 +490,10 @@ class CalonPelangganController extends Controller
                         'no_telepon'        => $cp->no_telepon ?? null,
                         'kelurahan'         => $cp->kelurahan ?? null,
                         'padukuhan'         => $cp->padukuhan ?? null,
+                        'status'            => $cp->status ?? null,
+                        'progress_status'   => $cp->progress_status ?? null,
+                        'latitude'          => $cp->latitude ?? null,
+                        'longitude'         => $cp->longitude ?? null,
                     ],
                 ]);
             }

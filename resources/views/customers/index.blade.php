@@ -203,6 +203,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kontak</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Koordinat</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validasi</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <button @click="sortBy('tanggal_registrasi')" class="flex items-center space-x-1 hover:text-gray-700">
@@ -264,6 +265,24 @@
                                                  :style="'width: ' + (customer.progress_percentage || 0) + '%'"></div>
                                         </div>
                                     </div>
+                                </div>
+                            </td>
+
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm">
+                                    <template x-if="customer.latitude && customer.longitude">
+                                        <div class="flex items-center text-green-600">
+                                            <i class="fas fa-map-marker-alt mr-1"></i>
+                                            <span class="text-xs font-medium">Ada</span>
+                                        </div>
+                                        <div class="text-xs text-gray-500" x-text="customer.latitude + ', ' + customer.longitude"></div>
+                                    </template>
+                                    <template x-if="!customer.latitude || !customer.longitude">
+                                        <div class="flex items-center text-gray-400">
+                                            <i class="fas fa-map-marker-alt mr-1"></i>
+                                            <span class="text-xs">Belum ada</span>
+                                        </div>
+                                    </template>
                                 </div>
                             </td>
 

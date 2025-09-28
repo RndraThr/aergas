@@ -156,6 +156,87 @@
             </div>
         </div>
 
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-6">
+                <div class="w-10 h-10 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-map-marker-alt text-white"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Informasi Lokasi</h2>
+                    <p class="text-sm text-gray-600">Koordinat GPS lokasi pelanggan (opsional)</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
+                    <input type="number"
+                           x-model="form.latitude"
+                           step="any"
+                           :class="errors.latitude ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           placeholder="-7.8014">
+                    <div x-show="errors.latitude" class="mt-1 text-sm text-red-600" x-text="errors.latitude"></div>
+                </div>
+
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
+                    <input type="number"
+                           x-model="form.longitude"
+                           step="any"
+                           :class="errors.longitude ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           placeholder="110.3695">
+                    <div x-show="errors.longitude" class="mt-1 text-sm text-red-600" x-text="errors.longitude"></div>
+                </div>
+
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Sumber Koordinat</label>
+                    <select x-model="form.coordinate_source"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
+                        <option value="manual">Manual Input</option>
+                        <option value="gps">GPS</option>
+                        <option value="maps">Google Maps</option>
+                        <option value="survey">Survey</option>
+                    </select>
+                </div>
+
+                <div class="md:col-span-1 flex items-end">
+                    <button type="button"
+                            @click="getCurrentLocation()"
+                            :disabled="gettingLocation"
+                            class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-show="!gettingLocation">
+                            <i class="fas fa-location-arrow mr-2"></i>Ambil Lokasi Saat Ini
+                        </span>
+                        <span x-show="gettingLocation">
+                            <i class="fas fa-spinner animate-spin mr-2"></i>Mendapatkan Lokasi...
+                        </span>
+                    </button>
+                </div>
+
+                <div class="md:col-span-2" x-show="form.latitude && form.longitude">
+                    <div class="bg-green-50 border border-green-200 p-4 rounded-lg">
+                        <div class="flex items-start">
+                            <i class="fas fa-map-marker-alt text-green-600 mr-2 mt-0.5"></i>
+                            <div>
+                                <p class="font-medium text-green-800">Koordinat Valid</p>
+                                <p class="text-green-700 text-sm mt-1">
+                                    Lokasi: <span x-text="form.latitude + ', ' + form.longitude"></span>
+                                </p>
+                                <a :href="'https://www.google.com/maps?q=' + form.latitude + ',' + form.longitude"
+                                   target="_blank"
+                                   class="text-blue-600 hover:text-blue-800 text-sm inline-flex items-center mt-1">
+                                    <i class="fas fa-external-link-alt mr-1"></i>Lihat di Google Maps
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
 
         <div class="bg-gradient-to-r from-aergas-navy/5 to-aergas-orange/5 rounded-xl p-6 border border-aergas-orange/20">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Ringkasan Registrasi</h3>
@@ -246,13 +327,17 @@ function customerCreateData() {
             kelurahan: '',
             padukuhan: '',
             jenis_pelanggan: 'pengembangan',
-            keterangan: ''
+            keterangan: '',
+            latitude: '',
+            longitude: '',
+            coordinate_source: 'manual'
         },
 
         errors: {},
         submitting: false,
         validatingReffId: false,
         reffIdAvailable: false,
+        gettingLocation: false,
 
 
         get formValid() {
@@ -372,6 +457,46 @@ function customerCreateData() {
             }
         },
 
+        async getCurrentLocation() {
+            if (!navigator.geolocation) {
+                window.showToast('error', 'Geolocation tidak didukung browser Anda');
+                return;
+            }
+
+            this.gettingLocation = true;
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    this.form.latitude = position.coords.latitude.toFixed(6);
+                    this.form.longitude = position.coords.longitude.toFixed(6);
+                    this.form.coordinate_source = 'gps';
+                    this.gettingLocation = false;
+                    window.showToast('success', 'Lokasi berhasil didapatkan');
+                },
+                (error) => {
+                    this.gettingLocation = false;
+                    let message = 'Gagal mendapatkan lokasi';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            message = 'Akses lokasi ditolak. Silakan izinkan akses lokasi.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            message = 'Informasi lokasi tidak tersedia';
+                            break;
+                        case error.TIMEOUT:
+                            message = 'Request lokasi timeout';
+                            break;
+                    }
+                    window.showToast('error', message);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                }
+            );
+        },
+
         resetForm() {
             if (confirm('Apakah Anda yakin ingin mengosongkan form?')) {
                 this.form = {
@@ -383,7 +508,10 @@ function customerCreateData() {
                     kelurahan: '',
                     padukuhan: '',
                     jenis_pelanggan: 'pengembangan',
-                    keterangan: ''
+                    keterangan: '',
+                    latitude: '',
+                    longitude: '',
+                    coordinate_source: 'manual'
                 };
                 this.errors = {};
                 this.reffIdAvailable = false;

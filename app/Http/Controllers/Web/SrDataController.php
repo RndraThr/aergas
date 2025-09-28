@@ -73,13 +73,22 @@ class SrDataController extends Controller
 
     public function store(Request $r)
     {
+        // Check if customer status is batal
+        $customer = \App\Models\CalonPelanggan::where('reff_id_pelanggan', $r->reff_id_pelanggan)->first();
+        if ($customer && $customer->status === 'batal') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak dapat membuat SR untuk customer dengan status batal. Customer ini sudah dibatalkan.'
+            ], 422);
+        }
+
         $materialRules = (new SrData())->getMaterialValidationRules();
 
         $v = Validator::make($r->all(), array_merge([
             'reff_id_pelanggan' => [
                 'required',
                 'string',
-                'max:50', 
+                'max:50',
                 Rule::exists('calon_pelanggan','reff_id_pelanggan'),
                 Rule::unique('sr_data','reff_id_pelanggan')->whereNull('deleted_at')
             ],
