@@ -81,7 +81,7 @@
                         @endif
                     </a>
                 @endif
-                
+
                 <!-- Divider -->
                 @if(auth()->user()->hasAnyRole(['admin','sk','sr','gas_in','super_admin']))
                 <div class="border-t border-gray-200 my-4"></div>
@@ -350,13 +350,13 @@
                             @if(request()->routeIs('imports.*'))
                                 <div class="w-2 h-2 bg-aergas-orange rounded-full mr-2"></div>
                             @endif
-                            <i class="fas fa-chevron-down text-xs transition-transform duration-200" 
+                            <i class="fas fa-chevron-down text-xs transition-transform duration-200"
                                :class="{ 'rotate-180': open }"></i>
                         </div>
                     </button>
-                    
+
                     <!-- Dropdown Menu -->
-                    <div x-show="open" 
+                    <div x-show="open"
                          x-transition:enter="transition ease-out duration-200"
                          x-transition:enter-start="opacity-0 scale-95"
                          x-transition:enter-end="opacity-100 scale-100"
@@ -364,14 +364,21 @@
                          x-transition:leave-start="opacity-100 scale-100"
                          x-transition:leave-end="opacity-0 scale-95"
                          class="mt-1 ml-6 space-y-1">
-                        
+
                         <!-- Calon Pelanggan Import -->
                         <a href="{{ route('imports.calon-pelanggan.form') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.calon-pelanggan.*') ? 'bg-aergas-orange/10 text-aergas-navy border-l-2 border-aergas-orange' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
                             <i class="fas fa-users text-xs mr-3"></i>
                             Calon Pelanggan
                         </a>
-                        
+
+                        <!-- Coordinates Import -->
+                        <a href="{{ route('imports.coordinates.form') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.coordinates.*') ? 'bg-aergas-orange/10 text-aergas-navy border-l-2 border-aergas-orange' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
+                            <i class="fas fa-map-marker-alt text-xs mr-3"></i>
+                            Koordinat Pelanggan
+                        </a>
+
                     </div>
                 </div>
                 @endif

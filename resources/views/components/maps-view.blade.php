@@ -535,12 +535,26 @@ function mapsComponent() {
 
         async initMapWithDrawingTools() {
             try {
-                // Initialize the map centered on Yogyakarta
-                this.map = L.map('aergas-map').setView([-7.7956, 110.3695], 11);
+                // Initialize the map centered on Yogyakarta with enhanced options
+                this.map = L.map('aergas-map', {
+                    center: [-7.7956, 110.3695],
+                    zoom: 11,
+                    zoomAnimation: true,
+                    fadeAnimation: true,
+                    markerZoomAnimation: true,
+                    preferCanvas: false
+                });
+
+                // Add error handling for map events
+                this.map.on('error', (e) => {
+                    console.warn('Map error:', e);
+                });
 
                 // Add OpenStreetMap tiles
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors'
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19,
+                    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
                 }).addTo(this.map);
 
                 // Load customer data
@@ -555,6 +569,9 @@ function mapsComponent() {
                 // Load line numbers and clusters for dropdown
                 await this.loadLineNumbers();
                 await this.loadClusters();
+
+                // Fix for popup zoom animation errors
+                this.setupPopupErrorHandling();
 
             } catch (error) {
                 console.error('Error initializing map:', error);
@@ -812,6 +829,8 @@ function mapsComponent() {
             this.customers = filtered;
             this.calculateStatusCounts();
             this.addMarkersToMap();
+            // Re-render map features to ensure labels are repositioned correctly
+            this.refreshMapFeatures();
             this.updateLegendCounts();
         },
 
@@ -825,6 +844,8 @@ function mapsComponent() {
             this.customers = [...this.allCustomers];
             this.calculateStatusCounts();
             this.addMarkersToMap();
+            // Re-render map features to ensure labels are repositioned correctly
+            this.refreshMapFeatures();
             this.updateLegendCounts();
         },
 
@@ -892,6 +913,55 @@ function mapsComponent() {
             // This method ensures legend reflects current filtered data
             // Status counts are already updated in calculateStatusCounts()
             // This is for any additional legend updates if needed in the future
+        },
+
+        refreshMapFeatures() {
+            // Re-render map features to ensure labels are positioned correctly after filtering
+            // This fixes the issue where labels get stuck in wrong positions
+            if (this.mapFeatures && this.mapFeatures.length > 0) {
+                setTimeout(() => {
+                    this.addFeaturesToMap();
+                }, 200);
+            }
+        },
+
+        setupPopupErrorHandling() {
+            // Handle popup-related errors during zoom animations
+            const originalOnAdd = L.Popup.prototype.onAdd;
+            L.Popup.prototype.onAdd = function(map) {
+                try {
+                    return originalOnAdd.call(this, map);
+                } catch (error) {
+                    console.warn('Popup onAdd error handled:', error);
+                    return this;
+                }
+            };
+
+            // Handle zoom animation errors
+            const originalAnimateZoom = L.Popup.prototype._animateZoom;
+            L.Popup.prototype._animateZoom = function(e) {
+                try {
+                    if (this._map && this._latlng) {
+                        return originalAnimateZoom.call(this, e);
+                    }
+                } catch (error) {
+                    console.warn('Popup zoom animation error handled:', error);
+                }
+            };
+
+            // Add map zoom event handlers with error protection
+            this.map.on('zoomstart', () => {
+                // Close popups before zoom to prevent errors
+                this.map.closePopup();
+            });
+
+            this.map.on('zoom', (e) => {
+                try {
+                    // Handle zoom events safely
+                } catch (error) {
+                    console.warn('Zoom event error handled:', error);
+                }
+            });
         },
 
         populateFilterOptions() {
@@ -1056,19 +1126,22 @@ function mapsComponent() {
 
                     // Add name label if feature has a name (after layer is added to map)
                     if (feature.properties.name) {
-                        const labelData = this.calculateOptimalLabelPosition(layer, feature);
-                        if (labelData) {
-                            const label = L.marker(labelData.position, {
-                                icon: L.divIcon({
-                                    className: 'feature-label feature-label-' + labelData.type.toLowerCase(),
-                                    html: `<div class="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-md shadow-md border border-gray-300 text-xs font-medium text-gray-800 whitespace-nowrap">${feature.properties.name}</div>`,
-                                    iconSize: [null, null], // Auto-size based on content
-                                    iconAnchor: labelData.anchor
-                                }),
-                                interactive: false // Make labels non-interactive to avoid blocking map interactions
-                            });
-                            this.drawnLayers.addLayer(label);
-                        }
+                        // Use setTimeout to ensure the layer is fully rendered before calculating label position
+                        setTimeout(() => {
+                            const labelData = this.calculateOptimalLabelPosition(layer, feature);
+                            if (labelData) {
+                                const label = L.marker(labelData.position, {
+                                    icon: L.divIcon({
+                                        className: 'feature-label feature-label-' + labelData.type.toLowerCase(),
+                                        html: `<div class="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-md shadow-md border border-gray-300 text-xs font-medium text-gray-800 whitespace-nowrap">${feature.properties.name}</div>`,
+                                        iconSize: [null, null], // Auto-size based on content
+                                        iconAnchor: labelData.anchor
+                                    }),
+                                    interactive: false // Make labels non-interactive to avoid blocking map interactions
+                                });
+                                this.drawnLayers.addLayer(label);
+                            }
+                        }, 100);
                     }
 
                     // Add click handler for feature information
@@ -1528,17 +1601,21 @@ function mapsComponent() {
         },
 
         showFeatureInfo(feature, position) {
-            const featureType = feature.properties.feature_type || feature.geometry.type;
-            const featureName = feature.properties.name || 'Unnamed Feature';
+            try {
+                // Close any existing popups first to prevent conflicts
+                this.map.closePopup();
 
-            // Create popup content based on feature type
-            let popupContent = `
-                <div class="feature-info-popup p-3 min-w-[280px]">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="font-semibold text-gray-800 text-lg">${featureName}</h3>
-                        <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full uppercase">${featureType}</span>
-                    </div>
-            `;
+                const featureType = feature.properties.feature_type || feature.geometry.type;
+                const featureName = feature.properties.name || 'Unnamed Feature';
+
+                // Create popup content based on feature type
+                let popupContent = `
+                    <div class="feature-info-popup p-3 min-w-[280px]">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-800 text-lg">${featureName}</h3>
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full uppercase">${featureType}</span>
+                        </div>
+                `;
 
             // Add specific information based on feature type
             if (featureType === 'line' || featureType === 'LineString') {
@@ -1652,14 +1729,33 @@ function mapsComponent() {
             </div>
             `;
 
-            // Create and show popup
-            const popup = L.popup({
-                maxWidth: 320,
-                className: 'feature-info-popup-container'
-            })
-            .setLatLng(position)
-            .setContent(popupContent)
-            .openOn(this.map);
+                // Create and show popup with error handling
+                const popup = L.popup({
+                    maxWidth: 320,
+                    className: 'feature-info-popup-container',
+                    closeOnClick: true,
+                    autoClose: true
+                })
+                .setLatLng(position)
+                .setContent(popupContent);
+
+                // Open popup safely
+                try {
+                    popup.openOn(this.map);
+                } catch (popupError) {
+                    console.warn('Error opening popup:', popupError);
+                    // Fallback: try again after a short delay
+                    setTimeout(() => {
+                        try {
+                            popup.openOn(this.map);
+                        } catch (secondError) {
+                            console.error('Failed to open popup twice:', secondError);
+                        }
+                    }, 100);
+                }
+            } catch (error) {
+                console.error('Error in showFeatureInfo:', error);
+            }
         },
 
         async updateFeatureColor(featureId, newColor) {

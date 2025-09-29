@@ -133,38 +133,47 @@ class AuthController extends Controller
     }
 
     /**
-     * Get the authenticated User.
+     * Show user profile page or return user data as JSON
      *
      * @param Request $request
-     * @return JsonResponse
+     * @return \Illuminate\View\View|JsonResponse
      */
-    public function me(Request $request): JsonResponse
+    public function me(Request $request)
     {
         try {
             $user = Auth::user();
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not authenticated'
-                ], 401);
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not authenticated'
+                    ], 401);
+                }
+                return redirect()->route('login');
             }
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'id'           => $user->id,
-                    'name'         => $user->name,
-                    'username'     => $user->username,
-                    'email'        => $user->email,
-                    'role'         => $user->role,
-                    'full_name'    => $user->full_name,
-                    'is_active'    => $user->is_active,
-                    'last_login'   => $user->last_login,
-                    'created_at'   => $user->created_at,
-                    'active_roles' => $user->getAllActiveRoles(),
-                ]
-            ]);
+            // Return JSON for API requests
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'id'           => $user->id,
+                        'name'         => $user->name,
+                        'username'     => $user->username,
+                        'email'        => $user->email,
+                        'role'         => $user->role,
+                        'full_name'    => $user->full_name,
+                        'is_active'    => $user->is_active,
+                        'last_login'   => $user->last_login,
+                        'created_at'   => $user->created_at,
+                        'active_roles' => $user->getAllActiveRoles(),
+                    ]
+                ]);
+            }
+
+            // Return profile view for web requests
+            return view('auth.profile', compact('user'));
 
         } catch (\Exception $e) {
             Log::error('Get user info error', [
@@ -172,10 +181,14 @@ class AuthController extends Controller
                 'user_id' => Auth::id()
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengambil informasi user'
-            ], 500);
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mengambil informasi user'
+                ], 500);
+            }
+
+            return redirect()->route('dashboard')->with('error', 'Gagal mengambil informasi user');
         }
     }
 

@@ -41,7 +41,7 @@
         <!-- Header Logo Section -->
         <div class="mb-8">
             <div class="flex items-center justify-center gap-4">
-                <img src="{{ asset('assets/CGP.png') }}"
+                <img src="{{ asset('assets/CGP5.png') }}"
                      alt="CGP Logo"
                      class="w-16 h-auto filter drop-shadow-lg bg-white bg-opacity-10 rounded-xl p-3 backdrop-blur-sm border border-gray-300 border-opacity-40">
                 <img src="{{ asset('assets/AERGAS_PNG.png') }}"

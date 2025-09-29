@@ -32,9 +32,9 @@ class NotificationController extends Controller implements HasMiddleware
     }
 
     /**
-     * List notifikasi user (filter + pagination)
+     * Show notifications page or return notifications data as JSON
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request)
     {
         try {
             $user = $request->user();
@@ -92,11 +92,17 @@ class NotificationController extends Controller implements HasMiddleware
             // Summary
             $stats = $this->notificationService->getUserNotificationStats($user->id);
 
-            return response()->json([
-                'success' => true,
-                'data' => $notifications,
-                'stats' => $stats
-            ]);
+            // Return JSON for API requests
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $notifications,
+                    'stats' => $stats
+                ]);
+            }
+
+            // Return notifications view for web requests
+            return view('notifications.index', compact('notifications', 'stats'));
 
         } catch (Exception $e) {
             Log::error('Error fetching notifications', [
@@ -104,10 +110,14 @@ class NotificationController extends Controller implements HasMiddleware
                 'error' => $e->getMessage()
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat mengambil notifikasi'
-            ], 500);
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat mengambil notifikasi'
+                ], 500);
+            }
+
+            return redirect()->route('dashboard')->with('error', 'Terjadi kesalahan saat mengambil notifikasi');
         }
     }
 
