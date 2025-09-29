@@ -43,7 +43,7 @@ class User extends Authenticatable
         'last_login'        => 'datetime',
         'is_active'         => 'boolean',
         'password'          => 'hashed', // Laravel 10+
-        'role'              => 'string', // super_admin, admin, sk, sr, gas_in, pic, tracer, jalur
+        // 'role'              => 'string', // super_admin, admin, sk, sr, gas_in, cgp, tracer, jalur
     ];
 
     // --------- Relations ---------
@@ -68,21 +68,31 @@ class User extends Authenticatable
     }
 
     // --------- Role helpers ---------
+    private function hasRoleInDatabase(string $role): bool
+    {
+        return $this->userRoles()->where('role', $role)->exists();
+    }
+    
     public function isSuperAdmin(): bool
     {
-        return $this->role === 'super_admin';
+        return $this->hasRoleInDatabase('super_admin');
     }
 
     // admin saja (tidak termasuk super admin)
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->hasRoleInDatabase('admin');
     }
 
     // admin atau super admin
     public function isAdminLike(): bool
     {
         return $this->isAdmin() || $this->isSuperAdmin();
+    }
+
+    public function isCgp(): bool
+    {
+        return $this->hasRoleInDatabase('cgp');
     }
 
     public function isTracer(): bool
@@ -97,59 +107,41 @@ class User extends Authenticatable
 
     public function hasRole(string $role): bool
     {
-        // Super admin lewat semua (dari single role atau multi-role)
+        // Super admin selalu lolos
         if ($this->isSuperAdmin()) return true;
-
-        // Check multi-role system first
-        if ($this->activeRoles()->where('role', $role)->exists()) {
-            return true;
-        }
-
-        // Fallback to single role system (backward compatibility)
-        return $this->role === $role;
+        
+        // Langsung cek ke relasi, tidak ada fallback
+        return $this->hasRoleInDatabase($role);
     }
 
     public function hasAnyRole(array|string $roles): bool
     {
         if (is_string($roles)) {
-            // dukung pemisah koma/pipe/titik koma
             $roles = array_map('trim', preg_split('/[,\|;]+/', $roles));
         }
 
-        // Super admin lewat semua
         if ($this->isSuperAdmin()) return true;
 
-        // Check multi-role system first
-        if ($this->activeRoles()->whereIn('role', $roles)->exists()) {
-            return true;
-        }
-
-        // Fallback to single role system (backward compatibility)
-        return in_array($this->role, $roles, true);
+        // Langsung cek ke relasi, tidak ada fallback
+        return $this->userRoles()->whereIn('role', $roles)->exists();
     }
 
     public function getAllActiveRoles(): array
     {
-        $multiRoles = $this->activeRoles()->pluck('role')->toArray();
-
-        // If no multi-roles, fallback to single role
-        if (empty($multiRoles) && $this->role) {
-            return [$this->role];
-        }
-
-        return $multiRoles;
+        return $this->userRoles()->pluck('role')->toArray();
     }
 
+    // Metode ini sedikit disesuaikan
     public function assignRole(string $role, ?int $assignedBy = null): UserRole
     {
-        return UserRole::firstOrCreate([
-            'user_id' => $this->id,
-            'role' => $role,
-        ], [
-            'is_active' => true,
-            'assigned_at' => now(),
-            'assigned_by' => $assignedBy,
-        ]);
+        return $this->userRoles()->firstOrCreate(
+            ['role' => $role],
+            [
+                'user_id'     => $this->id,
+                'assigned_by' => $assignedBy,
+                'assigned_at' => now()
+            ]
+        );
     }
 
     public function removeRole(string $role): bool
@@ -159,18 +151,14 @@ class User extends Authenticatable
 
     public function syncRoles(array $roles, ?int $assignedBy = null): void
     {
-        // Deactivate all current roles
-        $this->userRoles()->update(['is_active' => false]);
+        $this->userRoles()->delete();
 
-        // Assign new roles
         foreach ($roles as $role) {
-            UserRole::updateOrCreate([
-                'user_id' => $this->id,
-                'role' => $role,
-            ], [
-                'is_active' => true,
-                'assigned_at' => now(),
+            UserRole::create([
+                'user_id'     => $this->id,
+                'role'        => $role,
                 'assigned_by' => $assignedBy,
+                'assigned_at' => now(),
             ]);
         }
     }
@@ -181,19 +169,27 @@ class User extends Authenticatable
         if ($this->isSuperAdmin()) return true;
 
         $map = [
-            'customers'   => ['admin', 'tracer'],
-            'sk'          => ['admin', 'sk'],
-            'sr'          => ['admin', 'sr'],
-            'gas_in'      => ['admin', 'gas_in'],
-            'validasi'    => ['admin', 'tracer'],
-            'jalur'       => ['admin', 'jalur'],
-            'jalur_pipa'  => ['admin', 'sk', 'sr'], // sesuaikan
-            'penyambungan'=> ['admin', 'sr'],       // sesuaikan
+            // Data Pelanggan boleh untuk SK, SR, Gas In, CGP, Admin, Tracer
+            'customers'    => ['admin', 'tracer', 'sk', 'sr', 'gas_in', 'cgp'],
+
+            // Modul masing-masing
+            'sk'           => ['admin', 'sk', 'tracer'],    
+            'sr'           => ['admin', 'sr', 'tracer'],
+            'gas_in'       => ['admin', 'gas_in', 'tracer'],
+
+            // Jalur management
+            'jalur'        => ['admin', 'jalur'],            // super_admin bypass di awal
+
+            // Validasi/approval internal (tetap seperti sebelumnya bila dipakai)
+            'validasi'     => ['admin', 'tracer'],
+
+            // CGP review: HANYA CGP (admin tidak boleh)
+            'cgp_review'   => ['cgp'],
         ];
 
         $allowedRoles = $map[$module] ?? [];
 
-        // Check multi-role system
+        // hormati multi-role
         $userRoles = $this->getAllActiveRoles();
         return !empty(array_intersect($userRoles, $allowedRoles));
     }

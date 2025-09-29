@@ -82,42 +82,27 @@ class AuthController extends Controller
             if (Auth::attempt($credentials, $remember)) {
                 $request->session()->regenerate();
 
-                // CEK DULU sebelum update last_login
                 $isFirstLogin = $user->last_login === null;
 
-                // DEBUG: Log untuk troubleshooting
-                Log::info('Login debug', [
-                    'user_id' => $user->id,
-                    'username' => $user->username,
-                    'role' => $user->role,
-                    'last_login_before' => $user->last_login,
-                    'is_first_login' => $isFirstLogin,
-                ]);
+                $user = Auth::user();
+                $user->forceFill(['last_login' => now()])->save();
 
-                // BARU update last_login
-                $user->update(['last_login' => now()]);
+                $redirectUrl = $this->computeRedirectUrlFor($user, $isFirstLogin);
 
-                // DEBUG: Log redirect URL
-                $redirectUrl = $this->getRedirectUrl($user->role, $isFirstLogin);
-                Log::info('Redirect URL', [
-                    'url' => $redirectUrl,
-                    'role' => $user->role,
-                    'is_first_login' => $isFirstLogin
-                ]);
                 return response()->json([
                     'success' => true,
                     'message' => 'Login berhasil',
                     'user' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'username' => $user->username,
-                        'email' => $user->email,
-                        'role' => $user->role,
-                        'full_name' => $user->full_name,
-                        'last_login' => $user->last_login,
-                        'redirect' => $redirectUrl
+                        'id'           => $user->id,
+                        'name'         => $user->name,
+                        'username'     => $user->username,
+                        'email'        => $user->email,
+                        'role'         => $user->role,
+                        'full_name'    => $user->full_name,
+                        'last_login'   => $user->last_login,
+                        'active_roles' => $user->getAllActiveRoles(),
                     ],
-                    'redirect' => $this->getRedirectUrl($user->role, $isFirstLogin) // Pass flag
+                    'redirect' => $redirectUrl,
                 ]);
             }
 
@@ -168,15 +153,16 @@ class AuthController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'username' => $user->username,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'full_name' => $user->full_name,
-                    'is_active' => $user->is_active,
-                    'last_login' => $user->last_login,
-                    'created_at' => $user->created_at
+                    'id'           => $user->id,
+                    'name'         => $user->name,
+                    'username'     => $user->username,
+                    'email'        => $user->email,
+                    'role'         => $user->role,
+                    'full_name'    => $user->full_name,
+                    'is_active'    => $user->is_active,
+                    'last_login'   => $user->last_login,
+                    'created_at'   => $user->created_at,
+                    'active_roles' => $user->getAllActiveRoles(),
                 ]
             ]);
 
@@ -249,20 +235,33 @@ class AuthController extends Controller
      */
     public function check(): JsonResponse
     {
+        $user = Auth::user();
+
         return response()->json([
             'success' => true,
-            'authenticated' => Auth::check(),
-            'user' => Auth::check() ? Auth::user() : null
+            'authenticated' => (bool) $user,
+            'user' => $user ? [
+                'id'           => $user->id,
+                'name'         => $user->name,
+                'username'     => $user->username,
+                'email'        => $user->email,
+                'role'         => $user->role,
+                'full_name'    => $user->full_name,
+                'is_active'    => $user->is_active,
+                'last_login'   => $user->last_login,
+                'created_at'   => $user->created_at,
+                'active_roles' => $user->getAllActiveRoles(),
+            ] : null
         ]);
     }
 
     public function showLoginForm()
     {
-        // If already logged in, redirect to dashboard
         if (Auth::check()) {
-            return redirect('/dashboard');
+            $user = Auth::user();
+            $redirect = $this->computeRedirectUrlFor($user, false);
+            return redirect($redirect);
         }
-
         return view('auth.login');
     }
 
@@ -285,20 +284,6 @@ class AuthController extends Controller
     //         default => '/dashboard'
     //     };
     // }
-
-    private function getRedirectUrl(string $role, bool $isFirstLogin = false): string
-    {
-        // Untuk role tertentu, selalu arahkan ke create
-        return match($role) {
-            'sk' => '/sk/create',
-            'sr' => '/sr/create',
-            'gas_in' => '/gas-in/create',
-            'super_admin', 'admin' => '/dashboard',
-            'tracer' => '/dashboard',
-            'pic' => '/dashboard',
-            default => '/dashboard'
-        };
-    }
 
     /**
      * Update user profile
@@ -436,5 +421,27 @@ class AuthController extends Controller
                 'message' => 'Terjadi kesalahan saat mengubah password'
             ], 500);
         }
+    }
+
+    private function computeRedirectUrlFor(User $user, bool $isFirstLogin = false): string
+    {
+        $roles = $user->getAllActiveRoles();
+        if (empty($roles) && $user->role) {
+            $roles = [$user->role];
+        }
+
+        $priority = ['cgp','sk','sr','gas_in','jalur','admin','tracer','super_admin'];
+
+        usort($roles, fn($a, $b) => array_search($a, $priority, true) <=> array_search($b, $priority, true));
+        $top = $roles[0] ?? $user->role ?? 'admin';
+
+        return match ($top) {
+            'cgp'       => '/approvals/cgp',
+            'sk'        => $isFirstLogin ? '/sk/create'     : '/sk',
+            'sr'        => $isFirstLogin ? '/sr/create'     : '/sr',
+            'gas_in'    => $isFirstLogin ? '/gas-in/create' : '/gas-in',
+            'jalur'     => '/jalur',
+            default     => '/dashboard',
+        };
     }
 }

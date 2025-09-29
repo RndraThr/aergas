@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // 'role' => AergasRoleMiddleware::class,
             'role' => \App\Http\Middleware\CheckRole::class,
             'customer.validated' => \App\Http\Middleware\CheckCustomerValidated::class,
+            'user.active' => \App\Http\Middleware\EnsureUserIsActiveAndHasRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

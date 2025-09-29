@@ -54,9 +54,10 @@
         </div>
 
         <!-- Navigation -->
-        <nav class="flex-1 px-4 py-6 overflow-y-auto overflow-x-hidden min-h-0 sidebar-scroll">
+        <nav class="flex-1 px-4 py-6 overflow-y-auto sidebar-scroll">
             <div class="space-y-1">
                 <!-- Dashboard -->
+                @if(auth()->user()->hasAnyRole(['admin', 'cgp', 'tracer', 'super_admin']))
                 <a href="{{ route('dashboard') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('dashboard') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i class="fas fa-chart-pie mr-3 text-lg {{ request()->routeIs('dashboard') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
@@ -67,26 +68,29 @@
                         </div>
                     @endif
                 </a>
+                @endif
 
                 <!-- Data Pelanggan -->
-                <a href="{{ route('customers.index') }}"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('customers.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-users mr-3 text-lg {{ request()->routeIs('customers.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
-                    Data Pelanggan
-                    @if(request()->routeIs('customers.*'))
-                        <div class="ml-auto">
-                            <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
-                        </div>
-                    @endif
-                </a>
-
+                @if(auth()->user()->hasAnyRole(['admin','sk','sr','gas_in','cgp','tracer','super_admin']))
+                    <a href="{{ route('customers.index') }}"
+                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('customers.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <i class="fas fa-users mr-3 text-lg {{ request()->routeIs('customers.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        Data Pelanggan
+                        @if(request()->routeIs('customers.*'))
+                            <div class="ml-auto"><div class="w-2 h-2 bg-aergas-orange rounded-full"></div></div>
+                        @endif
+                    </a>
+                @endif
+                
                 <!-- Divider -->
+                @if(auth()->user()->hasAnyRole(['admin','sk','sr','gas_in','super_admin']))
                 <div class="border-t border-gray-200 my-4"></div>
                 <div class="px-3 mb-2">
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">MODULES</span>
                 </div>
+                @endif
 
-                @if(auth()->user()->hasAnyRole(['sk', 'tracer', 'admin', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['sk', 'admin', 'super_admin']))
                 <!-- SK Data -->
                 <a href="{{ route('sk.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('sk.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -100,7 +104,7 @@
                 </a>
                 @endif
 
-                @if(auth()->user()->hasAnyRole(['sr', 'tracer', 'admin', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['sr', 'admin', 'super_admin']))
                 <!-- SR Data -->
                 <a href="{{ route('sr.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('sr.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -114,7 +118,7 @@
                 </a>
                 @endif
 
-                @if(auth()->user()->hasAnyRole(['gas_in', 'tracer', 'admin', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['gas_in', 'admin', 'super_admin']))
                 <!-- Gas In Data -->
                 <a href="{{ route('gas-in.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('gas-in.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -128,7 +132,7 @@
                 </a>
                 @endif
 
-                @if(auth()->user()->hasAnyRole(['jalur', 'admin', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                 <!-- Jalur Management with Submenu -->
                 <div x-data="{ jalurOpen: {{ request()->routeIs('jalur.*') ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="jalurOpen = !jalurOpen"
@@ -189,16 +193,54 @@
                         @endif
                     </div>
                 </div>
+
+                @elseif (auth()->user()->hasAnyRole(['jalur']))
+                <!-- Jalur Management with Submenu for Jalur-only users -->
+                <div class="space-y-1">
+                    {{-- <div class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg text-gray-900 bg-gray-50">
+                        <i class="fas fa-road mr-3 text-lg text-aergas-orange"></i>
+                        <span class="flex-1 text-left">Jalur Management</span>
+                    </div> --}}
+
+                    <div class="space-y-1 mt-1">
+                        <a href="{{ route('jalur.index') }}"
+                        class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.index') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-chart-line mr-2 text-sm"></i> Dashboard
+                        </a>
+                        <a href="{{ route('jalur.clusters.index') }}"
+                        class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.clusters.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-layer-group mr-2 text-sm"></i> Clusters
+                        </a>
+                        <a href="{{ route('jalur.line-numbers.index') }}"
+                        class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.line-numbers.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-list-ol mr-2 text-sm"></i> Line Numbers
+                        </a>
+                        <a href="{{ route('jalur.lowering.index') }}"
+                        class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.lowering.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-arrow-down mr-2 text-sm"></i> Lowering Data
+                        </a>
+                        <a href="{{ route('jalur.joint.index') }}"
+                        class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.joint.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-link mr-2 text-sm"></i> Joint Data
+                        </a>
+                        <a href="{{ route('jalur.joint-numbers.index') }}"
+                        class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.joint-numbers.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-hashtag mr-2 text-sm"></i> Joint Numbers
+                        </a>
+                        {{-- khusus admin/super_admin saja, jalur nggak lihat menu ini --}}
+                    </div>
+                </div>
                 @endif
 
-
+                @if(auth()->user()->hasAnyRole(['admin', 'cgp', 'tracer', 'super_admin']))
                 <!-- Divider -->
                 <div class="border-t border-gray-200 my-4"></div>
                 <div class="px-3 mb-2">
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">WORKFLOW</span>
                 </div>
+                @endif
 
-                @if(auth()->user()->hasAnyRole(['admin']) && !auth()->user()->hasAnyRole(['tracer', 'super_admin']))
+                {{-- @if(auth()->user()->hasAnyRole(['admin']) && !auth()->user()->hasAnyRole(['tracer', 'super_admin']))
                 <!-- Admin-only users see single Photo Review for tracer function -->
                 <a href="{{ route('approvals.tracer.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -213,7 +255,7 @@
                 </a>
                 @endif
 
-                @if(auth()->user()->hasAnyRole(['tracer']) && !auth()->user()->hasAnyRole(['admin', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['cgp']) && !auth()->user()->hasAnyRole(['admin', 'super_admin']))
                 <!-- Tracer-only users see single Photo Review for CGP function -->
                 <a href="{{ route('approvals.cgp.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -226,12 +268,12 @@
                         <span class="ml-auto bg-green-500 text-white text-xs px-2 py-1 rounded-full">{{ $pendingCgp }}</span>
                     @endif
                 </a>
-                @endif
+                @endif --}}
 
-                @if(auth()->user()->hasAnyRole(['super_admin']) || (auth()->user()->hasAnyRole(['admin']) && auth()->user()->hasAnyRole(['tracer'])))
-                <!-- Super admin or multi-role users (admin+tracer) see separate Tracer Review and CGP Review -->
+                {{-- Tracer Review: ADMIN & SUPER ADMIN --}}
+                @if(auth()->user()->hasAnyRole(['tracer','admin','super_admin']))
                 <a href="{{ route('approvals.tracer.index') }}"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i class="fas fa-search mr-3 text-lg {{ request()->routeIs('approvals.tracer.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                     Tracer Review
                     @php
@@ -241,9 +283,12 @@
                         <span class="ml-auto bg-blue-500 text-white text-xs px-2 py-1 rounded-full">{{ $pendingTracer }}</span>
                     @endif
                 </a>
+                @endif
 
+                {{-- CGP Review: CGP & SUPER ADMIN (admin tidak melihat menu ini) --}}
+                @if(auth()->user()->hasAnyRole(['cgp','super_admin']))
                 <a href="{{ route('approvals.cgp.index') }}"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     <i class="fas fa-clipboard-check mr-3 text-lg {{ request()->routeIs('approvals.cgp.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                     CGP Review
                     @php
@@ -255,6 +300,7 @@
                 </a>
                 @endif
 
+                @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                 <!-- Notifications -->
                 <a href="{{ route('notifications.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('notifications.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
@@ -283,15 +329,17 @@
                         </a>
                     </div>
                 </div>
+                @endif
 
+                @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                 <!-- Divider -->
                 <div class="border-t border-gray-200 my-4"></div>
                 <div class="px-3 mb-2">
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">MANAGEMENT</span>
                 </div>
+                @endif
 
-
-                @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                 <!-- Import Excel -->
                 <div x-data="{ open: {{ request()->routeIs('imports.*') ? 'true' : 'false' }} }" class="relative">
                     <button @click="open = !open"
@@ -328,6 +376,7 @@
                 </div>
                 @endif
 
+                @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                 <!-- File Manager -->
                 <a href="#"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-400 cursor-not-allowed">
@@ -343,6 +392,7 @@
                     Audit Logs
                     <span class="ml-auto text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Soon</span>
                 </a>
+                @endif
 
                 @if(auth()->user()->hasAnyRole(['super_admin', 'admin']))
                     <!-- Divider -->
@@ -366,33 +416,33 @@
                     </a>
                     @endif
             </div>
-
-            <!-- Bottom Section -->
-            <div class="mt-8 pt-6 border-t border-gray-200">
-                <!-- Profile -->
-                <a href="{{ route('auth.me') }}"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                    <i class="fas fa-user mr-3 text-lg text-gray-400 group-hover:text-gray-600"></i>
-                    My Profile
-                </a>
-
-                <!-- Settings -->
-                <a href="#"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                    <i class="fas fa-cog mr-3 text-lg text-gray-400 group-hover:text-gray-600"></i>
-                    Settings
-                </a>
-
-                <!-- Logout -->
-                <form method="POST" action="{{ route('logout') }}" class="mt-2">
-                    @csrf
-                    <button type="submit"
-                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:text-gray-900 hover:bg-red-50 hover:text-red-600">
-                        <i class="fas fa-sign-out-alt mr-3 text-lg text-gray-400 group-hover:text-red-500"></i>
-                        Logout
-                    </button>
-                </form>
-            </div>
         </nav>
+
+        <!-- Bottom Section -->
+        <div class="px-4 py-4 border-t border-gray-200 flex-shrink-0">
+            <!-- Profile -->
+            <a href="{{ route('auth.me') }}"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                <i class="fas fa-user mr-3 text-lg text-gray-400 group-hover:text-gray-600"></i>
+                My Profile
+            </a>
+
+            {{-- <!-- Settings -->
+            <a href="#"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                <i class="fas fa-cog mr-3 text-lg text-gray-400 group-hover:text-gray-600"></i>
+                Settings
+            </a> --}}
+
+            <!-- Logout -->
+            <form method="POST" action="{{ route('logout') }}" class="mt-2">
+                @csrf
+                <button type="submit"
+                        class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:text-gray-900 hover:bg-red-50 hover:text-red-600">
+                    <i class="fas fa-sign-out-alt mr-3 text-lg text-gray-400 group-hover:text-red-500"></i>
+                    Logout
+                </button>
+            </form>
+        </div>
     </div>
 </div>

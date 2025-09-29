@@ -1281,28 +1281,24 @@
             .then(response => response.json())
             .then(result => {
                 if (result.success && result.authenticated && result.user) {
-                    const role = result.user.role;
+                    const roles = result.user.roles || [];
                     let redirectUrl = '/dashboard';
 
-                    switch(role) {
-                        case 'sk':
-                            redirectUrl = '/sk/create';
-                            break;
-                        case 'sr':
-                            redirectUrl = '/sr/create';
-                            break;
-                        case 'gas_in':
-                            redirectUrl = '/gas-in/create';
-                            break;
-                        case 'super_admin':
-                        case 'admin':
-                        case 'tracer':
-                        case 'pic':
-                        default:
-                            redirectUrl = '/dashboard';
-                            break;
+                    if (roles.includes('super_admin') || roles.includes('admin')) {
+                        redirectUrl = '/dashboard';
+                    } else if (roles.includes('jalur')) {
+                        redirectUrl = '/jalur';
+                    } else if (roles.includes('sk')) {
+                        redirectUrl = '/sk/create';
+                    } else if (roles.includes('sr')) {
+                        redirectUrl = '/sr/create';
+                    } else if (roles.includes('gas_in')) {
+                        redirectUrl = '/gas-in/create';
+                    } else if (roles.includes('cgp')) {
+                        redirectUrl = '/approvals/cgp';
+                    } else if (roles.includes('tracer')) {
+                        redirectUrl = '/dashboard';
                     }
-
                     window.location.href = redirectUrl;
                 }
             })
