@@ -21,7 +21,7 @@ return new class extends Migration
                 'sr',
                 'mgrt',
                 'gas_in',
-                'pic',
+                'cgp',
                 'tracer',
                 'jalur'
             ]);

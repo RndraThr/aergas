@@ -273,7 +273,7 @@
     </div>
 
     @if($customer)
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-6">
+    <div class="bg-white rounded-xl p-6 border shadow border-gray-100 mb-6">
     <div class="flex items-center gap-3 mb-4">
         <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
         <i class="fas fa-user text-white"></i>
@@ -380,348 +380,348 @@
     </div>
     @endif
 
-    @if($customer->skData)
-    @php
-    $sk = $customer->skData;
-    $materialLabels = [
-        'panjang_pipa_gl_medium_m' => 'Panjang Pipa 1/2" GL Medium (meter)',
-        'qty_elbow_1_2_galvanis' => 'Elbow 1/2" Galvanis (Pcs)',
-        'qty_sockdraft_galvanis_1_2' => 'SockDraft Galvanis Dia 1/2" (Pcs)',
-        'qty_ball_valve_1_2' => 'Ball Valve 1/2" (Pcs)',
-        'qty_nipel_selang_1_2' => 'Nipel Selang 1/2" (Pcs)',
-        'qty_elbow_reduce_3_4_1_2' => 'Elbow Reduce 3/4" x 1/2" (Pcs)',
-        'qty_long_elbow_3_4_male_female' => 'Long Elbow 3/4" Male Female (Pcs)',
-        'qty_klem_pipa_1_2' => 'Klem Pipa 1/2" (Pcs)',
-        'qty_double_nipple_1_2' => 'Double Nipple 1/2" (Pcs)',
-        'qty_seal_tape' => 'Seal Tape (Pcs)',
-        'qty_tee_1_2' => 'Tee 1/2" (Pcs)',
-    ];
-    $materialData = [];
-    $totalFitting = 0;
-    foreach($materialLabels as $field => $label) {
-        $val = (float)($sk->$field ?? 0);
-        if($val > 0) {
-        $materialData[] = ['label' => $label, 'value' => $val, 'field' => $field];
-        if($field !== 'panjang_pipa_gl_medium_m') $totalFitting += $val;
-        }
-    }
-    @endphp
-
-    <div class="bg-white rounded-lg shadow mb-6 border border-gray-200">
-        <div class="p-6">
-            <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow">
-                <i class="fas fa-clipboard-list text-white"></i>
-            </div>
-            <div>
-                <h2 class="text-lg font-semibold text-gray-900">Material SK</h2>
-                <p class="text-sm text-green-600">Service connection materials</p>
-            </div>
-            </div>
-
-            @if(empty($materialData))
-            <div class="text-center py-6 text-gray-500">Belum ada data material</div>
-            @else
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                @foreach($materialData as $m)
-                <div class="bg-gray-50 p-4 rounded-lg border">
-                    <div class="text-xs text-gray-500 mb-1">{{ $m['label'] }}</div>
-                    <div class="font-bold text-lg text-gray-800">
-                    {{ $m['value'] }}
-                    @if($m['field'] === 'panjang_pipa_gl_medium_m')
-                        <span class="text-sm font-normal text-gray-600">meter</span>
-                    @else
-                        <span class="text-sm font-normal text-gray-600">pcs</span>
-                    @endif
-                    </div>
-                </div>
-                @endforeach
-            </div>
-
-            <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-                <div class="flex justify-between items-center">
-                <span class="font-medium text-green-800">Total Fitting:</span>
-                <span class="font-bold text-green-900 text-lg">{{ $totalFitting }} pcs</span>
-                </div>
-                @if($sk->panjang_pipa_gl_medium_m)
-                <div class="flex justify-between items-center mt-2">
-                    <span class="font-medium text-green-800">Total Pipa:</span>
-                    <span class="font-bold text-green-900 text-lg">{{ (float)$sk->panjang_pipa_gl_medium_m }} meter</span>
-                </div>
-                @endif
-            </div>
-            @endif
-        </div>
-    </div>
-    @endif
-    
-    @if($customer->srData)
-    @php
-    $sr = $customer->srData;
-    $labels = $sr->getMaterialLabels();
-    $materialData = [];
-    $totalItems = 0;
-    $totalLengths = 0;
-
-    foreach($sr->getRequiredMaterialItems() as $field => $val) {
-        $v = (float)($val ?? 0);
-        if($v > 0) {
-        $materialData[] = ['label' => $labels[$field] ?? $field, 'value' => $v, 'field' => $field];
-        if(str_contains($field, 'panjang_')) $totalLengths += $v; else $totalItems += $v;
-        }
-    }
-    foreach($sr->getOptionalMaterialItems() as $field => $val) {
-        $v = (float)($val ?? 0);
-        if($v > 0) $materialData[] = ['label' => $labels[$field] ?? $field, 'value' => $v, 'field' => $field];
-    }
-    @endphp
-
-    <div class="bg-white rounded-lg shadow mb-6 border border-gray-200">
-    <div class="p-6">
-        <div class="flex items-center gap-3 mb-4">
-        <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center shadow">
-            <i class="fas fa-clipboard-list text-white"></i>
-        </div>
-        <div>
-            <h2 class="text-lg font-semibold text-gray-900">Material SR</h2>
-            <p class="text-sm text-yellow-600">Service regulator materials</p>
-        </div>
-        </div>
-
-        @if(empty($materialData))
-        <div class="text-center py-6 text-gray-500">Belum ada data material</div>
-        @else
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            @foreach($materialData as $m)
-            <div class="bg-gray-50 p-4 rounded-lg border">
-                <div class="text-xs text-gray-500 mb-1">{{ $m['label'] }}</div>
-                <div class="font-bold text-lg text-gray-800">
-                {{ $m['value'] }}
-                @if(str_contains($m['field'], 'panjang_'))
-                    <span class="text-sm font-normal text-gray-600">meter</span>
-                @else
-                    <span class="text-sm font-normal text-gray-600">pcs</span>
-                @endif
-                </div>
-            </div>
-            @endforeach
-        </div>
-
-        <div class="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
-            <div class="flex justify-between items-center">
-            <span class="font-medium text-yellow-800">Total Items:</span>
-            <span class="font-bold text-yellow-900 text-lg">{{ $totalItems }} pcs</span>
-            </div>
-            <div class="flex justify-between items-center mt-2">
-            <span class="font-medium text-yellow-800">Total Lengths:</span>
-            <span class="font-bold text-yellow-900 text-lg">{{ $totalLengths }} meter</span>
-            </div>
-            @if($sr->jenis_tapping)
-            <div class="flex justify-between items-center mt-2">
-                <span class="font-medium text-yellow-800">Jenis Tapping:</span>
-                <span class="font-bold text-yellow-900 text-lg">{{ $sr->jenis_tapping }}</span>
-            </div>
-            @endif
-        </div>
-        @endif
-    </div>
-    </div>
-    @endif
-
     <!-- Photo Sections -->
-    @foreach(['sk', 'sr', 'gas_in'] as $module)
-        @php
-        $modulePhotos = $photos[$module] ?? [];
+    {{-- ===== 1 CARD / MODULE: MATERIAL (atas) + PHOTOS (bawah) ===== --}}
+@php
+    $modules = ['sk','sr','gas_in'];
 
-        $desiredOrder = [
-            'isometrik_scan',
-            'pneumatic_start',
-            'pneumatic_finish',
-            'valve',
-            'berita_acara',
-        ];
+    $desiredOrder = ['isometrik_scan','pneumatic_start','pneumatic_finish','valve','berita_acara'];
+    $orderIndex = collect($desiredOrder)->flip(); // key => index
+@endphp
 
-        $modulePhotos = collect($modulePhotos)
-            ->sortBy(function ($p) use ($desiredOrder) {
-                $key = $p->photo_key ?? \Illuminate\Support\Str::slug($p->photo_field_name, '_');
-                $idx = array_search($key, $desiredOrder, true);
-                return $idx === false ? PHP_INT_MAX : $idx;
-            })
-            ->values();
-
-        $moduleReady = ($module === 'sk' && $cgpStatus['sk_ready']) || 
-                       ($module === 'sr' && $cgpStatus['sr_ready']) || 
+@foreach($modules as $module)
+    @php
+        // status siap/complete modul
+        $moduleReady = ($module === 'sk' && $cgpStatus['sk_ready']) ||
+                       ($module === 'sr' && $cgpStatus['sr_ready']) ||
                        ($module === 'gas_in' && $cgpStatus['gas_in_ready']);
-        $moduleCompleted = ($module === 'sk' && $cgpStatus['sk_completed']) || 
-                           ($module === 'sr' && $cgpStatus['sr_completed']) || 
+        $moduleCompleted = ($module === 'sk' && $cgpStatus['sk_completed']) ||
+                           ($module === 'sr' && $cgpStatus['sr_completed']) ||
                            ($module === 'gas_in' && $cgpStatus['gas_in_completed']);
         $moduleAvailable = $moduleReady || $moduleCompleted;
+
+        // foto + urut
+        $modulePhotos = collect($photos[$module] ?? [])->sortBy(function($p) use ($orderIndex) {
+            $key = $p->photo_key ?? \Illuminate\Support\Str::slug($p->photo_field_name, '_');
+            return $orderIndex[$key] ?? PHP_INT_MAX;
+        })->values();
+
+        // ---------- MATERIAL (dinamis per modul) ----------
+        $showMaterial = false;
+        $materialTitle = '';
+        $materialSubtitle = '';
+        $materialAccent = '';
+        $materialData = [];
+        $materialTotals = [];
+
+        if ($module === 'sk' && $customer->skData) {
+            $showMaterial = true;
+            $materialTitle = 'Material SK';
+            $materialSubtitle = 'Service connection materials';
+            $materialAccent = 'from-green-500 to-emerald-600';
+            $sk = $customer->skData;
+
+            $labels = [
+                'panjang_pipa_gl_medium_m'       => 'Panjang Pipa 1/2" GL Medium (meter)',
+                'qty_elbow_1_2_galvanis'         => 'Elbow 1/2" Galvanis (Pcs)',
+                'qty_sockdraft_galvanis_1_2'     => 'SockDraft Galvanis Dia 1/2" (Pcs)',
+                'qty_ball_valve_1_2'             => 'Ball Valve 1/2" (Pcs)',
+                'qty_nipel_selang_1_2'           => 'Nipel Selang 1/2" (Pcs)',
+                'qty_elbow_reduce_3_4_1_2'       => 'Elbow Reduce 3/4" x 1/2" (Pcs)',
+                'qty_long_elbow_3_4_male_female' => 'Long Elbow 3/4" Male Female (Pcs)',
+                'qty_klem_pipa_1_2'              => 'Klem Pipa 1/2" (Pcs)',
+                'qty_double_nipple_1_2'          => 'Double Nipple 1/2" (Pcs)',
+                'qty_seal_tape'                   => 'Seal Tape (Pcs)',
+                'qty_tee_1_2'                     => 'Tee 1/2" (Pcs)',
+            ];
+
+            $totalFitting = 0;
+            foreach ($labels as $field => $label) {
+                $val = (float)($sk->$field ?? 0);
+                if ($val > 0) {
+                    $materialData[] = ['label' => $label, 'value' => $val, 'field' => $field];
+                    if ($field !== 'panjang_pipa_gl_medium_m') $totalFitting += $val;
+                }
+            }
+            $materialTotals = [
+                'total_fitting' => $totalFitting,
+                'total_pipa'    => (float)($sk->panjang_pipa_gl_medium_m ?? 0),
+            ];
+        }
+
+        if ($module === 'sr' && $customer->srData) {
+            $showMaterial = true;
+            $materialTitle = 'Material SR';
+            $materialSubtitle = 'Service regulator materials';
+            $materialAccent = 'from-yellow-500 to-amber-600';
+            $sr = $customer->srData;
+
+            $labels = $sr->getMaterialLabels();
+            $totalItems = 0; $totalLengths = 0;
+
+            foreach ($sr->getRequiredMaterialItems() as $field => $val) {
+                $v = (float)($val ?? 0);
+                if ($v > 0) {
+                    $materialData[] = ['label' => ($labels[$field] ?? $field), 'value' => $v, 'field' => $field];
+                    if (str_contains($field, 'panjang_')) $totalLengths += $v; else $totalItems += $v;
+                }
+            }
+            foreach ($sr->getOptionalMaterialItems() as $field => $val) {
+                $v = (float)($val ?? 0);
+                if ($v > 0) $materialData[] = ['label' => ($labels[$field] ?? $field), 'value' => $v, 'field' => $field];
+            }
+
+            $materialTotals = [
+                'total_items'   => $totalItems,
+                'total_lengths' => $totalLengths,
+                'jenis_tapping' => $sr->jenis_tapping ?? null,
+            ];
+        }
+
+        // kalau dua-duanya kosong, lewati card
+        $shouldRenderCard = $showMaterial || $moduleAvailable;
     @endphp
 
-        @if($moduleAvailable)
-        <div class="bg-white rounded-lg shadow mb-6">
+    @if($shouldRenderCard)
+        <div class="bg-white rounded-lg shadow mb-6 border border-gray-200">
+            {{-- HEADER CARD: Judul modul + status + approve all (kalau perlu) --}}
             <div class="p-6 border-b border-gray-200">
                 <div class="flex justify-between items-center">
-                    <div class="flex items-center">
-                        <h2 class="text-lg font-semibold text-gray-900 mr-4">
-                            {{ strtoupper($module) }} Photos (Tracer Approved)
-                        </h2>
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br {{ $materialAccent ?: 'from-slate-400 to-slate-500' }} rounded-lg flex items-center justify-center shadow">
+                            <i class="fas fa-layer-group text-white"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">{{ strtoupper($module) }} Material & Photos</h2>
+                            <p class="text-sm text-gray-600">Ringkasan material dan foto tracer-approved</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
                         @if($moduleCompleted)
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                ✅ CGP Approved
-                            </span>
-                        @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                ⏳ Pending CGP Review
-                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">✅ CGP Approved</span>
+                        @elseif($moduleReady)
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending CGP Review</span>
+                        @endif
+
+                        @if($moduleReady && !$moduleCompleted && $modulePhotos->count() > 0)
+                            <button onclick="approveModule('{{ $module }}')"
+                                    id="approveModuleBtn_{{ $module }}"
+                                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200">
+                                <span class="approve-text">✅ Approve All {{ strtoupper($module) }}</span>
+                                <span class="approve-loading hidden">
+                                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Processing...
+                                </span>
+                            </button>
                         @endif
                     </div>
-                    
-                    @if($moduleReady && !$moduleCompleted && count($modulePhotos) > 0)
-                        <button onclick="approveModule('{{ $module }}')" 
-                                id="approveModuleBtn_{{ $module }}"
-                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200">
-                            <span class="approve-text">✅ Approve All {{ strtoupper($module) }}</span>
-                            <span class="approve-loading hidden">
-                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Processing...
-                            </span>
-                        </button>
-                    @endif
                 </div>
             </div>
 
-            @if(count($modulePhotos) > 0)
+            {{-- SECTION 1: MATERIAL (ATAS) --}}
+            @if($showMaterial)
                 <div class="p-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        @foreach($modulePhotos as $photo)
-                            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                                <!-- Photo -->
-                                <div class="aspect-w-4 aspect-h-3 bg-gray-100">
-                                    @if($photo->photo_url && !empty(trim($photo->photo_url)))
-                                        @php
-                                            // Convert Google Drive URL to direct image URL
-                                            $imageUrl = $photo->photo_url;
-                                            if (str_contains($imageUrl, 'drive.google.com')) {
-                                                if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $imageUrl, $matches)) {
-                                                    $fileId = $matches[1];
-                                                    $imageUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
-                                                }
-                                            }
-                                        @endphp
-                                        <img src="{{ $imageUrl }}" 
-                                             alt="{{ $photo->photo_field_name }}"
-                                             class="photo-preview w-full h-48 object-cover"
-                                             onclick="openPhotoModal('{{ $imageUrl }}')"
-                                             data-file-id="{{ preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $photo->photo_url, $matches) ? $matches[1] : '' }}"
-                                             data-original-url="{{ $photo->photo_url }}"
-                                             onerror="tryAlternativeUrls(this)">
-                                    @else
-                                        <div class="flex flex-col items-center justify-center h-48 text-gray-400">
-                                            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                            </svg>
-                                            <p class="text-xs mt-2">No image</p>
-                                        </div>
-                                    @endif
-                                </div>
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 bg-gradient-to-br {{ $materialAccent }} rounded-lg flex items-center justify-center shadow">
+                            <i class="fas fa-clipboard-list text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900">{{ $materialTitle }}</h3>
+                            <p class="text-sm text-gray-600">{{ $materialSubtitle }}</p>
+                        </div>
+                    </div>
 
-                                <!-- Photo Info -->
-                                <div class="p-4">
-                                    <h3 class="font-medium text-gray-900 mb-2">{{ $photo->photo_field_name }}</h3>
-                                    
-                                    <!-- Tracer Approval Info -->
-                                    @if($photo->tracer_approved_at)
-                                        <div class="mb-3 p-2 bg-green-50 rounded">
-                                            <div class="flex items-center justify-between text-sm">
-                                                <span class="font-medium text-green-900">✅ Tracer Approved</span>
-                                                <span class="text-green-600">{{ $photo->tracer_approved_at->format('d/m/y H:i') }}</span>
-                                            </div>
-                                            @if($photo->tracer_notes)
-                                                <p class="text-xs text-green-700 mt-1">{{ $photo->tracer_notes }}</p>
-                                            @endif
-                                        </div>
-                                    @endif
-
-                                    <!-- CGP Status -->
-                                    <div class="flex flex-col mb-3">
-                                        @if($photo->cgp_approved_at)
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                ✅ Approved by CGP
-                                            </span>
+                    @if(empty($materialData))
+                        <div class="text-center py-6 text-gray-500">Belum ada data material</div>
+                    @else
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            @foreach($materialData as $m)
+                                <div class="bg-gray-50 p-4 rounded-lg border">
+                                    <div class="text-xs text-gray-500 mb-1">{{ $m['label'] }}</div>
+                                    <div class="font-bold text-lg text-gray-800">
+                                        {{ $m['value'] }}
+                                        @if(($module === 'sk' && $m['field'] === 'panjang_pipa_gl_medium_m') || ($module === 'sr' && str_contains($m['field'], 'panjang_')))
+                                            <span class="text-sm font-normal text-gray-600">meter</span>
                                         @else
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                ⏳ Pending CGP Review
-                                            </span>
+                                            <span class="text-sm font-normal text-gray-600">pcs</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        {{-- ringkasan total --}}
+                        @if($module === 'sk')
+                            <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-medium text-green-800">Total Fitting:</span>
+                                    <span class="font-bold text-green-900 text-lg">{{ $materialTotals['total_fitting'] }} pcs</span>
+                                </div>
+                                @if($materialTotals['total_pipa'] > 0)
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span class="font-medium text-green-800">Total Pipa:</span>
+                                        <span class="font-bold text-green-900 text-lg">{{ $materialTotals['total_pipa'] }} meter</span>
+                                    </div>
+                                @endif
+                            </div>
+                        @elseif($module === 'sr')
+                            <div class="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-medium text-yellow-800">Total Items:</span>
+                                    <span class="font-bold text-yellow-900 text-lg">{{ $materialTotals['total_items'] }} pcs</span>
+                                </div>
+                                <div class="flex justify-between items-center mt-2">
+                                    <span class="font-medium text-yellow-800">Total Lengths:</span>
+                                    <span class="font-bold text-yellow-900 text-lg">{{ $materialTotals['total_lengths'] }} meter</span>
+                                </div>
+                                @if(!empty($materialTotals['jenis_tapping']))
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span class="font-medium text-yellow-800">Jenis Tapping:</span>
+                                        <span class="font-bold text-yellow-900 text-lg">{{ $materialTotals['jenis_tapping'] }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+                    @endif
+                </div>
+            @endif
+
+            {{-- DIVIDER antar section dalam 1 card --}}
+            @if($moduleAvailable)
+                <div class="border-t border-gray-200"></div>
+            @endif
+
+            {{-- SECTION 2: PHOTOS (BAWAH) --}}
+            @if($moduleAvailable)
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-semibold text-gray-900">{{ strtoupper($module) }} Photos (Tracer Approved)</h3>
+                        @if($moduleCompleted)
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">✅ CGP Approved</span>
+                        @else
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending CGP Review</span>
+                        @endif
+                    </div>
+
+                    @if($modulePhotos->count() > 0)
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            @foreach($modulePhotos as $photo)
+                                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="aspect-w-4 aspect-h-3 bg-gray-100">
+                                        @if($photo->photo_url && !empty(trim($photo->photo_url)))
+                                            @php
+                                                $imageUrl = $photo->photo_url;
+                                                if (str_contains($imageUrl, 'drive.google.com')) {
+                                                    if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $imageUrl, $matches)) {
+                                                        $fileId = $matches[1];
+                                                        $imageUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
+                                                    }
+                                                }
+                                            @endphp
+                                            <img src="{{ $imageUrl }}"
+                                                 alt="{{ $photo->photo_field_name }}"
+                                                 class="photo-preview w-full h-48 object-cover"
+                                                 onclick="openPhotoModal('{{ $imageUrl }}')"
+                                                 data-file-id="{{ preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $photo->photo_url, $matches) ? $matches[1] : '' }}"
+                                                 data-original-url="{{ $photo->photo_url }}"
+                                                 onerror="tryAlternativeUrls(this)">
+                                        @else
+                                            <div class="flex flex-col items-center justify-center h-48 text-gray-400">
+                                                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2z"></path>
+                                                </svg>
+                                                <p class="text-xs mt-2">No image</p>
+                                            </div>
                                         @endif
                                     </div>
 
-                                    <!-- Actions -->
-                                    @if($moduleReady && !$photo->cgp_approved_at && $photo->photo_status === 'cgp_pending')
-                                        <div class="flex space-x-2">
-                                            <button onclick="approvePhoto({{ $photo->id }})" 
-                                                    id="approveBtn_{{ $photo->id }}"
-                                                    class="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-all duration-200">
-                                                <span class="approve-text">✅ Approve</span>
-                                                <span class="approve-loading hidden">
-                                                    <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
-                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                    </svg>
-                                                </span>
-                                            </button>
-                                            <button onclick="rejectPhoto({{ $photo->id }})" 
-                                                    id="rejectBtn_{{ $photo->id }}"
-                                                    class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-all duration-200">
-                                                <span class="reject-text">❌ Reject</span>
-                                                <span class="reject-loading hidden">
-                                                    <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
-                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                    </svg>
-                                                </span>
-                                            </button>
-                                        </div>
-                                    @endif
+                                    <div class="p-4">
+                                        <h4 class="font-medium text-gray-900 mb-2">{{ $photo->photo_field_name }}</h4>
 
-                                    <!-- Rejection Status -->
-                                    @if($photo->photo_status === 'cgp_rejected')
-                                        <div class="mt-3 p-2 bg-red-50 rounded">
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                                ❌ Rejected by CGP
-                                            </span>
-                                            @if($photo->rejection_reason)
-                                                <p class="text-xs text-red-600 mt-1">{{ $photo->rejection_reason }}</p>
+                                        @if($photo->tracer_approved_at)
+                                            <div class="mb-3 p-2 bg-green-50 rounded">
+                                                <div class="flex items-center justify-between text-sm">
+                                                    <span class="font-medium text-green-900">✅ Tracer Approved</span>
+                                                    <span class="text-green-600">{{ $photo->tracer_approved_at->format('d/m/y H:i') }}</span>
+                                                </div>
+                                                @if($photo->tracer_notes)
+                                                    <p class="text-xs text-green-700 mt-1">{{ $photo->tracer_notes }}</p>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        <div class="flex flex-col mb-3">
+                                            @if($photo->cgp_approved_at)
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">✅ Approved by CGP</span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending CGP Review</span>
                                             @endif
                                         </div>
-                                    @endif
 
-                                    <!-- CGP Notes -->
-                                    @if($photo->cgp_notes)
-                                        <div class="mt-3 p-2 bg-gray-50 rounded">
-                                            <p class="text-xs text-gray-600"><strong>CGP Notes:</strong> {{ $photo->cgp_notes }}</p>
-                                        </div>
-                                    @endif
+                                        @if($moduleReady && !$photo->cgp_approved_at && $photo->photo_status === 'cgp_pending')
+                                            <div class="flex space-x-2">
+                                                <button onclick="approvePhoto({{ $photo->id }})"
+                                                        id="approveBtn_{{ $photo->id }}"
+                                                        class="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-all duration-200">
+                                                    <span class="approve-text">✅ Approve</span>
+                                                    <span class="approve-loading hidden">
+                                                        <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
+                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                    </span>
+                                                </button>
+                                                <button onclick="rejectPhoto({{ $photo->id }})"
+                                                        id="rejectBtn_{{ $photo->id }}"
+                                                        class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-all duration-200">
+                                                    <span class="reject-text">❌ Reject</span>
+                                                    <span class="reject-loading hidden">
+                                                        <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
+                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        @endif
+
+                                        @if($photo->photo_status === 'cgp_rejected')
+                                            <div class="mt-3 p-2 bg-red-50 rounded">
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">❌ Rejected by CGP</span>
+                                                @if($photo->rejection_reason)
+                                                    <p class="text-xs text-red-600 mt-1">{{ $photo->rejection_reason }}</p>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        @if($photo->cgp_notes)
+                                            <div class="mt-3 p-2 bg-gray-50 rounded">
+                                                <p class="text-xs text-gray-600"><strong>CGP Notes:</strong> {{ $photo->cgp_notes }}</p>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @else
-                <div class="p-12 text-center">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">Belum ada foto untuk {{ strtoupper($module) }}</h3>
-                    <p class="mt-1 text-sm text-gray-500">Foto akan muncul setelah di-approve oleh Tracer</p>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="p-8 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2z"></path>
+                            </svg>
+                            <h4 class="mt-2 text-sm font-medium text-gray-900">Belum ada foto untuk {{ strtoupper($module) }}</h4>
+                            <p class="mt-1 text-sm text-gray-500">Foto akan muncul setelah di-approve oleh Tracer</p>
+                        </div>
+                    @endif
                 </div>
             @endif
         </div>
-        @endif
-    @endforeach
+    @endif
+@endforeach
+
 </div>
 
 <!-- Photo Modal -->

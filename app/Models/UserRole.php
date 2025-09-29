@@ -13,13 +13,13 @@ class UserRole extends Model
     protected $fillable = [
         'user_id',
         'role',
-        'is_active',
+        // 'is_active',
         'assigned_at',
         'assigned_by'
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        // 'is_active' => 'boolean',
         'assigned_at' => 'datetime'
     ];
 
@@ -30,7 +30,7 @@ class UserRole extends Model
         'sk',
         'sr',
         'gas_in',
-        'pic',
+        'cgp',
         'tracer',
         'jalur'
     ];
@@ -46,37 +46,37 @@ class UserRole extends Model
         return $this->belongsTo(User::class, 'assigned_by');
     }
 
-    // Scopes
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
+    // // Scopes
+    // public function scopeActive($query)
+    // {
+    //     return $query->where('is_active', true);
+    // }
 
-    public function scopeInactive($query)
-    {
-        return $query->where('is_active', false);
-    }
+    // public function scopeInactive($query)
+    // {
+    //     return $query->where('is_active', false);
+    // }
 
-    public function scopeRole($query, string $role)
-    {
-        return $query->where('role', $role);
-    }
+    // public function scopeRole($query, string $role)
+    // {
+    //     return $query->where('role', $role);
+    // }
 
-    // Methods
-    public function activate(): bool
-    {
-        $this->is_active = true;
-        return $this->save();
-    }
+    // // Methods
+    // public function activate(): bool
+    // {
+    //     $this->is_active = true;
+    //     return $this->save();
+    // }
 
-    public function deactivate(): bool
-    {
-        $this->is_active = false;
-        return $this->save();
-    }
+    // public function deactivate(): bool
+    // {
+    //     $this->is_active = false;
+    //     return $this->save();
+    // }
 
-    public function isActive(): bool
-    {
-        return $this->is_active === true;
-    }
+    // public function isActive(): bool
+    // {
+    //     return $this->is_active === true;
+    // }
 }
