@@ -409,7 +409,7 @@ class PhotoApprovalService
             $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            if (!$user->isAdminLike()) throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP approval');
+            if (!$user->isAdminLike() && !$user->isCgp()) throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP approval');
             if ($pa->photo_status !== 'cgp_pending') throw new Exception("Photo is not in cgp_pending status. Current: {$pa->photo_status}");
 
             $old = $pa->photo_status;
@@ -452,7 +452,7 @@ class PhotoApprovalService
             $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            if (!$user->isAdminLike()) throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP rejection');
+            if (!$user->isAdminLike() && !$user->isCgp()) throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP rejection');
             if ($pa->photo_status !== 'cgp_pending') throw new Exception("Photo is not in cgp_pending status. Current: {$pa->photo_status}");
 
             $old = $pa->photo_status;

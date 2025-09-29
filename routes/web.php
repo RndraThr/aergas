@@ -17,16 +17,18 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'user.active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/me', [AuthController::class, 'me'])->name('auth.me');
     Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
     Route::post('/change-password', [AuthController::class, 'changePassword'])->name('password.change');
 
+    Route::middleware('role:admin,cgp,tracer,super_admin')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/data', [DashboardController::class, 'getData'])->name('dashboard.data');
     Route::get('/dashboard/installation-trend', [DashboardController::class, 'getInstallationTrend'])->name('dashboard.installation-trend');
     Route::get('/dashboard/activity-metrics', [DashboardController::class, 'getActivityMetrics'])->name('dashboard.activity-metrics');
+    });
 
     // Report Dashboard Routes
     Route::get('/reports/test', function() {
@@ -71,7 +73,11 @@ Route::middleware('auth')->group(function () {
             ], 500);
         }
     });
-    Route::get('/reports', [ReportDashboardController::class, 'index'])->name('reports.dashboard');
+    
+    Route::middleware('role:admin,super_admin')->group(function () {
+        Route::get('/reports', [ReportDashboardController::class, 'index'])->name('reports.dashboard');
+    });
+
     Route::get('/reports/export', [ReportDashboardController::class, 'export'])->name('reports.export');
     Route::get('/reports/comprehensive', [ComprehensiveReportController::class, 'index'])->name('reports.comprehensive');
     Route::get('/reports/comprehensive/export', [ComprehensiveReportController::class, 'export'])->name('reports.comprehensive.export');
@@ -133,37 +139,29 @@ Route::middleware('auth')->group(function () {
         });
 
     // Customer Routes
-    Route::prefix('customers')
-        ->name('customers.')
-        ->group(function () {
+    Route::prefix('customers')->name('customers.')->group(function () {
+
+        Route::middleware('role:sk,sr,gas_in,cgp,admin,super_admin,tracer')->group(function () {
             Route::get('/', [CalonPelangganController::class, 'index'])->name('index');
             Route::get('/stats/json', [CalonPelangganController::class, 'getStats'])->name('stats');
             Route::get('/validate-reff/{reffId}', [CalonPelangganController::class, 'validateReff'])
-                ->where('reffId', '[A-Z0-9\-]+')
-                ->name('validate-reff');
+                ->where('reffId', '[A-Z0-9\-]+')->name('validate-reff');
             Route::get('/{reffId}', [CalonPelangganController::class, 'show'])
-                ->where('reffId', '[A-Z0-9\-]+')
-                ->name('show');
-
-            Route::middleware('role:admin,tracer,super_admin')->group(function () {
-                Route::get('/create', [CalonPelangganController::class, 'create'])->name('create');
-                Route::post('/', [CalonPelangganController::class, 'store'])->name('store');
-                Route::get('/{reffId}/edit', [CalonPelangganController::class, 'edit'])
-                    ->where('reffId', '[A-Z0-9\-]+')
-                    ->name('edit');
-                Route::put('/{reffId}', [CalonPelangganController::class, 'update'])
-                    ->where('reffId', '[A-Z0-9\-]+')
-                    ->name('update');
-
-                // Customer validation routes
-                Route::post('/{reffId}/validate', [CalonPelangganController::class, 'validateCustomer'])
-                    ->where('reffId', '[A-Z0-9\-]+')
-                    ->name('validate');
-                Route::post('/{reffId}/reject', [CalonPelangganController::class, 'rejectCustomer'])
-                    ->where('reffId', '[A-Z0-9\-]+')
-                    ->name('reject');
-            });
+                ->where('reffId', '[A-Z0-9\-]+')->name('show');
         });
+
+        Route::middleware('role:admin,tracer,super_admin')->group(function () {
+            Route::get('/create', [CalonPelangganController::class, 'create'])->name('create');
+            Route::post('/', [CalonPelangganController::class, 'store'])->name('store');
+            Route::get('/{reffId}/edit', [CalonPelangganController::class, 'edit'])->where('reffId', '[A-Z0-9\-]+')->name('edit');
+            Route::put('/{reffId}', [CalonPelangganController::class, 'update'])->where('reffId', '[A-Z0-9\-]+')->name('update');
+
+            Route::post('/{reffId}/validate', [CalonPelangganController::class, 'validateCustomer'])
+                ->where('reffId', '[A-Z0-9\-]+')->name('validate');
+            Route::post('/{reffId}/reject', [CalonPelangganController::class, 'rejectCustomer'])
+                ->where('reffId', '[A-Z0-9\-]+')->name('reject');
+        });
+    });
 
     // SK Module Routes
     Route::prefix('sk')
@@ -537,7 +535,7 @@ Route::middleware('auth')->group(function () {
             // Joint Numbers Management (Admin only)
             Route::prefix('joint-numbers')
                 ->name('joint-numbers.')
-                ->middleware('role:admin,super_admin')
+                ->middleware('role:jalur,admin,super_admin')
                 ->group(function () {
                     Route::get('/', [JalurJointNumberController::class, 'index'])->name('index');
                     Route::get('/create', [JalurJointNumberController::class, 'create'])->name('create');
@@ -615,7 +613,7 @@ Route::middleware('auth')->group(function () {
     // CGP Approval Interface Routes (untuk role tracer sebagai CGP Review)
     Route::prefix('approvals/cgp')
         ->name('approvals.cgp.')
-        ->middleware('role:tracer,super_admin')
+        ->middleware('role:cgp,super_admin')
         ->group(function () {
             Route::get('/', [CgpApprovalController::class, 'index'])->name('index');
             Route::get('/customers', [CgpApprovalController::class, 'customers'])->name('customers');

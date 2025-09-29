@@ -98,7 +98,7 @@
                     <option value="sr">SR</option>
                     <option value="gas_in">Gas In</option>
                     <option value="tracer">Tracer</option>
-                    <option value="pic">PIC</option>
+                    <option value="cgp">CGP</option>
                     <option value="jalur">Jalur</option>
                 </select>
             </div>
@@ -155,28 +155,17 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4">
-                                <!-- Multi-role display -->
                                 <div class="flex flex-wrap gap-1">
-                                    <template x-if="user.active_roles && user.active_roles.length > 0">
-                                        <template x-for="roleData in user.active_roles" :key="roleData.role">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                                  :class="getRoleBadgeClass(roleData.role)"
-                                                  x-text="roleData.role.replace('_', ' ').toUpperCase()">
-                                            </span>
-                                        </template>
-                                    </template>
-                                    <!-- Fallback to single role if no multi-roles -->
-                                    <template x-if="!user.active_roles || user.active_roles.length === 0">
+                                    <template x-for="roleData in user.user_roles" :key="roleData.id">
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                              :class="getRoleBadgeClass(user.role)"
-                                              x-text="user.role ? user.role.replace('_', ' ').toUpperCase() : 'Unknown'">
+                                            :class="getRoleBadgeClass(roleData.role)"
+                                            x-text="roleData.role.replace('_', ' ').toUpperCase()">
                                         </span>
                                     </template>
+                                    <template x-if="!user.user_roles || user.user_roles.length === 0">
+                                        <span class="text-xs text-gray-500 italic">No Role</span>
+                                    </template>
                                 </div>
-                                <!-- Role count badge -->
-                                <template x-if="user.active_roles && user.active_roles.length > 1">
-                                    <div class="text-xs text-gray-500 mt-1" x-text="`${user.active_roles.length} roles`"></div>
-                                </template>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
@@ -335,27 +324,23 @@
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                                <select x-model="form.role"
-                                        @change="clearFieldError('role')"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent"
-                                        required>
-                                    <option value="">Select Primary Role</option>
-                                    <option value="admin">Admin</option>
-                                    <option value="sk">SK</option>
-                                    <option value="sr">SR</option>
-                                                    <option value="gas_in">Gas In</option>
-                                    <option value="tracer">Tracer</option>
-                                    <option value="pic">PIC</option>
-                                    <option value="jalur">Jalur</option>
-                                </select>
-                                <p class="text-xs text-gray-500 mt-1">
-                                    <i class="fas fa-info-circle text-blue-500 mr-1"></i>
-                                    This sets the primary role. You can assign additional roles after creating the user.
-                                </p>
-                                <p x-show="getFieldError('role')"
-                                   x-text="getFieldError('role')"
-                                   class="text-xs text-red-600 mt-1"></p>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Roles</label>
+                                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 p-2 border border-gray-200 rounded-lg">
+                                        <template x-for="role in availableRoles" :key="role">
+                                            <template x-if="role !== 'super_admin'">
+                                                <label class="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-50 cursor-pointer">
+                                                    <input type="checkbox"
+                                                        :value="role"
+                                                        x-model="form.roles"
+                                                        class="h-4 w-4 text-aergas-orange focus:ring-aergas-orange border-gray-300 rounded">
+                                                    <span class="text-sm text-gray-800" x-text="role.replace('_', ' ').toUpperCase()"></span>
+                                                </label>
+                                            </template>
+                                        </template>
+                                    </div>
+                                    <p x-show="getFieldError('roles')"
+                                    x-text="getFieldError('roles')"
+                                    class="text-xs text-red-600 mt-1"></p>
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -569,7 +554,7 @@ function userManagement() {
         editingUser: null,
         selectedUser: null,
         currentUserRoles: [],
-        availableRoles: ['super_admin', 'admin', 'sk', 'sr', 'gas_in', 'pic', 'tracer', 'jalur'],
+        availableRoles: ['super_admin', 'admin', 'sk', 'sr', 'gas_in', 'cgp', 'tracer', 'jalur'],
         roleHistory: [],
         fieldErrors: {},
         passwordChecks: {
@@ -594,7 +579,7 @@ function userManagement() {
             email: '',
             password: '',
             password_confirmation: '',
-            role: '',
+            roles: [],
             is_active: true
         },
 
@@ -629,7 +614,7 @@ function userManagement() {
                         to: result.data.to
                     };
                     this.stats = result.stats || {};
-                    this.availableRoles = result.available_roles || this.availableRoles;
+                    this.availableRoles = result.available_roles || [];
                 }
             } catch (error) {
                 window.showToast('error', 'Failed to load users');
@@ -678,7 +663,7 @@ function userManagement() {
                 email: user.email,
                 password: '',
                 password_confirmation: '',
-                role: user.role,
+                roles: user.user_roles.map(r => r.role),
                 is_active: user.is_active
             };
             this.showModal = true;
@@ -789,10 +774,10 @@ function userManagement() {
                 this.fieldErrors.email = 'Please enter a valid email address';
             }
 
-            const validRoles = ['admin', 'sk', 'sr', 'gas_in', 'tracer', 'pic', 'jalur'];
-            if (!this.form.role || !validRoles.includes(this.form.role)) {
-                errors.push('Please select a valid role');
-                this.fieldErrors.role = 'Please select a valid role';
+            // const validRoles = ['admin', 'sk', 'sr', 'gas_in', 'tracer', 'cgp', 'jalur'];
+            if (!this.form.roles || this.form.roles.length === 0) {
+                errors.push('Please select at least one role');
+                this.fieldErrors.roles = 'Please select at least one role';
             }
 
             if (!this.editingUser) {
@@ -956,7 +941,7 @@ function userManagement() {
                 email: '',
                 password: '',
                 password_confirmation: '',
-                role: '',
+                roles: [],
                 is_active: true
             };
             this.passwordChecks = {
@@ -1120,7 +1105,7 @@ function userManagement() {
                 'sr': 'hover:border-yellow-400 hover:bg-yellow-50',
                 'gas_in': 'hover:border-orange-400 hover:bg-orange-50',
                 'tracer': 'hover:border-indigo-400 hover:bg-indigo-50',
-                'pic': 'hover:border-pink-400 hover:bg-pink-50'
+                'cgp': 'hover:border-pink-400 hover:bg-pink-50'
             };
             return roleClasses[role] || 'hover:border-gray-400 hover:bg-gray-50';
         },
@@ -1133,7 +1118,7 @@ function userManagement() {
                 'sr': 'bg-yellow-100 text-yellow-800',
                 'gas_in': 'bg-orange-100 text-orange-800',
                 'tracer': 'bg-indigo-100 text-indigo-800',
-                'pic': 'bg-pink-100 text-pink-800',
+                'cgp': 'bg-pink-100 text-pink-800',
                 'jalur': 'bg-teal-100 text-teal-800'
             };
             return roleClasses[role] || 'bg-gray-100 text-gray-800';

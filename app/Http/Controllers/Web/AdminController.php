@@ -62,13 +62,9 @@ class AdminController extends Controller
 
             // Filter by role (multi-role support)
             if ($request->filled('role')) {
-                $query->where(function ($q) use ($request) {
-                    // Check multi-role system first
-                    $q->whereHas('activeRoles', function ($roleQuery) use ($request) {
-                        $roleQuery->where('role', $request->role);
-                    })
-                    // Fallback to single role system for backward compatibility
-                    ->orWhere('role', $request->role);
+                // Hapus logika fallback
+                $query->whereHas('userRoles', function ($roleQuery) use ($request) {
+                    $roleQuery->where('role', 'like', $request->role);
                 });
             }
             if ($request->filled('is_active')) {
@@ -120,7 +116,8 @@ class AdminController extends Controller
             'password'  => 'required|string|min:6|confirmed',
             'name'      => 'required|string|max:255',
             'full_name' => 'required|string|max:255',
-            'role'      => 'required|in:super_admin,admin,sk,sr,gas_in,pic,tracer',
+            'roles'     => 'required|array|min:1', // GANTI DENGAN INI
+            'roles.*'   => 'in:' . implode(',', UserRole::AVAILABLE_ROLES), // Validasi setiap item di array
             'is_active' => 'boolean',
         ]);
 
@@ -144,9 +141,10 @@ class AdminController extends Controller
                 'password'  => Hash::make($request->password),
                 'name'      => $request->name,
                 'full_name' => $request->full_name,
-                'role'      => $request->role,
                 'is_active' => $request->boolean('is_active', true),
             ]);
+
+            $user->syncRoles($request->roles, $request->user()->id);
 
             AuditLog::create([
                 'user_id'           => $request->user()->id,
@@ -156,12 +154,12 @@ class AdminController extends Controller
                 'new_values'        => $user->toArray(),
                 'ip_address'        => $request->ip(),
                 'user_agent'        => $request->userAgent(),
-                'description'       => "Created new user: {$user->username} with role {$user->role}",
+                'description'       => "Created new user: {$user->username} with roles " . implode(', ', $request->roles),
             ]);
 
             DB::commit();
 
-            Log::info('New user created', ['user_id'=>$user->id,'username'=>$user->username,'role'=>$user->role,'created_by'=>$request->user()->id]);
+            Log::info('New user created', ['user_id'=>$user->id,'username'=>$user->username,'roles'=>$request->roles,'created_by'=>$request->user()->id]);
 
             return response()->json(['success'=>true,'message'=>'User created successfully','data'=>$user], 201);
         } catch (Exception $e) {
@@ -233,7 +231,7 @@ class AdminController extends Controller
     {
         $user = User::findOrFail($id);
 
-        if ($user->role === 'super_admin' && $request->user()->role !== 'super_admin') {
+        if ($user->isSuperAdmin() && !$request->user()->isSuperAdmin()) {
             return response()->json(['success'=>false,'message'=>'Cannot modify super admin user'], 403);
         }
 
@@ -243,7 +241,8 @@ class AdminController extends Controller
             'password'  => 'sometimes|string|min:6|confirmed',
             'name'      => 'sometimes|string|max:255',
             'full_name' => 'sometimes|string|max:255',
-            'role'      => 'sometimes|in:super_admin,admin,sk,sr,gas_in,pic,tracer',
+            'roles'     => 'sometimes|array|min:1', // GANTI DENGAN INI
+            'roles.*'   => 'in:' . implode(',', UserRole::AVAILABLE_ROLES),
             'is_active' => 'sometimes|boolean',
         ]);
 
@@ -255,11 +254,15 @@ class AdminController extends Controller
         try {
             $old = $user->toArray();
 
-            $update = $request->only(['username','email','name','full_name','role','is_active']);
+            $update = $request->only(['username','email','name','full_name','is_active']);
             if ($request->filled('password')) {
                 $update['password'] = Hash::make($request->password);
             }
             $user->update($update);
+
+            if ($request->has('roles')) {
+                $user->syncRoles($request->roles, $request->user()->id);
+            }
 
             AuditLog::create([
                 'user_id'     => $request->user()->id,
@@ -297,7 +300,7 @@ class AdminController extends Controller
     {
         $user = User::findOrFail($id);
 
-        if ($user->role === 'super_admin') {
+        if ($user->isSuperAdmin()) {
             return response()->json(['success'=>false,'message'=>'Cannot deactivate super admin user'], 403);
         }
         if ($user->id === $request->user()->id) {
@@ -492,31 +495,30 @@ class AdminController extends Controller
     private function getUserStats(): array
     {
         // Get role counts from multi-role system
-        $roleStats = UserRole::where('is_active', true)
-            ->selectRaw('role, COUNT(DISTINCT user_id) as count')
+        $roleStats = UserRole::selectRaw('role, COUNT(user_id) as count')
             ->groupBy('role')
             ->pluck('count', 'role')
             ->toArray();
 
-        // Add users who don't have multi-roles (fallback to primary role)
-        $usersWithoutMultiRoles = User::whereDoesntHave('activeRoles')
-            ->whereNotNull('role')
-            ->selectRaw('role, COUNT(*) as count')
-            ->groupBy('role')
-            ->pluck('count', 'role')
-            ->toArray();
+        // // Add users who don't have multi-roles (fallback to primary role)
+        // $usersWithoutMultiRoles = User::whereDoesntHave('activeRoles')
+        //     ->whereNotNull('role')
+        //     ->selectRaw('role, COUNT(*) as count')
+        //     ->groupBy('role')
+        //     ->pluck('count', 'role')
+        //     ->toArray();
 
-        // Merge role stats
-        foreach ($usersWithoutMultiRoles as $role => $count) {
-            $roleStats[$role] = ($roleStats[$role] ?? 0) + $count;
-        }
+        // // Merge role stats
+        // foreach ($usersWithoutMultiRoles as $role => $count) {
+        //     $roleStats[$role] = ($roleStats[$role] ?? 0) + $count;
+        // }
 
         return [
-            'total'        => User::count(),
-            'active'       => User::where('is_active', true)->count(),
-            'inactive'     => User::where('is_active', false)->count(),
-            'by_role'      => $roleStats,
-            'recent_logins'=> User::whereNotNull('last_login')->where('last_login','>=',now()->subDays(7))->count(),
+            'total'         => User::count(),
+            'active'        => User::where('is_active', true)->count(),
+            'inactive'      => User::where('is_active', false)->count(),
+            'by_role'       => $roleStats,
+            'recent_logins' => User::whereNotNull('last_login')->where('last_login','>=',now()->subDays(7))->count(),
         ];
     }
 
@@ -679,15 +681,20 @@ class AdminController extends Controller
     public function getUserWithRoles(int $id): JsonResponse
     {
         try {
-            $user = User::with(['activeRoles', 'userRoles.assignedByUser'])
-                ->findOrFail($id);
+            $user = User::with(['userRoles.assignedByUser'])->findOrFail($id);
+            $allRoles = $user->userRoles->map(function ($role) {
+                if ($role->assigned_at) {
+                    $role->assigned_at_human = $role->assigned_at->diffForHumans();
+                }
+                return $role;
+            });
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'user' => $user,
-                    'active_roles' => $user->activeRoles->pluck('role')->toArray(),
-                    'all_roles' => $user->userRoles()->with('assignedByUser')->get(),
+                    'active_roles' => $user->userRoles->pluck('role')->toArray(),
+                    'all_roles' => $allRoles,
                     'available_roles' => UserRole::AVAILABLE_ROLES,
                 ]
             ]);
@@ -912,11 +919,11 @@ class AdminController extends Controller
     public function getUsersWithRoles(Request $request): JsonResponse
     {
         try {
-            $query = User::with(['activeRoles']);
+            $query = User::with(['userRoles']);
 
             // Filter by role
             if ($request->filled('role')) {
-                $query->whereHas('activeRoles', function ($q) use ($request) {
+                $query->whereHas('userRoles', function ($q) use ($request) {
                     $q->where('role', $request->role);
                 });
             }

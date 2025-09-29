@@ -167,12 +167,12 @@ class UserSeeder extends Seeder
             ],
 
             [
-                'username' => 'pic001',
-                'email' => 'pic001@aergas.com',
+                'username' => 'cgp001',
+                'email' => 'cgp001@aergas.com',
                 'password' => Hash::make('password'),
-                'name' => 'PIC Pipa 1',
-                'full_name' => 'PIC Jalur Pipa dan Penyambungan 1',
-                'role' => 'pic',
+                'name' => 'CGP Pipa 1',
+                'full_name' => 'CGP Jalur Pipa dan Penyambungan 1',
+                'role' => 'cgp',
                 'is_active' => true,
             ],
         ];

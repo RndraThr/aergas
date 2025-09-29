@@ -25,7 +25,7 @@ return new class extends Migration
                 'sr',
                 'mgrt',
                 'gas_in',
-                'pic',
+                'cgp',
                 'tracer'
             ])->default('sk');
             $table->boolean('is_active')->default(true);
