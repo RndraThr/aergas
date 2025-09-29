@@ -468,10 +468,14 @@ class CalonPelangganController extends Controller
 
             // 3) fallback: ada di SK → ambil relasi calon_pelanggan
             if (!$cp) {
-                $sk = SkData::with('calonPelanggan')->where('reff_id_pelanggan', $id)->first();
+                $sk = SkData::with('calonPelanggan')
+                           ->where('reff_id_pelanggan', $id)
+                           ->whereNull('deleted_at')
+                           ->first();
                 if (!$sk && ctype_digit($id)) {
                     $sk = SkData::with('calonPelanggan')
                         ->whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$id])
+                        ->whereNull('deleted_at')
                         ->first();
                 }
                 if ($sk && $sk->calonPelanggan) $cp = $sk->calonPelanggan;

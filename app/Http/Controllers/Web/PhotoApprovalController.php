@@ -792,7 +792,7 @@ class PhotoApprovalController extends Controller implements HasMiddleware
         };
         if (!$modelClass) return;
 
-        $model = $modelClass::where('reff_id_pelanggan', $reffId)->first();
+        $model = $modelClass::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first();
         if ($model && method_exists($model, 'syncModuleStatusFromPhotos')) {
             $model->syncModuleStatusFromPhotos();
         }

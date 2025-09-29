@@ -102,8 +102,10 @@ class SkDataController extends Controller
             return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
         }
 
-        // Double check to prevent race condition
-        $existingSk = SkData::where('reff_id_pelanggan', $r->reff_id_pelanggan)->first();
+        // Double check to prevent race condition (exclude soft deleted records)
+        $existingSk = SkData::where('reff_id_pelanggan', $r->reff_id_pelanggan)
+                            ->whereNull('deleted_at')
+                            ->first();
         if ($existingSk) {
             return response()->json([
                 'success' => false,
@@ -214,10 +216,14 @@ class SkDataController extends Controller
     {
         try {
             $normalizedReff = strtoupper(trim($reffId));
-            $sk = SkData::where('reff_id_pelanggan', $normalizedReff)->first();
+            $sk = SkData::where('reff_id_pelanggan', $normalizedReff)
+                        ->whereNull('deleted_at')
+                        ->first();
 
             if (!$sk && ctype_digit($normalizedReff)) {
-                $sk = SkData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$normalizedReff])->first();
+                $sk = SkData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$normalizedReff])
+                            ->whereNull('deleted_at')
+                            ->first();
             }
 
             if (!$sk) {

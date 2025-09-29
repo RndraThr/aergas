@@ -99,8 +99,10 @@ class GasInDataController extends Controller
            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
        }
 
-       // Double check to prevent race condition
-       $existingGasIn = GasInData::where('reff_id_pelanggan', $r->reff_id_pelanggan)->first();
+       // Double check to prevent race condition (exclude soft deleted records)
+       $existingGasIn = GasInData::where('reff_id_pelanggan', $r->reff_id_pelanggan)
+                                ->whereNull('deleted_at')
+                                ->first();
        if ($existingGasIn) {
            return response()->json([
                'success' => false,
@@ -209,10 +211,14 @@ class GasInDataController extends Controller
    {
        try {
            $normalizedReff = strtoupper(trim($reffId));
-           $gasIn = GasInData::where('reff_id_pelanggan', $normalizedReff)->first();
+           $gasIn = GasInData::where('reff_id_pelanggan', $normalizedReff)
+                                  ->whereNull('deleted_at')
+                                  ->first();
 
            if (!$gasIn && ctype_digit($normalizedReff)) {
-               $gasIn = GasInData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$normalizedReff])->first();
+               $gasIn = GasInData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$normalizedReff])
+                                  ->whereNull('deleted_at')
+                                  ->first();
            }
 
            if (!$gasIn) {

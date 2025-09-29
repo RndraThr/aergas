@@ -500,9 +500,9 @@ class CgpApprovalController extends Controller implements HasMiddleware
     private function getModuleData(string $reffId, string $module)
     {
         return match($module) {
-            'sk' => SkData::where('reff_id_pelanggan', $reffId)->first(),
-            'sr' => SrData::where('reff_id_pelanggan', $reffId)->first(),
-            'gas_in' => GasInData::where('reff_id_pelanggan', $reffId)->first(),
+            'sk' => SkData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
+            'sr' => SrData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
+            'gas_in' => GasInData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
             default => null
         };
     }

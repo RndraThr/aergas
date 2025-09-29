@@ -102,8 +102,10 @@ class SrDataController extends Controller
             return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
         }
 
-        // Double check to prevent race condition
-        $existingSr = SrData::where('reff_id_pelanggan', $r->reff_id_pelanggan)->first();
+        // Double check to prevent race condition (exclude soft deleted records)
+        $existingSr = SrData::where('reff_id_pelanggan', $r->reff_id_pelanggan)
+                            ->whereNull('deleted_at')
+                            ->first();
         if ($existingSr) {
             return response()->json([
                 'success' => false,
@@ -214,10 +216,14 @@ class SrDataController extends Controller
     {
         try {
             $normalizedReff = strtoupper(trim($reffId));
-            $sr = SrData::where('reff_id_pelanggan', $normalizedReff)->first();
+            $sr = SrData::where('reff_id_pelanggan', $normalizedReff)
+                        ->whereNull('deleted_at')
+                        ->first();
 
             if (!$sr && ctype_digit($normalizedReff)) {
-                $sr = SrData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$normalizedReff])->first();
+                $sr = SrData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$normalizedReff])
+                            ->whereNull('deleted_at')
+                            ->first();
             }
 
             if (!$sr) {

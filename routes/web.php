@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController};
+use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController};
 
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -27,6 +27,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/data', [DashboardController::class, 'getData'])->name('dashboard.data');
     Route::get('/dashboard/installation-trend', [DashboardController::class, 'getInstallationTrend'])->name('dashboard.installation-trend');
     Route::get('/dashboard/activity-metrics', [DashboardController::class, 'getActivityMetrics'])->name('dashboard.activity-metrics');
+
+    // Map Features Routes
+    Route::prefix('map-features')->name('map-features.')->group(function () {
+        Route::get('/', [MapFeatureController::class, 'index'])->name('index');
+        Route::post('/', [MapFeatureController::class, 'store'])->name('store');
+        Route::put('/{feature}', [MapFeatureController::class, 'update'])->name('update');
+        Route::delete('/{feature}', [MapFeatureController::class, 'destroy'])->name('destroy');
+        Route::patch('/{feature}/toggle-visibility', [MapFeatureController::class, 'toggleVisibility'])->name('toggle-visibility');
+        Route::get('/line-numbers', [MapFeatureController::class, 'getLineNumbers'])->name('line-numbers');
+        Route::get('/clusters', [MapFeatureController::class, 'getClusters'])->name('clusters');
+    });
 
     // Report Dashboard Routes
     Route::get('/reports/test', function() {
@@ -667,6 +678,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/calon-pelanggan/template', [ImportController::class, 'downloadTemplateCalonPelanggan'])->name('calon-pelanggan.template');
             Route::post('/calon-pelanggan', [ImportController::class, 'importCalonPelanggan'])->name('calon-pelanggan.import');
 
+            Route::get('/coordinates', [ImportController::class, 'formCoordinates'])->name('coordinates.form');
+            Route::get('/coordinates/template', [ImportController::class, 'downloadTemplateCoordinates'])->name('coordinates.template');
+            Route::post('/coordinates', [ImportController::class, 'importCoordinates'])->name('coordinates.import');
 
             Route::get('/report', [ImportController::class, 'downloadReport'])->name('report.download');
         });
