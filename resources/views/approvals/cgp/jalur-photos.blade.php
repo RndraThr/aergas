@@ -12,7 +12,7 @@
         cursor: zoom-in;
         transition: transform 0.2s ease;
     }
-    
+
     .photo-preview:hover {
         transform: scale(1.02);
     }
@@ -41,7 +41,7 @@
 @endpush
 
 @section('content')
-<div class="container mx-auto px-4 py-6">
+<div class="container mx-auto px-4 py-6" x-data="{ filterSearch: '{{ request('search', '') }}', filterModuleType: '{{ request('module_type', '') }}' }">
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div>
@@ -59,22 +59,22 @@
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <form method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-                <label for="module_type" class="block text-sm font-medium text-gray-700 mb-2">Module Type</label>
-                <select name="module_type" id="module_type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Module Type</label>
+                <select name="module_type" x-model="filterModuleType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">Semua Module</option>
-                    <option value="jalur_lowering" {{ request('module_type') == 'jalur_lowering' ? 'selected' : '' }}>Jalur Lowering</option>
-                    <option value="jalur_joint" {{ request('module_type') == 'jalur_joint' ? 'selected' : '' }}>Jalur Joint</option>
+                    <option value="jalur_lowering">Jalur Lowering</option>
+                    <option value="jalur_joint">Jalur Joint</option>
                 </select>
             </div>
             <div>
-                <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                <input type="text" name="search" id="search" value="{{ request('search') }}" 
+                <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <input type="text" name="search" x-model="filterSearch"
                        placeholder="Cari line number, nomor joint..."
                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
-            <div class="flex items-end">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium mr-2">
-                    🔍 Filter
+            <div class="flex items-end space-x-2">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
+                    Filter
                 </button>
                 <a href="{{ route('approvals.cgp.jalur-photos') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-medium">
                     Reset
@@ -93,9 +93,9 @@
                         <div>
                             <h3 class="font-semibold text-lg">
                                 @if($photo->module_name === 'jalur_lowering' && $photo->jalurLowering)
-                                    📍 {{ $photo->jalurLowering->lineNumber->line_number }}
+                                    📍 {{ $photo->jalurLowering->lineNumber->line_number ?? 'Line Data' }}
                                 @elseif($photo->module_name === 'jalur_joint' && $photo->jalurJoint)
-                                    🔗 {{ $photo->jalurJoint->nomor_joint }}
+                                    🔗 {{ $photo->jalurJoint->nomor_joint ?? 'Joint Data' }}
                                 @else
                                     📋 Jalur Data
                                 @endif
@@ -104,7 +104,9 @@
                                 @if($photo->module_name === 'jalur_lowering')
                                     Lowering Evidence
                                 @elseif($photo->module_name === 'jalur_joint')
-                                    Joint Evidence  
+                                    Joint Evidence
+                                @else
+                                    Photo Evidence
                                 @endif
                             </p>
                         </div>
@@ -120,32 +122,27 @@
                 <div class="p-4">
                     <div class="mb-4">
                         @php
-                            // Convert Google Drive URL to direct image URL (same logic as SK/SR/GAS_IN)
                             $photoUrl = $photo->photo_url;
                             if (str_contains($photoUrl, 'drive.google.com')) {
                                 if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $photoUrl, $matches)) {
                                     $fileId = $matches[1];
-                                    // Use same format as SK/SR/GAS_IN - Google Drive direct image URL
                                     $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
                                 } elseif (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $photoUrl, $matches)) {
                                     $fileId = $matches[1];
                                     $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
                                 }
                             } elseif (strpos($photoUrl, 'http') !== 0) {
-                                // Handle local storage paths
                                 $photoUrl = asset('storage/' . ltrim($photoUrl, '/'));
                             }
                         @endphp
-                        
+
                         <div class="relative">
-                            <img src="{{ $photoUrl }}" 
-                                 alt="{{ $photo->photo_field_name }}" 
+                            <img src="{{ $photoUrl }}"
+                                 alt="{{ $photo->photo_field_name }}"
                                  class="w-full photo-preview rounded-lg border border-gray-200 bg-gray-100"
-                                 data-photo-url="{{ addslashes($photoUrl) }}"
-                                 onclick="openPhotoModal(this.dataset.photoUrl)"
+                                 onclick="openPhotoModal('{{ addslashes($photoUrl) }}')"
                                  onerror="this.onerror=null; this.style.display='none'; this.parentElement.querySelector('.loading-placeholder').style.display='none'; var errorDiv = document.createElement('div'); errorDiv.className='absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg'; errorDiv.innerHTML='<span class=&quot;text-gray-500 text-sm&quot;>⚠️ Foto tidak dapat dimuat</span>'; this.parentElement.appendChild(errorDiv);">
-                            
-                            <!-- Loading placeholder -->
+
                             <div class="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg loading-placeholder">
                                 <div class="text-gray-400">
                                     <svg class="animate-spin w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,16 +186,16 @@
                         <form method="POST" action="{{ route('approvals.cgp.approve-photo') }}" class="space-y-2">
                             @csrf
                             <input type="hidden" name="photo_id" value="{{ $photo->id }}">
-                            
+
                             <div>
-                                <label for="notes_{{ $photo->id }}" class="block text-xs font-medium text-gray-700 mb-1">Catatan CGP</label>
-                                <textarea name="notes" id="notes_{{ $photo->id }}" rows="2" 
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Catatan CGP</label>
+                                <textarea name="notes" rows="2"
                                           placeholder="Catatan final..."
                                           class="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"></textarea>
                             </div>
 
                             <div class="flex space-x-1">
-                                <button type="submit" name="action" value="approve" 
+                                <button type="submit" name="action" value="approve"
                                         class="flex-1 bg-green-600 hover:bg-green-700 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors">
                                     ✓ Final Approve
                                 </button>
@@ -226,7 +223,7 @@
 
     <!-- Pagination -->
     <div class="mt-8">
-        {{ $photos->links() }}
+        {{ $photos->appends(request()->query())->links('vendor.pagination.alpine-style') }}
     </div>
 </div>
 
@@ -249,16 +246,13 @@ function closePhotoModal() {
     document.body.style.overflow = 'auto';
 }
 
-// Close modal on escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closePhotoModal();
     }
 });
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    // Setup image loading handlers
     const images = document.querySelectorAll('.photo-preview');
     images.forEach(function(img) {
         img.addEventListener('load', function() {
@@ -267,8 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadingPlaceholder.style.display = 'none';
             }
         });
-        
-        // If image is already loaded (cached)
+
         if (img.complete && img.naturalWidth > 0) {
             const loadingPlaceholder = img.parentElement.querySelector('.loading-placeholder');
             if (loadingPlaceholder) {

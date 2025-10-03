@@ -12,7 +12,6 @@
         cursor: zoom-in;
         transition: transform 0.2s ease;
     }
-    
     .photo-preview:hover {
         transform: scale(1.02);
     }
@@ -41,7 +40,7 @@
 @endpush
 
 @section('content')
-<div class="container mx-auto px-4 py-6">
+<div class="container mx-auto px-4 py-6" x-data="{ filterSearch: '{{ request('search', '') }}', filterStatus: '{{ request('status_filter', 'tracer_pending') }}', filterModuleType: '{{ request('module_type', '') }}' }">
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div>
@@ -59,32 +58,32 @@
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-                <label for="status_filter" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select name="status_filter" id="status_filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select name="status_filter" x-model="filterStatus" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                     <option value="">Semua Status</option>
-                    <option value="tracer_pending" {{ request('status_filter') == 'tracer_pending' ? 'selected' : '' }}>Pending Review</option>
-                    <option value="tracer_rejected" {{ request('status_filter') == 'tracer_rejected' ? 'selected' : '' }}>Rejected</option>
-                    <option value="cgp_pending" {{ request('status_filter') == 'cgp_pending' ? 'selected' : '' }}>Approved (CGP Review)</option>
-                    <option value="cgp_approved" {{ request('status_filter') == 'cgp_approved' ? 'selected' : '' }}>Final Approved</option>
+                    <option value="tracer_pending">Pending Review</option>
+                    <option value="tracer_rejected">Rejected</option>
+                    <option value="cgp_pending">Approved (CGP Review)</option>
+                    <option value="cgp_approved">Final Approved</option>
                 </select>
             </div>
             <div>
-                <label for="module_type" class="block text-sm font-medium text-gray-700 mb-2">Module Type</label>
-                <select name="module_type" id="module_type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Module Type</label>
+                <select name="module_type" x-model="filterModuleType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                     <option value="">Semua Module</option>
-                    <option value="jalur_lowering" {{ request('module_type') == 'jalur_lowering' ? 'selected' : '' }}>Jalur Lowering</option>
-                    <option value="jalur_joint" {{ request('module_type') == 'jalur_joint' ? 'selected' : '' }}>Jalur Joint</option>
+                    <option value="jalur_lowering">Jalur Lowering</option>
+                    <option value="jalur_joint">Jalur Joint</option>
                 </select>
             </div>
             <div>
-                <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                <input type="text" name="search" id="search" value="{{ request('search') }}" 
+                <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <input type="text" name="search" x-model="filterSearch"
                        placeholder="Cari line number, nomor joint..."
                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
             </div>
-            <div class="flex items-end">
-                <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium mr-2">
-                    🔍 Filter
+            <div class="flex items-end space-x-2">
+                <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium">
+                    Filter
                 </button>
                 <a href="{{ route('approvals.tracer.jalur-photos') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-medium">
                     Reset
@@ -103,9 +102,9 @@
                         <div>
                             <h3 class="font-semibold text-lg">
                                 @if($photo->module_name === 'jalur_lowering' && $photo->jalurLowering)
-                                    📍 {{ $photo->jalurLowering->lineNumber->line_number }}
+                                    📍 {{ $photo->jalurLowering->lineNumber->line_number ?? 'Line Data' }}
                                 @elseif($photo->module_name === 'jalur_joint' && $photo->jalurJoint)
-                                    🔗 {{ $photo->jalurJoint->nomor_joint }}
+                                    🔗 {{ $photo->jalurJoint->nomor_joint ?? 'Joint Data' }}
                                 @else
                                     📋 Jalur Data
                                 @endif
@@ -114,32 +113,30 @@
                                 @if($photo->module_name === 'jalur_lowering')
                                     Lowering Evidence
                                 @elseif($photo->module_name === 'jalur_joint')
-                                    Joint Evidence  
+                                    Joint Evidence
+                                @else
+                                    Photo Evidence
                                 @endif
                             </p>
                         </div>
                         <div class="text-right">
-                            @if($photo->photo_status === 'tracer_pending')
-                                <span class="bg-yellow-400 text-yellow-900 px-2 py-1 rounded text-xs font-medium">
-                                    Pending Review
-                                </span>
-                            @elseif($photo->photo_status === 'tracer_rejected')
-                                <span class="bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
-                                    Rejected
-                                </span>
-                            @elseif($photo->photo_status === 'cgp_pending')
-                                <span class="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
-                                    Approved
-                                </span>
-                            @elseif($photo->photo_status === 'cgp_approved')
-                                <span class="bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
-                                    Final Approved
-                                </span>
-                            @else
-                                <span class="bg-gray-400 text-white px-2 py-1 rounded text-xs font-medium">
-                                    {{ ucfirst(str_replace('_', ' ', $photo->photo_status)) }}
-                                </span>
-                            @endif
+                            @php
+                                $statusClass = [
+                                    'tracer_pending' => 'bg-yellow-400 text-yellow-900',
+                                    'tracer_rejected' => 'bg-red-400 text-red-900',
+                                    'cgp_pending' => 'bg-green-400 text-green-900',
+                                    'cgp_approved' => 'bg-blue-400 text-blue-900'
+                                ];
+                                $statusLabel = [
+                                    'tracer_pending' => 'Pending Review',
+                                    'tracer_rejected' => 'Rejected',
+                                    'cgp_pending' => 'Approved',
+                                    'cgp_approved' => 'Final Approved'
+                                ];
+                            @endphp
+                            <span class="px-2 py-1 rounded text-xs font-medium {{ $statusClass[$photo->photo_status] ?? 'bg-gray-400 text-gray-900' }}">
+                                {{ $statusLabel[$photo->photo_status] ?? $photo->photo_status }}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -148,32 +145,27 @@
                 <div class="p-4">
                     <div class="mb-4">
                         @php
-                            // Convert Google Drive URL to direct image URL (same logic as SK/SR/GAS_IN)
                             $photoUrl = $photo->photo_url;
                             if (str_contains($photoUrl, 'drive.google.com')) {
                                 if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $photoUrl, $matches)) {
                                     $fileId = $matches[1];
-                                    // Use same format as SK/SR/GAS_IN - Google Drive direct image URL
                                     $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
                                 } elseif (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $photoUrl, $matches)) {
                                     $fileId = $matches[1];
                                     $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
                                 }
                             } elseif (strpos($photoUrl, 'http') !== 0) {
-                                // Handle local storage paths
                                 $photoUrl = asset('storage/' . ltrim($photoUrl, '/'));
                             }
                         @endphp
-                        
+
                         <div class="relative">
-                            <img src="{{ $photoUrl }}" 
-                                 alt="{{ $photo->photo_field_name }}" 
+                            <img src="{{ $photoUrl }}"
+                                 alt="{{ $photo->photo_field_name }}"
                                  class="w-full photo-preview rounded-lg border border-gray-200 bg-gray-100"
-                                 data-photo-url="{{ addslashes($photoUrl) }}"
-                                 onclick="openPhotoModal(this.dataset.photoUrl)"
+                                 onclick="openPhotoModal('{{ addslashes($photoUrl) }}')"
                                  onerror="this.onerror=null; this.style.display='none'; this.parentElement.querySelector('.loading-placeholder').style.display='none'; var errorDiv = document.createElement('div'); errorDiv.className='absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg'; errorDiv.innerHTML='<span class=&quot;text-gray-500 text-sm&quot;>⚠️ Foto tidak dapat dimuat</span>'; this.parentElement.appendChild(errorDiv);">
-                            
-                            <!-- Loading placeholder -->
+
                             <div class="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg loading-placeholder">
                                 <div class="text-gray-400">
                                     <svg class="animate-spin w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,65 +189,43 @@
                         @if($photo->description)
                         <div class="pt-1 border-t border-gray-100">
                             <span class="text-gray-600 text-xs">Deskripsi:</span>
-                            <p class="text-gray-800 text-xs mt-1 line-clamp-2">{{ Str::limit($photo->description, 50) }}</p>
+                            <p class="text-gray-800 text-xs mt-1">{{ Str::limit($photo->description, 50) }}</p>
+                        </div>
+                        @endif
+                        @if($photo->photo_status === 'tracer_rejected' && $photo->tracer_notes)
+                        <div class="pt-1 border-t border-gray-100">
+                            <span class="text-red-600 text-xs font-medium">Alasan Rejection:</span>
+                            <p class="text-gray-800 text-xs mt-1 bg-red-50 p-1 rounded">{{ $photo->tracer_notes }}</p>
                         </div>
                         @endif
                     </div>
 
-                    <!-- Action Buttons -->
+                    <!-- Action Buttons (only for pending status) -->
                     @if($photo->photo_status === 'tracer_pending')
-                        <div class="mt-3 pt-3 border-t border-gray-200">
-                            <form method="POST" action="{{ route('approvals.tracer.approve-photo') }}" class="space-y-2">
-                                @csrf
-                                <input type="hidden" name="photo_id" value="{{ $photo->id }}">
-                                
-                                <div>
-                                    <label for="notes_{{ $photo->id }}" class="block text-xs font-medium text-gray-700 mb-1">Catatan Review</label>
-                                    <textarea name="notes" id="notes_{{ $photo->id }}" rows="2" 
-                                              placeholder="Catatan review..."
-                                              class="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"></textarea>
-                                </div>
+                    <div class="mt-3 pt-3 border-t border-gray-200">
+                        <form method="POST" action="{{ route('approvals.tracer.approve-photo') }}" class="space-y-2">
+                            @csrf
+                            <input type="hidden" name="photo_id" value="{{ $photo->id }}">
 
-                                <div class="flex space-x-1">
-                                    <button type="submit" name="action" value="approve" 
-                                            class="flex-1 bg-green-600 hover:bg-green-700 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors">
-                                        ✓ Approve
-                                    </button>
-                                    <button type="submit" name="action" value="reject"
-                                            class="flex-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors">
-                                        ✗ Reject
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    @elseif($photo->photo_status === 'tracer_rejected')
-                        <div class="mt-3 pt-3 border-t border-gray-200">
-                            <div class="bg-red-50 rounded-lg p-2">
-                                <div class="flex items-center text-red-700">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    <span class="text-xs font-medium">Foto telah di-reject</span>
-                                </div>
-                                @if($photo->tracer_notes)
-                                    <p class="text-xs text-red-600 mt-1">{{ $photo->tracer_notes }}</p>
-                                @endif
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Catatan</label>
+                                <textarea name="notes" rows="2"
+                                          placeholder="Catatan opsional..."
+                                          class="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"></textarea>
                             </div>
-                        </div>
-                    @elseif(in_array($photo->photo_status, ['cgp_pending', 'cgp_approved']))
-                        <div class="mt-3 pt-3 border-t border-gray-200">
-                            <div class="bg-green-50 rounded-lg p-2">
-                                <div class="flex items-center text-green-700">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                    </svg>
-                                    <span class="text-xs font-medium">Foto telah di-approve</span>
-                                </div>
-                                @if($photo->tracer_notes)
-                                    <p class="text-xs text-green-600 mt-1">{{ $photo->tracer_notes }}</p>
-                                @endif
+
+                            <div class="flex space-x-1">
+                                <button type="submit" name="action" value="approve"
+                                        class="flex-1 bg-green-600 hover:bg-green-700 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors">
+                                    ✓ Approve
+                                </button>
+                                <button type="submit" name="action" value="reject"
+                                        class="flex-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors">
+                                    ✗ Reject
+                                </button>
                             </div>
-                        </div>
+                        </form>
+                    </div>
                     @endif
                 </div>
             </div>
@@ -274,7 +244,7 @@
 
     <!-- Pagination -->
     <div class="mt-8">
-        {{ $photos->links() }}
+        {{ $photos->appends(request()->query())->links('vendor.pagination.alpine-style') }}
     </div>
 </div>
 
@@ -297,16 +267,13 @@ function closePhotoModal() {
     document.body.style.overflow = 'auto';
 }
 
-// Close modal on escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closePhotoModal();
     }
 });
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    // Setup image loading handlers
     const images = document.querySelectorAll('.photo-preview');
     images.forEach(function(img) {
         img.addEventListener('load', function() {
@@ -315,8 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadingPlaceholder.style.display = 'none';
             }
         });
-        
-        // If image is already loaded (cached)
+
         if (img.complete && img.naturalWidth > 0) {
             const loadingPlaceholder = img.parentElement.querySelector('.loading-placeholder');
             if (loadingPlaceholder) {

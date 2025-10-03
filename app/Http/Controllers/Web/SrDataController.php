@@ -23,7 +23,16 @@ class SrDataController extends Controller
 
     public function index(Request $r)
     {
-        $q = SrData::with('calonPelanggan')->latest('id');
+        $q = SrData::with('calonPelanggan')
+            ->withCount([
+                'photoApprovals as rejected_photos_count' => function($query) {
+                    $query->where(function($q) {
+                        $q->whereNotNull('tracer_rejected_at')
+                          ->orWhereNotNull('cgp_rejected_at');
+                    });
+                }
+            ])
+            ->latest('id');
 
         if ($r->filled('q')) {
             $term = trim((string) $r->get('q'));
@@ -38,10 +47,34 @@ class SrDataController extends Controller
             $q->where('module_status', $r->get('module_status'));
         }
 
+        if ($r->filled('tanggal_dari')) {
+            $q->whereDate('tanggal_pemasangan', '>=', $r->get('tanggal_dari'));
+        }
+
+        if ($r->filled('tanggal_sampai')) {
+            $q->whereDate('tanggal_pemasangan', '<=', $r->get('tanggal_sampai'));
+        }
+
         $sr = $q->paginate((int) $r->get('per_page', 15))->withQueryString();
 
+        // Load related data for each SR
+        $sr->load('createdBy:id,name');
+
         if ($r->wantsJson() || $r->ajax()) {
-            return response()->json($sr);
+            // Calculate stats
+            $allSr = SrData::all();
+            $stats = [
+                'total' => $sr->total(),
+                'draft' => $allSr->where('module_status', 'draft')->count(),
+                'ready' => $allSr->where('module_status', 'tracer_review')->count(),
+                'completed' => $allSr->where('module_status', 'completed')->count(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $sr,
+                'stats' => $stats
+            ]);
         }
 
         return view('sr.index', compact('sr'));
@@ -62,7 +95,7 @@ class SrDataController extends Controller
 
     public function show(Request $r, SrData $sr)
     {
-        $sr->load(['calonPelanggan', 'photoApprovals', 'files']);
+        $sr->load(['calonPelanggan', 'photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'files']);
 
         if ($r->wantsJson() || $r->ajax()) {
             return response()->json($sr);
@@ -650,6 +683,67 @@ class SrDataController extends Controller
         }
 
         return $deletedCount;
+    }
+
+    public function getRejectionDetails(SrData $sr)
+    {
+        try {
+            $rejectedPhotos = $sr->photoApprovals()
+                ->where(function($q) {
+                    $q->whereNotNull('tracer_rejected_at')
+                      ->orWhereNotNull('cgp_rejected_at');
+                })
+                ->with(['tracerUser', 'cgpUser'])
+                ->get();
+
+            $rejections = $rejectedPhotos->map(function($photo) {
+                $rejectedByType = null;
+                $rejectedByName = null;
+                $reason = null;
+                $rejectedDate = null;
+                $category = null;
+
+                if ($photo->tracer_rejected_at) {
+                    $rejectedByType = 'tracer';
+                    $rejectedByName = $photo->tracerUser->name ?? 'Unknown';
+                    $reason = $photo->tracer_notes;
+                    $rejectedDate = $photo->tracer_rejected_at->format('d/m/Y H:i');
+                    $category = $photo->tracer_rejection_category;
+                } elseif ($photo->cgp_rejected_at) {
+                    $rejectedByType = 'cgp';
+                    $rejectedByName = $photo->cgpUser->name ?? 'Unknown';
+                    $reason = $photo->cgp_notes;
+                    $rejectedDate = $photo->cgp_rejected_at->format('d/m/Y H:i');
+                    $category = $photo->cgp_rejection_category;
+                }
+
+                return [
+                    'photo_field' => $photo->photo_field_name,
+                    'slot_label' => $photo->slot_label ?? null,
+                    'rejected_by_type' => $rejectedByType,
+                    'rejected_by_name' => $rejectedByName,
+                    'reason' => $reason,
+                    'rejected_date' => $rejectedDate,
+                    'category' => $category,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'rejections' => $rejections
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Get SR rejection details failed', [
+                'sr_id' => $sr->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load rejection details'
+            ], 500);
+        }
     }
 
 }

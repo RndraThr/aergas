@@ -270,6 +270,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
         }
     }
 
+
     /**
      * Batch approve untuk module by CGP
      */
@@ -289,39 +290,23 @@ class CgpApprovalController extends Controller implements HasMiddleware
             $notes = $request->get('notes');
 
             $moduleData = $this->getModuleData($reffId, $module);
-            if (!$moduleData || is_null($moduleData->tracer_approved_at)) {
+            if (!$moduleData) {
+                throw new Exception('Data module tidak ditemukan');
+            }
+
+            if (is_null($moduleData->tracer_approved_at)) {
                 throw new Exception('Module belum di-approve oleh Tracer');
             }
 
-            // Get all photos for this module that are pending CGP approval
-            $photos = PhotoApproval::where('module_name', $module)
-                ->where('reff_id_pelanggan', $reffId)
-                ->where('photo_status', 'cgp_pending')
-                ->get();
-
-            if ($photos->count() === 0) {
-                throw new Exception('Tidak ada photo yang perlu di-approve');
-            }
-
-            $approved = [];
-            foreach ($photos as $photo) {
-                $result = $this->photoApprovalService->approveByCgp(
-                    $photo->id,
-                    Auth::id(),
-                    $notes
-                );
-                $approved[] = $photo->id;
-            }
-
-            // Update module status
-            $moduleData->update([
-                'cgp_approved_at' => now(),
-                'cgp_approved_by' => Auth::id(),
-                'cgp_notes' => $notes
-            ]);
+            $result = $this->photoApprovalService->approveModuleByCgp(
+                $moduleData,
+                $module,
+                Auth::id(),
+                $notes
+            );
 
             DB::commit();
-            
+
             // Organize photos into dedicated folders after successful approval
             try {
                 $organizationResult = $this->folderOrganizationService->organizePhotosAfterCgpApproval($reffId, $module);
@@ -336,11 +321,8 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
             return response()->json([
                 'success' => true,
-                'message' => "Module {$module} berhasil di-approve",
-                'data' => [
-                    'approved_photos' => $approved,
-                    'total_approved' => count($approved)
-                ]
+                'message' => "Module {$module} berhasil di-approve oleh CGP",
+                'data' => $result
             ]);
 
         } catch (Exception $e) {
@@ -467,31 +449,77 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
         $cgpStatus = $this->getCgpStatus($customer);
 
-        // SK photos (jika sudah di-approve tracer)
-        if ($cgpStatus['sk_ready'] || $cgpStatus['sk_completed']) {
-            $photos['sk'] = PhotoApproval::where('module_name', 'sk')
-                ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->whereNotNull('tracer_approved_at')
-                ->orderBy('photo_field_name')
-                ->get();
-        }
+        // For each module, get slot completion status which includes ALL slots (uploaded + not uploaded)
+        foreach (['sk', 'sr', 'gas_in'] as $module) {
+            $moduleReady = ($module === 'sk' && ($cgpStatus['sk_ready'] || $cgpStatus['sk_completed'])) ||
+                          ($module === 'sr' && ($cgpStatus['sr_ready'] || $cgpStatus['sr_completed'])) ||
+                          ($module === 'gas_in' && ($cgpStatus['gas_in_ready'] || $cgpStatus['gas_in_completed']));
 
-        // SR photos (jika sudah di-approve tracer)
-        if ($cgpStatus['sr_ready'] || $cgpStatus['sr_completed']) {
-            $photos['sr'] = PhotoApproval::where('module_name', 'sr')
-                ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->whereNotNull('tracer_approved_at')
-                ->orderBy('photo_field_name')
-                ->get();
-        }
+            if (!$moduleReady) {
+                continue;
+            }
 
-        // Gas In photos (jika sudah di-approve tracer)
-        if ($cgpStatus['gas_in_ready'] || $cgpStatus['gas_in_completed']) {
-            $photos['gas_in'] = PhotoApproval::where('module_name', 'gas_in')
-                ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->whereNotNull('tracer_approved_at')
-                ->orderBy('photo_field_name')
-                ->get();
+            $moduleData = $this->getModuleData($customer->reff_id_pelanggan, $module);
+
+            if ($moduleData) {
+                // Get ALL slots from config (both required and optional)
+                $slotCompletion = $moduleData->getSlotCompletionStatus();
+
+                // Get uploaded photos that have been approved by tracer
+                $uploadedPhotos = PhotoApproval::where('module_name', $module)
+                    ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+                    ->whereNotNull('tracer_approved_at')
+                    ->with(['tracerUser', 'cgpUser'])
+                    ->get()
+                    ->keyBy('photo_field_name');
+
+                // Build array with ALL slots (uploaded + placeholders for unuploaded)
+                $allPhotos = [];
+                foreach ($slotCompletion as $slotKey => $slotInfo) {
+                    if (isset($uploadedPhotos[$slotKey])) {
+                        // Photo exists - use actual PhotoApproval model
+                        $allPhotos[] = $uploadedPhotos[$slotKey];
+                    } else {
+                        // Photo not uploaded - create placeholder object
+                        $placeholder = (object) [
+                            'id' => null,
+                            'photo_field_name' => $slotKey,
+                            'photo_url' => null,
+                            'photo_status' => 'missing',
+                            'uploaded_at' => null,
+                            'tracer_approved_at' => null,
+                            'tracer_rejected_at' => null,
+                            'cgp_approved_at' => null,
+                            'cgp_rejected_at' => null,
+                            'ai_approved_at' => null,
+                            'ai_confidence_score' => null,
+                            'ai_notes' => null,
+                            'tracer_notes' => null,
+                            'cgp_notes' => null,
+                            'tracerUser' => null,
+                            'cgpUser' => null,
+                            'is_placeholder' => true,
+                            'slot_label' => $slotInfo['label'],
+                            'is_required' => $slotInfo['required'],
+                        ];
+
+                        // Only show placeholder for required photos
+                        if ($slotInfo['required']) {
+                            $allPhotos[] = $placeholder;
+                        }
+                    }
+                }
+
+                $photos[$module] = $allPhotos;
+            } else {
+                // No module data - just get uploaded photos (fallback)
+                $photos[$module] = PhotoApproval::where('module_name', $module)
+                    ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+                    ->whereNotNull('tracer_approved_at')
+                    ->with(['tracerUser', 'cgpUser'])
+                    ->orderBy('photo_field_name')
+                    ->get();
+            }
         }
 
         return $photos;

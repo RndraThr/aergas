@@ -322,10 +322,12 @@
     </div>
 
     @php
-      $list = $gasIn->photoApprovals->sortBy('photo_field_name')->values();
+      // Get all slot completion status (includes both uploaded and missing photos)
+      $slotCompletion = $gasIn->getSlotCompletionStatus();
+      $uploadedPhotos = $gasIn->photoApprovals->keyBy('photo_field_name');
     @endphp
 
-    @if($list->isEmpty())
+    @if(empty($slotCompletion))
       <div class="text-center py-8">
         <i class="fas fa-camera text-gray-300 text-4xl mb-3"></i>
         <p class="text-gray-500 text-sm mb-4">Belum ada foto yang diupload</p>
@@ -337,19 +339,28 @@
       </div>
     @else
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        @foreach($list as $pa)
-          <div class="border rounded-lg p-4 space-y-3">
+        @foreach($slotCompletion as $slotKey => $slotInfo)
+          @php
+            $pa = $uploadedPhotos->get($slotKey);
+            $isUploaded = !is_null($pa);
+          @endphp
+          <div class="border rounded-lg p-4 space-y-3 {{ !$isUploaded ? 'bg-gray-50 border-dashed border-2' : '' }}">
             <div class="flex items-start justify-between">
               <div>
                 <div class="text-xs text-gray-500">Slot</div>
-                <div class="font-medium">{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}</div>
+                <div class="font-medium">{{ $slotInfo['label'] }}</div>
+                @if($slotInfo['required'])
+                  <span class="inline-block px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded mt-1">Required</span>
+                @else
+                  <span class="inline-block px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded mt-1">Optional</span>
+                @endif
               </div>
               <div class="text-xs text-gray-500">
-                {{ $pa->created_at ? $pa->created_at->format('d/m H:i') : '-' }}
+                {{ $isUploaded && $pa->created_at ? $pa->created_at->format('d/m H:i') : '-' }}
               </div>
             </div>
 
-            @if($pa->photo_url)
+            @if($isUploaded && $pa->photo_url)
               @php
                 $originalUrl = $pa->photo_url;
                 $photoUrl = $originalUrl;
@@ -390,6 +401,15 @@
                   <div class="text-xs text-blue-600 mt-1">Klik untuk membuka</div>
                 </div>
               @endif
+            @elseif(!$isUploaded)
+              {{-- Placeholder for photo not uploaded --}}
+              <div class="w-full h-48 flex items-center justify-center bg-gray-100 rounded border-2 border-dashed border-gray-300">
+                <div class="text-center text-gray-400">
+                  <i class="fas fa-image text-4xl mb-2"></i>
+                  <div class="text-sm font-medium text-gray-600">Photo Not Uploaded</div>
+                  <div class="text-xs text-gray-500 mt-1">Waiting for upload</div>
+                </div>
+              </div>
             @else
               <div class="w-full h-48 flex items-center justify-center bg-gray-50 rounded border">
                 <div class="text-center text-gray-400">
@@ -399,35 +419,37 @@
               </div>
             @endif
 
-            <!-- Status Badge -->
-            <div class="flex items-center justify-between">
-              <span class="px-2 py-0.5 rounded text-xs
-                @class([
-                  'bg-gray-100 text-gray-700' => $pa->photo_status === 'draft',
-                  'bg-blue-100 text-blue-800' => $pa->photo_status === 'tracer_pending',
-                  'bg-purple-100 text-purple-800' => $pa->photo_status === 'tracer_approved',
-                  'bg-yellow-100 text-yellow-800' => $pa->photo_status === 'cgp_pending',
-                  'bg-green-100 text-green-800' => $pa->photo_status === 'cgp_approved',
-                  'bg-red-100 text-red-800' => str_contains($pa->photo_status ?? '', 'rejected'),
-                ])
-              ">{{ $pa->photo_status ? strtoupper(str_replace('_', ' ', $pa->photo_status)) : 'DRAFT' }}</span>
-              
-              @if($pa->ai_score)
-                <span class="text-xs text-gray-500">
-                  AI: {{ number_format($pa->ai_score, 1) }}%
-                </span>
-              @endif
-            </div>
+            @if($isUploaded)
+              <!-- Status Badge -->
+              <div class="flex items-center justify-between">
+                <span class="px-2 py-0.5 rounded text-xs
+                  @class([
+                    'bg-gray-100 text-gray-700' => $pa->photo_status === 'draft',
+                    'bg-blue-100 text-blue-800' => $pa->photo_status === 'tracer_pending',
+                    'bg-purple-100 text-purple-800' => $pa->photo_status === 'tracer_approved',
+                    'bg-yellow-100 text-yellow-800' => $pa->photo_status === 'cgp_pending',
+                    'bg-green-100 text-green-800' => $pa->photo_status === 'cgp_approved',
+                    'bg-red-100 text-red-800' => str_contains($pa->photo_status ?? '', 'rejected'),
+                  ])
+                ">{{ $pa->photo_status ? strtoupper(str_replace('_', ' ', $pa->photo_status)) : 'DRAFT' }}</span>
 
-            <!-- AI Analysis (if available) -->
-            @if($pa->ai_reason)
-              <div class="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                {{ Str::limit($pa->ai_reason, 80) }}
+                @if($pa->ai_score)
+                  <span class="text-xs text-gray-500">
+                    AI: {{ number_format($pa->ai_score, 1) }}%
+                  </span>
+                @endif
               </div>
+
+              <!-- AI Analysis (if available) -->
+              @if($pa->ai_reason)
+                <div class="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                  {{ Str::limit($pa->ai_reason, 80) }}
+                </div>
+              @endif
             @endif
 
             <div class="text-xs text-gray-500 text-center">
-              {{ $pa->photo_field_name }}
+              {{ $slotKey }}
             </div>
           </div>
         @endforeach

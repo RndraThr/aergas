@@ -181,7 +181,7 @@
 
     <!-- Pagination -->
     <div class="mt-6">
-        {{ $jointNumbers->links() }}
+        {{ $jointNumbers->appends(request()->query())->links('vendor.pagination.alpine-style') }}
     </div>
 </div>
 @endsection

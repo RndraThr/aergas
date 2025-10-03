@@ -113,18 +113,35 @@ abstract class BaseModuleModel extends Model
 
         $statuses = $rows->only(...$required)->values();
 
+        // If any required photo is being re-uploaded (ai_pending), return ai_validation
+        // This ensures status drops back when user re-uploads a rejected photo
+        if ($statuses->contains('ai_pending')) {
+            return 'ai_validation';
+        }
+
+        // Check for rejections first (highest priority)
         if ($statuses->contains('ai_rejected') || $statuses->contains('tracer_rejected') || $statuses->contains('cgp_rejected')) {
             return 'rejected';
         }
+
+        // All photos CGP approved = completed
         if ($statuses->every(fn($s) => $s === 'cgp_approved')) {
             return 'completed';
         }
-        if ($statuses->contains('cgp_pending') || $statuses->contains('tracer_approved')) {
+
+        // CGP review: ONLY if ALL required photos are at least cgp_pending (no tracer_pending, ai_approved, ai_pending, or draft)
+        // This means ALL photos have been approved by tracer
+        $allTracerApproved = $statuses->every(fn($s) => in_array($s, ['cgp_pending', 'cgp_approved']));
+        if ($allTracerApproved && $statuses->contains('cgp_pending')) {
             return 'cgp_review';
         }
-        if ($statuses->contains('tracer_pending') || $statuses->contains('ai_approved')) {
+
+        // Tracer review: if any photo is still waiting for tracer approval OR some approved but not all
+        if ($statuses->contains('tracer_pending') || $statuses->contains('ai_approved') || $statuses->contains('tracer_approved')) {
             return 'tracer_review';
         }
+
+        // AI validation: if any photo is still in AI validation
         if ($statuses->contains('ai_pending')) {
             return 'ai_validation';
         }
@@ -146,6 +163,7 @@ abstract class BaseModuleModel extends Model
 
     /**
      * Sinkron module_status dari overall_photo_status (1:1 mapping).
+     * Also auto-sets tracer_approved_at when all photos are tracer-approved.
      */
     public function syncModuleStatusFromPhotos(bool $save = true): string
     {
@@ -163,9 +181,40 @@ abstract class BaseModuleModel extends Model
         $this->overall_photo_status = $overall;
         $this->module_status        = $map[$overall] ?? 'draft';
 
+        // Auto-set tracer_approved_at when status becomes cgp_review (all photos tracer-approved)
+        // Only set if currently NULL (don't overwrite existing approval)
+        if ($overall === 'cgp_review' && is_null($this->tracer_approved_at)) {
+            // Get the most recent tracer approval timestamp from photos
+            $latestTracerApproval = $this->photoApprovals()
+                ->whereNotNull('tracer_approved_at')
+                ->orderBy('tracer_approved_at', 'desc')
+                ->value('tracer_approved_at');
+
+            if ($latestTracerApproval) {
+                $this->tracer_approved_at = $latestTracerApproval;
+                // Note: tracer_approved_by is not set here as it could be different users approving different photos
+            }
+        }
+
         if ($save) $this->save();
 
         return $this->module_status;
+    }
+
+    /**
+     * Clear module-level approval timestamps when any photo is re-uploaded.
+     * This resets the approval progress so tracer/cgp need to re-approve.
+     */
+    public function clearModuleApprovals(bool $save = true): void
+    {
+        $this->tracer_approved_at = null;
+        $this->tracer_approved_by = null;
+        $this->tracer_notes = null;
+        $this->cgp_approved_at = null;
+        $this->cgp_approved_by = null;
+        $this->cgp_notes = null;
+
+        if ($save) $this->save();
     }
 
     public function getModuleStatusLabelAttribute(): string

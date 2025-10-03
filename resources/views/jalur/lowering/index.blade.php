@@ -232,8 +232,8 @@
         </div>
 
         @if($loweringData->hasPages())
-            <div class="px-6 py-4 border-t border-gray-200">
-                {{ $loweringData->links() }}
+            <div class="px-6 py-4">
+                {{ $loweringData->appends(request()->query())->links('vendor.pagination.alpine-style') }}
             </div>
         @endif
     </div>

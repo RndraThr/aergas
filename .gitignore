@@ -22,3 +22,21 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+.claude
+
+# Backup and old files
+/resources/views/vendor/pagination/custom.blade.php
+/resources/views/approvals/cgp/customers-old-backup.blade.php
+/resources/views/approvals/cgp/jalur-photos-old-backup.blade.php
+/resources/views/approvals/tracer/customers-old-backup.blade.php
+/resources/views/approvals/tracer/jalur-photos-broken.blade.php
+/resources/views/approvals/tracer/jalur-photos-old-backup.blade.php
+/resources/views/gas-in/index-old-backup.blade.php
+/resources/views/sk/index-old-backup.blade.php
+/resources/views/sr/index-old-backup.blade.php
+
+# Pagination documentation files
+PAGINATION-IMPLEMENTATION.md
+PAGINATION-PROGRESS.md
+PAGINATION-STATUS-UPDATED.md
+PAGINATION-STATUS.md
