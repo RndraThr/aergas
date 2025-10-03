@@ -138,9 +138,17 @@
     </div>
 
     <!-- Module Status Progress -->
-    @if($sk->ai_overall_status || $sk->tracer_approved_at || $sk->cgp_approved_at)
+    @php
+      $hasRejectedPhotos = $sk->photoApprovals->filter(function($photo) {
+        return $photo->tracer_rejected_at || $photo->cgp_rejected_at;
+      })->isNotEmpty();
+      $tracerRejectedCount = $sk->photoApprovals->whereNotNull('tracer_rejected_at')->count();
+      $cgpRejectedCount = $sk->photoApprovals->whereNotNull('cgp_rejected_at')->count();
+    @endphp
+
+    @if($sk->ai_overall_status || $sk->tracer_approved_at || $sk->cgp_approved_at || $hasRejectedPhotos)
       <div class="mt-6 pt-6 border-t border-green-200">
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-4 flex-wrap">
           <div class="text-sm font-medium text-gray-700">Progress:</div>
 
           @if($sk->ai_overall_status)
@@ -169,6 +177,24 @@
               </span>
             </div>
           @endif
+
+          @if($tracerRejectedCount > 0)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+              <span class="text-sm text-red-700">
+                Tracer Rejected: {{ $tracerRejectedCount }} foto
+              </span>
+            </div>
+          @endif
+
+          @if($cgpRejectedCount > 0)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full bg-orange-500 mr-2"></div>
+              <span class="text-sm text-orange-700">
+                CGP Rejected: {{ $cgpRejectedCount }} foto
+              </span>
+            </div>
+          @endif
         </div>
       </div>
     @endif
@@ -190,6 +216,119 @@
           <div class="text-xs text-gray-500">Alamat</div>
           <div class="font-medium">{{ $sk->calonPelanggan->alamat ?? '-' }}</div>
         </div>
+      </div>
+    </div>
+  @endif
+
+  @php
+    $rejectedPhotos = $sk->photoApprovals->filter(function($photo) {
+      return $photo->tracer_rejected_at || $photo->cgp_rejected_at;
+    });
+  @endphp
+
+  @if($sk->tracer_approved_at || $sk->cgp_approved_at || $rejectedPhotos->isNotEmpty())
+    <div class="bg-white rounded-xl card-shadow p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <i class="fas fa-clipboard-check text-green-600"></i>
+        <h2 class="font-semibold text-gray-800">Timeline Approval</h2>
+      </div>
+
+      <div class="space-y-4">
+        @if($sk->tracer_approved_at)
+          <div class="flex items-start space-x-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-search text-purple-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-purple-800">Tracer Approval</h4>
+                  <p class="text-sm text-purple-600">{{ $sk->tracer_approved_at->format('d/m/Y H:i') }}</p>
+                </div>
+                @if($sk->tracerApprovedBy)
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-purple-700">{{ $sk->tracerApprovedBy->name }}</div>
+                    <div class="text-xs text-purple-600">{{ ucfirst($sk->tracerApprovedBy->role) }}</div>
+                  </div>
+                @endif
+              </div>
+            </div>
+          </div>
+        @endif
+
+        @if($sk->cgp_approved_at)
+          <div class="flex items-start space-x-4 p-4 bg-green-50 rounded-lg border border-green-200">
+            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-check-circle text-green-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-green-800">CGP Approval</h4>
+                  <p class="text-sm text-green-600">{{ $sk->cgp_approved_at->format('d/m/Y H:i') }}</p>
+                </div>
+                @if($sk->cgpApprovedBy)
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-green-700">{{ $sk->cgpApprovedBy->name }}</div>
+                    <div class="text-xs text-green-600">{{ ucfirst($sk->cgpApprovedBy->role) }}</div>
+                  </div>
+                @endif
+              </div>
+            </div>
+          </div>
+        @endif
+
+        {{-- Tracer Rejections - Show only once with rejector and date --}}
+        @php
+          $tracerRejection = $rejectedPhotos->where('tracer_rejected_at', '!=', null)->sortByDesc('tracer_rejected_at')->first();
+        @endphp
+        @if($tracerRejection)
+          <div class="flex items-start space-x-4 p-4 bg-red-50 rounded-lg border border-red-200">
+            <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-exclamation-triangle text-red-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-red-800">Tracer Rejection</h4>
+                  <p class="text-sm text-red-600">{{ $tracerRejection->tracer_rejected_at->format('d/m/Y H:i') }}</p>
+                </div>
+                @if($tracerRejection->tracerUser)
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-red-700">{{ $tracerRejection->tracerUser->name }}</div>
+                    <div class="text-xs text-red-600">{{ ucfirst($tracerRejection->tracerUser->role) }}</div>
+                  </div>
+                @endif
+              </div>
+            </div>
+          </div>
+        @endif
+
+        {{-- CGP Rejections - Show only once with rejector and date --}}
+        @php
+          $cgpRejection = $rejectedPhotos->where('cgp_rejected_at', '!=', null)->sortByDesc('cgp_rejected_at')->first();
+        @endphp
+        @if($cgpRejection)
+          <div class="flex items-start space-x-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+            <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-exclamation-triangle text-orange-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-orange-800">CGP Rejection</h4>
+                  <p class="text-sm text-orange-600">{{ $cgpRejection->cgp_rejected_at->format('d/m/Y H:i') }}</p>
+                </div>
+                @if($cgpRejection->cgpUser)
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-orange-700">{{ $cgpRejection->cgpUser->name }}</div>
+                    <div class="text-xs text-orange-600">{{ ucfirst($cgpRejection->cgpUser->role) }}</div>
+                  </div>
+                @endif
+              </div>
+            </div>
+          </div>
+        @endif
       </div>
     </div>
   @endif
@@ -346,10 +485,12 @@
     </div>
 
     @php
-      $list = $sk->photoApprovals->sortBy('photo_field_name')->values();
+      // Get all slot completion status (includes both uploaded and missing photos)
+      $slotCompletion = $sk->getSlotCompletionStatus();
+      $uploadedPhotos = $sk->photoApprovals->keyBy('photo_field_name');
     @endphp
 
-    @if($list->isEmpty())
+    @if(empty($slotCompletion))
       <div class="text-center py-8">
         <i class="fas fa-camera text-gray-300 text-4xl mb-3"></i>
         <p class="text-gray-500 text-sm mb-4">Belum ada foto yang diupload</p>
@@ -361,19 +502,28 @@
       </div>
     @else
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        @foreach($list as $pa)
-          <div class="border rounded-lg p-4 space-y-3">
+        @foreach($slotCompletion as $slotKey => $slotInfo)
+          @php
+            $pa = $uploadedPhotos->get($slotKey);
+            $isUploaded = !is_null($pa);
+          @endphp
+          <div class="border rounded-lg p-4 space-y-3 {{ !$isUploaded ? 'bg-gray-50 border-dashed border-2' : '' }}">
             <div class="flex items-start justify-between">
               <div>
                 <div class="text-xs text-gray-500">Slot</div>
-                <div class="font-medium">{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}</div>
+                <div class="font-medium">{{ $slotInfo['label'] }}</div>
+                @if($slotInfo['required'])
+                  <span class="inline-block px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded mt-1">Required</span>
+                @else
+                  <span class="inline-block px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded mt-1">Optional</span>
+                @endif
               </div>
               <div class="text-xs text-gray-500">
-                {{ $pa->created_at ? $pa->created_at->format('d/m H:i') : '-' }}
+                {{ $isUploaded && $pa->created_at ? $pa->created_at->format('d/m H:i') : '-' }}
               </div>
             </div>
 
-            @if($pa->photo_url)
+            @if($isUploaded && $pa->photo_url)
               @php
                 $originalUrl = $pa->photo_url;
                 $photoUrl = $originalUrl;
@@ -414,6 +564,15 @@
                   <div class="text-xs text-blue-600 mt-1">Klik untuk membuka</div>
                 </div>
               @endif
+            @elseif(!$isUploaded)
+              {{-- Placeholder for photo not uploaded --}}
+              <div class="w-full h-48 flex items-center justify-center bg-gray-100 rounded border-2 border-dashed border-gray-300">
+                <div class="text-center text-gray-400">
+                  <i class="fas fa-image text-4xl mb-2"></i>
+                  <div class="text-sm font-medium text-gray-600">Photo Not Uploaded</div>
+                  <div class="text-xs text-gray-500 mt-1">Waiting for upload</div>
+                </div>
+              </div>
             @else
               <div class="w-full h-48 flex items-center justify-center bg-gray-50 rounded border">
                 <div class="text-center text-gray-400">
@@ -424,8 +583,71 @@
             @endif
 
             <div class="text-xs text-gray-500 text-center">
-              {{ $pa->photo_field_name }}
+              {{ $slotKey }}
             </div>
+
+            {{-- Rejection Details Dropdown --}}
+            @if($isUploaded && $pa->tracer_rejected_at)
+              <div class="mt-2">
+                <button type="button"
+                        onclick="toggleRejectionDetails({{ $pa->id }}, 'tracer')"
+                        class="w-full inline-flex items-center justify-between px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 transition-colors cursor-pointer text-left">
+                  <span>🚫 Rejected by Tracer</span>
+                  <i id="tracer-chevron-{{ $pa->id }}" class="fas fa-chevron-down transition-transform"></i>
+                </button>
+                <div id="tracer-details-{{ $pa->id }}" class="hidden mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-left">
+                  <div class="space-y-2">
+                    <div>
+                      <div class="text-xs text-gray-600">Rejected at:</div>
+                      <div class="text-sm font-medium text-gray-800">{{ $pa->tracer_rejected_at->format('d/m/Y H:i') }}</div>
+                    </div>
+                    @if($pa->tracerUser)
+                      <div>
+                        <div class="text-xs text-gray-600">Rejected by:</div>
+                        <div class="text-sm font-medium text-gray-800">{{ $pa->tracerUser->name }}</div>
+                        <div class="text-xs text-gray-500">{{ ucfirst($pa->tracerUser->role) }}</div>
+                      </div>
+                    @endif
+                    @if($pa->tracer_notes)
+                      <div>
+                        <div class="text-xs text-gray-600">Reason:</div>
+                        <div class="text-sm text-gray-800">{{ $pa->tracer_notes }}</div>
+                      </div>
+                    @endif
+                  </div>
+                </div>
+              </div>
+            @elseif($isUploaded && $pa->cgp_rejected_at)
+              <div class="mt-2">
+                <button type="button"
+                        onclick="toggleRejectionDetails({{ $pa->id }}, 'cgp')"
+                        class="w-full inline-flex items-center justify-between px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 hover:bg-orange-200 transition-colors cursor-pointer text-left">
+                  <span>⚠️ Rejected by CGP</span>
+                  <i id="cgp-chevron-{{ $pa->id }}" class="fas fa-chevron-down transition-transform"></i>
+                </button>
+                <div id="cgp-details-{{ $pa->id }}" class="hidden mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-left">
+                  <div class="space-y-2">
+                    <div>
+                      <div class="text-xs text-gray-600">Rejected at:</div>
+                      <div class="text-sm font-medium text-gray-800">{{ $pa->cgp_rejected_at->format('d/m/Y H:i') }}</div>
+                    </div>
+                    @if($pa->cgpUser)
+                      <div>
+                        <div class="text-xs text-gray-600">Rejected by:</div>
+                        <div class="text-sm font-medium text-gray-800">{{ $pa->cgpUser->name }}</div>
+                        <div class="text-xs text-gray-500">{{ ucfirst($pa->cgpUser->role) }}</div>
+                      </div>
+                    @endif
+                    @if($pa->cgp_notes)
+                      <div>
+                        <div class="text-xs text-gray-600">Reason:</div>
+                        <div class="text-sm text-gray-800">{{ $pa->cgp_notes }}</div>
+                      </div>
+                    @endif
+                  </div>
+                </div>
+              </div>
+            @endif
           </div>
         @endforeach
       </div>
@@ -622,5 +844,57 @@ document.addEventListener('keydown', function(e) {
     closeImageModal();
   }
 });
+
+// Toggle rejection details dropdown
+function toggleRejectionDetails(photoId, type) {
+  const detailsDiv = document.getElementById(`${type}-details-${photoId}`);
+  const chevron = document.getElementById(`${type}-chevron-${photoId}`);
+
+  if (detailsDiv.classList.contains('hidden')) {
+    detailsDiv.classList.remove('hidden');
+    chevron.classList.add('rotate-180');
+  } else {
+    detailsDiv.classList.add('hidden');
+    chevron.classList.remove('rotate-180');
+  }
+}
+
+// Function to go back with pagination state
+function goBackWithPagination(baseRoute) {
+  const storageKey = 'sk_pagination_state';
+  const savedState = localStorage.getItem(storageKey);
+
+  if (savedState) {
+    try {
+      const state = JSON.parse(savedState);
+      // Check if state is recent (within 10 minutes)
+      if (Date.now() - state.timestamp < 600000) {
+        const url = new URL(baseRoute, window.location.origin);
+
+        // Add pagination and search parameters
+        if (state.page && state.page !== '1') {
+          url.searchParams.set('page', state.page);
+        }
+
+        if (state.search) {
+          const savedParams = new URLSearchParams(state.search);
+          for (const [key, value] of savedParams) {
+            if (key !== 'page') {
+              url.searchParams.set(key, value);
+            }
+          }
+        }
+
+        window.location.href = url.href;
+        return;
+      }
+    } catch (e) {
+      console.log('Error parsing pagination state:', e);
+    }
+  }
+
+  // Fallback to base route if no valid state
+  window.location.href = baseRoute;
+}
 </script>
 @endpush

@@ -188,8 +188,8 @@
         </div>
 
         @if($lineNumbers->hasPages())
-            <div class="px-6 py-4 border-t border-gray-200">
-                {{ $lineNumbers->links() }}
+            <div class="px-6 py-4">
+                {{ $lineNumbers->appends(request()->query())->links('vendor.pagination.alpine-style') }}
             </div>
         @endif
     </div>

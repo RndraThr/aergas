@@ -141,6 +141,11 @@
             $modulePhotos = $photos[$module] ?? [];
             $moduleAvailable = $module === 'sk' || ($module === 'sr' && $sequential['sr_available']) || ($module === 'gas_in' && $sequential['gas_in_available']);
             $moduleCompleted = ($module === 'sk' && $sequential['sk_completed']) || ($module === 'sr' && $sequential['sr_completed']) || ($module === 'gas_in' && $sequential['gas_in_completed']);
+
+            // Check if there are any photos that need approval (not placeholder and not yet tracer approved)
+            $hasPhotosToApprove = collect($modulePhotos)->filter(function($photo) {
+                return !($photo->is_placeholder ?? false) && is_null($photo->tracer_approved_at);
+            })->isNotEmpty();
         @endphp
 
         <div class="bg-white rounded-lg shadow mb-6 {{ !$moduleAvailable ? 'opacity-60' : '' }}">
@@ -165,13 +170,13 @@
                         @endif
                     </div>
                     
-                    @if($moduleAvailable && !$moduleCompleted && count($modulePhotos) > 0)
+                    @if($moduleAvailable && !$moduleCompleted && $hasPhotosToApprove)
                         <div class="flex space-x-2">
-                            <button onclick="aiReviewModule('{{ $module }}')" 
+                            <button onclick="aiReviewModule('{{ $module }}')"
                                     class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium text-sm">
                                 🤖 AI Review
                             </button>
-                            <button onclick="approveModule('{{ $module }}')" 
+                            <button onclick="approveModule('{{ $module }}')"
                                     class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm">
                                 ✅ Approve All {{ strtoupper($module) }}
                             </button>
@@ -184,10 +189,19 @@
                 <div class="p-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         @foreach($modulePhotos as $photo)
-                            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <div class="border border-gray-200 rounded-lg overflow-hidden {{ isset($photo->is_placeholder) && $photo->is_placeholder ? 'bg-gray-50 border-dashed border-2' : '' }}">
                                 <!-- Photo -->
                                 <div class="aspect-w-4 aspect-h-3 bg-gray-100">
-                                    @if($photo->photo_url && !empty(trim($photo->photo_url)))
+                                    @if(isset($photo->is_placeholder) && $photo->is_placeholder)
+                                        {{-- Placeholder for unuploaded photo --}}
+                                        <div class="flex flex-col items-center justify-center h-48 text-gray-400">
+                                            <svg class="w-16 h-16 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                            </svg>
+                                            <p class="text-sm font-medium text-gray-600">Photo Not Uploaded</p>
+                                            <p class="text-xs text-red-600 mt-1">⚠ Required Photo</p>
+                                        </div>
+                                    @elseif($photo->photo_url && !empty(trim($photo->photo_url)))
                                         @php
                                             // Convert Google Drive URL to direct image URL
                                             $imageUrl = $photo->photo_url;
@@ -224,10 +238,37 @@
 
                                 <!-- Photo Info -->
                                 <div class="p-4">
-                                    <h3 class="font-medium text-gray-900 mb-2">{{ $photo->photo_field_name }}</h3>
-                                    
-                                    <!-- AI Results -->
-                                    @if($photo->ai_approved_at)
+                                    <h3 class="font-medium text-gray-900 mb-2">
+                                        {{ isset($photo->slot_label) ? $photo->slot_label : $photo->photo_field_name }}
+                                    </h3>
+
+                                    @if(isset($photo->is_placeholder) && $photo->is_placeholder)
+                                        <!-- Placeholder Status -->
+                                        <div class="mb-3">
+                                            <div class="w-full inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                                📷 Menunggu Upload
+                                            </div>
+                                        </div>
+
+                                        <!-- Placeholder Actions - Can reject to mark module incomplete -->
+                                        @if($moduleAvailable)
+                                            <div class="flex space-x-2">
+                                                <button disabled
+                                                        class="flex-1 bg-gray-300 text-gray-500 px-3 py-1 rounded text-sm cursor-not-allowed"
+                                                        title="Tidak dapat approve foto yang belum diupload">
+                                                    ✅ Approve
+                                                </button>
+                                                <button onclick="rejectMissingPhoto('{{ $module }}', '{{ $photo->photo_field_name }}', '{{ $photo->slot_label }}')"
+                                                        class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+                                                        title="Reject module karena foto wajib belum diupload">
+                                                    ❌ Reject Module
+                                                </button>
+                                            </div>
+                                        @endif
+                                    @else
+                                        {{-- Real photo info (existing code) --}}
+                                        <!-- AI Results -->
+                                        @if($photo->ai_approved_at)
                                         <div class="mb-3 p-2 bg-blue-50 rounded">
                                             <div class="flex items-center justify-between text-sm">
                                                 <span class="font-medium text-blue-900">AI Analysis</span>
@@ -240,24 +281,121 @@
                                     @endif
 
                                     <!-- Status -->
-                                    <div class="flex flex-col mb-3">
+                                    <div class="mb-3 space-y-2">
+                                        {{-- Approved Status --}}
                                         @if($photo->tracer_approved_at)
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                ✅ Approved by Tracer
-                                            </span>
-                                        @elseif($photo->tracer_rejected_at)
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mb-1">
-                                                ❌ Rejected by Tracer
-                                            </span>
-                                            @if($photo->updated_at && $photo->tracer_rejected_at && $photo->updated_at > $photo->tracer_rejected_at)
-                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                    📱 Photo Updated - Needs Re-review
-                                                </span>
-                                            @endif
-                                        @else
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            <div>
+                                                <button type="button"
+                                                        onclick="toggleRejectionDetails({{ $photo->id }}, 'approved')"
+                                                        class="w-full inline-flex items-center justify-between px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 transition-colors cursor-pointer text-left">
+                                                    <span>✅ Approved by Tracer</span>
+                                                    <i id="approved-chevron-{{ $photo->id }}" class="fas fa-chevron-down transition-transform"></i>
+                                                </button>
+                                                <div id="approved-details-{{ $photo->id }}" class="hidden mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                                    <div class="flex items-center justify-between mb-2">
+                                                        <span class="text-xs text-gray-600">Approved at:</span>
+                                                        <span class="text-xs font-medium text-green-600">{{ $photo->tracer_approved_at->format('d/m/Y H:i') }}</span>
+                                                    </div>
+                                                    @if($photo->tracerUser)
+                                                        <div class="flex items-center gap-1 mb-2">
+                                                            <i class="fas fa-user text-green-600 text-xs"></i>
+                                                            <span class="text-xs text-green-700">{{ $photo->tracerUser->name }}</span>
+                                                        </div>
+                                                    @endif
+                                                    @if($photo->tracer_notes)
+                                                        <div class="mt-2 pt-2 border-t border-green-200">
+                                                            <p class="text-xs text-gray-600 mb-1 font-medium">Notes:</p>
+                                                            <p class="text-xs text-green-700 bg-white p-2 rounded">{{ $photo->tracer_notes }}</p>
+                                                        </div>
+                                                    @else
+                                                        <p class="text-xs text-gray-500 italic">No notes</p>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        {{-- Pending Status --}}
+                                        @if(!$photo->tracer_rejected_at && !$photo->tracer_approved_at)
+                                            <div class="w-full inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                                 ⏳ Pending Review
-                                            </span>
+                                            </div>
+                                        @endif
+
+                                        {{-- Tracer Rejection Dropdown --}}
+                                        @if($photo->tracer_rejected_at)
+                                            <div>
+                                                <button type="button"
+                                                        onclick="toggleRejectionDetails({{ $photo->id }}, 'tracer')"
+                                                        class="w-full inline-flex items-center justify-between px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 transition-colors cursor-pointer text-left">
+                                                    <span class="flex items-center gap-1">
+                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                        <span>Rejected by Tracer</span>
+                                                    </span>
+                                                    <i id="tracer-chevron-{{ $photo->id }}" class="fas fa-chevron-down transition-transform"></i>
+                                                </button>
+                                                <div id="tracer-details-{{ $photo->id }}" class="hidden mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                                    <div class="flex items-center justify-between mb-2">
+                                                        <span class="text-xs text-gray-600">Rejected at:</span>
+                                                        <span class="text-xs font-medium text-red-600">{{ $photo->tracer_rejected_at->format('d/m/Y H:i') }}</span>
+                                                    </div>
+                                                    @if($photo->tracerUser)
+                                                        <div class="flex items-center gap-1 mb-2">
+                                                            <i class="fas fa-user text-red-600 text-xs"></i>
+                                                            <span class="text-xs text-red-700">{{ $photo->tracerUser->name }}</span>
+                                                        </div>
+                                                    @endif
+                                                    @if($photo->tracer_notes)
+                                                        <div class="mt-2 pt-2 border-t border-red-200">
+                                                            <p class="text-xs text-gray-600 mb-1 font-medium">Reason:</p>
+                                                            <p class="text-xs text-red-700 bg-white p-2 rounded">{{ $photo->tracer_notes }}</p>
+                                                        </div>
+                                                    @else
+                                                        <p class="text-xs text-gray-500 italic">No reason provided</p>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        {{-- CGP Rejection Dropdown --}}
+                                        @if($photo->cgp_rejected_at)
+                                            <div>
+                                                <button type="button"
+                                                        onclick="toggleRejectionDetails({{ $photo->id }}, 'cgp')"
+                                                        class="w-full inline-flex items-center justify-between px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 hover:bg-orange-200 transition-colors cursor-pointer text-left">
+                                                    <span class="flex items-center gap-1">
+                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                        <span>Rejected by CGP</span>
+                                                    </span>
+                                                    <i id="cgp-chevron-{{ $photo->id }}" class="fas fa-chevron-down transition-transform"></i>
+                                                </button>
+                                                <div id="cgp-details-{{ $photo->id }}" class="hidden mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                                    <div class="flex items-center justify-between mb-2">
+                                                        <span class="text-xs text-gray-600">Rejected at:</span>
+                                                        <span class="text-xs font-medium text-orange-600">{{ $photo->cgp_rejected_at->format('d/m/Y H:i') }}</span>
+                                                    </div>
+                                                    @if($photo->cgpUser)
+                                                        <div class="flex items-center gap-1 mb-2">
+                                                            <i class="fas fa-user text-orange-600 text-xs"></i>
+                                                            <span class="text-xs text-orange-700">{{ $photo->cgpUser->name }}</span>
+                                                        </div>
+                                                    @endif
+                                                    @if($photo->cgp_notes)
+                                                        <div class="mt-2 pt-2 border-t border-orange-200">
+                                                            <p class="text-xs text-gray-600 mb-1 font-medium">Reason:</p>
+                                                            <p class="text-xs text-orange-700 bg-white p-2 rounded">{{ $photo->cgp_notes }}</p>
+                                                        </div>
+                                                    @else
+                                                        <p class="text-xs text-gray-500 italic">No reason provided</p>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        {{-- Photo Updated Badge --}}
+                                        @if($photo->tracer_rejected_at && $photo->updated_at && $photo->updated_at > $photo->tracer_rejected_at)
+                                            <div class="w-full inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                📱 Photo Updated - Needs Re-review
+                                            </div>
                                         @endif
                                     </div>
 
@@ -282,12 +420,6 @@
                                             </div>
                                         @endif
                                     @endif
-
-                                    <!-- Notes -->
-                                    @if($photo->tracer_notes)
-                                        <div class="mt-3 p-2 bg-gray-50 rounded">
-                                            <p class="text-xs text-gray-600"><strong>Tracer Notes:</strong> {{ $photo->tracer_notes }}</p>
-                                        </div>
                                     @endif
                                 </div>
                             </div>
@@ -431,16 +563,20 @@ function aiReviewModule(module) {
 // Form submission
 document.getElementById('notesForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const notes = document.getElementById('reviewNotes').value;
     const formData = new FormData();
     formData.append('notes', notes);
     formData.append('_token', '{{ csrf_token() }}');
-    
+
     let url = '';
-    
+
     if (currentAction === 'approveModule') {
         url = '{{ route("approvals.tracer.approve-module") }}';
+        formData.append('reff_id', reffId);
+        formData.append('module', currentModule);
+    } else if (currentAction === 'rejectModule') {
+        url = '{{ route("approvals.tracer.reject-module") }}';
         formData.append('reff_id', reffId);
         formData.append('module', currentModule);
     } else {
@@ -448,7 +584,7 @@ document.getElementById('notesForm').addEventListener('submit', function(e) {
         formData.append('photo_id', currentPhotoId);
         formData.append('action', currentAction);
     }
-    
+
     fetch(url, {
         method: 'POST',
         body: formData
@@ -504,6 +640,40 @@ function tryAlternativeUrls(imgElement) {
             </div>
         `;
     }
+}
+
+// Toggle rejection details dropdown
+function toggleRejectionDetails(photoId, type) {
+    const detailsDiv = document.getElementById(`${type}-details-${photoId}`);
+    const chevronIcon = document.getElementById(`${type}-chevron-${photoId}`);
+
+    if (detailsDiv.classList.contains('hidden')) {
+        // Show details
+        detailsDiv.classList.remove('hidden');
+        chevronIcon.classList.add('rotate-180');
+    } else {
+        // Hide details
+        detailsDiv.classList.add('hidden');
+        chevronIcon.classList.remove('rotate-180');
+    }
+}
+
+// Reject module due to missing photo
+function rejectMissingPhoto(module, photoFieldName, photoLabel) {
+    const defaultMessage = `Foto ${photoLabel} belum diupload. Mohon upload foto wajib terlebih dahulu sebelum submit untuk approval.`;
+
+    // Open notes modal with pre-filled message
+    currentModule = module;
+    currentAction = 'rejectModule';
+
+    document.getElementById('notesModalTitle').textContent = `Reject Module ${module.toUpperCase()} - Foto Belum Lengkap`;
+    document.getElementById('reviewNotes').value = defaultMessage;
+
+    const confirmButton = document.getElementById('confirmButton');
+    confirmButton.className = 'px-4 py-2 rounded-lg text-white bg-red-600 hover:bg-red-700';
+    confirmButton.textContent = 'Reject Module';
+
+    document.getElementById('notesModal').classList.remove('hidden');
 }
 </script>
 @endpush

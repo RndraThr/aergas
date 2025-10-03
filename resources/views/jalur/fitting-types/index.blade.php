@@ -185,8 +185,8 @@
         </div>
 
         @if($fittingTypes->hasPages())
-            <div class="px-6 py-4 border-t border-gray-200">
-                {{ $fittingTypes->links() }}
+            <div class="px-6 py-4">
+                {{ $fittingTypes->appends(request()->query())->links('vendor.pagination.alpine-style') }}
             </div>
         @endif
     </div>

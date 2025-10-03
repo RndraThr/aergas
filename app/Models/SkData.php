@@ -113,7 +113,7 @@ class SkData extends BaseModuleModel
 
     public function getRequiredPhotos(): array
     {
-        return ['pneumatic_start', 'pneumatic_finish', 'valve', 'isometrik_scan'];
+        return ['pneumatic_start', 'pneumatic_finish', 'valve', 'isometrik_scan', 'berita_acara'];
     }
 
     public function getCasts(): array

@@ -16,17 +16,29 @@
          x-cloak>
 
         <!-- Logo -->
-        <div class="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-aergas-navy to-aergas-navy/90 border-b border-aergas-navy/20 flex-shrink-0">
-            <div class="flex items-center justify-center space-x-3 flex-1">
-                <img src="{{ asset('assets/CGP.png') }}"
-                     alt="CGP Logo"
-                     class="h-10 w-auto filter brightness-0 invert">
-                <img src="{{ asset('assets/AERGAS_PNG.png') }}"
-                     alt="AERGAS Logo"
-                     class="h-9 w-auto filter brightness-0 invert">
+        <div 
+            x-data="{ logos: [
+                '{{ asset('assets/CGP5.png') }}',
+                '{{ asset('assets/AERGAS_PNG.png') }}',
+            ], current: 0 }"
+            x-init="setInterval(() => { current = (current + 1) % logos.length }, 3000)" 
+            class="flex items-center justify-between h-[4.8rem] px-6 bg-white border-b border-gray-200 flex-shrink-0"
+        >
+            <!-- Carousel Logo -->
+            <div class="flex items-center justify-center flex-1">
+                <template x-for="(logo, index) in logos" :key="index">
+                    <img 
+                        :src="logo" 
+                        alt="Logo Carousel" 
+                        class="h-12 w-auto transition-opacity duration-700"
+                        :class="{ 'opacity-100': index === current, 'opacity-0 absolute': index !== current }"
+                    >
+                </template>
             </div>
+
+            <!-- Tombol Tutup (untuk mobile) -->
             <button @click="sidebarOpen = false"
-                    class="lg:hidden p-2 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition-colors">
+                    class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors">
                 <i class="fas fa-times text-lg"></i>
             </button>
         </div>

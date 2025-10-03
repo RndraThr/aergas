@@ -112,7 +112,7 @@ class PhotoApprovalService
                 'uploaded_at'   => now(),
                 'ai_status'     => 'pending',
                 'photo_status'  => 'ai_pending',
-                // Reset rejection fields when photo is replaced
+                // Reset ALL approval fields when photo is replaced
                 'tracer_rejected_at' => null,
                 'tracer_user_id' => null,
                 'tracer_approved_at' => null,
@@ -120,9 +120,19 @@ class PhotoApprovalService
                 'cgp_approved_at' => null,
                 'cgp_user_id' => null,
                 'cgp_notes' => null,
+                'cgp_rejected_at' => null,
                 'rejection_reason' => null,
+                'ai_score' => null,
+                'ai_checks' => null,
+                'ai_notes' => null,
+                'ai_last_checked_at' => null,
             ]
         );
+
+        // Clear module approvals immediately after photo is set to ai_pending
+        // This ensures status changes even before AI validation completes
+        $this->clearModuleApprovals($reffId, $moduleSlug);
+        $this->recalcModule($reffId, $moduleSlug);
 
         $ai = $this->runAiValidationWithPrompt($up['url'], $slotKey, $moduleKey);
 
@@ -150,7 +160,9 @@ class PhotoApprovalService
         $pa->rejection_reason   = $ai['status'] === 'failed' ? $ai['reason'] : null;
         $pa->save();
 
-        // ---------- 8) Recalc status modul, notifikasi, audit ----------
+        // ---------- 8) Recalc status modul after AI validation completes ----------
+        // Note: clearModuleApprovals already called earlier (line 134)
+        // This recalc updates status based on final AI result
         $this->recalcModule($reffId, $moduleSlug);
 
         $this->createAuditLog($uid, 'ai_validation_completed', 'PhotoApproval', $pa->id, $reffId, [
@@ -279,6 +291,15 @@ class PhotoApprovalService
                 'uploaded_at' => now(),
                 'ai_status' => 'pending',
                 'photo_status' => 'draft',
+                // Reset ALL approval fields when photo is replaced
+                'tracer_rejected_at' => null,
+                'tracer_user_id' => null,
+                'tracer_approved_at' => null,
+                'tracer_notes' => null,
+                'cgp_approved_at' => null,
+                'cgp_user_id' => null,
+                'cgp_notes' => null,
+                'cgp_rejected_at' => null,
                 'ai_score' => null,
                 'ai_checks' => null,
                 'ai_notes' => null,
@@ -298,6 +319,10 @@ class PhotoApprovalService
                 Log::warning('file_storage update ai_status failed: '.$e->getMessage());
             }
         }
+
+        // Clear module approvals and recalc status when photo is re-uploaded
+        $this->clearModuleApprovals($reffId, $moduleSlug);
+        $this->recalcModule($reffId, $moduleSlug);
 
         $this->createAuditLog($uploadedBy, 'draft_uploaded', 'PhotoApproval', $pa->id, $reffId, [
             'module' => $moduleKey,
@@ -459,6 +484,7 @@ class PhotoApprovalService
             $pa->update([
                 'cgp_user_id'     => $userId,
                 'cgp_approved_at' => null,
+                'cgp_rejected_at' => now(),
                 'cgp_notes'       => $reason,
                 'photo_status'    => 'cgp_rejected',
                 'rejection_reason'=> $reason,
@@ -480,6 +506,81 @@ class PhotoApprovalService
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('rejectByCgp failed', ['id' => $photoApprovalId, 'err' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Approve all cgp_pending photos for a module (CGP batch approval)
+     */
+    public function approveModuleByCgp($moduleData, string $module, int $cgpId, ?string $notes = null): array
+    {
+        DB::beginTransaction();
+        try {
+            $cgp = User::findOrFail($cgpId);
+
+            if (!$cgp->isAdmin() && !$cgp->isSuperAdmin() && !$cgp->isCgp()) {
+                throw new Exception('Unauthorized: Only CGP can perform this action');
+            }
+
+            // Get photos with cgp_pending status
+            $photos = PhotoApproval::where('module_name', strtolower($module))
+                ->where('reff_id_pelanggan', $moduleData->reff_id_pelanggan)
+                ->where('photo_status', 'cgp_pending')
+                ->get();
+
+            if ($photos->count() === 0) {
+                throw new Exception('Tidak ada foto yang perlu di-approve');
+            }
+
+            $approved = [];
+
+            foreach ($photos as $photo) {
+                $oldStatus = $photo->photo_status;
+
+                $photo->update([
+                    'cgp_user_id' => $cgpId,
+                    'cgp_approved_at' => now(),
+                    'cgp_notes' => $notes,
+                    'photo_status' => 'cgp_approved'
+                ]);
+
+                $this->createAuditLog($cgpId, 'cgp_approved', 'PhotoApproval', $photo->id, $photo->reff_id_pelanggan, [
+                    'old_status' => $oldStatus,
+                    'new_status' => 'cgp_approved',
+                    'notes' => $notes,
+                    'batch_approval' => true
+                ]);
+
+                $approved[] = $photo->id;
+            }
+
+            // Update module-level CGP approval
+            $moduleData->update([
+                'cgp_approved_at' => now(),
+                'cgp_approved_by' => $cgpId,
+                'cgp_notes' => $notes,
+            ]);
+
+            DB::commit();
+
+            // Recalc module status
+            $this->recalcModule($moduleData->reff_id_pelanggan, $module);
+
+            return [
+                'approved_photos' => $approved,
+                'total_approved' => count($approved),
+                'module_status' => $moduleData->fresh()->module_status
+            ];
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Approve module by CGP failed', [
+                'module' => $module,
+                'module_id' => $moduleData->id ?? null,
+                'cgp_id' => $cgpId,
+                'error' => $e->getMessage()
+            ]);
             throw $e;
         }
     }
@@ -643,6 +744,15 @@ class PhotoApprovalService
                 'ai_last_checked_at' => now(),
                 'photo_status'  => $photoStatus,
                 'rejection_reason' => $rejection,
+                // Reset ALL approval fields when photo is replaced
+                'tracer_rejected_at' => null,
+                'tracer_user_id' => null,
+                'tracer_approved_at' => null,
+                'tracer_notes' => null,
+                'cgp_approved_at' => null,
+                'cgp_user_id' => null,
+                'cgp_notes' => null,
+                'cgp_rejected_at' => null,
             ]
         );
 
@@ -659,7 +769,10 @@ class PhotoApprovalService
             Log::warning('file_storage update ai_status failed: '.$e->getMessage());
         }
 
-        // 5) Recalc status modul & audit
+        // 5) Clear module approvals when photo is re-uploaded
+        $this->clearModuleApprovals($reffId, $moduleSlug);
+
+        // 6) Recalc status modul & audit
         $this->recalcModule($reffId, $moduleSlug);
         $this->createAuditLog($uid, 'upload_saved_without_ai', 'PhotoApproval', $pa->id, $reffId, [
             'module'      => $moduleKey,
@@ -867,6 +980,21 @@ class PhotoApprovalService
             }
         } catch (Exception $e) {
             Log::info('recalcModule soft-failed', ['err' => $e->getMessage()]);
+        }
+    }
+
+    private function clearModuleApprovals(string $reffId, string $moduleSlug): void
+    {
+        try {
+            $class = $this->resolveModuleModelClass($moduleSlug);
+            if (!$class) return;
+
+            $m = $class::where('reff_id_pelanggan', $reffId)->first();
+            if ($m && method_exists($m, 'clearModuleApprovals')) {
+                $m->clearModuleApprovals();
+            }
+        } catch (Exception $e) {
+            Log::info('clearModuleApprovals soft-failed', ['err' => $e->getMessage()]);
         }
     }
 
@@ -1103,32 +1231,39 @@ class PhotoApprovalService
         try {
             $tracer = User::findOrFail($tracerId);
 
-            if (!$tracer->isAdmin() && !$tracer->isSuperAdmin()) {
+            if (!$tracer->isAdmin() && !$tracer->isSuperAdmin() && !$tracer->isTracer()) {
                 throw new Exception('Unauthorized: Only Admin can perform this action');
             }
 
             $oldStatus = $photo->photo_status;
-            
+
+            // Set to tracer_approved first (will be promoted to cgp_pending only if ALL required photos are uploaded and approved)
             $photo->update([
                 'tracer_user_id' => $tracerId,
                 'tracer_approved_at' => now(),
                 'tracer_notes' => $notes,
-                'photo_status' => 'cgp_pending' // Change to cgp_pending so it appears in CGP queue
+                'photo_status' => 'tracer_approved'
             ]);
 
             $this->createAuditLog($tracerId, 'tracer_approved', 'PhotoApproval', $photo->id, $photo->reff_id_pelanggan, [
                 'old_status' => $oldStatus,
-                'new_status' => 'cgp_pending',
+                'new_status' => 'tracer_approved',
                 'notes' => $notes
             ]);
 
             DB::commit();
-            
-            // Update module status (skip for jalur modules as they don't have customer association)
+
+            // Update module status and auto-promote to cgp_pending if all required photos are approved
             if (!in_array($photo->module_name, ['jalur_lowering', 'jalur_joint'])) {
                 $this->recalcModule($photo->reff_id_pelanggan, $photo->module_name);
+
+                // Check if ALL required photos are now tracer-approved and uploaded
+                $moduleData = $this->getModuleDataByReffAndType($photo->reff_id_pelanggan, $photo->module_name);
+                if ($moduleData) {
+                    $this->promoteToCgpPendingIfReady($moduleData, $photo->module_name);
+                }
             }
-            
+
             return $photo->fresh();
 
         } catch (Exception $e) {
@@ -1151,7 +1286,7 @@ class PhotoApprovalService
         try {
             $tracer = User::findOrFail($tracerId);
 
-            if (!$tracer->isAdmin() && !$tracer->isSuperAdmin()) {
+            if (!$tracer->isAdmin() && !$tracer->isSuperAdmin() && !$tracer->isTracer()) {
                 throw new Exception('Unauthorized: Only Admin can perform this action');
             }
 
@@ -1204,34 +1339,35 @@ class PhotoApprovalService
         try {
             $tracer = User::findOrFail($tracerId);
 
-            if (!$tracer->isAdmin() && !$tracer->isSuperAdmin()) {
+            if (!$tracer->isAdmin() && !$tracer->isSuperAdmin() && !$tracer->isTracer()) {
                 throw new Exception('Unauthorized: Only Admin can perform this action');
             }
 
+            // Get photos that need to be approved (not yet tracer-approved)
             $photos = PhotoApproval::where('module_name', strtolower($module))
                 ->where('reff_id_pelanggan', $moduleData->reff_id_pelanggan)
                 ->whereNull('tracer_approved_at')
                 ->get();
 
             if ($photos->count() === 0) {
-                throw new Exception('No photos found to approve');
+                throw new Exception('Semua foto sudah di-approve');
             }
 
             $approved = [];
 
             foreach ($photos as $photo) {
                 $oldStatus = $photo->photo_status;
-                
+
                 $photo->update([
                     'tracer_user_id' => $tracerId,
                     'tracer_approved_at' => now(),
                     'tracer_notes' => $notes,
-                    'photo_status' => 'cgp_pending' // Change to cgp_pending so it appears in CGP queue
+                    'photo_status' => 'tracer_approved' // Set to tracer_approved first
                 ]);
 
                 $this->createAuditLog($tracerId, 'tracer_approved', 'PhotoApproval', $photo->id, $photo->reff_id_pelanggan, [
                     'old_status' => $oldStatus,
-                    'new_status' => 'cgp_pending',
+                    'new_status' => 'tracer_approved',
                     'notes' => $notes,
                     'batch_approval' => true
                 ]);
@@ -1239,23 +1375,18 @@ class PhotoApprovalService
                 $approved[] = $photo->id;
             }
 
-            // Update module status
-            $moduleData->update([
-                'tracer_approved_at' => now(),
-                'tracer_approved_by' => $tracerId,
-                'tracer_notes' => $notes,
-                'module_status' => 'tracer_approved'
-            ]);
-
             DB::commit();
-            
-            // Recalc overall status
+
+            // Recalc module status
             $this->recalcModule($moduleData->reff_id_pelanggan, $module);
+
+            // Auto-promote to cgp_pending if all required photos are now approved
+            $this->promoteToCgpPendingIfReady($moduleData, $module);
 
             return [
                 'approved_photos' => $approved,
                 'total_approved' => count($approved),
-                'module_status' => 'tracer_approved'
+                'module_status' => $moduleData->fresh()->module_status
             ];
 
         } catch (Exception $e) {
@@ -1267,6 +1398,143 @@ class PhotoApprovalService
                 'error' => $e->getMessage()
             ]);
             throw $e;
+        }
+    }
+
+    /**
+     * Reject entire module by tracer (for incomplete/missing required photos)
+     */
+    public function rejectModuleByTracer($moduleData, string $module, int $tracerId, ?string $notes = null): array
+    {
+        DB::beginTransaction();
+        try {
+            $tracer = User::findOrFail($tracerId);
+
+            if (!$tracer->isAdmin() && !$tracer->isSuperAdmin() && !$tracer->isTracer()) {
+                throw new Exception('Unauthorized: Only Admin/Tracer can perform this action');
+            }
+
+            // Mark module as rejected
+            $moduleData->update([
+                'tracer_approved_at' => null,
+                'tracer_approved_by' => null,
+                'tracer_notes' => $notes,
+                'module_status' => 'rejected',
+                'overall_photo_status' => 'rejected'
+            ]);
+
+            // Create audit log for module rejection
+            $this->createAuditLog($tracerId, 'module_rejected_by_tracer', get_class($moduleData), $moduleData->id, $moduleData->reff_id_pelanggan, [
+                'module' => $module,
+                'reason' => 'incomplete_photos',
+                'notes' => $notes
+            ]);
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'module_status' => 'rejected',
+                'message' => 'Module rejected due to incomplete/missing required photos'
+            ];
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Reject module by tracer failed', [
+                'module' => $module,
+                'module_id' => $moduleData->id ?? null,
+                'tracer_id' => $tracerId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Auto-promote all photos to cgp_pending if ALL required photos are uploaded and tracer-approved
+     */
+    private function promoteToCgpPendingIfReady($moduleData, string $module): void
+    {
+        try {
+            $requiredPhotos = $moduleData->getRequiredPhotos();
+
+            // Get all photos for this module
+            $photos = PhotoApproval::where('module_name', strtolower($module))
+                ->where('reff_id_pelanggan', $moduleData->reff_id_pelanggan)
+                ->get();
+
+            // Check only REQUIRED photos
+            $requiredPhotosUploaded = $photos->whereIn('photo_field_name', $requiredPhotos);
+
+            // Get list of required photos that have tracer_approved_at (regardless of current status)
+            $requiredPhotosWithTracerApproval = $requiredPhotosUploaded
+                ->whereNotNull('tracer_approved_at')
+                ->pluck('photo_field_name')
+                ->toArray();
+
+            // Check if ALL required photos are uploaded
+            $uploadedRequiredPhotos = $requiredPhotosUploaded->pluck('photo_field_name')->toArray();
+            $allRequiredUploaded = empty(array_diff($requiredPhotos, $uploadedRequiredPhotos));
+
+            // Check if ALL required photos have tracer approval
+            $allRequiredTracerApproved = empty(array_diff($requiredPhotos, $requiredPhotosWithTracerApproval));
+
+            Log::info('promoteToCgpPendingIfReady check', [
+                'module' => $module,
+                'reff_id' => $moduleData->reff_id_pelanggan,
+                'required_photos' => $requiredPhotos,
+                'uploaded_required' => $uploadedRequiredPhotos,
+                'tracer_approved_required' => $requiredPhotosWithTracerApproval,
+                'all_uploaded' => $allRequiredUploaded,
+                'all_tracer_approved' => $allRequiredTracerApproved,
+            ]);
+
+            if ($allRequiredUploaded && $allRequiredTracerApproved) {
+                // Promote all tracer_approved photos to cgp_pending (including optional photos if any)
+                $updated = PhotoApproval::where('module_name', strtolower($module))
+                    ->where('reff_id_pelanggan', $moduleData->reff_id_pelanggan)
+                    ->where('photo_status', 'tracer_approved')
+                    ->update(['photo_status' => 'cgp_pending']);
+
+                Log::info('Auto-promoted to cgp_pending', [
+                    'module' => $module,
+                    'reff_id' => $moduleData->reff_id_pelanggan,
+                    'photos_updated' => $updated
+                ]);
+
+                // Recalc module status to update to cgp_review
+                $this->recalcModule($moduleData->reff_id_pelanggan, $module);
+            } else {
+                Log::info('Not ready for cgp_pending promotion', [
+                    'module' => $module,
+                    'reff_id' => $moduleData->reff_id_pelanggan,
+                    'reason' => !$allRequiredUploaded ? 'missing_uploads' : 'missing_approvals'
+                ]);
+            }
+        } catch (Exception $e) {
+            Log::warning('Failed to auto-promote to cgp_pending', [
+                'module' => $module,
+                'reff_id' => $moduleData->reff_id_pelanggan ?? null,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get module data by reff_id and module type
+     */
+    private function getModuleDataByReffAndType(string $reffId, string $module)
+    {
+        try {
+            return match(strtolower($module)) {
+                'sk' => \App\Models\SkData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
+                'sr' => \App\Models\SrData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
+                'gas_in' => \App\Models\GasInData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
+                default => null
+            };
+        } catch (Exception $e) {
+            Log::error('Failed to get module data', ['module' => $module, 'reff_id' => $reffId]);
+            return null;
         }
     }
 

@@ -236,6 +236,11 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 ->whereNumber('sk')
                 ->name('berita-acara');
 
+            // Rejection Details
+            Route::get('/{sk}/rejection-details', [SkDataController::class, 'getRejectionDetails'])
+                ->whereNumber('sk')
+                ->name('rejection-details');
+
             // Find by Reference ID
             Route::get('/by-reff/{reffId}', [SkDataController::class, 'redirectByReff'])
                 ->where('reffId', '[A-Za-z0-9\-]+')
@@ -300,6 +305,11 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 ->whereNumber('sr')
                 ->name('berita-acara');
 
+            // Rejection Details
+            Route::get('/{sr}/rejection-details', [SrDataController::class, 'getRejectionDetails'])
+                ->whereNumber('sr')
+                ->name('rejection-details');
+
             // Find by Reference ID
             Route::get('/by-reff/{reffId}', [SrDataController::class, 'redirectByReff'])
                 ->where('reffId', '[A-Za-z0-9\-]+')
@@ -326,6 +336,9 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::delete('/{gasIn}', [GasInDataController::class, 'destroy'])
                 ->whereNumber('gasIn')
                 ->name('destroy');
+            Route::get('/{gasIn}/rejection-details', [GasInDataController::class, 'getRejectionDetails'])
+                ->whereNumber('gasIn')
+                ->name('rejection-details');
 
             // Photo Management - DIPERBAIKI: gunakan GasInDataController
             Route::post('/photos/precheck-generic', [GasInDataController::class, 'precheckGeneric'])->name('photos.precheck-generic');
@@ -605,7 +618,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
     // Tracer Approval Interface Routes (untuk role admin sebagai Tracer Internal)
     Route::prefix('approvals/tracer')
         ->name('approvals.tracer.')
-        ->middleware('role:admin,super_admin')
+        ->middleware('role:tracer,admin,super_admin')
         ->group(function () {
             Route::get('/', [TracerApprovalController::class, 'index'])->name('index');
             Route::get('/customers', [TracerApprovalController::class, 'customers'])->name('customers');
@@ -617,6 +630,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             // Photo Actions
             Route::post('/photos/approve', [TracerApprovalController::class, 'approvePhoto'])->name('approve-photo');
             Route::post('/modules/approve', [TracerApprovalController::class, 'approveModule'])->name('approve-module');
+            Route::post('/modules/reject', [TracerApprovalController::class, 'rejectModule'])->name('reject-module');
             Route::post('/ai-review', [TracerApprovalController::class, 'aiReview'])->name('ai-review');
 
         });

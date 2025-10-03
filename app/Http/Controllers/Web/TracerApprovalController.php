@@ -22,7 +22,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('auth'),
-            new Middleware('role:admin,super_admin'), // Tracer Review menggunakan role admin
+            new Middleware('role:tracer,admin,super_admin'), // Tracer Review menggunakan role admin
         ];
     }
 
@@ -309,6 +309,10 @@ class TracerApprovalController extends Controller implements HasMiddleware
             }
 
             $moduleData = $this->getModuleData($reffId, $module);
+            if (!$moduleData) {
+                throw new Exception('Data module tidak ditemukan');
+            }
+
             $result = $this->photoApprovalService->approveModuleByTracer(
                 $moduleData,
                 $module,
@@ -327,6 +331,55 @@ class TracerApprovalController extends Controller implements HasMiddleware
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Approve module error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject module (for incomplete/missing required photos)
+     */
+    public function rejectModule(Request $request)
+    {
+        $request->validate([
+            'reff_id' => 'required|string',
+            'module' => 'required|in:sk,sr,gas_in',
+            'notes' => 'nullable|string|max:1000'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $reffId = $request->get('reff_id');
+            $module = $request->get('module');
+            $notes = $request->get('notes', 'Module rejected: Foto wajib belum lengkap');
+
+            $moduleData = $this->getModuleData($reffId, $module);
+            if (!$moduleData) {
+                throw new Exception('Data module tidak ditemukan');
+            }
+
+            $result = $this->photoApprovalService->rejectModuleByTracer(
+                $moduleData,
+                $module,
+                Auth::id(),
+                $notes
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Module {$module} telah di-reject. Petugas lapangan harus melengkapi foto yang kurang.",
+                'data' => $result
+            ]);
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Reject module error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -369,44 +422,74 @@ class TracerApprovalController extends Controller implements HasMiddleware
             'current_step' => 'sk',
             'sk_completed' => false,
             'sk_locked' => false,
+            'sk_rejected' => false,
             'sr_available' => false,
-            'sr_completed' => false, 
+            'sr_completed' => false,
             'sr_locked' => true,
+            'sr_rejected' => false,
             'gas_in_available' => false,
             'gas_in_completed' => false,
             'gas_in_locked' => true,
+            'gas_in_rejected' => false,
         ];
 
         try {
-            // Check SK photos - completed if any SK photo is tracer_approved or cgp_approved
-            $skPhotos = $customer->photoApprovals->where('module_name', 'sk');
-            if ($skPhotos->isNotEmpty() && $skPhotos->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved'])->isNotEmpty()) {
-                $status['sk_completed'] = true;
-                $status['current_step'] = 'sr';
-                $status['sr_available'] = true;
-                $status['sr_locked'] = false; // SR unlocked
+            // Check SK photos - use module status from database
+            $skData = $customer->skData;
+            if ($skData) {
+                $status['sk_rejected'] = $skData->module_status === 'rejected';
+
+                // SK completed only if module_status is cgp_review or completed
+                if (in_array($skData->module_status, ['cgp_review', 'completed'])) {
+                    $status['sk_completed'] = true;
+                    $status['current_step'] = 'sr';
+                    $status['sr_available'] = true;
+                    $status['sr_locked'] = false;
+                } elseif ($skData->module_status === 'rejected') {
+                    $status['current_step'] = 'sk';
+                } else {
+                    $status['current_step'] = 'sk';
+                }
             }
 
-            // Check SR photos - completed if any SR photo is tracer_approved or cgp_approved  
+            // Check SR photos - use module status from database
             if ($status['sr_available']) {
-                $srPhotos = $customer->photoApprovals->where('module_name', 'sr');
-                if ($srPhotos->isNotEmpty() && $srPhotos->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved'])->isNotEmpty()) {
-                    $status['sr_completed'] = true;
-                    $status['current_step'] = 'gas_in';
-                    $status['gas_in_available'] = true;
-                    $status['gas_in_locked'] = false; // Gas In unlocked
+                $srData = $customer->srData;
+                if ($srData) {
+                    $status['sr_rejected'] = $srData->module_status === 'rejected';
+
+                    // SR completed only if module_status is cgp_review or completed
+                    if (in_array($srData->module_status, ['cgp_review', 'completed'])) {
+                        $status['sr_completed'] = true;
+                        $status['current_step'] = 'gas_in';
+                        $status['gas_in_available'] = true;
+                        $status['gas_in_locked'] = false;
+                    } elseif ($srData->module_status === 'rejected') {
+                        $status['current_step'] = 'sr';
+                    } else {
+                        $status['current_step'] = 'sr';
+                    }
                 }
             }
 
-            // Check Gas In photos - completed if any Gas In photo is tracer_approved or cgp_approved
+            // Check Gas In photos - use module status from database
             if ($status['gas_in_available']) {
-                $gasInPhotos = $customer->photoApprovals->where('module_name', 'gas_in');
-                if ($gasInPhotos->isNotEmpty() && $gasInPhotos->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved'])->isNotEmpty()) {
-                    $status['gas_in_completed'] = true;
-                    $status['current_step'] = 'completed';
+                $gasInData = $customer->gasInData;
+                if ($gasInData) {
+                    $status['gas_in_rejected'] = $gasInData->module_status === 'rejected';
+
+                    // Gas In completed only if module_status is cgp_review or completed
+                    if (in_array($gasInData->module_status, ['cgp_review', 'completed'])) {
+                        $status['gas_in_completed'] = true;
+                        $status['current_step'] = 'completed';
+                    } elseif ($gasInData->module_status === 'rejected') {
+                        $status['current_step'] = 'gas_in';
+                    } else {
+                        $status['current_step'] = 'gas_in';
+                    }
                 }
             }
-            
+
             // Add module-specific status info
             $status['modules'] = [
                 'sk' => $this->getModuleStatus($customer, 'sk'),
@@ -427,7 +510,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
     {
         $moduleData = null;
         $hasData = false;
-        
+
         switch ($module) {
             case 'sk':
                 $moduleData = $customer->skData;
@@ -439,34 +522,40 @@ class TracerApprovalController extends Controller implements HasMiddleware
                 $moduleData = $customer->gasInData;
                 break;
         }
-        
+
         $hasData = !is_null($moduleData);
         $photos = $customer->photoApprovals->where('module_name', $module);
         $hasPhotos = $photos->isNotEmpty();
-        
+
         $photoStatus = null;
         $photoCount = 0;
         $pendingCount = 0;
         $approvedCount = 0;
-        
+        $rejectedCount = 0;
+
         if ($hasPhotos) {
             $photoCount = $photos->count();
-            $pendingCount = $photos->where('photo_status', 'tracer_pending')->count();
-            $approvedCount = $photos->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved'])->count();
-            
-            if ($approvedCount > 0) {
-                $photoStatus = 'has_approved';
+            $rejectedCount = $photos->whereIn('photo_status', ['tracer_rejected', 'cgp_rejected'])->count();
+            $pendingCount = $photos->whereIn('photo_status', ['tracer_pending', 'cgp_pending', 'ai_pending'])->count();
+            $approvedCount = $photos->whereIn('photo_status', ['tracer_approved', 'cgp_approved'])->count();
+
+            // Priority: rejected > pending > approved
+            if ($rejectedCount > 0) {
+                $photoStatus = 'has_rejected';
             } elseif ($pendingCount > 0) {
                 $photoStatus = 'has_pending';
+            } elseif ($approvedCount > 0) {
+                $photoStatus = 'has_approved';
             }
         }
-        
+
         return [
             'has_data' => $hasData,
             'has_photos' => $hasPhotos,
             'photo_count' => $photoCount,
             'pending_count' => $pendingCount,
             'approved_count' => $approvedCount,
+            'rejected_count' => $rejectedCount,
             'photo_status' => $photoStatus,
             'status_text' => $this->getModuleStatusText($hasData, $hasPhotos, $photoStatus)
         ];
@@ -477,16 +566,18 @@ class TracerApprovalController extends Controller implements HasMiddleware
         if (!$hasData) {
             return 'No Data';
         }
-        
+
         if (!$hasPhotos) {
             return 'No Photos';
         }
-        
+
         switch ($photoStatus) {
-            case 'has_approved':
-                return 'Approved';
+            case 'has_rejected':
+                return 'Has Rejections';
             case 'has_pending':
                 return 'Pending Review';
+            case 'has_approved':
+                return 'Approved';
             default:
                 return 'Draft';
         }
@@ -514,23 +605,68 @@ class TracerApprovalController extends Controller implements HasMiddleware
 
         $sequential = $this->getSequentialStatus($customer);
 
-        // SK photos (always available)
-        $photos['sk'] = PhotoApproval::where('module_name', 'sk')
-            ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-            ->orderBy('photo_field_name')
-            ->get();
+        // For each module, get slot completion status which includes ALL slots (uploaded + not uploaded)
+        foreach (['sk', 'sr', 'gas_in'] as $module) {
+            $moduleData = $this->getModuleData($customer->reff_id_pelanggan, $module);
 
-        // SR photos (always show, but mark as locked if not available)
-        $photos['sr'] = PhotoApproval::where('module_name', 'sr')
-            ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-            ->orderBy('photo_field_name')
-            ->get();
+            if ($moduleData) {
+                // Get ALL slots from config (both required and uploaded)
+                $slotCompletion = $moduleData->getSlotCompletionStatus();
 
-        // Gas In photos (always show, but mark as locked if not available)
-        $photos['gas_in'] = PhotoApproval::where('module_name', 'gas_in')
-            ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-            ->orderBy('photo_field_name')
-            ->get();
+                // Get uploaded photos
+                $uploadedPhotos = PhotoApproval::where('module_name', $module)
+                    ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+                    ->with(['tracerUser', 'cgpUser'])
+                    ->get()
+                    ->keyBy('photo_field_name');
+
+                // Build array with ALL slots (uploaded + placeholders for unuploaded required)
+                $allPhotos = [];
+                foreach ($slotCompletion as $slotKey => $slotInfo) {
+                    if (isset($uploadedPhotos[$slotKey])) {
+                        // Photo exists - use actual PhotoApproval model
+                        $allPhotos[] = $uploadedPhotos[$slotKey];
+                    } else {
+                        // Photo not uploaded - create placeholder object
+                        $placeholder = (object) [
+                            'id' => null,
+                            'photo_field_name' => $slotKey,
+                            'photo_url' => null,
+                            'photo_status' => 'missing',
+                            'uploaded_at' => null,
+                            'tracer_approved_at' => null,
+                            'tracer_rejected_at' => null,
+                            'cgp_approved_at' => null,
+                            'cgp_rejected_at' => null,
+                            'ai_approved_at' => null,
+                            'ai_confidence_score' => null,
+                            'ai_notes' => null,
+                            'tracer_notes' => null,
+                            'cgp_notes' => null,
+                            'tracerUser' => null,
+                            'cgpUser' => null,
+                            'is_placeholder' => true,
+                            'slot_label' => $slotInfo['label'],
+                            'is_required' => $slotInfo['required'],
+                        ];
+
+                        // Only show placeholder for required photos
+                        if ($slotInfo['required']) {
+                            $allPhotos[] = $placeholder;
+                        }
+                    }
+                }
+
+                $photos[$module] = $allPhotos;
+            } else {
+                // No module data - just get uploaded photos
+                $photos[$module] = PhotoApproval::where('module_name', $module)
+                    ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+                    ->with(['tracerUser', 'cgpUser'])
+                    ->orderBy('photo_field_name')
+                    ->get();
+            }
+        }
 
         return $photos;
     }

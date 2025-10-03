@@ -97,12 +97,12 @@ class User extends Authenticatable
 
     public function isTracer(): bool
     {
-        return $this->role === 'tracer';
+        return $this->hasRoleInDatabase('tracer');
     }
 
     public function isJalur(): bool
     {
-        return $this->role === 'jalur';
+        return $this->hasRoleInDatabase('jalur');
     }
 
     public function hasRole(string $role): bool

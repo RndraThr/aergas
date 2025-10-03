@@ -228,7 +228,7 @@
 
             <!-- Pagination -->
             <div class="p-6 border-t border-gray-200">
-                {{ $notifications->links() }}
+                {{ $notifications->appends(request()->query())->links('vendor.pagination.alpine-style') }}
             </div>
         @else
             <div class="p-12 text-center">
