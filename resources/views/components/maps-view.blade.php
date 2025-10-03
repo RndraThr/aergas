@@ -467,6 +467,11 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+{{-- Leaflet MarkerCluster Plugin for Performance --}}
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
 {{-- Include Leaflet.draw plugin for drawing tools --}}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
@@ -476,6 +481,7 @@ function mapsComponent() {
     return {
         map: null,
         markers: [],
+        markerClusterGroup: null, // For clustering performance
         customers: [],
         allCustomers: [], // Store all customers for filtering
         searchTerm: '',
@@ -557,6 +563,40 @@ function mapsComponent() {
                     errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
                 }).addTo(this.map);
 
+                // Initialize Marker Cluster Group for better performance
+                this.markerClusterGroup = L.markerClusterGroup({
+                    maxClusterRadius: 80, // Increased radius = more aggressive clustering
+                    spiderfyOnMaxZoom: false, // DISABLE spiderfy to prevent lag
+                    showCoverageOnHover: false,
+                    zoomToBoundsOnClick: true, // Click cluster = zoom in instead of spiderfy
+                    disableClusteringAtZoom: 18, // Only show individual markers at max zoom
+                    chunkedLoading: true,
+                    chunkInterval: 200, // Larger chunks
+                    chunkDelay: 50,
+                    spiderfyDistanceMultiplier: 2, // Spread markers more when spiderfy happens
+                    // Custom cluster icon with count
+                    iconCreateFunction: (cluster) => {
+                        const count = cluster.getChildCount();
+                        let sizeClass = 'marker-cluster-small';
+
+                        if (count > 100) {
+                            sizeClass = 'marker-cluster-large';
+                        } else if (count > 50) {
+                            sizeClass = 'marker-cluster-medium';
+                        }
+
+                        return L.divIcon({
+                            html: `<div><span>${count}</span></div>`,
+                            className: 'marker-cluster ' + sizeClass,
+                            iconSize: L.point(40, 40)
+                        });
+                    },
+                    // Add popup to cluster showing info instead of spiderfy
+                    clusterMouseoverPopup: true
+                });
+
+                this.map.addLayer(this.markerClusterGroup);
+
                 // Load customer data
                 await this.loadCustomers();
 
@@ -586,10 +626,15 @@ function mapsComponent() {
                 const response = await fetch('/dashboard/data?include_coordinates=true');
                 const data = await response.json();
 
+                console.log('Loaded data:', data); // Debug
+
                 if (data.data && data.data.customers) {
+                    // Filter customers with coordinates (data sekarang langsung lat/lng)
                     this.allCustomers = data.data.customers.filter(customer =>
-                        customer.coordinates && customer.coordinates.lat && customer.coordinates.lng
+                        customer.lat && customer.lng
                     );
+
+                    console.log('All customers with coordinates:', this.allCustomers.length); // Debug
 
                     // Initially show all customers
                     this.customers = [...this.allCustomers];
@@ -597,6 +642,7 @@ function mapsComponent() {
                     // Load maps specific stats if available
                     if (data.data.maps_stats) {
                         this.mapsStats = { ...this.mapsStats, ...data.data.maps_stats };
+                        console.log('Maps stats:', this.mapsStats); // Debug
                     }
 
                     // Load filter options if available
@@ -621,39 +667,114 @@ function mapsComponent() {
         },
 
         addMarkersToMap() {
-            // Clear existing markers
-            this.markers.forEach(marker => this.map.removeLayer(marker));
+            // Clear existing markers from cluster group
+            this.markerClusterGroup.clearLayers();
             this.markers = [];
 
-            this.customers.forEach((customer, index) => {
-                if (customer.coordinates) {
-                    const marker = this.createMarker(customer);
-                    this.markers.push(marker);
-                    marker.addTo(this.map);
-                }
-            });
+            console.log('Adding markers to map, customers count:', this.customers.length); // Debug
 
-            // Fit map to show all markers if any exist
-            if (this.markers.length > 0) {
-                const group = new L.featureGroup(this.markers);
-                this.map.fitBounds(group.getBounds().pad(0.1));
-            }
+            // Add markers in batches for better performance
+            const batchSize = 200;
+            let index = 0;
+
+            const addBatch = () => {
+                const batch = this.customers.slice(index, index + batchSize);
+
+                batch.forEach((customer) => {
+                    // Data structure changed: customer.lat & customer.lng (not customer.coordinates)
+                    if (customer.lat && customer.lng) {
+                        const marker = this.createMarker(customer);
+                        this.markers.push(marker);
+                        // Add to cluster group instead of directly to map
+                        this.markerClusterGroup.addLayer(marker);
+                    }
+                });
+
+                index += batchSize;
+
+                // Continue with next batch if there are more customers
+                if (index < this.customers.length) {
+                    requestAnimationFrame(addBatch);
+                } else {
+                    console.log('Markers added to map:', this.markers.length); // Debug
+
+                    // Fit map to show all markers if any exist
+                    if (this.markers.length > 0) {
+                        const bounds = this.markerClusterGroup.getBounds();
+                        if (bounds.isValid()) {
+                            this.map.fitBounds(bounds.pad(0.1));
+                        }
+                    }
+                }
+            };
+
+            addBatch();
         },
 
         createMarker(customer) {
             const color = this.getStatusColor(customer.status);
-            const icon = this.createCustomIcon(color, customer.progress_status);
+            const icon = this.createCustomIcon(color, customer.progress);
 
             const marker = L.marker(
-                [customer.coordinates.lat, customer.coordinates.lng],
+                [customer.lat, customer.lng],
                 { icon: icon }
             );
 
-            // Create popup content
-            const popupContent = this.createPopupContent(customer);
-            marker.bindPopup(popupContent);
+            // Store customer ID for lazy loading
+            marker.customerId = customer.id;
+
+            // LAZY LOADING: Load detail only when marker is clicked
+            marker.on('click', async () => {
+                // Show loading popup first
+                const loadingPopup = `
+                    <div class="p-4 text-center">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-aergas-orange mx-auto mb-2"></div>
+                        <span class="text-sm text-gray-600">Loading detail...</span>
+                    </div>
+                `;
+                marker.bindPopup(loadingPopup).openPopup();
+
+                // Fetch full detail
+                const detail = await this.loadMarkerDetail(customer.id);
+
+                if (detail) {
+                    const popupContent = this.createPopupContent(detail);
+                    marker.bindPopup(popupContent).openPopup();
+                } else {
+                    marker.bindPopup('<div class="p-4 text-red-600">Failed to load detail</div>').openPopup();
+                }
+            });
 
             return marker;
+        },
+
+        // LAZY LOADING: Fetch marker detail on demand
+        async loadMarkerDetail(customerId) {
+            try {
+                // Check cache first
+                if (!this.detailCache) {
+                    this.detailCache = new Map();
+                }
+
+                if (this.detailCache.has(customerId)) {
+                    return this.detailCache.get(customerId);
+                }
+
+                // Fetch from API
+                const response = await fetch(`/dashboard/marker/${customerId}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    // Cache the result
+                    this.detailCache.set(customerId, result.data);
+                    return result.data;
+                }
+
+                return null;
+            } catch (error) {
+                console.error('Error loading marker detail:', error);
+                return null;
+            }
         },
 
         createCustomIcon(color, progressStatus) {
@@ -690,32 +811,42 @@ function mapsComponent() {
             });
         },
 
-        createPopupContent(customer) {
-            const progressBarWidth = customer.progress_percentage || 0;
+        createPopupContent(detail) {
+            const progressBarWidth = detail.progress_percentage || 0;
             const progressColor = progressBarWidth >= 100 ? 'bg-green-500' :
                                 progressBarWidth >= 75 ? 'bg-blue-500' :
                                 progressBarWidth >= 50 ? 'bg-yellow-500' : 'bg-gray-400';
 
+            // Show keterangan only for batal status
+            const keteranganHtml = detail.status === 'batal' ? `
+                <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                    <div class="text-xs font-semibold text-red-700 mb-1">
+                        <i class="fas fa-info-circle mr-1"></i>Alasan Batal:
+                    </div>
+                    <div class="text-xs text-red-600">${detail.keterangan || 'Tanpa keterangan'}</div>
+                </div>
+            ` : '';
+
             return `
                 <div class="p-2 min-w-64">
-                    <div class="font-bold text-gray-900 mb-1">${customer.reff_id}</div>
-                    <div class="text-sm font-medium text-gray-700 mb-2">${customer.title}</div>
+                    <div class="font-bold text-gray-900 mb-1">${detail.reff_id}</div>
+                    <div class="text-sm font-medium text-gray-700 mb-2">${detail.title}</div>
 
                     <div class="text-xs text-gray-600 mb-1">
                         <i class="fas fa-map-marker-alt mr-1"></i>
-                        ${customer.alamat}
+                        ${detail.alamat}
                     </div>
 
                     <div class="flex items-center justify-between text-xs mb-2">
                         <span class="text-gray-500">Status:</span>
-                        <span class="px-2 py-1 rounded text-white" style="background-color: ${this.getStatusColor(customer.status)}">
-                            ${this.getStatusLabel(customer.status)}
+                        <span class="px-2 py-1 rounded text-white" style="background-color: ${this.getStatusColor(detail.status)}">
+                            ${this.getStatusLabel(detail.status)}
                         </span>
                     </div>
 
                     <div class="flex items-center justify-between text-xs mb-2">
                         <span class="text-gray-500">Progress:</span>
-                        <span class="font-medium">${customer.progress_status.toUpperCase()}</span>
+                        <span class="font-medium">${detail.progress_status.toUpperCase()}</span>
                     </div>
 
                     <div class="mb-2">
@@ -729,11 +860,13 @@ function mapsComponent() {
                     </div>
 
                     <div class="text-xs text-gray-500">
-                        Tgl Registrasi: ${customer.tanggal_registrasi || '-'}
+                        Tgl Registrasi: ${detail.tanggal_registrasi || '-'}
                     </div>
 
+                    ${keteranganHtml}
+
                     <div class="mt-2 pt-2 border-t border-gray-200">
-                        <a href="/customers/${customer.id}"
+                        <a href="/customers/${detail.id}"
                            class="text-xs text-aergas-orange hover:text-aergas-orange font-medium">
                             Lihat Detail →
                         </a>
@@ -771,26 +904,25 @@ function mapsComponent() {
 
             const term = this.searchTerm.toLowerCase();
             this.searchResults = this.customers.filter(customer =>
-                customer.reff_id.toLowerCase().includes(term) ||
-                customer.title.toLowerCase().includes(term)
+                customer.reff_id.toLowerCase().includes(term)
             ).slice(0, 10); // Limit to 10 results
 
             this.showSearchResults = true;
         },
 
         selectCustomer(customer) {
-            if (customer.coordinates) {
-                this.map.setView([customer.coordinates.lat, customer.coordinates.lng], 16);
+            if (customer.lat && customer.lng) {
+                this.map.setView([customer.lat, customer.lng], 16);
 
                 // Find and open the marker popup
                 const marker = this.markers.find(m => {
                     const pos = m.getLatLng();
-                    return Math.abs(pos.lat - customer.coordinates.lat) < 0.0001 &&
-                           Math.abs(pos.lng - customer.coordinates.lng) < 0.0001;
+                    return Math.abs(pos.lat - customer.lat) < 0.0001 &&
+                           Math.abs(pos.lng - customer.lng) < 0.0001;
                 });
 
                 if (marker) {
-                    marker.openPopup();
+                    marker.fireEvent('click');
                 }
             }
 
@@ -809,22 +941,11 @@ function mapsComponent() {
 
             // Apply progress filter
             if (this.activeFilters.progress) {
-                filtered = filtered.filter(customer => customer.progress_status === this.activeFilters.progress);
+                filtered = filtered.filter(customer => customer.progress === this.activeFilters.progress);
             }
 
-            // Apply kelurahan filter
-            if (this.activeFilters.kelurahan) {
-                filtered = filtered.filter(customer =>
-                    customer.kelurahan && customer.kelurahan.toLowerCase() === this.activeFilters.kelurahan.toLowerCase()
-                );
-            }
-
-            // Apply padukuhan filter
-            if (this.activeFilters.padukuhan) {
-                filtered = filtered.filter(customer =>
-                    customer.padukuhan && customer.padukuhan.toLowerCase() === this.activeFilters.padukuhan.toLowerCase()
-                );
-            }
+            // Note: Kelurahan & Padukuhan filters removed since we don't load that data initially
+            // User can still search by reff_id
 
             this.customers = filtered;
             this.calculateStatusCounts();
@@ -1957,5 +2078,46 @@ document.addEventListener('click', function(e) {
 .leaflet-interactive:hover {
     filter: brightness(1.1);
     cursor: pointer;
+}
+
+/* Marker Cluster Styles for Performance */
+.marker-cluster-small {
+    background-color: rgba(59, 130, 246, 0.6);
+}
+.marker-cluster-small div {
+    background-color: rgba(59, 130, 246, 0.8);
+}
+
+.marker-cluster-medium {
+    background-color: rgba(245, 158, 11, 0.6);
+}
+.marker-cluster-medium div {
+    background-color: rgba(245, 158, 11, 0.8);
+}
+
+.marker-cluster-large {
+    background-color: rgba(239, 68, 68, 0.6);
+}
+.marker-cluster-large div {
+    background-color: rgba(239, 68, 68, 0.8);
+}
+
+.marker-cluster {
+    background-clip: padding-box;
+    border-radius: 20px;
+}
+.marker-cluster div {
+    width: 30px;
+    height: 30px;
+    margin-left: 5px;
+    margin-top: 5px;
+    text-align: center;
+    border-radius: 15px;
+    font: 12px "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+.marker-cluster span {
+    line-height: 30px;
+    color: white;
+    font-weight: bold;
 }
 </style>
