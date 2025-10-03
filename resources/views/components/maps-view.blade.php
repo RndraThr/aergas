@@ -366,36 +366,36 @@
                     </h4>
                 </div>
 
-                <div class="p-3 space-y-3 overflow-y-auto flex-1">
+                <div class="p-3 space-y-1 overflow-y-auto flex-1">
                 <!-- Status Legend -->
                 <div>
                     <h5 class="font-medium text-xs text-gray-700 mb-2 uppercase tracking-wide">Customer Status</h5>
-                    <div class="space-y-1.5 text-xs">
-                        <div class="flex items-center justify-between">
+                    <div class="text-xs">
+                        <div class="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors" @click="toggleLegendStatus('pending')">
                             <div class="flex items-center">
                                 <div class="w-3 h-3 rounded-full bg-blue-500 mr-2 flex-shrink-0"></div>
-                                <span class="text-gray-700">Pending</span>
+                                <span class="text-gray-700" :class="legendFilters.hiddenStatuses.includes('pending') ? 'line-through opacity-50' : ''">Pending</span>
                             </div>
                             <span class="text-blue-600 font-medium" x-text="(mapsStats.status_counts && mapsStats.status_counts.pending) || 0">0</span>
                         </div>
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors" @click="toggleLegendStatus('lanjut')">
                             <div class="flex items-center">
                                 <div class="w-3 h-3 rounded-full bg-green-500 mr-2 flex-shrink-0"></div>
-                                <span class="text-gray-700">Selesai (Done)</span>
+                                <span class="text-gray-700" :class="legendFilters.hiddenStatuses.includes('lanjut') ? 'line-through opacity-50' : ''">Lanjut</span>
                             </div>
-                            <span class="text-green-600 font-medium" x-text="mapsStats.done || 0">0</span>
+                            <span class="text-green-600 font-medium" x-text="(mapsStats.status_counts && mapsStats.status_counts.lanjut) || 0">0</span>
                         </div>
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors" @click="toggleLegendStatus('in_progress')">
                             <div class="flex items-center">
                                 <div class="w-3 h-3 rounded-full bg-yellow-500 mr-2 flex-shrink-0"></div>
-                                <span class="text-gray-700">Pending Review</span>
+                                <span class="text-gray-700" :class="legendFilters.hiddenStatuses.includes('in_progress') ? 'line-through opacity-50' : ''">In Progress</span>
                             </div>
-                            <span class="text-yellow-600 font-medium" x-text="mapsStats.pending_review || 0">0</span>
+                            <span class="text-yellow-600 font-medium" x-text="(mapsStats.status_counts && mapsStats.status_counts.in_progress) || 0">0</span>
                         </div>
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors" @click="toggleLegendStatus('batal')">
                             <div class="flex items-center">
                                 <div class="w-3 h-3 rounded-full bg-red-500 mr-2 flex-shrink-0"></div>
-                                <span class="text-gray-700">Batal</span>
+                                <span class="text-gray-700" :class="legendFilters.hiddenStatuses.includes('batal') ? 'line-through opacity-50' : ''">Batal</span>
                             </div>
                             <span class="text-red-600 font-medium" x-text="mapsStats.batal || 0">0</span>
                         </div>
@@ -405,36 +405,36 @@
                 <!-- Progress Icons Legend -->
                 <div class="pt-2 border-t border-gray-200">
                     <h5 class="font-medium text-xs text-gray-700 mb-2 uppercase tracking-wide">Progress Icons</h5>
-                    <div class="space-y-1.5 text-xs">
-                        <div class="flex items-center">
+                    <div class="text-xs">
+                        <div class="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors" @click="toggleLegendProgress('validasi')">
                             <div class="w-5 h-5 bg-purple-500 rounded-full mr-2 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-user-check text-white text-[8px]"></i>
                             </div>
-                            <span class="text-gray-700">Validasi</span>
+                            <span class="text-gray-700" :class="legendFilters.hiddenProgress.includes('validasi') ? 'line-through opacity-50' : ''">Validasi</span>
                         </div>
-                        <div class="flex items-center">
+                        <div class="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors" @click="toggleLegendProgress('sk')">
                             <div class="w-5 h-5 bg-orange-500 rounded-full mr-2 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-wrench text-white text-[8px]"></i>
                             </div>
-                            <span class="text-gray-700">SK (Sambungan Kompor)</span>
+                            <span class="text-gray-700" :class="legendFilters.hiddenProgress.includes('sk') ? 'line-through opacity-50' : ''">SK (Sambungan Kompor)</span>
                         </div>
-                        <div class="flex items-center">
+                        <div class="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors" @click="toggleLegendProgress('sr')">
                             <div class="w-5 h-5 bg-blue-500 rounded-full mr-2 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-home text-white text-[8px]"></i>
                             </div>
-                            <span class="text-gray-700">SR (Sambungan Rumah)</span>
+                            <span class="text-gray-700" :class="legendFilters.hiddenProgress.includes('sr') ? 'line-through opacity-50' : ''">SR (Sambungan Rumah)</span>
                         </div>
-                        <div class="flex items-center">
+                        <div class="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors" @click="toggleLegendProgress('gas_in')">
                             <div class="w-5 h-5 bg-red-500 rounded-full mr-2 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-fire text-white text-[8px]"></i>
                             </div>
-                            <span class="text-gray-700">Gas In</span>
+                            <span class="text-gray-700" :class="legendFilters.hiddenProgress.includes('gas_in') ? 'line-through opacity-50' : ''">Gas In</span>
                         </div>
-                        <div class="flex items-center">
+                        <div class="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors" @click="toggleLegendProgress('done')">
                             <div class="w-5 h-5 bg-green-500 rounded-full mr-2 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-check-circle text-white text-[8px]"></i>
                             </div>
-                            <span class="text-gray-700">Done</span>
+                            <span class="text-gray-700" :class="legendFilters.hiddenProgress.includes('done') ? 'line-through opacity-50' : ''">Done</span>
                         </div>
                     </div>
                 </div>
@@ -516,6 +516,10 @@ function mapsComponent() {
             progress: '',
             kelurahan: '',
             padukuhan: ''
+        },
+        legendFilters: {
+            hiddenStatuses: [],
+            hiddenProgress: []
         },
 
         // Drawing tool properties
@@ -683,6 +687,14 @@ function mapsComponent() {
                 batch.forEach((customer) => {
                     // Data structure changed: customer.lat & customer.lng (not customer.coordinates)
                     if (customer.lat && customer.lng) {
+                        // Apply legend filters
+                        if (this.legendFilters.hiddenStatuses.includes(customer.status)) {
+                            return; // Skip this marker
+                        }
+                        if (this.legendFilters.hiddenProgress.includes(customer.progress)) {
+                            return; // Skip this marker
+                        }
+
                         const marker = this.createMarker(customer);
                         this.markers.push(marker);
                         // Add to cluster group instead of directly to map
@@ -1982,6 +1994,32 @@ function mapsComponent() {
         setupDrawingGuidelines() {
             // Show helpful guidelines during drawing
             console.log('Drawing guidelines enabled');
+        },
+
+        toggleLegendStatus(status) {
+            const index = this.legendFilters.hiddenStatuses.indexOf(status);
+            if (index > -1) {
+                // Remove from hidden list (show markers)
+                this.legendFilters.hiddenStatuses.splice(index, 1);
+            } else {
+                // Add to hidden list (hide markers)
+                this.legendFilters.hiddenStatuses.push(status);
+            }
+            // Re-render markers with new filter
+            this.addMarkersToMap();
+        },
+
+        toggleLegendProgress(progress) {
+            const index = this.legendFilters.hiddenProgress.indexOf(progress);
+            if (index > -1) {
+                // Remove from hidden list (show markers)
+                this.legendFilters.hiddenProgress.splice(index, 1);
+            } else {
+                // Add to hidden list (hide markers)
+                this.legendFilters.hiddenProgress.push(progress);
+            }
+            // Re-render markers with new filter
+            this.addMarkersToMap();
         }
     }
 }
