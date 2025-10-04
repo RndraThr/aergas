@@ -565,6 +565,14 @@ class SkDataController extends Controller
         $sk->cgp_approved_by = Auth::id();
         $sk->cgp_notes = $r->input('notes');
         $sk->save();
+
+        // Update customer progress_status to next module (SR)
+        $customer = $sk->calonPelanggan;
+        if ($customer && $customer->progress_status === 'sk') {
+            $customer->progress_status = 'sr';
+            $customer->save();
+        }
+
         $this->audit('approve', $sk, $old, $sk->toArray());
         return response()->json(['success'=>true,'data'=>$sk]);
     }
@@ -611,7 +619,16 @@ class SkDataController extends Controller
         }
         $old = $sk->getOriginal();
         $sk->status = SkData::STATUS_COMPLETED;
+        $sk->module_status = 'completed';
         $sk->save();
+
+        // Update customer progress_status to SR (if still on SK)
+        $customer = $sk->calonPelanggan;
+        if ($customer && $customer->progress_status === 'sk') {
+            $customer->progress_status = 'sr';
+            $customer->save();
+        }
+
         $this->audit('update', $sk, $old, $sk->toArray());
         return response()->json(['success'=>true,'data'=>$sk]);
     }

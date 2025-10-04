@@ -461,6 +461,15 @@ class GasInDataController extends Controller
        $gasIn->cgp_approved_by = Auth::id();
        $gasIn->cgp_notes = $r->input('notes');
        $gasIn->save();
+
+       // Update customer progress_status to done (Gas-In is the last module)
+       $customer = $gasIn->calonPelanggan;
+       if ($customer && $customer->progress_status === 'gas_in') {
+           $customer->progress_status = 'done';
+           $customer->status = 'lanjut'; // Keep status as 'lanjut' (completed successfully)
+           $customer->save();
+       }
+
        $this->audit('approve', $gasIn, $old, $gasIn->toArray());
        return response()->json(['success'=>true,'data'=>$gasIn]);
    }
@@ -547,7 +556,17 @@ class GasInDataController extends Controller
        }
        $old = $gasIn->getOriginal();
        $gasIn->status = GasInData::STATUS_COMPLETED;
+       $gasIn->module_status = 'completed';
        $gasIn->save();
+
+       // Update customer progress_status to done (Gas-In is the last module)
+       $customer = $gasIn->calonPelanggan;
+       if ($customer && $customer->progress_status === 'gas_in') {
+           $customer->progress_status = 'done';
+           $customer->status = 'lanjut'; // Keep status as 'lanjut' (completed successfully)
+           $customer->save();
+       }
+
        $this->audit('update', $gasIn, $old, $gasIn->toArray());
        return response()->json(['success'=>true,'data'=>$gasIn]);
    }

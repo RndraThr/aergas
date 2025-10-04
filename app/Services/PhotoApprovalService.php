@@ -562,15 +562,42 @@ class PhotoApprovalService
                 'cgp_notes' => $notes,
             ]);
 
+            // Update customer progress_status to next module
+            $customer = $moduleData->calonPelanggan;
+            if ($customer) {
+                $moduleLower = strtolower($module);
+
+                if ($moduleLower === 'sk' && $customer->progress_status === 'sk') {
+                    $customer->progress_status = 'sr';
+                    $customer->save();
+                } elseif ($moduleLower === 'sr' && $customer->progress_status === 'sr') {
+                    $customer->progress_status = 'gas_in';
+                    $customer->save();
+                } elseif ($moduleLower === 'gas_in' && $customer->progress_status === 'gas_in') {
+                    $customer->progress_status = 'done';
+                    $customer->status = 'lanjut'; // Mark as successfully completed
+                    $customer->save();
+                }
+            }
+
             DB::commit();
 
             // Recalc module status
             $this->recalcModule($moduleData->reff_id_pelanggan, $module);
 
+            // Refresh module and customer data to get latest status
+            $moduleData->refresh();
+            $customer = $moduleData->calonPelanggan;
+            if ($customer) {
+                $customer->refresh();
+            }
+
             return [
                 'approved_photos' => $approved,
                 'total_approved' => count($approved),
-                'module_status' => $moduleData->fresh()->module_status
+                'module_status' => $moduleData->module_status,
+                'customer_progress_status' => $customer?->progress_status,
+                'customer_status' => $customer?->status,
             ];
 
         } catch (Exception $e) {
