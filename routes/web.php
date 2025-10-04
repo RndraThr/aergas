@@ -85,7 +85,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             ], 500);
         }
     });
-    
+
     Route::middleware('role:admin,super_admin')->group(function () {
         Route::get('/reports', [ReportDashboardController::class, 'index'])->name('reports.dashboard');
     });
@@ -694,6 +694,10 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/coordinates', [ImportController::class, 'formCoordinates'])->name('coordinates.form');
             Route::get('/coordinates/template', [ImportController::class, 'downloadTemplateCoordinates'])->name('coordinates.template');
             Route::post('/coordinates', [ImportController::class, 'importCoordinates'])->name('coordinates.import');
+
+            Route::get('/sk-berita-acara', [ImportController::class, 'formSkBeritaAcara'])->name('sk-berita-acara.form');
+            Route::get('/sk-berita-acara/template', [ImportController::class, 'downloadTemplateSkBeritaAcara'])->name('sk-berita-acara.template');
+            Route::post('/sk-berita-acara', [ImportController::class, 'importSkBeritaAcara'])->name('sk-berita-acara.import');
 
             Route::get('/report', [ImportController::class, 'downloadReport'])->name('report.download');
         });

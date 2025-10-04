@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Imports\CalonPelangganImport;
 use App\Imports\CoordinateImport;
+use App\Imports\SkBeritaAcaraImport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
@@ -187,6 +189,104 @@ class ImportController extends Controller
                 return $this->data[0];
             }
         }, 'template_import_coordinates.xlsx');
+    }
+
+    // =============== SK BERITA ACARA IMPORT METHODS ===============
+
+    public function formSkBeritaAcara()
+    {
+        return view('imports.sk-berita-acara');
+    }
+
+    public function importSkBeritaAcara(Request $request)
+    {
+        $request->validate([
+            'file'               => ['required', 'file', 'mimes:xlsx,xls,csv'],
+            'drive_folder_link'  => ['required', 'string'],
+            'mode'               => ['required', 'in:dry-run,commit'],
+            'heading_row'        => ['nullable', 'integer', 'min:1'],
+            'save_report'        => ['nullable', 'boolean'],
+        ]);
+
+        // Get Drive folder link
+        $driveFolderLink = $request->input('drive_folder_link');
+
+        // Anti-timeout & memory optimization
+        @ini_set('max_execution_time', '0');
+        @set_time_limit(0);
+        DB::connection()->disableQueryLog();
+
+        $dryRun = $request->input('mode') === 'dry-run';
+        $headingRow = (int) $request->input('heading_row', 1);
+
+        try {
+            $import = new SkBeritaAcaraImport($driveFolderLink, $dryRun, $headingRow);
+            Excel::import($import, $request->file('file'));
+
+            $results = $import->getResults();
+
+            if ($request->boolean('save_report')) {
+                $path = 'import-reports/sk-berita-acara-' . now()->format('Ymd_His') . '.json';
+                Storage::disk('local')->put($path, json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                $results['report_path'] = $path;
+            }
+
+            return back()->with('ba_import_results', $results);
+
+        } catch (\Throwable $e) {
+            Log::error('SK Berita Acara import failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->withErrors([
+                'import' => 'Import gagal: ' . $e->getMessage()
+            ])->withInput();
+        }
+    }
+
+    public function downloadTemplateSkBeritaAcara()
+    {
+        $templateData = [
+            [
+                'reff_id',
+                'nama_ba'
+            ],
+            [
+                '442439',
+                '442439'
+            ],
+            [
+                '442432',
+                '442432'
+            ],
+            [
+                '442437',
+                '442437'
+            ]
+        ];
+
+        return Excel::download(new class($templateData) implements
+            \Maatwebsite\Excel\Concerns\FromArray,
+            \Maatwebsite\Excel\Concerns\WithHeadings
+        {
+            private $data;
+
+            public function __construct($data)
+            {
+                $this->data = $data;
+            }
+
+            public function array(): array
+            {
+                return array_slice($this->data, 1);
+            }
+
+            public function headings(): array
+            {
+                return $this->data[0];
+            }
+        }, 'template_import_sk_berita_acara.xlsx');
     }
 
 }
