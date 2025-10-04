@@ -696,25 +696,90 @@ private function generateDateLabels(Carbon $startDate, Carbon $endDate, string $
         // Apply filters
         $this->applyFilters($query, $from, $to, $kelurahan, $padukuhan);
 
-        return $query->select([
-                'reff_id_pelanggan',
-                'nama_pelanggan',
-                'alamat',
-                'kelurahan',
-                'padukuhan',
+        // Return ONLY minimal data for initial load - detail loaded on click (lazy loading)
+        $customers = $query->select([
+                'reff_id_pelanggan', // This is the primary key
                 'latitude',
                 'longitude',
                 'status',
-                'progress_status',
-                'jenis_pelanggan',
-                'tanggal_registrasi'
+                'progress_status'
             ])
-            ->limit(500) // Limit to prevent performance issues
-            ->get()
-            ->map(function ($customer) {
-                return $customer->getMarkerInfo();
+            ->limit(1000) // Increased limit since we're loading minimal data
+            ->get();
+
+        Log::info('Raw customers count from query:', ['count' => $customers->count()]);
+
+        $filtered = $customers->filter(function ($customer) {
+                // Only include customers with valid coordinates
+                return $customer->latitude && $customer->longitude
+                    && $customer->latitude != 0 && $customer->longitude != 0;
             })
+            ->map(function ($customer) {
+                return [
+                    'id' => $customer->reff_id_pelanggan, // Use reff_id as ID
+                    'reff_id' => $customer->reff_id_pelanggan,
+                    'lat' => (float) $customer->latitude,
+                    'lng' => (float) $customer->longitude,
+                    'status' => $customer->status,
+                    'progress' => $customer->progress_status,
+                ];
+            })
+            ->values() // Reset array keys
             ->toArray();
+
+        Log::info('Filtered customers for maps:', ['count' => count($filtered)]);
+
+        return $filtered;
+    }
+
+    /**
+     * Get marker detail on demand (lazy loading)
+     * Called when user clicks on a marker
+     */
+    public function getMarkerDetail(Request $request, $customerId): JsonResponse
+    {
+        try {
+            // findOrFail will use reff_id_pelanggan as primary key
+            $customer = CalonPelanggan::findOrFail($customerId);
+
+            // Get related data efficiently - using correct relation names
+            $skData = $customer->skData()->select('reff_id_pelanggan', 'module_status', 'tanggal_instalasi')->first();
+            $srData = $customer->srData()->select('reff_id_pelanggan', 'module_status', 'tanggal_pemasangan')->first();
+            $gasInData = $customer->gasInData()->select('reff_id_pelanggan', 'module_status', 'tanggal_gas_in')->first();
+
+            // Calculate progress
+            $totalSteps = 3;
+            $completedSteps = 0;
+            if ($skData && $skData->module_status === 'completed') $completedSteps++;
+            if ($srData && $srData->module_status === 'completed') $completedSteps++;
+            if ($gasInData && $gasInData->module_status === 'completed') $completedSteps++;
+            $progressPercentage = round(($completedSteps / $totalSteps) * 100);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $customer->reff_id_pelanggan,
+                    'reff_id' => $customer->reff_id_pelanggan,
+                    'title' => $customer->nama_pelanggan,
+                    'alamat' => $customer->alamat,
+                    'kelurahan' => $customer->kelurahan,
+                    'padukuhan' => $customer->padukuhan,
+                    'status' => $customer->status,
+                    'progress_status' => $customer->progress_status,
+                    'jenis_pelanggan' => $customer->jenis_pelanggan,
+                    'tanggal_registrasi' => $customer->tanggal_registrasi?->format('d M Y'),
+                    'progress_percentage' => $progressPercentage,
+                    'keterangan' => $customer->status === 'batal' ? $customer->keterangan : null, // Show keterangan only for batal status
+                    'coordinates' => [
+                        'lat' => (float) $customer->latitude,
+                        'lng' => (float) $customer->longitude,
+                    ]
+                ]
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error getting marker detail', ['error' => $e->getMessage(), 'customer_id' => $customerId]);
+            return response()->json(['success' => false, 'message' => 'Failed to load marker detail'], 500);
+        }
     }
 
     /**
