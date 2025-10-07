@@ -234,7 +234,47 @@ class SrData extends BaseModuleModel
             'required_items' => $this->getRequiredMaterialItems(),
             'optional_items' => $this->getOptionalMaterialItems(),
             'is_complete' => $this->isMaterialComplete(),
+            'details' => $this->getFormattedMaterialDetails(),
         ];
+    }
+
+    /**
+     * Get formatted material details for reports
+     */
+    public function getFormattedMaterialDetails(): array
+    {
+        $labels = $this->getMaterialLabels();
+        $items = $this->getRequiredMaterialItems();
+
+        $details = [];
+        foreach ($items as $key => $value) {
+            // Skip if value is null, 0, 0.00, or empty
+            if (is_null($value) || $value === 0 || $value === 0.00 || $value === '' || (float)$value == 0) {
+                continue;
+            }
+
+            $label = $labels[$key] ?? ucwords(str_replace('_', ' ', $key));
+            $details[] = [
+                'label' => $label,
+                'value' => $value,
+                'unit' => str_contains($key, 'panjang_') ? 'm' : 'pcs'
+            ];
+        }
+
+        // Add optional non-empty items
+        $optionalItems = $this->getOptionalMaterialItems();
+        foreach ($optionalItems as $key => $value) {
+            if (!is_null($value) && $value !== '' && $value !== 0) {
+                $label = $labels[$key] ?? ucwords(str_replace('_', ' ', $key));
+                $details[] = [
+                    'label' => $label,
+                    'value' => $value,
+                    'unit' => '' // Text fields like jenis_tapping, no_seri, merk
+                ];
+            }
+        }
+
+        return $details;
     }
 
     public function getRequiredMaterialItems(): array

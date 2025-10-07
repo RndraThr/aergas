@@ -110,7 +110,7 @@
 
             <!-- Horizontal Scroll Container -->
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200" style="min-width: 2220px;">
+                <table class="min-w-full divide-y divide-gray-200" style="min-width: 2420px;">
                     <thead class="bg-gray-50 sticky top-0">
                         <tr>
                             <!-- Informasi Pelanggan -->
@@ -118,11 +118,11 @@
                                 INFORMASI PELANGGAN
                             </th>
                             <!-- SK Data -->
-                            <th colspan="5" class="px-4 py-3 text-center text-xs font-bold text-gray-900 uppercase tracking-wider bg-green-100 border-b-2 border-green-200">
+                            <th colspan="6" class="px-4 py-3 text-center text-xs font-bold text-gray-900 uppercase tracking-wider bg-green-100 border-b-2 border-green-200">
                                 DATA SK
                             </th>
                             <!-- SR Data -->
-                            <th colspan="7" class="px-4 py-3 text-center text-xs font-bold text-gray-900 uppercase tracking-wider bg-yellow-100 border-b-2 border-yellow-200">
+                            <th colspan="8" class="px-4 py-3 text-center text-xs font-bold text-gray-900 uppercase tracking-wider bg-yellow-100 border-b-2 border-yellow-200">
                                 DATA SR
                             </th>
                             <!-- Gas In Data -->
@@ -144,6 +144,7 @@
                             <!-- SK Headers -->
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">Tgl Instalasi</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">Material</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">Total Fitting</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">Status</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">Tgl Approval</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">Evidence</th>
@@ -151,6 +152,7 @@
                             <!-- SR Headers -->
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50">Tgl Pemasangan</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50">Material</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50">Total Items</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50">No Seri MGRT</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50">Merk MGRT</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50">Status</th>
@@ -179,9 +181,29 @@
 
                                 <!-- SK Data -->
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="formatDate(customer.sk_data?.tanggal_instalasi)"></td>
-                                <td class="px-3 py-2 text-sm text-gray-900 max-w-xs" x-text="formatMaterial(customer.sk_data?.material_summary)"></td>
+                                <td class="px-2 py-2 text-sm text-gray-900">
+                                    <div class="flex flex-wrap gap-1 max-w-md">
+                                        <template x-if="Array.isArray(formatMaterial(customer.sk_data?.material_summary))">
+                                            <template x-for="item in formatMaterial(customer.sk_data?.material_summary)" :key="item.label">
+                                                <div class="inline-flex items-center px-2 py-1 bg-green-50 text-green-800 rounded text-xs whitespace-nowrap">
+                                                    <span class="font-medium" x-text="formatMaterialLabel(item.label) + ':'"></span>
+                                                    <span class="ml-1 font-semibold" x-text="formatMaterialValue(item.value, item.unit)"></span>
+                                                </div>
+                                            </template>
+                                        </template>
+                                        <template x-if="!Array.isArray(formatMaterial(customer.sk_data?.material_summary))">
+                                            <span x-text="formatMaterial(customer.sk_data?.material_summary)"></span>
+                                        </template>
+                                    </div>
+                                </td>
+                                <td class="px-3 py-2 text-sm text-gray-900 text-center">
+                                    <div class="flex flex-col gap-1">
+                                        <span class="inline-flex items-center justify-center px-3 py-1 bg-green-50 text-green-800 rounded-lg font-semibold text-xs" x-text="(customer.sk_data?.material_summary?.total_fitting || '-') + ' pcs'"></span>
+                                        <span class="inline-flex items-center justify-center px-3 py-1 bg-green-100 text-green-900 rounded-lg font-semibold text-xs" x-text="(customer.sk_data?.material_summary?.pipa_gl_medium || '-') + 'm'"></span>
+                                    </div>
+                                </td>
                                 <td class="px-3 py-2 text-sm">
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800" x-text="customer.sk_data?.status || '-'"></span>
+                                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800" x-text="customer.sk_data?.module_status || '-'"></span>
                                 </td>
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="formatDate(customer.sk_data?.cgp_approved_at)"></td>
                                 <td class="px-3 py-2 text-sm">
@@ -190,7 +212,7 @@
                                             <a :href="getEvidenceUrl(photo)" target="_blank"
                                                class="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200">
                                                 <i class="fas fa-image mr-1"></i>
-                                                <span x-text="photo.slot_type"></span>
+                                                <span x-text="photo.photo_field_name"></span>
                                             </a>
                                         </template>
                                     </div>
@@ -198,11 +220,31 @@
 
                                 <!-- SR Data -->
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="formatDate(customer.sr_data?.tanggal_pemasangan)"></td>
-                                <td class="px-3 py-2 text-sm text-gray-900 max-w-xs" x-text="formatMaterial(customer.sr_data?.material_summary)"></td>
+                                <td class="px-2 py-2 text-sm text-gray-900">
+                                    <div class="flex flex-wrap gap-1 max-w-md">
+                                        <template x-if="Array.isArray(formatMaterial(customer.sr_data?.material_summary))">
+                                            <template x-for="item in formatMaterial(customer.sr_data?.material_summary)" :key="item.label">
+                                                <div class="inline-flex items-center px-2 py-1 bg-yellow-50 text-yellow-800 rounded text-xs whitespace-nowrap">
+                                                    <span class="font-medium" x-text="formatMaterialLabel(item.label) + ':'"></span>
+                                                    <span class="ml-1 font-semibold" x-text="formatMaterialValue(item.value, item.unit)"></span>
+                                                </div>
+                                            </template>
+                                        </template>
+                                        <template x-if="!Array.isArray(formatMaterial(customer.sr_data?.material_summary))">
+                                            <span x-text="formatMaterial(customer.sr_data?.material_summary)"></span>
+                                        </template>
+                                    </div>
+                                </td>
+                                <td class="px-3 py-2 text-sm text-gray-900 text-center">
+                                    <div class="flex flex-col gap-1">
+                                        <span class="inline-flex items-center justify-center px-3 py-1 bg-yellow-50 text-yellow-800 rounded-lg font-semibold text-xs" x-text="(customer.sr_data?.material_summary?.total_items || '-') + ' pcs'"></span>
+                                        <span class="inline-flex items-center justify-center px-3 py-1 bg-yellow-100 text-yellow-900 rounded-lg font-semibold text-xs" x-text="(customer.sr_data?.material_summary?.total_lengths || '-') + 'm'"></span>
+                                    </div>
+                                </td>
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="customer.sr_data?.no_seri_mgrt || '-'"></td>
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="customer.sr_data?.merk_brand_mgrt || '-'"></td>
                                 <td class="px-3 py-2 text-sm">
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800" x-text="customer.sr_data?.status || '-'"></span>
+                                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800" x-text="customer.sr_data?.module_status || '-'"></span>
                                 </td>
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="formatDate(customer.sr_data?.cgp_approved_at)"></td>
                                 <td class="px-3 py-2 text-sm">
@@ -211,7 +253,7 @@
                                             <a :href="getEvidenceUrl(photo)" target="_blank"
                                                class="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200">
                                                 <i class="fas fa-image mr-1"></i>
-                                                <span x-text="photo.slot_type"></span>
+                                                <span x-text="photo.photo_field_name"></span>
                                             </a>
                                         </template>
                                     </div>
@@ -220,7 +262,7 @@
                                 <!-- Gas In Data -->
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="formatDate(customer.gas_in_data?.tanggal_gas_in)"></td>
                                 <td class="px-3 py-2 text-sm">
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800" x-text="customer.gas_in_data?.status || '-'"></span>
+                                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800" x-text="customer.gas_in_data?.module_status || '-'"></span>
                                 </td>
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="formatDate(customer.gas_in_data?.cgp_approved_at)"></td>
                                 <td class="px-3 py-2 text-sm">
@@ -229,7 +271,7 @@
                                             <a :href="getEvidenceUrl(photo)" target="_blank"
                                                class="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200">
                                                 <i class="fas fa-image mr-1"></i>
-                                                <span x-text="photo.slot_type"></span>
+                                                <span x-text="photo.photo_field_name"></span>
                                             </a>
                                         </template>
                                     </div>
@@ -340,25 +382,45 @@ function comprehensiveReport() {
         formatMaterial(materialSummary) {
             if (!materialSummary || typeof materialSummary !== 'object') return '-';
 
-            let summary = [];
+            // Use the new details array for comprehensive breakdown
+            if (materialSummary.details && Array.isArray(materialSummary.details)) {
+                if (materialSummary.details.length === 0) return '-';
 
-            // For SK data
+                // Return array for rendering in template
+                return materialSummary.details;
+            }
+
+            // Fallback to old format
+            let summary = [];
             if (materialSummary.pipa_gl_medium) {
                 summary.push(`Pipa GL: ${materialSummary.pipa_gl_medium}m`);
             }
             if (materialSummary.total_fitting) {
                 summary.push(`${materialSummary.total_fitting} fitting`);
             }
-
-            // For SR data
             if (materialSummary.total_items) {
                 summary.push(`${materialSummary.total_items} items`);
             }
-            if (materialSummary.total_lengths) {
-                summary.push(`${materialSummary.total_lengths}m total`);
-            }
 
-            return summary.length > 0 ? summary.join(', ') : 'Material lengkap';
+            return summary.length > 0 ? summary.join(', ') : '-';
+        },
+
+        formatMaterialLabel(label) {
+            // Shorten label by removing "(Pcs)", "(meter)", etc
+            return label
+                .replace(/\s*\(Pcs\)/gi, '')
+                .replace(/\s*\(meter\)/gi, '')
+                .replace(/Panjang /gi, '')
+                .replace(/Qty /gi, '');
+        },
+
+        formatMaterialValue(value, unit) {
+            if (unit === 'm') {
+                return `${value}m`;
+            } else if (unit === 'pcs') {
+                return value;
+            }
+            return value;
         },
 
         getEvidenceUrl(photo) {

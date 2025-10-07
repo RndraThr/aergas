@@ -211,7 +211,34 @@ class SkData extends BaseModuleModel
             'required_items' => $this->getRequiredMaterialItems(),
             'optional_items' => $this->getOptionalMaterialItems(),
             'is_complete' => $this->isMaterialComplete(),
+            'details' => $this->getFormattedMaterialDetails(),
         ];
+    }
+
+    /**
+     * Get formatted material details for reports
+     */
+    public function getFormattedMaterialDetails(): array
+    {
+        $labels = $this->getMaterialLabels();
+        $items = array_merge($this->getRequiredMaterialItems(), $this->getOptionalMaterialItems());
+
+        $details = [];
+        foreach ($items as $key => $value) {
+            // Skip if value is null, 0, 0.00, or empty
+            if (is_null($value) || $value === 0 || $value === 0.00 || $value === '' || (float)$value == 0) {
+                continue;
+            }
+
+            $label = $labels[$key] ?? ucwords(str_replace('_', ' ', $key));
+            $details[] = [
+                'label' => $label,
+                'value' => $value,
+                'unit' => str_contains($key, 'panjang_') ? 'm' : 'pcs'
+            ];
+        }
+
+        return $details;
     }
 
     public function getRequiredMaterialItems(): array
