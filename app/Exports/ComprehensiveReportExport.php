@@ -56,8 +56,8 @@ class ComprehensiveReportExport implements FromCollection, WithHeadings, WithMap
             $q->where('module_status', 'completed');
         });
 
-        // Apply filters
-        if (!empty($this->filters['search'])) {
+        // Apply filters - FIXED: use same logic as index()
+        if (isset($this->filters['search']) && $this->filters['search']) {
             $search = $this->filters['search'];
             $query->where(function($q) use ($search) {
                 $q->where('nama_pelanggan', 'like', "%{$search}%")
@@ -67,23 +67,23 @@ class ComprehensiveReportExport implements FromCollection, WithHeadings, WithMap
             });
         }
 
-        if (!empty($this->filters['kelurahan'])) {
+        if (isset($this->filters['kelurahan']) && $this->filters['kelurahan']) {
             $query->where('kelurahan', 'like', '%' . $this->filters['kelurahan'] . '%');
         }
 
-        if (!empty($this->filters['padukuhan'])) {
+        if (isset($this->filters['padukuhan']) && $this->filters['padukuhan']) {
             $query->where('padukuhan', 'like', '%' . $this->filters['padukuhan'] . '%');
         }
 
-        if (!empty($this->filters['jenis_pelanggan'])) {
+        if (isset($this->filters['jenis_pelanggan']) && $this->filters['jenis_pelanggan']) {
             $query->where('jenis_pelanggan', $this->filters['jenis_pelanggan']);
         }
 
-        if (!empty($this->filters['start_date'])) {
+        if (isset($this->filters['start_date']) && $this->filters['start_date']) {
             $query->whereDate('tanggal_registrasi', '>=', $this->filters['start_date']);
         }
 
-        if (!empty($this->filters['end_date'])) {
+        if (isset($this->filters['end_date']) && $this->filters['end_date']) {
             $query->whereDate('tanggal_registrasi', '<=', $this->filters['end_date']);
         }
 

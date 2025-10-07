@@ -10,6 +10,7 @@ use App\Models\GasInData;
 use App\Models\PhotoApproval;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ComprehensiveReportController extends Controller
 {
@@ -25,6 +26,13 @@ class ComprehensiveReportController extends Controller
                 'start_date' => $request->input('start_date'),
                 'end_date' => $request->input('end_date'),
             ];
+
+            // CRITICAL FIX: Clean "null" string to actual null
+            foreach ($filters as $key => $value) {
+                if ($value === 'null' || $value === '' || $value === null) {
+                    $filters[$key] = null;
+                }
+            }
 
             // Base query - Only completed customers
             $query = CalonPelanggan::with([
@@ -150,195 +158,25 @@ class ComprehensiveReportController extends Controller
     public function export(Request $request)
     {
         try {
-            $filters = [
-                'search' => $request->input('search'),
-                'kelurahan' => $request->input('kelurahan'),
-                'padukuhan' => $request->input('padukuhan'),
-                'jenis_pelanggan' => $request->input('jenis_pelanggan'),
-                'start_date' => $request->input('start_date'),
-                'end_date' => $request->input('end_date'),
-            ];
+            $filters = $this->prepareFilters($request);
+            $customers = $this->getCustomersForExport($filters);
 
-            // Get data using same query as export class
-            $query = CalonPelanggan::with([
-                'skData',
-                'srData',
-                'gasInData'
-            ])
-            ->where('progress_status', 'done')
-            ->whereHas('skData', function($q) {
-                $q->where('module_status', 'completed');
-            })
-            ->whereHas('srData', function($q) {
-                $q->where('module_status', 'completed');
-            })
-            ->whereHas('gasInData', function($q) {
-                $q->where('module_status', 'completed');
-            });
-
-            // Apply filters
-            if (!empty($filters['search'])) {
-                $search = $filters['search'];
-                $query->where(function($q) use ($search) {
-                    $q->where('nama_pelanggan', 'like', "%{$search}%")
-                      ->orWhere('reff_id_pelanggan', 'like', "%{$search}%")
-                      ->orWhere('alamat', 'like', "%{$search}%")
-                      ->orWhere('no_telepon', 'like', "%{$search}%");
-                });
-            }
-
-            if (!empty($filters['kelurahan'])) {
-                $query->where('kelurahan', 'like', '%' . $filters['kelurahan'] . '%');
-            }
-
-            if (!empty($filters['padukuhan'])) {
-                $query->where('padukuhan', 'like', '%' . $filters['padukuhan'] . '%');
-            }
-
-            if (!empty($filters['jenis_pelanggan'])) {
-                $query->where('jenis_pelanggan', $filters['jenis_pelanggan']);
-            }
-
-            if (!empty($filters['start_date'])) {
-                $query->whereDate('tanggal_registrasi', '>=', $filters['start_date']);
-            }
-
-            if (!empty($filters['end_date'])) {
-                $query->whereDate('tanggal_registrasi', '<=', $filters['end_date']);
-            }
-
-            $customers = $query->latest('tanggal_registrasi')->get();
-
-            // Debug: Check if customers exist
             if ($customers->isEmpty()) {
+                Log::warning('No customers found for export with current filters');
                 return back()->with('error', 'Tidak ada data pelanggan yang sesuai filter');
             }
 
-            \Log::info('Export starting', [
-                'total_customers' => $customers->count(),
-                'first_customer' => $customers->first()?->reff_id_pelanggan,
-                'has_sk' => $customers->first()?->skData ? 'yes' : 'no',
-                'has_sr' => $customers->first()?->srData ? 'yes' : 'no',
-                'has_gasin' => $customers->first()?->gasInData ? 'yes' : 'no',
-            ]);
-
-            // Create Excel using PhpSpreadsheet directly
-            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-            $sheet = $spreadsheet->getActiveSheet();
-
-            // Set headers
-            $headers = $this->getExportHeaders();
-            $col = 'A';
-            foreach ($headers as $header) {
-                $sheet->setCellValue($col . '1', $header);
-                $col++;
-            }
-
-            // Style header row
-            $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
-            $headerStyle = [
-                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
-                'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                    'startColor' => ['rgb' => '1E3A8A']
-                ],
-                'alignment' => [
-                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                    'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
-                    'wrapText' => true
-                ],
-                'borders' => [
-                    'allBorders' => [
-                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                        'color' => ['rgb' => 'FFFFFF']
-                    ]
-                ]
-            ];
-            $sheet->getStyle('A1:' . $lastCol . '1')->applyFromArray($headerStyle);
-
-            // Set header row height
-            $sheet->getRowDimension(1)->setRowHeight(35);
-
-            // Add data
-            $row = 2;
-            foreach ($customers as $customer) {
-                $data = $this->mapCustomerData($customer);
-                $col = 'A';
-                foreach ($data as $value) {
-                    // Convert value to string to handle nulls properly
-                    $cellValue = $value ?? '';
-                    $sheet->setCellValue($col . $row, $cellValue);
-                    $col++;
-                }
-                $row++;
-            }
-
-            // Log for debugging
-            \Log::info('Export generated', [
-                'total_customers' => $customers->count(),
-                'total_rows' => $row - 2,
-                'file_size' => filesize($temp_file)
-            ]);
-
-            // Add borders to all data cells
-            if ($row > 2) {
-                $lastDataRow = $row - 1;
-                $dataStyle = [
-                    'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                            'color' => ['rgb' => 'DDDDDD']
-                        ]
-                    ]
-                ];
-                $sheet->getStyle('A1:' . $lastCol . $lastDataRow)->applyFromArray($dataStyle);
-
-                // Zebra striping for better readability
-                for ($i = 2; $i <= $lastDataRow; $i++) {
-                    if ($i % 2 == 0) {
-                        $sheet->getStyle('A' . $i . ':' . $lastCol . $i)->applyFromArray([
-                            'fill' => [
-                                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                                'startColor' => ['rgb' => 'F9FAFB']
-                            ]
-                        ]);
-                    }
-                }
-            }
-
-            // Auto-size columns with limits
-            for ($i = 1; $i <= count($headers); $i++) {
-                $columnID = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
-                $sheet->getColumnDimension($columnID)->setAutoSize(true);
-            }
-
-            // Freeze panes (freeze first row and first column)
-            $sheet->freezePane('B2');
-
-            // Set active cell to A1 (ensures Excel opens at the beginning)
-            $sheet->setSelectedCells('A1');
-
-            // Generate filename
+            $spreadsheet = $this->generateSpreadsheet($customers);
             $filename = 'Laporan_Lengkap_' . now()->format('Y-m-d_His') . '.xlsx';
 
-            // Create writer and save to temp
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            $temp_file = tempnam(sys_get_temp_dir(), 'excel');
-            $writer->save($temp_file);
-
-            // Ensure file exists and is readable
-            if (!file_exists($temp_file) || filesize($temp_file) === 0) {
-                throw new \Exception('Failed to generate Excel file');
-            }
-
-            // Return as download with explicit headers
-            return response()->download($temp_file, $filename, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                'Cache-Control' => 'max-age=0',
-            ])->deleteFileAfterSend(true);
+            return $this->downloadSpreadsheet($spreadsheet, $filename);
 
         } catch (\Exception $e) {
+            Log::error('Export failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             if (config('app.debug')) {
                 throw $e;
             }
@@ -347,19 +185,267 @@ class ComprehensiveReportController extends Controller
         }
     }
 
+    private function prepareFilters(Request $request): array
+    {
+        $filters = [
+            'search' => $request->input('search'),
+            'kelurahan' => $request->input('kelurahan'),
+            'padukuhan' => $request->input('padukuhan'),
+            'jenis_pelanggan' => $request->input('jenis_pelanggan'),
+            'start_date' => $request->input('start_date'),
+            'end_date' => $request->input('end_date'),
+        ];
+
+        foreach ($filters as $key => $value) {
+            if ($value === 'null' || $value === '' || $value === null) {
+                $filters[$key] = null;
+            }
+        }
+
+        Log::info('Export called with filters:', $filters);
+        return $filters;
+    }
+
+    private function getCustomersForExport(array $filters)
+    {
+        $query = CalonPelanggan::with([
+            'skData',
+            'skData.photoApprovals' => function($q) {
+                $q->where('photo_status', 'cgp_approved')
+                  ->whereNotNull('drive_file_id');
+            },
+            'srData',
+            'srData.photoApprovals' => function($q) {
+                $q->where('photo_status', 'cgp_approved')
+                  ->whereNotNull('drive_file_id');
+            },
+            'gasInData',
+            'gasInData.photoApprovals' => function($q) {
+                $q->where('photo_status', 'cgp_approved')
+                  ->whereNotNull('drive_file_id');
+            }
+        ])
+        ->where('progress_status', 'done')
+        ->whereHas('skData', fn($q) => $q->where('module_status', 'completed'))
+        ->whereHas('srData', fn($q) => $q->where('module_status', 'completed'))
+        ->whereHas('gasInData', fn($q) => $q->where('module_status', 'completed'));
+
+        $this->applyFilters($query, $filters);
+        $customers = $query->latest('tanggal_registrasi')->get();
+
+        Log::info('Export query results:', [
+            'total_customers' => $customers->count(),
+            'first_customer' => $customers->first()?->reff_id_pelanggan,
+        ]);
+
+        return $customers;
+    }
+
+    private function applyFilters($query, array $filters): void
+    {
+        if ($filters['search']) {
+            $search = $filters['search'];
+            $query->where(function($q) use ($search) {
+                $q->where('nama_pelanggan', 'like', "%{$search}%")
+                  ->orWhere('reff_id_pelanggan', 'like', "%{$search}%")
+                  ->orWhere('alamat', 'like', "%{$search}%")
+                  ->orWhere('no_telepon', 'like', "%{$search}%");
+            });
+        }
+
+        if ($filters['kelurahan']) {
+            $query->where('kelurahan', 'like', '%' . $filters['kelurahan'] . '%');
+        }
+
+        if ($filters['padukuhan']) {
+            $query->where('padukuhan', 'like', '%' . $filters['padukuhan'] . '%');
+        }
+
+        if ($filters['jenis_pelanggan']) {
+            $query->where('jenis_pelanggan', $filters['jenis_pelanggan']);
+        }
+
+        if ($filters['start_date']) {
+            $query->whereDate('tanggal_registrasi', '>=', $filters['start_date']);
+        }
+
+        if ($filters['end_date']) {
+            $query->whereDate('tanggal_registrasi', '<=', $filters['end_date']);
+        }
+    }
+
+    private function generateSpreadsheet($customers)
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $headers = $this->getExportHeaders();
+        $this->setHeaders($sheet, $headers);
+        $this->fillData($sheet, $customers);
+        $this->applyStyles($sheet, $headers, $customers->count());
+
+        return $spreadsheet;
+    }
+
+    private function setHeaders($sheet, array $headers): void
+    {
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '1', $header);
+            $col++;
+        }
+
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1E3A8A']
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                'wrapText' => true
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['rgb' => 'FFFFFF']
+                ]
+            ]
+        ];
+
+        $sheet->getStyle('A1:' . $lastCol . '1')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(1)->setRowHeight(35);
+    }
+
+    private function fillData($sheet, $customers): void
+    {
+        // Photo link column indexes (0-based)
+        // SK Photos: columns 23-27 (after 8 customer + 15 SK data)
+        // SR Photos: columns 52-57 (after 8 customer + 15 SK + 5 SK photos + 24 SR data)
+        // GasIn Photos: columns 61-64 (after all above + 3 GasIn data)
+        $photoColumns = [
+            23, 24, 25, 26, 27,  // SK photos
+            52, 53, 54, 55, 56, 57,  // SR photos
+            61, 62, 63, 64  // GasIn photos
+        ];
+
+        $row = 2;
+        foreach ($customers as $customer) {
+            $data = $this->mapCustomerData($customer);
+            $col = 'A';
+
+            foreach ($data as $index => $value) {
+                $cellRef = $col . $row;
+
+                // Check if this is a photo column with valid URL
+                if (in_array($index, $photoColumns) && $value && $value !== '-' && str_starts_with($value, 'http')) {
+                    // Set hyperlink
+                    $sheet->setCellValue($cellRef, 'Lihat Foto');
+                    $sheet->getCell($cellRef)->getHyperlink()->setUrl($value);
+
+                    // Style hyperlink (blue, underlined)
+                    $sheet->getStyle($cellRef)->applyFromArray([
+                        'font' => [
+                            'color' => ['rgb' => '0563C1'],
+                            'underline' => \PhpOffice\PhpSpreadsheet\Style\Font::UNDERLINE_SINGLE
+                        ]
+                    ]);
+                } else {
+                    $sheet->setCellValue($cellRef, $value ?? '');
+                }
+
+                $col++;
+            }
+            $row++;
+        }
+
+        Log::info('Excel data filled', ['total_rows' => $row - 2]);
+    }
+
+    private function applyStyles($sheet, array $headers, int $dataCount): void
+    {
+        if ($dataCount === 0) return;
+
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+        $lastDataRow = $dataCount + 1;
+
+        // Borders
+        $sheet->getStyle('A1:' . $lastCol . $lastDataRow)->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['rgb' => 'DDDDDD']
+                ]
+            ]
+        ]);
+
+        // Zebra striping
+        for ($i = 2; $i <= $lastDataRow; $i++) {
+            if ($i % 2 == 0) {
+                $sheet->getStyle('A' . $i . ':' . $lastCol . $i)->applyFromArray([
+                    'fill' => [
+                        'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => 'F9FAFB']
+                    ]
+                ]);
+            }
+        }
+
+        // Auto-size columns
+        for ($i = 1; $i <= count($headers); $i++) {
+            $columnID = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+            $sheet->getColumnDimension($columnID)->setAutoSize(true);
+        }
+
+        // Freeze panes
+        $sheet->freezePane('B2');
+        $sheet->setSelectedCells('A1');
+    }
+
+    private function downloadSpreadsheet($spreadsheet, string $filename)
+    {
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $temp_file = tempnam(sys_get_temp_dir(), 'excel');
+        $writer->save($temp_file);
+
+        if (!file_exists($temp_file) || filesize($temp_file) === 0) {
+            throw new \Exception('Failed to generate Excel file');
+        }
+
+        Log::info('Export file ready for download', ['filename' => $filename]);
+
+        return response()->download($temp_file, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'max-age=0',
+        ])->deleteFileAfterSend(true);
+    }
+
     private function getExportHeaders(): array
     {
         return [
+            // Customer Info (8 columns)
             'Reff ID', 'Nama Pelanggan', 'Alamat', 'No Telepon', 'Kelurahan', 'Padukuhan', 'Jenis Pelanggan', 'Tgl Registrasi',
+
+            // SK Data (15 columns + 5 photo links)
             'SK - Tgl Instalasi', 'SK - Pipa GL Medium (m)', 'SK - Elbow 1/2"', 'SK - SockDraft 1/2"', 'SK - Ball Valve 1/2"',
             'SK - Nipel Selang 1/2"', 'SK - Elbow Reduce 3/4"x1/2"', 'SK - Long Elbow 3/4"', 'SK - Klem Pipa 1/2"',
             'SK - Double Nipple 1/2"', 'SK - Seal Tape', 'SK - Tee 1/2"', 'SK - Total Fitting (pcs)', 'SK - Status', 'SK - Tgl CGP Approval',
+            'SK - Foto Pneumatic Start', 'SK - Foto Pneumatic Finish', 'SK - Foto Valve', 'SK - Foto Isometrik Scan', 'SK - Foto Berita Acara',
+
+            // SR Data (24 columns + 6 photo links)
             'SR - Tgl Pemasangan', 'SR - Tapping Saddle', 'SR - Coupler 20mm', 'SR - Pipa PE 20mm (m)', 'SR - Elbow 90x20',
             'SR - Transition Fitting', 'SR - Pondasi Tiang (m)', 'SR - Pipa Galvanize 3/4" (m)', 'SR - Klem Pipa',
             'SR - Ball Valve 3/4"', 'SR - Double Nipple 3/4"', 'SR - Long Elbow 3/4"', 'SR - Regulator Service',
             'SR - Coupling MGRT', 'SR - MGRT', 'SR - Casing 1" (m)', 'SR - Sealtape', 'SR - Jenis Tapping',
             'SR - No Seri MGRT', 'SR - Merk MGRT', 'SR - Total Items (pcs)', 'SR - Total Lengths (m)', 'SR - Status', 'SR - Tgl CGP Approval',
-            'GasIn - Tgl Gas In', 'GasIn - Status', 'GasIn - Tgl CGP Approval'
+            'SR - Foto Pneumatic Start', 'SR - Foto Pneumatic Finish', 'SR - Foto Jenis Tapping', 'SR - Foto MGRT', 'SR - Foto Pondasi', 'SR - Foto Isometrik Scan',
+
+            // GasIn Data (3 columns + 4 photo links)
+            'GasIn - Tgl Gas In', 'GasIn - Status', 'GasIn - Tgl CGP Approval',
+            'GasIn - Foto BA Gas In', 'GasIn - Foto Bubble Test', 'GasIn - Foto Regulator', 'GasIn - Foto Kompor Menyala'
         ];
     }
 
@@ -377,6 +463,7 @@ class ComprehensiveReportController extends Controller
         ];
 
         return [
+            // Customer Info
             $customer->reff_id_pelanggan,
             $customer->nama_pelanggan,
             $customer->alamat,
@@ -386,6 +473,7 @@ class ComprehensiveReportController extends Controller
             $jenisMap[$customer->jenis_pelanggan] ?? $customer->jenis_pelanggan,
             $customer->tanggal_registrasi?->format('Y-m-d'),
 
+            // SK Data
             $sk?->tanggal_instalasi?->format('Y-m-d'),
             $sk?->panjang_pipa_gl_medium_m ?? 0,
             $sk?->qty_elbow_1_2_galvanis ?? 0,
@@ -402,6 +490,14 @@ class ComprehensiveReportController extends Controller
             $sk?->module_status ?? '-',
             $sk?->cgp_approved_at?->format('Y-m-d H:i'),
 
+            // SK Photos
+            $this->getPhotoUrl($sk, 'pneumatic_start'),
+            $this->getPhotoUrl($sk, 'pneumatic_finish'),
+            $this->getPhotoUrl($sk, 'valve'),
+            $this->getPhotoUrl($sk, 'isometrik_scan'),
+            $this->getPhotoUrl($sk, 'berita_acara'),
+
+            // SR Data
             $sr?->tanggal_pemasangan?->format('Y-m-d'),
             $sr?->qty_tapping_saddle ?? 0,
             $sr?->qty_coupler_20mm ?? 0,
@@ -427,9 +523,39 @@ class ComprehensiveReportController extends Controller
             $sr?->module_status ?? '-',
             $sr?->cgp_approved_at?->format('Y-m-d H:i'),
 
+            // SR Photos
+            $this->getPhotoUrl($sr, 'pneumatic_start'),
+            $this->getPhotoUrl($sr, 'pneumatic_finish'),
+            $this->getPhotoUrl($sr, 'jenis_tapping'),
+            $this->getPhotoUrl($sr, 'mgrt'),
+            $this->getPhotoUrl($sr, 'pondasi'),
+            $this->getPhotoUrl($sr, 'isometrik_scan'),
+
+            // GasIn Data
             $gasIn?->tanggal_gas_in?->format('Y-m-d'),
             $gasIn?->module_status ?? '-',
             $gasIn?->cgp_approved_at?->format('Y-m-d H:i'),
+
+            // GasIn Photos
+            $this->getPhotoUrl($gasIn, 'ba_gas_in'),
+            $this->getPhotoUrl($gasIn, 'foto_bubble_test'),
+            $this->getPhotoUrl($gasIn, 'foto_regulator'),
+            $this->getPhotoUrl($gasIn, 'foto_kompor_menyala'),
         ];
+    }
+
+    private function getPhotoUrl($moduleData, string $photoFieldName): string
+    {
+        if (!$moduleData || !$moduleData->photoApprovals) {
+            return '-';
+        }
+
+        $photo = $moduleData->photoApprovals->firstWhere('photo_field_name', $photoFieldName);
+
+        if (!$photo || !$photo->drive_file_id) {
+            return '-';
+        }
+
+        return "https://drive.google.com/file/d/{$photo->drive_file_id}/view";
     }
 }
