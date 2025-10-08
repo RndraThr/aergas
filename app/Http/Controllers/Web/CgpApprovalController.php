@@ -75,13 +75,13 @@ class CgpApprovalController extends Controller implements HasMiddleware
                       ->where('photo_status', 'cgp_pending');
                 });
             } else {
-                // Default: show all customers with photos pending CGP approval
+                // Default: show all customers with photos pending CGP approval OR already approved
                 $query->whereHas('photoApprovals', function($q) {
-                    $q->where('photo_status', 'cgp_pending');
+                    $q->whereIn('photo_status', ['cgp_pending', 'cgp_approved']);
                 });
             }
 
-            // Search
+            // Search - apply search filter
             if ($request->filled('search')) {
                 $search = $request->get('search');
                 $query->where(function($q) use ($search) {
@@ -99,10 +99,28 @@ class CgpApprovalController extends Controller implements HasMiddleware
                 return $customer;
             });
 
-            if ($request->ajax()) {
+            if ($request->ajax() || $request->get('ajax')) {
+                // Transform items to include cgp_status
+                $items = $customers->getCollection()->map(function($customer) {
+                    return [
+                        'reff_id_pelanggan' => $customer->reff_id_pelanggan,
+                        'nama_pelanggan' => $customer->nama_pelanggan,
+                        'alamat' => $customer->alamat,
+                        'cgp_status' => $customer->cgp_status ?? $this->getCgpStatus($customer),
+                    ];
+                });
+
                 return response()->json([
                     'success' => true,
-                    'data' => $customers,
+                    'data' => [
+                        'data' => $items,
+                        'current_page' => $customers->currentPage(),
+                        'last_page' => $customers->lastPage(),
+                        'per_page' => $customers->perPage(),
+                        'total' => $customers->total(),
+                        'from' => $customers->firstItem(),
+                        'to' => $customers->lastItem(),
+                    ],
                 ]);
             }
 

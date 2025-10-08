@@ -258,7 +258,7 @@
                                     <div class="flex-1">
                                         <div class="flex items-center justify-between text-sm">
                                             <span x-text="customer.progress_status || 'validasi'"></span>
-                                            <span x-text="(customer.progress_percentage || 0) + '%'"></span>
+                                            <span x-text="formatProgressPercentage(customer.progress_percentage)"></span>
                                         </div>
                                         <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
                                             <div class="bg-gradient-to-r from-aergas-navy to-aergas-orange h-2 rounded-full transition-all duration-300"
@@ -457,7 +457,12 @@ function customersData() {
         loading: false,
 
         init() {
-            this.addProgressPercentage();
+            // Progress percentage now comes from database, no need to calculate
+        },
+
+        formatProgressPercentage(percentage) {
+            if (!percentage || percentage === 0) return '0%';
+            return Math.round(parseFloat(percentage)) + '%';
         },
 
         formatReffId(reffId) {
@@ -483,20 +488,6 @@ function customersData() {
             return jenisMap[jenis] || 'Pengembangan';
         },
 
-        addProgressPercentage() {
-            this.customers.forEach(customer => {
-                customer.progress_percentage = this.calculateProgressPercentage(customer.progress_status);
-                customer.next_available_module = this.getNextAvailableModule(customer);
-            });
-        },
-
-        calculateProgressPercentage(progressStatus) {
-            const steps = ['validasi', 'sk', 'sr', 'gas_in', 'done'];
-            const currentIndex = steps.indexOf(progressStatus);
-            if (currentIndex === -1) return 0;
-            if (progressStatus === 'done') return 100;
-            return Math.round((currentIndex / (steps.length - 1)) * 100);
-        },
 
         getNextAvailableModule(customer) {
             const modules = ['sk', 'sr', 'gas_in'];
@@ -535,7 +526,7 @@ function customersData() {
                         from: data.data.from,
                         to: data.data.to
                     };
-                    this.addProgressPercentage();
+                    // Progress percentage now comes from database
                 }
             } catch (error) {
                 console.error('Error fetching customers:', error);

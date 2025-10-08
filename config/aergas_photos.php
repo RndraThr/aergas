@@ -233,7 +233,7 @@ return [
                 'mgrt' => [
                     'label' => 'Foto MGRT',
                     'accept' => ['image/*'],
-                    'required' => false,
+                    'required' => true,
                     'requires' => ['no_seri_mgrt'],
                     'prompt' => 'Analisis foto MGRT (Meter Gas Rumah Tangga) dengan penilaian SKOR (0-100):
 

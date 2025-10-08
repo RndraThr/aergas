@@ -454,6 +454,12 @@ class PhotoApprovalService
                 $this->checkModuleCompletion($pa->reff_id_pelanggan, $pa->module_name);
                 $this->notificationService->notifyPhotoApproved($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name);
                 $this->telegramService->sendModuleStatusAlert($pa->reff_id_pelanggan, $pa->module_name, 'cgp_review', 'completed', $user->full_name);
+
+                // Update customer incremental progress after CGP approval
+                $customer = CalonPelanggan::where('reff_id_pelanggan', $pa->reff_id_pelanggan)->first();
+                if ($customer) {
+                    $this->updateCustomerProgressIncremental($customer);
+                }
             }
 
             DB::commit();
@@ -562,22 +568,10 @@ class PhotoApprovalService
                 'cgp_notes' => $notes,
             ]);
 
-            // Update customer progress_status to next module
+            // Update customer incremental progress
             $customer = $moduleData->calonPelanggan;
             if ($customer) {
-                $moduleLower = strtolower($module);
-
-                if ($moduleLower === 'sk' && $customer->progress_status === 'sk') {
-                    $customer->progress_status = 'sr';
-                    $customer->save();
-                } elseif ($moduleLower === 'sr' && $customer->progress_status === 'sr') {
-                    $customer->progress_status = 'gas_in';
-                    $customer->save();
-                } elseif ($moduleLower === 'gas_in' && $customer->progress_status === 'gas_in') {
-                    $customer->progress_status = 'done';
-                    $customer->status = 'lanjut'; // Mark as successfully completed
-                    $customer->save();
-                }
+                $this->updateCustomerProgressIncremental($customer);
             }
 
             DB::commit();
@@ -1288,6 +1282,9 @@ class PhotoApprovalService
                 $moduleData = $this->getModuleDataByReffAndType($photo->reff_id_pelanggan, $photo->module_name);
                 if ($moduleData) {
                     $this->promoteToCgpPendingIfReady($moduleData, $photo->module_name);
+
+                    // Update customer progress_status if all photos approved
+                    $this->updateCustomerProgressAfterTracerApproval($moduleData, $photo->module_name);
                 }
             }
 
@@ -1410,10 +1407,13 @@ class PhotoApprovalService
             // Auto-promote to cgp_pending if all required photos are now approved
             $this->promoteToCgpPendingIfReady($moduleData, $module);
 
+            // Progress update removed - only CGP approval affects progress
+
             return [
                 'approved_photos' => $approved,
                 'total_approved' => count($approved),
-                'module_status' => $moduleData->fresh()->module_status
+                'module_status' => $moduleData->fresh()->module_status,
+                'customer_progress_status' => $customer?->fresh()->progress_status
             ];
 
         } catch (Exception $e) {
@@ -1542,6 +1542,120 @@ class PhotoApprovalService
             Log::warning('Failed to auto-promote to cgp_pending', [
                 'module' => $module,
                 'reff_id' => $moduleData->reff_id_pelanggan ?? null,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Calculate incremental progress percentage based on CGP-approved photos
+     * Total 15 required photos across all modules (SK=5, SR=6, Gas_In=4)
+     * Each photo contributes: 100% / 15 = 6.67%
+     */
+    private function calculateIncrementalProgress(string $reffId): float
+    {
+        try {
+            // Count total CGP-approved photos across all modules
+            $cgpApprovedCount = PhotoApproval::where('reff_id_pelanggan', $reffId)
+                ->where('photo_status', 'cgp_approved')
+                ->whereIn('module_name', ['sk', 'sr', 'gas_in'])
+                ->count();
+
+            // Total required photos: SK(5) + SR(6) + Gas_In(4) = 15
+            $totalRequiredPhotos = 15;
+
+            // Calculate percentage (each photo = 6.67%)
+            $progress = ($cgpApprovedCount / $totalRequiredPhotos) * 100;
+
+            // Round to 2 decimal places
+            return round($progress, 2);
+
+        } catch (Exception $e) {
+            Log::error('Failed to calculate incremental progress', [
+                'reff_id' => $reffId,
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
+    }
+
+    /**
+     * Update customer progress based on incremental photo approvals
+     * Progress updates happen per CGP-approved photo
+     * progress_status changes at milestones: 33.33% (SK done), 73.33% (SR done), 100% (Gas In done)
+     */
+    private function updateCustomerProgressIncremental(CalonPelanggan $customer): void
+    {
+        try {
+            $reffId = $customer->reff_id_pelanggan;
+
+            // Calculate current progress percentage
+            $progressPercentage = $this->calculateIncrementalProgress($reffId);
+
+            // Count approved photos per module
+            $skApproved = PhotoApproval::where('reff_id_pelanggan', $reffId)
+                ->where('module_name', 'sk')
+                ->where('photo_status', 'cgp_approved')
+                ->count();
+
+            $srApproved = PhotoApproval::where('reff_id_pelanggan', $reffId)
+                ->where('module_name', 'sr')
+                ->where('photo_status', 'cgp_approved')
+                ->count();
+
+            $gasInApproved = PhotoApproval::where('reff_id_pelanggan', $reffId)
+                ->where('module_name', 'gas_in')
+                ->where('photo_status', 'cgp_approved')
+                ->count();
+
+            // Determine progress_status based on milestone completion
+            $oldProgressStatus = $customer->progress_status;
+            $newProgressStatus = $oldProgressStatus;
+
+            // Milestones:
+            // - SK complete (5/5 photos): progress_status = 'sr'  (33.33%)
+            // - SR complete (6/6 photos): progress_status = 'gas_in' (73.33%)
+            // - Gas In complete (4/4 photos): progress_status = 'done' (100%)
+
+            if ($gasInApproved >= 4 && $srApproved >= 6 && $skApproved >= 5) {
+                // All modules complete
+                $newProgressStatus = 'done';
+                $customer->status = 'lanjut'; // Mark as successfully completed
+            } elseif ($srApproved >= 6 && $skApproved >= 5) {
+                // SK and SR complete, working on Gas In
+                $newProgressStatus = 'gas_in';
+            } elseif ($skApproved >= 5) {
+                // SK complete, working on SR
+                $newProgressStatus = 'sr';
+            } elseif ($customer->validated_at) {
+                // Customer validated, working on SK
+                $newProgressStatus = 'sk';
+            } else {
+                // Not yet validated
+                $newProgressStatus = 'validasi';
+            }
+
+            // Update customer
+            $customer->progress_status = $newProgressStatus;
+            $customer->progress_percentage = $progressPercentage;
+            $customer->save();
+
+            // Log progress update
+            if ($oldProgressStatus !== $newProgressStatus) {
+                Log::info('Customer progress updated after CGP approval', [
+                    'reff_id' => $reffId,
+                    'old_progress_status' => $oldProgressStatus,
+                    'new_progress_status' => $newProgressStatus,
+                    'progress_percentage' => $progressPercentage,
+                    'sk_approved' => $skApproved . '/5',
+                    'sr_approved' => $srApproved . '/6',
+                    'gas_in_approved' => $gasInApproved . '/4'
+                ]);
+            }
+
+        } catch (Exception $e) {
+            Log::error('Failed to update customer incremental progress', [
+                'reff_id' => $customer->reff_id_pelanggan ?? null,
                 'error' => $e->getMessage()
             ]);
         }

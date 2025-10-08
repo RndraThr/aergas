@@ -158,7 +158,7 @@
                   <a :href="`/sk/${row.id}/edit`"
                      class="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                      title="Edit SK">
-                    <i class="fas fa-edit mr-1"></i>Edit
+                    <i class="fas fa-edit mr-1"></i>Perbaiki
                   </a>
                 </template>
                 <template x-if="canEdit(row)">

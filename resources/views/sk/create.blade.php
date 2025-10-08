@@ -488,7 +488,7 @@ function skCreate() {
     reff: @json(request('reff_id', old('reff_id_pelanggan',''))),
     customer: null,
     reffMsg: '',
-    tanggal: new Date().toISOString().slice(0,10),
+    tanggal: '',
     notes: '',
 
     material: {

@@ -699,6 +699,7 @@ private function generateDateLabels(Carbon $startDate, Carbon $endDate, string $
         // Return ONLY minimal data for initial load - detail loaded on click (lazy loading)
         $customers = $query->select([
                 'reff_id_pelanggan', // This is the primary key
+                'nama_pelanggan', // Added for search functionality
                 'latitude',
                 'longitude',
                 'status',
@@ -718,6 +719,7 @@ private function generateDateLabels(Carbon $startDate, Carbon $endDate, string $
                 return [
                     'id' => $customer->reff_id_pelanggan, // Use reff_id as ID
                     'reff_id' => $customer->reff_id_pelanggan,
+                    'title' => $customer->nama_pelanggan, // Added for search and display
                     'lat' => (float) $customer->latitude,
                     'lng' => (float) $customer->longitude,
                     'status' => $customer->status,

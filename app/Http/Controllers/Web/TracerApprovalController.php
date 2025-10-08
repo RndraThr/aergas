@@ -107,10 +107,28 @@ class TracerApprovalController extends Controller implements HasMiddleware
                 }
             });
 
-            if ($request->ajax()) {
+            if ($request->ajax() || $request->get('ajax')) {
+                // Transform items to include sequential_status
+                $items = $customers->getCollection()->map(function($customer) {
+                    return [
+                        'reff_id_pelanggan' => $customer->reff_id_pelanggan,
+                        'nama_pelanggan' => $customer->nama_pelanggan,
+                        'alamat' => $customer->alamat,
+                        'sequential_status' => $customer->sequential_status ?? $this->getSequentialStatus($customer),
+                    ];
+                });
+
                 return response()->json([
                     'success' => true,
-                    'data' => $customers,
+                    'data' => [
+                        'data' => $items,
+                        'current_page' => $customers->currentPage(),
+                        'last_page' => $customers->lastPage(),
+                        'per_page' => $customers->perPage(),
+                        'total' => $customers->total(),
+                        'from' => $customers->firstItem(),
+                        'to' => $customers->lastItem(),
+                    ],
                 ]);
             }
 
