@@ -89,8 +89,14 @@ class OpenAIService
      */
     private function buildImageContent(string $imagePath): array
     {
-        // If it's already a URL, use directly
+        // If it's a URL, check if it's Google Drive and needs conversion
         if (str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://')) {
+            // Google Drive URLs need special handling - download and encode to base64
+            if (str_contains($imagePath, 'drive.google.com')) {
+                return $this->downloadAndEncodeImage($imagePath);
+            }
+
+            // Other URLs - try direct URL (might work for public images)
             return [
                 'type' => 'image_url',
                 'image_url' => ['url' => $imagePath]
@@ -112,6 +118,63 @@ class OpenAIService
                 'url' => "data:{$mimeType};base64,{$base64}"
             ]
         ];
+    }
+
+    /**
+     * Download image from Google Drive and encode to base64
+     * Uses authenticated GoogleDriveService for private files
+     */
+    private function downloadAndEncodeImage(string $driveUrl): array
+    {
+        try {
+            // Extract file ID from Google Drive URL
+            $fileId = null;
+            if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $driveUrl, $matches)) {
+                $fileId = $matches[1];
+            } elseif (preg_match('/id=([a-zA-Z0-9_-]+)/', $driveUrl, $matches)) {
+                $fileId = $matches[1];
+            }
+
+            if (!$fileId) {
+                throw new Exception("Could not extract file ID from Google Drive URL");
+            }
+
+            // Use GoogleDriveService for authenticated download
+            $driveService = app(\App\Services\GoogleDriveService::class);
+            $imageData = $driveService->downloadFileContent($fileId);
+
+            // Detect mime type from content
+            $finfo = new \finfo(FILEINFO_MIME_TYPE);
+            $mimeType = $finfo->buffer($imageData) ?: 'image/jpeg';
+
+            // Validate it's an image
+            if (!str_starts_with($mimeType, 'image/')) {
+                throw new Exception("Downloaded file is not an image (detected: {$mimeType})");
+            }
+
+            $base64 = base64_encode($imageData);
+
+            Log::info('Google Drive image downloaded and encoded', [
+                'file_id' => $fileId,
+                'mime_type' => $mimeType,
+                'size' => strlen($imageData)
+            ]);
+
+            return [
+                'type' => 'image_url',
+                'image_url' => [
+                    'url' => "data:{$mimeType};base64,{$base64}"
+                ]
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Failed to download Google Drive image', [
+                'url' => $driveUrl,
+                'error' => $e->getMessage()
+            ]);
+
+            throw new Exception("Google Drive image download failed: {$e->getMessage()}");
+        }
     }
 
     /**

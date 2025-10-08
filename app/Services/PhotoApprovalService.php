@@ -129,85 +129,41 @@ class PhotoApprovalService
             ]
         );
 
-        // Clear module approvals immediately after photo is set to ai_pending
-        // This ensures status changes even before AI validation completes
+        // Clear module approvals immediately after photo upload
         $this->clearModuleApprovals($reffId, $moduleSlug);
-        $this->recalcModule($reffId, $moduleSlug);
 
-        $ai = $this->runAiValidationWithPrompt($up['url'], $slotKey, $moduleKey);
-
-        // Update FileStorage.ai_status (kalau ada)
-        try {
-            if (!empty($up['file_storage_id'])) {
-                $fs = \App\Models\FileStorage::find($up['file_storage_id']);
-                if ($fs) {
-                    $fs->ai_status = $ai['status'];
-                    $fs->save();
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::warning('file_storage update ai_status failed: '.$e->getMessage());
-        }
-
-        // ---------- 7) Persist hasil AI + transisi status ----------
-        $photoStatus = $ai['status'] === 'passed' ? 'tracer_pending' : 'ai_rejected';
-        $pa->ai_status          = $ai['status'];
-        $pa->ai_score           = $ai['score'] / 100; // Store as decimal (0-1)
-        $pa->ai_notes           = $ai['reason']; // Store the specific reason
-        $pa->ai_checks          = $ai['checks'] ?? [];
-        $pa->ai_last_checked_at = now();
-        $pa->photo_status       = $photoStatus;
-        $pa->rejection_reason   = $ai['status'] === 'failed' ? $ai['reason'] : null;
+        // ---------- 7) Set photo status to tracer_pending (AI Review is optional) ----------
+        // AI validation is now ON-DEMAND via tracer interface, not automatic
+        $pa->photo_status = 'tracer_pending';
         $pa->save();
 
-        // ---------- 8) Recalc status modul after AI validation completes ----------
-        // Note: clearModuleApprovals already called earlier (line 134)
-        // This recalc updates status based on final AI result
+        // ---------- 8) Recalc status modul after upload ----------
         $this->recalcModule($reffId, $moduleSlug);
 
-        $this->createAuditLog($uid, 'ai_validation_completed', 'PhotoApproval', $pa->id, $reffId, [
+        $this->createAuditLog($uid, 'photo_uploaded', 'PhotoApproval', $pa->id, $reffId, [
             'module'      => $moduleKey,
             'slot'        => $slotKey,
-            'result'      => $ai['status'],
-            'ai_score'    => $ai['score'],
-            'ai_reason'   => $ai['reason'],
-            'photoStatus' => $photoStatus,
+            'photo_url'   => $up['url'] ?? '',
+            'drive_id'    => $up['drive_file_id'] ?? null,
         ]);
 
-        if ($ai['status'] === 'passed') {
-            try { $this->notificationService->notifyTracerPhotoPending($reffId, $moduleSlug); } catch (\Throwable) {}
-        } else {
-            try {
-                $this->handlePhotoRejection($pa, 'AI System', $ai['reason']);
-            } catch (\Throwable) {}
-        }
+        // Notify tracer that photo is ready for review
+        try {
+            $this->notificationService->notifyTracerPhotoPending($reffId, $moduleSlug);
+        } catch (\Throwable) {}
 
         // ---------- 9) Return payload ke controller ----------
-        if ($ai['status'] === 'failed') {
-            return [
-                'success'        => false,
-                'message'        => $ai['reason'],
-                'ai_status'      => $ai['status'],
-                'ai_reason'      => $ai['reason'],
-                'preview_url'    => $up['url'] ?? '',
-                'file_storage_id'=> $up['file_storage_id'] ?? null,
-                'module'         => $moduleKey,
-                'reff_id'        => $reffId,
-                'slot'           => $slotKey,
-            ];
-        }
-
         return [
             'success'        => true,
+            'message'        => "Foto {$slotCfg['label']} berhasil di-upload. Menunggu review tracer.",
             'photo_id'       => $pa->id,
-            'ai_status'      => $pa->ai_status,
-            'ai_score'       => $pa->ai_score * 100, // Convert back to percentage
-            'ai_reason'      => $pa->ai_notes,
+            'photo_status'   => $pa->photo_status,
             'preview_url'    => $up['url'] ?? '',
             'file'           => ['disk' => $up['disk'] ?? null, 'path' => $up['path'] ?? null, 'drive_file_id' => $up['drive_file_id'] ?? null],
             'module'         => $moduleKey,
             'reff_id'        => $reffId,
             'slot'           => $slotKey,
+            'slot_label'     => $slotCfg['label'],
         ];
     }
 
@@ -1185,6 +1141,10 @@ class PhotoApprovalService
     /**
      * Run AI Review for all photos in a module
      */
+    /**
+     * Run AI Review for module (on-demand, advisory only)
+     * Does NOT change photo_status - only provides AI insights
+     */
     public function runAIReviewForModule($moduleData, string $module): array
     {
         if (!$moduleData) {
@@ -1193,7 +1153,7 @@ class PhotoApprovalService
 
         $photos = PhotoApproval::where('module_name', strtolower($module))
             ->where('reff_id_pelanggan', $moduleData->reff_id_pelanggan)
-            ->whereNull('ai_approved_at')
+            ->where('photo_status', 'tracer_pending') // Only review photos pending tracer
             ->get();
 
         $results = [];
@@ -1203,18 +1163,25 @@ class PhotoApprovalService
             try {
                 // Run AI analysis on photo
                 $aiResult = $this->runAIAnalysis($photo);
-                
+
+                // Update AI fields only - DO NOT change photo_status
                 $photo->update([
+                    'ai_status' => $aiResult['status'] ?? 'passed',
+                    'ai_score' => ($aiResult['confidence'] ?? 70) / 100, // Store as decimal 0-1
+                    'ai_notes' => $aiResult['notes'] ?? null,
+                    'ai_checks' => $aiResult['checks'] ?? [],
+                    'ai_last_checked_at' => now(),
                     'ai_approved_at' => now(),
                     'ai_confidence_score' => $aiResult['confidence'] ?? 0,
-                    'ai_notes' => $aiResult['notes'] ?? null,
-                    'ai_analysis_result' => $aiResult['detailed_analysis'] ?? null
+                    'ai_validation_result' => $aiResult['detailed_analysis'] ?? null, // Fixed: was ai_analysis_result
+                    // photo_status remains unchanged - tracer still needs to decide
                 ]);
 
                 $results[] = [
                     'photo_id' => $photo->id,
-                    'photo_type' => $photo->photo_field_name,
+                    'photo_field_name' => $photo->photo_field_name,
                     'success' => true,
+                    'ai_status' => $aiResult['status'] ?? 'passed',
                     'confidence' => $aiResult['confidence'] ?? 0,
                     'notes' => $aiResult['notes'] ?? null
                 ];
@@ -1229,7 +1196,7 @@ class PhotoApprovalService
 
                 $results[] = [
                     'photo_id' => $photo->id,
-                    'photo_type' => $photo->photo_field_name,
+                    'photo_field_name' => $photo->photo_field_name,
                     'success' => false,
                     'error' => $e->getMessage()
                 ];
@@ -1701,9 +1668,14 @@ class PhotoApprovalService
                 ]
             );
 
+            // Map OpenAI result to our format
+            $score = isset($result['score']) ? $result['score'] : (($result['confidence'] ?? 0.75) * 100);
+
             return [
-                'confidence' => ($result['confidence'] ?? 0.75) * 100, // Convert to percentage
+                'status' => $result['status'] ?? 'passed', // passed/failed
+                'confidence' => $score,
                 'notes' => $result['reason'] ?? 'AI analysis completed',
+                'checks' => $result['checks'] ?? [],
                 'detailed_analysis' => $result['raw_response'] ?? null
             ];
 
@@ -1713,10 +1685,12 @@ class PhotoApprovalService
                 'error' => $e->getMessage()
             ]);
 
-            // Fallback analysis
+            // Fallback: assume passed with moderate confidence
             return [
+                'status' => 'passed',
                 'confidence' => 70,
-                'notes' => 'Photo appears valid (AI service unavailable)',
+                'notes' => 'AI service unavailable - manual review recommended',
+                'checks' => [],
                 'detailed_analysis' => null
             ];
         }

@@ -378,6 +378,47 @@ class GoogleDriveService
     }
 
     /**
+     * Download file content from Google Drive (for AI analysis)
+     *
+     * @param string $fileId Google Drive file ID
+     * @return string Binary file content
+     * @throws Exception if download fails
+     */
+    public function downloadFileContent(string $fileId): string
+    {
+        if (!$this->initialize()) {
+            throw new Exception('Google Drive service not available: ' . $this->getError());
+        }
+
+        try {
+            $response = $this->drive->files->get($fileId, [
+                'alt' => 'media',
+                'supportsAllDrives' => true,
+            ]);
+
+            $content = $response->getBody()->getContents();
+
+            if (empty($content)) {
+                throw new Exception('Downloaded file is empty');
+            }
+
+            Log::info('File downloaded from Google Drive', [
+                'file_id' => $fileId,
+                'size' => strlen($content)
+            ]);
+
+            return $content;
+
+        } catch (\Throwable $e) {
+            Log::error('Google Drive file download failed', [
+                'file_id' => $fileId,
+                'error' => $e->getMessage()
+            ]);
+            throw new Exception('Failed to download file from Google Drive: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Delete folder by path
      */
     public function deleteFolder(string $folderPath): bool

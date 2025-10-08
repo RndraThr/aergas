@@ -267,16 +267,25 @@
                                         @endif
                                     @else
                                         {{-- Real photo info (existing code) --}}
-                                        <!-- AI Results -->
-                                        @if($photo->ai_approved_at)
-                                        <div class="mb-3 p-2 bg-blue-50 rounded">
-                                            <div class="flex items-center justify-between text-sm">
-                                                <span class="font-medium text-blue-900">AI Analysis</span>
-                                                <span class="text-blue-600">{{ number_format($photo->ai_confidence_score ?? 0, 1) }}%</span>
+                                        <!-- AI Insights (Advisory Only) -->
+                                        @if($photo->ai_last_checked_at)
+                                        <div class="mb-3 p-2 {{ $photo->ai_status === 'passed' ? 'bg-blue-50 border border-blue-200' : 'bg-yellow-50 border border-yellow-200' }} rounded">
+                                            <div class="flex items-center justify-between text-sm mb-1">
+                                                <span class="font-medium {{ $photo->ai_status === 'passed' ? 'text-blue-900' : 'text-yellow-900' }}">
+                                                    🤖 AI Insight
+                                                </span>
+                                                <span class="text-xs {{ $photo->ai_status === 'passed' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800' }} px-2 py-0.5 rounded-full font-medium">
+                                                    {{ number_format(($photo->ai_score ?? $photo->ai_confidence_score ?? 0) * 100, 0) }}%
+                                                </span>
                                             </div>
                                             @if($photo->ai_notes)
-                                                <p class="text-xs text-blue-700 mt-1">{{ $photo->ai_notes }}</p>
+                                                <p class="text-xs {{ $photo->ai_status === 'passed' ? 'text-blue-700' : 'text-yellow-700' }} mt-1">
+                                                    {{ $photo->ai_notes }}
+                                                </p>
                                             @endif
+                                            <p class="text-xs text-gray-500 mt-1 italic">
+                                                ℹ️ Advisory only - tracer decision required
+                                            </p>
                                         </div>
                                     @endif
 
@@ -547,7 +556,9 @@ function aiReviewModule(module) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('AI Review completed successfully!');
+                const processed = data.data?.processed || 0;
+                const total = data.data?.total_photos || 0;
+                alert(`AI Review completed!\n\n✅ Processed: ${processed}/${total} photos\n\nℹ️ Review AI insights below (advisory only)`);
                 location.reload();
             } else {
                 alert('AI Review failed: ' + data.message);
