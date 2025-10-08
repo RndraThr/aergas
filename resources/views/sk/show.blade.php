@@ -531,20 +531,22 @@
 
                 if (strpos($originalUrl, 'drive.google.com') !== false && preg_match('/\/file\/d\/([a-zA-Z0-9-_]+)/', $originalUrl, $matches)) {
                   $fileId = $matches[1];
-                  $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}=w800";
+                  $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
                 }
               @endphp
 
               @if(!$isPdf)
-                <div class="relative group">
+                <div class="relative group photo-clickable"
+                     style="cursor: zoom-in;"
+                     data-photo-url="{{ $photoUrl }}"
+                     data-photo-title="{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}">
                   <img src="{{ $photoUrl }}"
-                       class="w-full h-48 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
+                       class="w-full h-48 object-cover rounded border hover:opacity-90 transition-opacity"
                        alt="Photo {{ $pa->photo_field_name }}"
                        loading="lazy"
-                       onerror="this.onerror=null; this.src='{{ $originalUrl }}'; if(this.onerror) this.style.display='none'; this.nextElementSibling.style.display='block';"
-                       onclick="openImageModal('{{ $photoUrl }}', '{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}')">
+                       onerror="this.onerror=null; this.src='{{ $originalUrl }}'; if(this.onerror) this.style.display='none'; this.nextElementSibling.style.display='block';">
 
-                  <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
                     <i class="fas fa-search-plus text-white text-xl"></i>
                   </div>
 
@@ -655,14 +657,8 @@
   </div>
 </div>
 
-<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center p-4" onclick="closeImageModal()">
-  <div class="relative max-w-4xl max-h-full">
-    <button onclick="closeImageModal()" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300 z-10">
-      <i class="fas fa-times"></i>
-    </button>
-    <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded">
-    <div id="modalTitle" class="absolute bottom-4 left-4 text-white bg-black bg-opacity-50 px-3 py-1 rounded"></div>
-  </div>
+<div id="imageModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; cursor: zoom-out;" onclick="closeImageModal()">
+  <img id="modalImage" src="" alt="" style="max-width: 90%; max-height: 90%; margin: auto; display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
 </div>
 @endsection
 
@@ -822,22 +818,32 @@ function skShow() {
   }
 }
 
-function openImageModal(imageUrl, title) {
+function openImageModal(imageUrl) {
   const modal = document.getElementById('imageModal');
   const modalImage = document.getElementById('modalImage');
-  const modalTitle = document.getElementById('modalTitle');
 
   modalImage.src = imageUrl;
-  modalTitle.textContent = title;
-  modal.classList.remove('hidden');
+  modal.style.display = 'block';
   document.body.style.overflow = 'hidden';
 }
 
 function closeImageModal() {
   const modal = document.getElementById('imageModal');
-  modal.classList.add('hidden');
+  modal.style.display = 'none';
   document.body.style.overflow = 'auto';
 }
+
+// Add click event listeners to all photo images
+document.addEventListener('DOMContentLoaded', function() {
+  const photoImages = document.querySelectorAll('.photo-clickable');
+
+  photoImages.forEach(function(img) {
+    img.addEventListener('click', function() {
+      const photoUrl = this.getAttribute('data-photo-url');
+      openImageModal(photoUrl);
+    });
+  });
+});
 
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {

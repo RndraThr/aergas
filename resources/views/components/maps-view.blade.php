@@ -118,10 +118,14 @@
                      class="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-[9999] max-h-60 overflow-y-auto">
                     <template x-for="customer in searchResults" :key="customer.id">
                         <div @click="selectCustomer(customer)"
-                             class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
-                            <div class="font-medium text-gray-900" x-text="customer.reff_id"></div>
-                            <div class="text-sm text-gray-600" x-text="customer.title"></div>
-                            <div class="text-xs text-gray-500" x-text="customer.alamat"></div>
+                             class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors">
+                            <div class="font-medium text-gray-900" x-text="customer.reff_id + ' - ' + (customer.title || 'N/A')"></div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                <span class="inline-block px-2 py-1 rounded-full text-xs"
+                                      :class="customer.status === 'lanjut' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                                      x-text="customer.status"></span>
+                                <span class="ml-2" x-text="customer.progress || 'validasi'"></span>
+                            </div>
                         </div>
                     </template>
                 </div>
@@ -739,21 +743,37 @@ function mapsComponent() {
             marker.on('click', async () => {
                 // Show loading popup first
                 const loadingPopup = `
-                    <div class="p-4 text-center">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-aergas-orange mx-auto mb-2"></div>
-                        <span class="text-sm text-gray-600">Loading detail...</span>
+                    <div style="padding: 16px; text-align: center; width: 280px;">
+                        <div style="width: 32px; height: 32px; border: 2px solid #F97316; border-top-color: transparent; border-radius: 50%; margin: 0 auto 8px; animation: spin 1s linear infinite;"></div>
+                        <span style="font-size: 13px; color: #4B5563;">Loading detail...</span>
                     </div>
                 `;
-                marker.bindPopup(loadingPopup).openPopup();
+                marker.bindPopup(loadingPopup, {
+                    maxWidth: 300,
+                    minWidth: 280,
+                    className: 'marker-popup-container',
+                    autoPan: true,
+                    keepInView: true
+                }).openPopup();
 
                 // Fetch full detail
                 const detail = await this.loadMarkerDetail(customer.id);
 
                 if (detail) {
                     const popupContent = this.createPopupContent(detail);
-                    marker.bindPopup(popupContent).openPopup();
+                    marker.bindPopup(popupContent, {
+                        maxWidth: 300,
+                        minWidth: 280,
+                        className: 'marker-popup-container',
+                        autoPan: true,
+                        keepInView: true
+                    }).openPopup();
                 } else {
-                    marker.bindPopup('<div class="p-4 text-red-600">Failed to load detail</div>').openPopup();
+                    marker.bindPopup('<div style="padding: 16px; color: #DC2626; width: 280px;">Failed to load detail</div>', {
+                        maxWidth: 300,
+                        minWidth: 280,
+                        className: 'marker-popup-container'
+                    }).openPopup();
                 }
             });
 
@@ -825,61 +845,61 @@ function mapsComponent() {
 
         createPopupContent(detail) {
             const progressBarWidth = detail.progress_percentage || 0;
-            const progressColor = progressBarWidth >= 100 ? 'bg-green-500' :
-                                progressBarWidth >= 75 ? 'bg-blue-500' :
-                                progressBarWidth >= 50 ? 'bg-yellow-500' : 'bg-gray-400';
+            const progressColorBg = progressBarWidth >= 100 ? '#10B981' :
+                                progressBarWidth >= 75 ? '#3B82F6' :
+                                progressBarWidth >= 50 ? '#F59E0B' : '#9CA3AF';
 
             // Show keterangan only for batal status
             const keteranganHtml = detail.status === 'batal' ? `
-                <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                    <div class="text-xs font-semibold text-red-700 mb-1">
-                        <i class="fas fa-info-circle mr-1"></i>Alasan Batal:
+                <div style="margin-top: 8px; padding: 8px; background-color: #FEF2F2; border: 1px solid #FECACA; border-radius: 4px;">
+                    <div style="font-size: 11px; font-weight: 600; color: #B91C1C; margin-bottom: 4px;">
+                        <i class="fas fa-info-circle" style="margin-right: 4px;"></i>Alasan Batal:
                     </div>
-                    <div class="text-xs text-red-600">${detail.keterangan || 'Tanpa keterangan'}</div>
+                    <div style="font-size: 11px; color: #DC2626; word-break: break-word;">${detail.keterangan || 'Tanpa keterangan'}</div>
                 </div>
             ` : '';
 
             return `
-                <div class="p-2 min-w-64">
-                    <div class="font-bold text-gray-900 mb-1">${detail.reff_id}</div>
-                    <div class="text-sm font-medium text-gray-700 mb-2">${detail.title}</div>
+                <div style="padding: 8px; width: 280px; max-width: 280px; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                    <div style="font-weight: 700; color: #111827; margin-bottom: 4px; font-size: 14px; word-break: break-word;">${detail.reff_id}</div>
+                    <div style="font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 8px; word-break: break-word;">${detail.title}</div>
 
-                    <div class="text-xs text-gray-600 mb-1">
-                        <i class="fas fa-map-marker-alt mr-1"></i>
+                    <div style="font-size: 11px; color: #4B5563; margin-bottom: 4px; word-break: break-word;">
+                        <i class="fas fa-map-marker-alt" style="margin-right: 4px;"></i>
                         ${detail.alamat}
                     </div>
 
-                    <div class="flex items-center justify-between text-xs mb-2">
-                        <span class="text-gray-500">Status:</span>
-                        <span class="px-2 py-1 rounded text-white" style="background-color: ${this.getStatusColor(detail.status)}">
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-bottom: 8px;">
+                        <span style="color: #6B7280;">Status:</span>
+                        <span style="padding: 4px 8px; border-radius: 4px; color: white; background-color: ${this.getStatusColor(detail.status)}; font-size: 10px;">
                             ${this.getStatusLabel(detail.status)}
                         </span>
                     </div>
 
-                    <div class="flex items-center justify-between text-xs mb-2">
-                        <span class="text-gray-500">Progress:</span>
-                        <span class="font-medium">${detail.progress_status.toUpperCase()}</span>
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-bottom: 8px;">
+                        <span style="color: #6B7280;">Progress:</span>
+                        <span style="font-weight: 500;">${detail.progress_status.toUpperCase()}</span>
                     </div>
 
-                    <div class="mb-2">
-                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                    <div style="margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #6B7280; margin-bottom: 4px;">
                             <span>Progress</span>
-                            <span>${progressBarWidth}%</span>
+                            <span>${Math.round(progressBarWidth)}%</span>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="${progressColor} h-2 rounded-full" style="width: ${progressBarWidth}%"></div>
+                        <div style="width: 100%; background-color: #E5E7EB; border-radius: 9999px; height: 8px;">
+                            <div style="background-color: ${progressColorBg}; height: 8px; border-radius: 9999px; width: ${progressBarWidth}%;"></div>
                         </div>
                     </div>
 
-                    <div class="text-xs text-gray-500">
+                    <div style="font-size: 11px; color: #6B7280;">
                         Tgl Registrasi: ${detail.tanggal_registrasi || '-'}
                     </div>
 
                     ${keteranganHtml}
 
-                    <div class="mt-2 pt-2 border-t border-gray-200">
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #E5E7EB;">
                         <a href="/customers/${detail.id}"
-                           class="text-xs text-aergas-orange hover:text-aergas-orange font-medium">
+                           style="font-size: 11px; color: #F97316; font-weight: 500; text-decoration: none;">
                             Lihat Detail →
                         </a>
                     </div>
@@ -911,34 +931,66 @@ function mapsComponent() {
             if (this.searchTerm.length < 2) {
                 this.searchResults = [];
                 this.showSearchResults = false;
+                // Reset to all customers when search is cleared
+                this.customers = [...this.allCustomers];
+                this.addMarkersToMap();
+                this.refreshMapFeatures();
+                this.updateLegendCounts();
                 return;
             }
 
             const term = this.searchTerm.toLowerCase();
-            this.searchResults = this.customers.filter(customer =>
-                customer.reff_id.toLowerCase().includes(term)
-            ).slice(0, 10); // Limit to 10 results
+            const filtered = this.allCustomers.filter(customer =>
+                customer.reff_id.toLowerCase().includes(term) ||
+                (customer.title && customer.title.toLowerCase().includes(term))
+            );
 
+            // Update search results for dropdown (limit to 10)
+            this.searchResults = filtered.slice(0, 10);
             this.showSearchResults = true;
+
+            // Filter markers on map (show all matching results)
+            this.customers = filtered;
+            this.addMarkersToMap();
+            this.refreshMapFeatures();
+            this.updateLegendCounts();
+
+            // Auto-fit map to show filtered markers
+            if (this.markers.length > 0) {
+                const bounds = this.markerClusterGroup.getBounds();
+                if (bounds.isValid()) {
+                    this.map.fitBounds(bounds.pad(0.1));
+                }
+            }
         },
 
         selectCustomer(customer) {
+            // Filter to show only selected customer
+            this.customers = [customer];
+            this.addMarkersToMap();
+            this.refreshMapFeatures();
+            this.updateLegendCounts();
+
+            // Zoom to customer location
             if (customer.lat && customer.lng) {
                 this.map.setView([customer.lat, customer.lng], 16);
 
                 // Find and open the marker popup
-                const marker = this.markers.find(m => {
-                    const pos = m.getLatLng();
-                    return Math.abs(pos.lat - customer.lat) < 0.0001 &&
-                           Math.abs(pos.lng - customer.lng) < 0.0001;
-                });
+                setTimeout(() => {
+                    const marker = this.markers.find(m => {
+                        const pos = m.getLatLng();
+                        return Math.abs(pos.lat - customer.lat) < 0.0001 &&
+                               Math.abs(pos.lng - customer.lng) < 0.0001;
+                    });
 
-                if (marker) {
-                    marker.fireEvent('click');
-                }
+                    if (marker) {
+                        marker.fireEvent('click');
+                    }
+                }, 100);
             }
 
-            this.searchTerm = customer.reff_id;
+            // Update search term to show selected customer
+            this.searchTerm = customer.reff_id + ' - ' + (customer.title || 'N/A');
             this.showSearchResults = false;
         },
 
@@ -1743,19 +1795,19 @@ function mapsComponent() {
 
                 // Create popup content based on feature type
                 let popupContent = `
-                    <div class="feature-info-popup p-3 min-w-[280px]">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="font-semibold text-gray-800 text-lg">${featureName}</h3>
-                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full uppercase">${featureType}</span>
+                    <div style="padding: 12px; width: 300px; max-width: 300px; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 8px;">
+                            <h3 style="font-weight: 600; color: #1F2937; font-size: 16px; margin: 0; word-break: break-word; flex: 1;">${featureName}</h3>
+                            <span style="padding: 4px 8px; background-color: #DBEAFE; color: #1E40AF; font-size: 10px; border-radius: 9999px; text-transform: uppercase; white-space: nowrap;">${featureType}</span>
                         </div>
                 `;
 
             // Add specific information based on feature type
             if (featureType === 'line' || featureType === 'LineString') {
                 popupContent += `
-                    <div class="space-y-2">
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-route mr-2 text-blue-500"></i>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; font-size: 13px; color: #4B5563;">
+                            <i class="fas fa-route" style="margin-right: 8px; color: #3B82F6;"></i>
                             <span>Line Feature</span>
                         </div>
                 `;
@@ -1763,25 +1815,25 @@ function mapsComponent() {
                     const lineNumber = this.lineNumbers.find(ln => ln.id === feature.properties.line_number_id);
                     if (lineNumber) {
                         popupContent += `
-                            <div class="flex items-center text-sm">
-                                <i class="fas fa-tag mr-2 text-gray-400"></i>
+                            <div style="display: flex; align-items: center; font-size: 13px;">
+                                <i class="fas fa-tag" style="margin-right: 8px; color: #9CA3AF;"></i>
                                 <span>Line: ${lineNumber.line_number}</span>
                             </div>
                         `;
                     }
                 }
                 popupContent += `
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-ruler mr-2 text-green-500"></i>
+                        <div style="display: flex; align-items: center; font-size: 13px; color: #4B5563;">
+                            <i class="fas fa-ruler" style="margin-right: 8px; color: #10B981;"></i>
                             <span>Click to measure length</span>
                         </div>
                     </div>
                 `;
             } else if (featureType === 'polygon' || featureType === 'Polygon' || featureType === 'circle') {
                 popupContent += `
-                    <div class="space-y-2">
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-vector-square mr-2 text-orange-500"></i>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; font-size: 13px; color: #4B5563;">
+                            <i class="fas fa-vector-square" style="margin-right: 8px; color: #F97316;"></i>
                             <span>${featureType === 'circle' ? 'Circle Area' : 'Polygon Area'}</span>
                         </div>
                 `;
@@ -1789,16 +1841,16 @@ function mapsComponent() {
                     const cluster = this.clusters.find(c => c.id === feature.properties.cluster_id);
                     if (cluster) {
                         popupContent += `
-                            <div class="flex items-center text-sm">
-                                <i class="fas fa-layer-group mr-2 text-gray-400"></i>
+                            <div style="display: flex; align-items: center; font-size: 13px;">
+                                <i class="fas fa-layer-group" style="margin-right: 8px; color: #9CA3AF;"></i>
                                 <span>Cluster: ${cluster.name}</span>
                             </div>
                         `;
                     }
                 }
                 popupContent += `
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-calculator mr-2 text-green-500"></i>
+                        <div style="display: flex; align-items: center; font-size: 13px; color: #4B5563;">
+                            <i class="fas fa-calculator" style="margin-right: 8px; color: #10B981;"></i>
                             <span>Click to calculate area</span>
                         </div>
                     </div>
@@ -1812,34 +1864,34 @@ function mapsComponent() {
                 const currentOpacity = feature.properties.style.opacity || 1;
 
                 popupContent += `
-                    <div class="mt-3 pt-3 border-t border-gray-200">
-                        <div class="text-xs text-gray-500 mb-2">Style Properties</div>
-                        <div class="space-y-3">
-                            <div class="flex items-center justify-between">
-                                <label class="text-xs text-gray-600">Color:</label>
-                                <div class="flex items-center space-x-2">
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #E5E7EB;">
+                        <div style="font-size: 11px; color: #6B7280; margin-bottom: 8px;">Style Properties</div>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <label style="font-size: 11px; color: #4B5563;">Color:</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
                                     <input type="color" value="${currentColor}"
                                            onchange="window.mapComponentInstance.updateFeatureColor(${feature.id}, this.value)"
-                                           class="w-8 h-6 rounded border border-gray-300 cursor-pointer">
-                                    <span class="text-xs text-gray-500">${currentColor}</span>
+                                           style="width: 32px; height: 24px; border-radius: 4px; border: 1px solid #D1D5DB; cursor: pointer;">
+                                    <span style="font-size: 11px; color: #6B7280; width: 60px;">${currentColor}</span>
                                 </div>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <label class="text-xs text-gray-600">Line Weight:</label>
-                                <div class="flex items-center space-x-2">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <label style="font-size: 11px; color: #4B5563;">Line Weight:</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
                                     <input type="range" min="1" max="10" value="${currentWeight}"
                                            onchange="window.mapComponentInstance.updateFeatureWeight(${feature.id}, this.value)"
-                                           class="w-16 h-2 bg-gray-200 rounded cursor-pointer">
-                                    <span class="text-xs text-gray-500 w-6">${currentWeight}px</span>
+                                           style="width: 80px; height: 8px; cursor: pointer;">
+                                    <span style="font-size: 11px; color: #6B7280; width: 30px;">${currentWeight}px</span>
                                 </div>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <label class="text-xs text-gray-600">Opacity:</label>
-                                <div class="flex items-center space-x-2">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <label style="font-size: 11px; color: #4B5563;">Opacity:</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
                                     <input type="range" min="0.1" max="1" step="0.1" value="${currentOpacity}"
                                            onchange="window.mapComponentInstance.updateFeatureOpacity(${feature.id}, this.value)"
-                                           class="w-16 h-2 bg-gray-200 rounded cursor-pointer">
-                                    <span class="text-xs text-gray-500 w-8">${Math.round(currentOpacity * 100)}%</span>
+                                           style="width: 80px; height: 8px; cursor: pointer;">
+                                    <span style="font-size: 11px; color: #6B7280; width: 30px;">${Math.round(currentOpacity * 100)}%</span>
                                 </div>
                             </div>
                         </div>
@@ -1849,14 +1901,16 @@ function mapsComponent() {
 
             // Add action buttons
             popupContent += `
-                <div class="mt-4 flex space-x-2">
+                <div style="margin-top: 16px; display: flex; gap: 8px;">
                     <button onclick="window.mapComponentInstance.editFeature(${JSON.stringify(feature).replace(/"/g, '&quot;')})"
-                            class="flex-1 px-4 py-2 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600 transition-colors">
-                        <i class="fas fa-edit mr-2"></i>Edit Name
+                            style="flex: 1; padding: 8px 12px; background-color: #3B82F6; color: white; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; transition: background-color 0.2s;"
+                            onmouseover="this.style.backgroundColor='#2563EB'" onmouseout="this.style.backgroundColor='#3B82F6'">
+                        <i class="fas fa-edit" style="margin-right: 6px;"></i>Edit Name
                     </button>
                     <button onclick="window.mapComponentInstance.deleteFeature(${JSON.stringify(feature).replace(/"/g, '&quot;')})"
-                            class="flex-1 px-4 py-2 bg-red-500 text-white text-sm rounded-md hover:bg-red-600 transition-colors">
-                        <i class="fas fa-trash mr-2"></i>Delete
+                            style="flex: 1; padding: 8px 12px; background-color: #EF4444; color: white; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; transition: background-color 0.2s;"
+                            onmouseover="this.style.backgroundColor='#DC2626'" onmouseout="this.style.backgroundColor='#EF4444'">
+                        <i class="fas fa-trash" style="margin-right: 6px;"></i>Delete
                     </button>
                 </div>
             </div>
@@ -1865,9 +1919,12 @@ function mapsComponent() {
                 // Create and show popup with error handling
                 const popup = L.popup({
                     maxWidth: 320,
+                    minWidth: 300,
                     className: 'feature-info-popup-container',
                     closeOnClick: true,
-                    autoClose: true
+                    autoClose: true,
+                    autoPan: true,
+                    keepInView: true
                 })
                 .setLatLng(position)
                 .setContent(popupContent);
@@ -2040,11 +2097,16 @@ document.addEventListener('click', function(e) {
 
 .leaflet-popup-content-wrapper {
     border-radius: 8px;
+    max-width: 320px !important;
+    box-sizing: border-box !important;
 }
 
 .leaflet-popup-content {
     margin: 0;
     line-height: 1.4;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    box-sizing: border-box;
 }
 
 /* Ensure legend is always visible above map */
@@ -2068,22 +2130,58 @@ document.addEventListener('click', function(e) {
     pointer-events: auto !important;
 }
 
+/* Marker Popup Styles */
+.marker-popup-container .leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    border: none;
+    padding: 0;
+    max-width: 300px !important;
+    min-width: 280px !important;
+    box-sizing: border-box !important;
+}
+
+.marker-popup-container .leaflet-popup-content {
+    margin: 0;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    box-sizing: border-box;
+}
+
+.marker-popup-container .leaflet-popup-tip {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 /* Feature Info Popup Styles */
 .feature-info-popup-container .leaflet-popup-content-wrapper {
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     border: none;
     padding: 0;
+    max-width: 320px !important;
+    min-width: 300px !important;
+    box-sizing: border-box !important;
 }
 
 .feature-info-popup-container .leaflet-popup-content {
     margin: 0;
     line-height: 1.4;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    box-sizing: border-box;
 }
 
 .feature-info-popup-container .leaflet-popup-tip {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Spinner animation for loading popup */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* Feature Label Positioning Improvements */

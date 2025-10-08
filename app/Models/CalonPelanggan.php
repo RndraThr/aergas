@@ -55,6 +55,7 @@ class CalonPelanggan extends Model
         'coordinate_updated_at' => 'datetime',
         'latitude'           => 'decimal:8',
         'longitude'          => 'decimal:8',
+        'progress_percentage' => 'decimal:2',    // 0.00 to 100.00 (incremental based on CGP-approved photos)
         'status'             => 'string',        // pending | lanjut | in_progress | batal
         'progress_status'    => 'string',        // validasi | sk | sr | gas_in | done | batal
     ];
