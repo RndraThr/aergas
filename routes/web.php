@@ -23,6 +23,59 @@ Route::middleware(['auth', 'user.active'])->group(function () {
     Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
     Route::post('/change-password', [AuthController::class, 'changePassword'])->name('password.change');
 
+    // Proxy Google Drive images (authenticated download with caching)
+    Route::get('/drive-image/{fileId}', function($fileId) {
+        try {
+            $cacheKey = "drive_image_{$fileId}";
+            $cacheDuration = 3600; // 1 hour
+
+            // Try to get from cache first
+            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+            if ($cached) {
+                return response($cached['data'])
+                    ->header('Content-Type', $cached['mime_type'])
+                    ->header('Cache-Control', 'public, max-age=3600')
+                    ->header('X-Cache', 'HIT') // Debug: show cache hit
+                    ->header('Content-Length', strlen($cached['data']));
+            }
+
+            // Not in cache, download from Google Drive
+            $driveService = app(\App\Services\GoogleDriveService::class);
+            $imageData = $driveService->downloadFileContent($fileId);
+
+            // Detect mime type
+            $finfo = new \finfo(FILEINFO_MIME_TYPE);
+            $mimeType = $finfo->buffer($imageData) ?: 'image/jpeg';
+
+            // Store in cache
+            \Illuminate\Support\Facades\Cache::put($cacheKey, [
+                'data' => $imageData,
+                'mime_type' => $mimeType
+            ], $cacheDuration);
+
+            // Return image response with proper headers
+            return response($imageData)
+                ->header('Content-Type', $mimeType)
+                ->header('Cache-Control', 'public, max-age=3600')
+                ->header('X-Cache', 'MISS') // Debug: show cache miss
+                ->header('Content-Length', strlen($imageData));
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Drive image proxy error', [
+                'file_id' => $fileId,
+                'error' => $e->getMessage()
+            ]);
+
+            // Return SVG placeholder on error
+            $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#f3f4f6"/><text x="200" y="140" text-anchor="middle" font-family="Arial" font-size="16" fill="#9ca3af">Image Load Failed</text><text x="200" y="165" text-anchor="middle" font-family="Arial" font-size="12" fill="#6b7280">File ID: ' . htmlspecialchars($fileId) . '</text></svg>';
+
+            return response($svg)
+                ->header('Content-Type', 'image/svg+xml')
+                ->header('Cache-Control', 'no-cache');
+        }
+    })->name('drive.image');
+
     Route::middleware('role:admin,cgp,tracer,super_admin')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/data', [DashboardController::class, 'getData'])->name('dashboard.data');

@@ -2,6 +2,12 @@
 
 @section('title', 'Tracer - Photo Review')
 
+@push('head')
+<!-- Preconnect untuk mempercepat image loading -->
+<link rel="preconnect" href="{{ url('/') }}">
+<link rel="dns-prefetch" href="{{ url('/') }}">
+@endpush
+
 @push('styles')
 <style>
     .photo-preview {
@@ -29,6 +35,61 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+    }
+
+    /* AI Loading Animation */
+    @keyframes pulse-glow {
+        0%, 100% {
+            box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+        }
+        50% {
+            box-shadow: 0 0 40px rgba(147, 51, 234, 0.8);
+        }
+    }
+
+    #aiLoadingModal .bg-white {
+        animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    /* Smooth transitions */
+    .transition-all {
+        transition: all 0.3s ease;
+    }
+
+    /* Lazy loading skeleton */
+    .lazy-image {
+        position: relative;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: loading-skeleton 1.5s ease-in-out infinite;
+    }
+
+    .lazy-image.loaded {
+        animation: none;
+        background: none;
+    }
+
+    @keyframes loading-skeleton {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
+    }
+
+    /* Fade in animation when loaded */
+    .lazy-image.loaded {
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
     }
 </style>
 @endpush
@@ -172,9 +233,9 @@
                     
                     @if($moduleAvailable && !$moduleCompleted && $hasPhotosToApprove)
                         <div class="flex space-x-2">
-                            <button onclick="aiReviewModule('{{ $module }}')"
-                                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium text-sm">
-                                🤖 AI Review
+                            <button id="aiReviewBtn-{{ $module }}" onclick="aiReviewModule('{{ $module }}')"
+                                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all">
+                                <span class="ai-btn-content">🤖 AI Review</span>
                             </button>
                             <button onclick="approveModule('{{ $module }}')"
                                     class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm">
@@ -203,26 +264,25 @@
                                         </div>
                                     @elseif($photo->photo_url && !empty(trim($photo->photo_url)))
                                         @php
-                                            // Convert Google Drive URL to direct image URL
+                                            // Use authenticated proxy for Google Drive images
                                             $imageUrl = $photo->photo_url;
+                                            $fileId = null;
+
                                             if (str_contains($imageUrl, 'drive.google.com')) {
                                                 if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $imageUrl, $matches)) {
                                                     $fileId = $matches[1];
-                                                    // Try multiple formats - Google keeps changing their direct image URLs
-                                                    $imageUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
-                                                    // Alternative fallbacks:
-                                                    // $imageUrl = "https://drive.google.com/uc?export=view&id={$fileId}";
-                                                    // $imageUrl = "https://drive.google.com/thumbnail?id={$fileId}&sz=w400";
+                                                    // Use our authenticated proxy route
+                                                    $imageUrl = route('drive.image', ['fileId' => $fileId]);
                                                 }
                                             }
                                         @endphp
-                                        <img src="{{ $imageUrl }}" 
+                                        <img data-src="{{ $imageUrl }}"
                                              alt="{{ $photo->photo_field_name }}"
-                                             class="photo-preview w-full h-48 object-cover"
+                                             class="photo-preview w-full h-48 object-cover lazy-image bg-gray-100"
                                              onclick="openPhotoModal('{{ $imageUrl }}')"
-                                             data-file-id="{{ preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $photo->photo_url, $matches) ? $matches[1] : '' }}"
+                                             data-file-id="{{ $fileId }}"
                                              data-original-url="{{ $photo->photo_url }}"
-                                             onerror="tryAlternativeUrls(this)">
+                                             loading="lazy">
                                     @else
                                         <div class="flex flex-col items-center justify-center h-48 text-gray-400">
                                             <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -448,6 +508,40 @@
     @endforeach
 </div>
 
+<!-- AI Review Loading Modal -->
+<div id="aiLoadingModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+        <div class="text-center">
+            <!-- Animated Spinner -->
+            <div class="inline-block">
+                <svg class="animate-spin h-16 w-16 text-purple-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+
+            <!-- Loading Text -->
+            <h3 class="text-xl font-bold text-gray-900 mt-4">🤖 AI Review In Progress</h3>
+            <p id="aiLoadingText" class="text-gray-600 mt-2">Initializing AI analysis...</p>
+
+            <!-- Progress Bar -->
+            <div class="mt-4 w-full bg-gray-200 rounded-full h-2.5">
+                <div id="aiProgressBar" class="bg-purple-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <!-- Progress Counter -->
+            <p id="aiProgressCounter" class="text-sm text-gray-500 mt-2">0 of 0 photos analyzed</p>
+
+            <!-- Additional Info -->
+            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p class="text-xs text-blue-800">
+                    <i class="fas fa-info-circle"></i> AI sedang menganalisis setiap foto. Proses ini mungkin memakan waktu beberapa menit.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Photo Modal -->
 <div id="photoModal" class="photo-modal" onclick="closePhotoModal()">
     <img id="modalPhoto" src="" alt="">
@@ -481,6 +575,78 @@
 
 @push('scripts')
 <script>
+// Lazy loading images using Intersection Observer
+document.addEventListener('DOMContentLoaded', function() {
+    const lazyImages = document.querySelectorAll('.lazy-image');
+
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    const src = img.getAttribute('data-src');
+
+                    if (src) {
+                        img.src = src;
+                        img.classList.add('loaded');
+                        img.removeAttribute('data-src');
+                        observer.unobserve(img);
+                    }
+                }
+            });
+        }, {
+            rootMargin: '50px' // Start loading 50px before entering viewport
+        });
+
+        lazyImages.forEach(img => imageObserver.observe(img));
+    } else {
+        // Fallback for browsers without Intersection Observer
+        lazyImages.forEach(img => {
+            const src = img.getAttribute('data-src');
+            if (src) {
+                img.src = src;
+                img.classList.add('loaded');
+            }
+        });
+    }
+});
+
+// Google Drive URL fallback function - MUST BE DEFINED FIRST (called from HTML onerror)
+function tryAlternativeUrls(imgElement) {
+    const fileId = imgElement.dataset.fileId;
+    if (!fileId) {
+        imgElement.parentElement.innerHTML = '<div class="flex flex-col items-center justify-center h-48 text-red-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"></path></svg><p class="text-xs mt-2">Image unavailable</p></div>';
+        return;
+    }
+
+    const alternatives = [
+        `https://drive.google.com/uc?export=view&id=${fileId}`,
+        `https://drive.google.com/uc?id=${fileId}`,
+        `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
+        `https://docs.google.com/uc?id=${fileId}`
+    ];
+
+    let currentIndex = imgElement.dataset.attemptIndex || 0;
+    currentIndex = parseInt(currentIndex);
+
+    if (currentIndex < alternatives.length) {
+        imgElement.dataset.attemptIndex = currentIndex + 1;
+        imgElement.src = alternatives[currentIndex];
+    } else {
+        // All alternatives failed, show error with original URL
+        const originalUrl = imgElement.dataset.originalUrl || imgElement.src;
+        imgElement.parentElement.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-48 text-red-400 p-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"></path></svg>
+                <p class="text-xs mt-2 text-center">Image failed to load</p>
+                <p class="text-xs text-gray-500 mt-1 break-all">File ID: ${fileId}</p>
+                <a href="${originalUrl}" target="_blank" class="text-xs text-blue-500 mt-2 hover:underline">Open in Drive</a>
+            </div>
+        `;
+    }
+}
+
 // Global variables
 let currentPhotoId = null;
 let currentAction = null;
@@ -541,34 +707,134 @@ function approveModule(module) {
     openNotesModal(`Approve All ${module.toUpperCase()} Photos`, 'approveModule', null, module);
 }
 
+// AI Review Loading Functions
+function showAILoadingModal(module, estimatedPhotos = 5) {
+    const modal = document.getElementById('aiLoadingModal');
+    const loadingText = document.getElementById('aiLoadingText');
+    const progressBar = document.getElementById('aiProgressBar');
+    const progressCounter = document.getElementById('aiProgressCounter');
+
+    modal.classList.remove('hidden');
+    loadingText.textContent = `Analyzing ${module.toUpperCase()} photos...`;
+    progressBar.style.width = '0%';
+    progressCounter.textContent = `0 of ${estimatedPhotos} photos analyzed`;
+
+    // Simulate progress (since we don't have real-time updates from backend)
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        if (progress < 90) {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+
+            progressBar.style.width = progress + '%';
+            const currentPhoto = Math.floor((progress / 100) * estimatedPhotos);
+            progressCounter.textContent = `~${currentPhoto} of ${estimatedPhotos} photos analyzed`;
+        }
+    }, 800);
+
+    // Store interval ID so we can clear it later
+    window.aiProgressInterval = progressInterval;
+}
+
+function hideAILoadingModal() {
+    const modal = document.getElementById('aiLoadingModal');
+    modal.classList.add('hidden');
+
+    // Clear progress interval
+    if (window.aiProgressInterval) {
+        clearInterval(window.aiProgressInterval);
+        window.aiProgressInterval = null;
+    }
+}
+
+function updateAIProgress(current, total) {
+    const progressBar = document.getElementById('aiProgressBar');
+    const progressCounter = document.getElementById('aiProgressCounter');
+
+    const percentage = (current / total) * 100;
+    progressBar.style.width = percentage + '%';
+    progressCounter.textContent = `${current} of ${total} photos analyzed`;
+}
+
 // AI Review
 function aiReviewModule(module) {
-    if (confirm(`Run AI review for all ${module.toUpperCase()} photos?`)) {
-        const formData = new FormData();
-        formData.append('reff_id', reffId);
-        formData.append('module', module);
-        formData.append('_token', '{{ csrf_token() }}');
+    if (!confirm(`Run AI review for all ${module.toUpperCase()} photos?\n\nThis will analyze each photo and provide AI insights (advisory only).`)) {
+        return;
+    }
 
-        fetch('{{ route("approvals.tracer.ai-review") }}', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
+    // Get button and disable it
+    const button = document.getElementById(`aiReviewBtn-${module}`);
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.classList.add('opacity-75', 'cursor-not-allowed');
+    button.innerHTML = '<span class="flex items-center"><svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Processing...</span>';
+
+    // Estimate photo count based on module
+    const estimatedPhotos = {
+        'sk': 5,
+        'sr': 6,
+        'gas_in': 4
+    }[module] || 5;
+
+    // Show loading modal
+    showAILoadingModal(module, estimatedPhotos);
+
+    const formData = new FormData();
+    formData.append('reff_id', reffId);
+    formData.append('module', module);
+    formData.append('_token', '{{ csrf_token() }}');
+
+    fetch('{{ route("approvals.tracer.ai-review") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Complete the progress bar
+        if (window.aiProgressInterval) {
+            clearInterval(window.aiProgressInterval);
+        }
+        document.getElementById('aiProgressBar').style.width = '100%';
+
+        // Wait a bit to show 100% before hiding
+        setTimeout(() => {
+            hideAILoadingModal();
+
+            // Re-enable button
+            button.disabled = false;
+            button.classList.remove('opacity-75', 'cursor-not-allowed');
+            button.innerHTML = originalContent;
+
             if (data.success) {
                 const processed = data.data?.processed || 0;
                 const total = data.data?.total_photos || 0;
-                alert(`AI Review completed!\n\n✅ Processed: ${processed}/${total} photos\n\nℹ️ Review AI insights below (advisory only)`);
+
+                // Show success message
+                const message = `AI Review Completed Successfully!\n\n` +
+                               `✅ Analyzed: ${processed}/${total} photos\n` +
+                               `📊 Module: ${module.toUpperCase()}\n\n` +
+                               `ℹ️ AI insights are now visible below each photo.\n` +
+                               `Remember: AI recommendations are advisory only.\n` +
+                               `Your decision as tracer is final.`;
+
+                alert(message);
                 location.reload();
             } else {
-                alert('AI Review failed: ' + data.message);
+                alert('❌ AI Review Failed\n\n' + (data.message || 'Unknown error occurred'));
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred during AI review');
-        });
-    }
+        }, 500);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        hideAILoadingModal();
+
+        // Re-enable button
+        button.disabled = false;
+        button.classList.remove('opacity-75', 'cursor-not-allowed');
+        button.innerHTML = originalContent;
+
+        alert('❌ An error occurred during AI review\n\n' + error.message);
+    });
 }
 
 // Form submission
@@ -616,42 +882,6 @@ document.getElementById('notesForm').addEventListener('submit', function(e) {
         closeNotesModal();
     });
 });
-
-// Google Drive URL fallback function
-function tryAlternativeUrls(imgElement) {
-    const fileId = imgElement.dataset.fileId;
-    if (!fileId) {
-        imgElement.parentElement.innerHTML = '<div class="flex flex-col items-center justify-center h-48 text-red-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"></path></svg><p class="text-xs mt-2">Image unavailable</p></div>';
-        return;
-    }
-    
-    const alternatives = [
-        `https://drive.google.com/uc?export=view&id=${fileId}`,
-        `https://drive.google.com/uc?id=${fileId}`,
-        `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
-        `https://docs.google.com/uc?id=${fileId}`
-    ];
-    
-    let currentIndex = imgElement.dataset.attemptIndex || 0;
-    currentIndex = parseInt(currentIndex);
-    
-    if (currentIndex < alternatives.length) {
-        imgElement.dataset.attemptIndex = currentIndex + 1;
-        imgElement.src = alternatives[currentIndex];
-    } else {
-        // All alternatives failed, show error with original URL
-        const originalUrl = imgElement.dataset.originalUrl || imgElement.src;
-        imgElement.parentElement.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-48 text-red-400 p-4">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"></path></svg>
-                <p class="text-xs mt-2 text-center">Image failed to load</p>
-                <p class="text-xs text-gray-500 mt-1 break-all">File ID: ${fileId}</p>
-                <a href="${originalUrl}" target="_blank" class="text-xs text-blue-500 mt-2 hover:underline">Open in Drive</a>
-            </div>
-        `;
-    }
-}
 
 // Toggle rejection details dropdown
 function toggleRejectionDetails(photoId, type) {

@@ -1151,9 +1151,12 @@ class PhotoApprovalService
             throw new Exception("Module data not found");
         }
 
+        // Get all uploaded photos for this module (regardless of status)
+        // AI Review is advisory, so we can analyze any uploaded photo
         $photos = PhotoApproval::where('module_name', strtolower($module))
             ->where('reff_id_pelanggan', $moduleData->reff_id_pelanggan)
-            ->where('photo_status', 'tracer_pending') // Only review photos pending tracer
+            ->whereNotNull('photo_url') // Must have uploaded photo
+            ->where('photo_url', '!=', '') // Must not be empty
             ->get();
 
         $results = [];
