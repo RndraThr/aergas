@@ -244,7 +244,7 @@
                 <span class="text-sm font-medium text-gray-900">Customers</span>
             </a>
 
-            @if(in_array(auth()->user()->role, ['tracer', 'admin']))
+            @if(auth()->user()->hasAnyRole(['tracer', 'admin']))
             <a href="{{ route('photos.index') }}"
                class="flex flex-col items-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg hover:from-purple-100 hover:to-purple-200 transition-all duration-300 group">
                 <div class="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">

@@ -241,7 +241,7 @@
                     </div>
 
                     <!-- Action Buttons for Approvers -->
-                    @if(in_array(auth()->user()->role, ['tracer', 'admin', 'super_admin']) && !$joint->tracer_approved_at && $joint->status_laporan !== 'revisi_tracer')
+                    @if(auth()->user()->hasAnyRole(['tracer', 'admin', 'super_admin']) && !$joint->tracer_approved_at && $joint->status_laporan !== 'revisi_tracer')
                         <div class="mt-6 space-y-2">
                             <form method="POST" action="{{ route('jalur.joint.approve-tracer', $joint) }}" class="w-full">
                                 @csrf
@@ -262,7 +262,7 @@
                         </div>
                     @endif
 
-                    @if(in_array(auth()->user()->role, ['admin', 'super_admin']) && $joint->tracer_approved_at && !$joint->cgp_approved_at && $joint->status_laporan !== 'revisi_cgp')
+                    @if(auth()->user()->hasAnyRole(['admin', 'super_admin']) && $joint->tracer_approved_at && !$joint->cgp_approved_at && $joint->status_laporan !== 'revisi_cgp')
                         <div class="mt-6 space-y-2">
                             <form method="POST" action="{{ route('jalur.joint.approve-cgp', $joint) }}" class="w-full">
                                 @csrf

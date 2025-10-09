@@ -13,7 +13,7 @@
         </div>
 
         <div class="flex items-center space-x-3">
-            @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
+            @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
                 <button @click="exportData()"
                         class="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
                     <i class="fas fa-download"></i>
@@ -324,7 +324,7 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
 
-                                    @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
+                                    @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
                                         <a :href="'/customers/' + customer.reff_id_pelanggan + '/edit'"
                                            class="text-blue-600 hover:text-blue-800 transition-colors">
                                             <i class="fas fa-edit"></i>
@@ -374,7 +374,7 @@
                 <i class="fas fa-users text-4xl text-gray-300 mb-4"></i>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No customers found</h3>
                 <p class="text-gray-500 mb-6">Try adjusting your search or filter criteria.</p>
-                @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
+                @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
                     <a href="{{ route('customers.create') }}"
                        class="inline-flex items-center px-4 py-2 bg-aergas-orange text-white rounded-lg hover:bg-aergas-navy transition-colors">
                         <i class="fas fa-plus mr-2"></i>

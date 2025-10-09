@@ -21,7 +21,7 @@
       <p class="text-gray-600 mt-1">Reff ID: <b>{{ $gasIn->reff_id_pelanggan }}</b></p>
     </div>
     <div class="flex gap-2">
-      @if($gasIn->canEdit() || in_array($gasIn->module_status, ['draft', 'ai_validation', 'tracer_review', 'rejected']) && in_array(auth()->user()->role, ['admin', 'super_admin', 'gas_in', 'tracer']))
+      @if($gasIn->canEdit() || in_array($gasIn->module_status, ['draft', 'ai_validation', 'tracer_review', 'rejected']) && auth()->user()->hasAnyRole(['admin', 'super_admin', 'gas_in', 'tracer']))
         <a href="{{ route('gas-in.edit',$gasIn->id) }}" class="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
           @if($gasIn->module_status === 'rejected')
             <i class="fas fa-edit mr-1"></i>Perbaiki
@@ -31,7 +31,7 @@
         </a>
       @endif
       
-      @if(in_array(auth()->user()->role, ['admin', 'super_admin', 'tracer']))
+      @if(auth()->user()->hasAnyRole(['admin', 'super_admin', 'tracer']))
         <a href="{{ route('gas-in.berita-acara', $gasIn->id) }}" 
            class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
            target="_blank">
@@ -460,7 +460,7 @@
   </div>
 
   <!-- Workflow Actions -->
-  @if(in_array(auth()->user()->role, ['tracer', 'admin', 'super_admin']))
+  @if(auth()->user()->hasAnyRole(['tracer', 'admin', 'super_admin']))
     <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
@@ -474,7 +474,7 @@
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        @if($gasIn->canApproveTracer() && in_array(auth()->user()->role, ['tracer', 'super_admin']))
+        @if($gasIn->canApproveTracer() && auth()->user()->hasAnyRole(['tracer', 'super_admin']))
           <button @click="approveTracer()" 
                   class="group flex flex-col items-center p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
             <i class="fas fa-check text-2xl mb-2"></i>
@@ -490,7 +490,7 @@
           </button>
         @endif
 
-        @if($gasIn->canApproveCgp() && in_array(auth()->user()->role, ['admin', 'super_admin']))
+        @if($gasIn->canApproveCgp() && auth()->user()->hasAnyRole(['admin', 'super_admin']))
           <button @click="approveCgp()" 
                   class="group flex flex-col items-center p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
             <i class="fas fa-check-double text-2xl mb-2"></i>

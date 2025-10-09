@@ -243,7 +243,7 @@
             </div>
         </div>
 
-        @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
+        @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-center mb-6">
                 <div class="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center mr-3">

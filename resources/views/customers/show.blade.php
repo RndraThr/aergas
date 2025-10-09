@@ -39,7 +39,7 @@
         </div>
 
         <div class="flex items-center space-x-3">
-            @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
+            @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
                 @if($customer->status === 'pending')
                     <button @click="validateCustomer()"
                             class="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
@@ -265,7 +265,7 @@
                                     <div class="text-sm text-gray-600">Belum dimulai</div>
                                 </div>
                             </div>
-                            @if(in_array(auth()->user()->role, ['sk', 'tracer', 'admin', 'super_admin']))
+                            @if(auth()->user()->hasAnyRole(['sk', 'tracer', 'admin', 'super_admin']))
                                 <a href="{{ route('sk.create') }}?reff_id={{ $customer->reff_id_pelanggan }}"
                                    class="text-blue-600 hover:text-blue-800">
                                     <i class="fas fa-plus"></i>
@@ -301,7 +301,7 @@
                                     <div class="text-sm text-gray-600">Belum dimulai</div>
                                 </div>
                             </div>
-                            @if(in_array(auth()->user()->role, ['sr', 'tracer', 'admin', 'super_admin']))
+                            @if(auth()->user()->hasAnyRole(['sr', 'tracer', 'admin', 'super_admin']))
                                 <a href="{{ route('sr.create') }}?reff_id={{ $customer->reff_id_pelanggan }}"
                                    class="text-blue-600 hover:text-blue-800">
                                     <i class="fas fa-plus"></i>
@@ -337,7 +337,7 @@
                                     <div class="text-sm text-gray-600">Belum dimulai</div>
                                 </div>
                             </div>
-                            @if(in_array(auth()->user()->role, ['gas_in', 'tracer', 'admin', 'super_admin']))
+                            @if(auth()->user()->hasAnyRole(['gas_in', 'tracer', 'admin', 'super_admin']))
                                 <a href="{{ route('gas-in.create') }}?reff_id={{ $customer->reff_id_pelanggan }}"
                                    class="text-blue-600 hover:text-blue-800">
                                     <i class="fas fa-plus"></i>
@@ -403,7 +403,7 @@
                         </a>
                     @endif
 
-                    @if(in_array(auth()->user()->role, ['admin', 'tracer', 'super_admin']))
+                    @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
                         <button @click="exportCustomerData()"
                                 class="flex items-center space-x-3 w-full p-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
                             <i class="fas fa-download"></i>
