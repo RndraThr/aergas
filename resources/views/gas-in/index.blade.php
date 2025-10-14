@@ -104,6 +104,7 @@
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Foto</th>
           <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
         </tr>
       </thead>
@@ -147,6 +148,27 @@
                 </template>
               </div>
             </td>
+            <td class="px-4 py-3">
+              <div class="space-y-0.5">
+                <template x-if="row.photo_status_details && row.photo_status_details.length > 0">
+                  <template x-for="photo in row.photo_status_details" :key="photo.field">
+                    <div class="flex items-center gap-1.5 text-xs" :class="photo.bg + ' rounded px-2 py-0.5'">
+                      <i class="fas" :class="[photo.icon, photo.color]"></i>
+                      <span class="font-medium" :class="photo.color" x-text="photo.label"></span>
+                      <template x-if="photo.status === 'missing'">
+                        <span class="text-red-500 text-xs">(Kosong)</span>
+                      </template>
+                      <template x-if="photo.status === 'corrupted'">
+                        <span class="text-yellow-600 text-xs">(Error)</span>
+                      </template>
+                    </div>
+                  </template>
+                </template>
+                <template x-if="!row.photo_status_details || row.photo_status_details.length === 0">
+                  <span class="text-gray-400 text-xs">No photo data</span>
+                </template>
+              </div>
+            </td>
             <td class="px-4 py-3 text-right">
               <div class="flex justify-end gap-1">
                 <a :href="`/gas-in/${row.id}`"
@@ -175,7 +197,7 @@
 
         {{-- Empty State --}}
         <tr x-show="items.length === 0">
-          <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+          <td colspan="8" class="px-4 py-8 text-center text-gray-500">
             <div class="flex flex-col items-center">
               <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
               <p class="text-lg font-medium mb-1">Belum ada data Gas In</p>

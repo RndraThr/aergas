@@ -76,7 +76,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
         }
     })->name('drive.image');
 
-    Route::middleware('role:admin,cgp,tracer,super_admin')->group(function () {
+    Route::middleware('role:admin,cgp,tracer,super_admin,jalur')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/data', [DashboardController::class, 'getData'])->name('dashboard.data');
     Route::get('/dashboard/installation-trend', [DashboardController::class, 'getInstallationTrend'])->name('dashboard.installation-trend');
@@ -689,7 +689,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
 
         });
 
-    // CGP Approval Interface Routes (untuk role tracer sebagai CGP Review)
+    // CGP Approval Interface Routes (untuk role CGP & Super Admin + Jalur for specific routes)
     Route::prefix('approvals/cgp')
         ->name('approvals.cgp.')
         ->middleware('role:cgp,super_admin')
@@ -699,14 +699,21 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/customers/{reffId}/photos', [CgpApprovalController::class, 'customerPhotos'])
                 ->where('reffId', '[A-Za-z0-9\-]+')
                 ->name('customer-photos');
-            Route::get('/jalur-photos', [CgpApprovalController::class, 'jalurPhotos'])->name('jalur-photos');
 
-            // Photo Actions
-            Route::post('/photos/approve', [CgpApprovalController::class, 'approvePhoto'])->name('approve-photo');
+            // Photo Actions (Customers only)
             Route::post('/modules/approve', [CgpApprovalController::class, 'approveModule'])->name('approve-module');
 
             // Slot Completion Check
             Route::get('/slot-completion', [CgpApprovalController::class, 'checkSlotCompletion'])->name('check-slot-completion');
+        });
+
+    // CGP Jalur Photos - Accessible by CGP, Super Admin, AND Jalur Role
+    Route::prefix('approvals/cgp')
+        ->name('approvals.cgp.')
+        ->middleware('role:cgp,super_admin,jalur')
+        ->group(function () {
+            Route::get('/jalur-photos', [CgpApprovalController::class, 'jalurPhotos'])->name('jalur-photos');
+            Route::post('/photos/approve', [CgpApprovalController::class, 'approvePhoto'])->name('approve-photo');
         });
 
     // Notification Routes
