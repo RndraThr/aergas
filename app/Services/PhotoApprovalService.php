@@ -327,7 +327,7 @@ class PhotoApprovalService
             // Skip notifications for jalur modules as they don't have customer association
             if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
                 $this->notificationService->notifyAdminCgpReview($pa->reff_id_pelanggan, $pa->module_name);
-                $this->telegramService->sendModuleStatusAlert($pa->reff_id_pelanggan, $pa->module_name, 'tracer_review', 'cgp_pending', $user->full_name);
+                // Telegram notification removed - only send on rejection
             }
 
             DB::commit();
@@ -409,7 +409,7 @@ class PhotoApprovalService
             if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
                 $this->checkModuleCompletion($pa->reff_id_pelanggan, $pa->module_name);
                 $this->notificationService->notifyPhotoApproved($pa->reff_id_pelanggan, $pa->module_name, $pa->photo_field_name);
-                $this->telegramService->sendModuleStatusAlert($pa->reff_id_pelanggan, $pa->module_name, 'cgp_review', 'completed', $user->full_name);
+                // Telegram notification removed - only send on rejection
 
                 // Update customer incremental progress after CGP approval
                 $customer = CalonPelanggan::where('reff_id_pelanggan', $pa->reff_id_pelanggan)->first();
@@ -1252,9 +1252,6 @@ class PhotoApprovalService
                 $moduleData = $this->getModuleDataByReffAndType($photo->reff_id_pelanggan, $photo->module_name);
                 if ($moduleData) {
                     $this->promoteToCgpPendingIfReady($moduleData, $photo->module_name);
-
-                    // Update customer progress_status if all photos approved
-                    $this->updateCustomerProgressAfterTracerApproval($moduleData, $photo->module_name);
                 }
             }
 
@@ -1369,6 +1366,13 @@ class PhotoApprovalService
                 $approved[] = $photo->id;
             }
 
+            // Update module-level Tracer approval
+            $moduleData->update([
+                'tracer_approved_at' => now(),
+                'tracer_approved_by' => $tracerId,
+                'tracer_notes' => $notes,
+            ]);
+
             DB::commit();
 
             // Recalc module status
@@ -1382,8 +1386,7 @@ class PhotoApprovalService
             return [
                 'approved_photos' => $approved,
                 'total_approved' => count($approved),
-                'module_status' => $moduleData->fresh()->module_status,
-                'customer_progress_status' => $customer?->fresh()->progress_status
+                'module_status' => $moduleData->fresh()->module_status
             ];
 
         } catch (Exception $e) {

@@ -22,7 +22,7 @@
       @if($sr->canEdit() || in_array($sr->module_status, ['draft', 'ai_validation', 'tracer_review', 'rejected']) && auth()->user()->hasAnyRole(['admin', 'super_admin', 'sr', 'tracer']))
         <a href="{{ route('sr.edit',$sr->id) }}" class="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
           @if($sr->module_status === 'rejected')
-            <i class="fas fa-edit mr-1"></i>Perbaiki
+            <i class="fas fa-edit mr-1"></i>Edit
           @else
             Edit
           @endif
@@ -250,7 +250,7 @@
   @if($sr->tracer_approved_at || $sr->cgp_approved_at || $rejectedPhotos->isNotEmpty())
     <div class="bg-white rounded-xl card-shadow p-6">
       <div class="flex items-center gap-3 mb-4">
-        <i class="fas fa-clipboard-check text-green-600"></i>
+        <i class="fas fa-clipboard-check text-yellow-600"></i>
         <h2 class="font-semibold text-gray-800">Timeline Approval</h2>
       </div>
 
@@ -367,49 +367,120 @@
   @endif
 
   @if($sr->calonPelanggan)
-    <div class="bg-white rounded-xl card-shadow p-6">
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
       <div class="flex items-center gap-3 mb-4">
-        <i class="fas fa-user text-blue-600"></i>
-        <h2 class="font-semibold text-gray-800">Informasi Customer</h2>
+        <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center">
+          <i class="fas fa-user text-white"></i>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-800">Informasi Pelanggan</h2>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <div class="text-xs text-gray-500">Reference ID</div>
-          <div class="font-medium text-blue-600">{{ $sr->reff_id_pelanggan }}</div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="space-y-1">
+          <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Nama Pelanggan</div>
+          <div class="font-semibold text-gray-900">{{ $sr->calonPelanggan->nama_pelanggan }}</div>
         </div>
-        <div>
-          <div class="text-xs text-gray-500">Nama Pelanggan</div>
-          <div class="font-medium">{{ $sr->calonPelanggan->nama_pelanggan }}</div>
-        </div>
-        <div>
-          <div class="text-xs text-gray-500">No. Telepon</div>
-          <div class="font-medium">{{ $sr->calonPelanggan->no_telepon ?? '-' }}</div>
-        </div>
-        <div>
-          <div class="text-xs text-gray-500">Status Customer</div>
-          <span class="px-2 py-0.5 rounded text-xs
-            @class([
-              'bg-gray-100 text-gray-700' => $sr->calonPelanggan->status === 'pending',
-              'bg-green-100 text-green-800' => $sr->calonPelanggan->status === 'lanjut',
-              'bg-blue-100 text-blue-800' => $sr->calonPelanggan->status === 'in_progress',
-              'bg-red-100 text-red-800' => $sr->calonPelanggan->status === 'batal',
-            ])
-          ">{{ strtoupper($sr->calonPelanggan->status ?? '-') }}</span>
-        </div>
-        <div class="md:col-span-2 lg:col-span-3">
-          <div class="text-xs text-gray-500">Alamat</div>
-          <div class="font-medium">{{ $sr->calonPelanggan->alamat ?? '-' }}</div>
-        </div>
-        <div>
-          <div class="text-xs text-gray-500">Kelurahan</div>
-          <div class="font-medium">{{ $sr->calonPelanggan->kelurahan ?? '-' }}</div>
-        </div>
-        @if($sr->calonPelanggan->padukuhan)
-          <div class="md:col-span-1">
-            <div class="text-xs text-gray-500">Padukuhan</div>
-            <div class="font-medium">{{ $sr->calonPelanggan->padukuhan }}</div>
+        <div class="space-y-1">
+          <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">No. Telepon</div>
+          <div class="font-medium text-gray-700">
+            @if($sr->calonPelanggan->no_telepon)
+              <a href="tel:{{ $sr->calonPelanggan->no_telepon }}" class="text-blue-600 hover:text-blue-800 transition-colors">
+                <i class="fas fa-phone mr-1"></i>{{ $sr->calonPelanggan->no_telepon }}
+              </a>
+            @else
+              <span class="text-gray-400">-</span>
+            @endif
           </div>
-        @endif
+        </div>
+        <div class="space-y-1">
+          <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Email</div>
+          <div class="font-medium text-gray-700">
+            @if($sr->calonPelanggan->email)
+              <a href="mailto:{{ $sr->calonPelanggan->email }}" class="text-blue-600 hover:text-blue-800 transition-colors">
+                <i class="fas fa-envelope mr-1"></i>{{ $sr->calonPelanggan->email }}
+              </a>
+            @else
+              <span class="text-gray-400">-</span>
+            @endif
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-6 border-t border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Alamat Lengkap</div>
+            <div class="font-medium text-gray-700">{{ $sr->calonPelanggan->alamat ?? '-' }}</div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Kelurahan</div>
+            <div class="font-medium text-gray-700">
+              @if($sr->calonPelanggan->kelurahan)
+                <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <i class="fas fa-map-marker-alt mr-1"></i>{{ $sr->calonPelanggan->kelurahan }}
+                </div>
+              @else
+                <span class="text-gray-400">-</span>
+              @endif
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Padukuhan</div>
+            <div class="font-medium text-gray-700">
+              @if($sr->calonPelanggan->padukuhan)
+                <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <i class="fas fa-home mr-1"></i>{{ $sr->calonPelanggan->padukuhan }}
+                </div>
+              @else
+                <span class="text-gray-400">-</span>
+              @endif
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registration Info -->
+      <div class="mt-6 pt-6 border-t border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tanggal Registrasi</div>
+            <div class="font-medium text-gray-700">
+              {{ $sr->calonPelanggan->tanggal_registrasi ? $sr->calonPelanggan->tanggal_registrasi->format('d F Y') : '-' }}
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status Customer</div>
+            <div class="font-medium">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                @class([
+                  'bg-green-100 text-green-800' => $sr->calonPelanggan->status === 'lanjut',
+                  'bg-yellow-100 text-yellow-800' => $sr->calonPelanggan->status === 'pending',
+                  'bg-gray-100 text-gray-800' => $sr->calonPelanggan->status === 'menunda',
+                  'bg-red-100 text-red-800' => $sr->calonPelanggan->status === 'batal',
+                ])
+              ">
+                {{ ucfirst($sr->calonPelanggan->status) }}
+              </span>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Progress Status</div>
+            <div class="font-medium">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                @class([
+                  'bg-green-100 text-green-800' => $sr->calonPelanggan->progress_status === 'done',
+                  'bg-blue-100 text-blue-800' => $sr->calonPelanggan->progress_status === 'gas_in',
+                  'bg-purple-100 text-purple-800' => $sr->calonPelanggan->progress_status === 'sr',
+                  'bg-orange-100 text-orange-800' => $sr->calonPelanggan->progress_status === 'sk',
+                  'bg-yellow-100 text-yellow-800' => $sr->calonPelanggan->progress_status === 'validasi',
+                  'bg-gray-100 text-gray-800' => in_array($sr->calonPelanggan->progress_status, ['pending', 'batal']),
+                ])
+              ">
+                {{ ucwords(str_replace('_', ' ', $sr->calonPelanggan->progress_status)) }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   @endif
@@ -561,7 +632,9 @@
 
   <div class="bg-white rounded-xl card-shadow p-6 space-y-4">
     <div class="flex items-center gap-3">
-      <i class="fas fa-images text-purple-600"></i>
+      <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-images text-white"></i>
+      </div>
       <h2 class="font-semibold text-gray-800">Dokumentasi Foto</h2>
     </div>
 
@@ -666,7 +739,7 @@
             @endif
 
             <div class="text-xs text-gray-500 text-center">
-              {{ $slotKey }}
+              {{ $slotLabels[$slotKey] ?? $slotKey }}
             </div>
 
             {{-- Rejection Details Dropdown --}}

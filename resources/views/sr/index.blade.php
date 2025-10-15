@@ -617,7 +617,7 @@ async function loadRejectionPopup(srId) {
         html += `
           <div class="border-l-2 ${rejection.rejected_by_type === 'tracer' ? 'border-blue-400' : 'border-orange-400'} pl-2 py-2">
             <div class="flex items-start justify-between mb-1">
-              <div class="font-medium text-xs text-gray-900">${rejection.photo_field}</div>
+              <div class="font-medium text-xs text-gray-900">${rejection.slot_label}</div>
               <span class="px-1.5 py-0.5 rounded text-xs font-medium ${badgeColor}">${rejectedBy}</span>
             </div>
             <div class="text-xs text-gray-600 mb-1">${rejection.reason || 'No reason provided'}</div>

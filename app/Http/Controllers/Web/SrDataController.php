@@ -101,7 +101,7 @@ class SrDataController extends Controller
 
     public function show(Request $r, SrData $sr)
     {
-        $sr->load(['calonPelanggan', 'photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'files']);
+        $sr->load(['calonPelanggan', 'photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'files', 'tracerApprovedBy', 'cgpApprovedBy']);
 
         if ($r->wantsJson() || $r->ajax()) {
             return response()->json($sr);
@@ -711,6 +711,9 @@ class SrDataController extends Controller
     public function getRejectionDetails(SrData $sr)
     {
         try {
+            // Get config slots for SR module to get original labels
+            $cfgSlots = (array) (config('aergas_photos.modules.SR.slots') ?? []);
+
             $rejectedPhotos = $sr->photoApprovals()
                 ->where(function($q) {
                     $q->whereNotNull('tracer_rejected_at')
@@ -719,7 +722,7 @@ class SrDataController extends Controller
                 ->with(['tracerUser', 'cgpUser'])
                 ->get();
 
-            $rejections = $rejectedPhotos->map(function($photo) {
+            $rejections = $rejectedPhotos->map(function($photo) use ($cfgSlots) {
                 $rejectedByType = null;
                 $rejectedByName = null;
                 $reason = null;
@@ -740,9 +743,12 @@ class SrDataController extends Controller
                     $category = $photo->cgp_rejection_category;
                 }
 
+                // Get original label from config
+                $slotLabel = $cfgSlots[$photo->photo_field_name]['label'] ?? $photo->slot_label ?? $photo->photo_field_name;
+
                 return [
                     'photo_field' => $photo->photo_field_name,
-                    'slot_label' => $photo->slot_label ?? null,
+                    'slot_label' => $slotLabel,
                     'rejected_by_type' => $rejectedByType,
                     'rejected_by_name' => $rejectedByName,
                     'reason' => $reason,
@@ -833,10 +839,18 @@ class SrDataController extends Controller
     }
 
     /**
-     * Get human-readable label for photo field
+     * Get human-readable label for photo field from config
      */
     private function getPhotoLabel(string $fieldName): string
     {
+        // Get label from config first
+        $cfgSlots = (array) (config('aergas_photos.modules.SR.slots') ?? []);
+
+        if (isset($cfgSlots[$fieldName]['label'])) {
+            return $cfgSlots[$fieldName]['label'];
+        }
+
+        // Fallback to hardcoded labels (for backward compatibility)
         $labels = [
             'kondisi_rumah' => 'Kondisi Rumah',
             'denah_lokasi' => 'Denah Lokasi',

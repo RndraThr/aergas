@@ -295,6 +295,11 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 ->whereNumber('sk')
                 ->name('rejection-details');
 
+            // Incomplete Details
+            Route::get('/{sk}/incomplete-details', [SkDataController::class, 'getIncompleteDetails'])
+                ->whereNumber('sk')
+                ->name('incomplete-details');
+
             // Find by Reference ID
             Route::get('/by-reff/{reffId}', [SkDataController::class, 'redirectByReff'])
                 ->where('reffId', '[A-Za-z0-9\-]+')
