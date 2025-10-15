@@ -58,7 +58,13 @@ class SkDataController extends Controller
         $sk = $q->paginate((int) $r->get('per_page', 15))->withQueryString();
 
         // Load related data for each SK
-        $sk->load('createdBy:id,name');
+        $sk->load('createdBy:id,name', 'photoApprovals');
+
+        // Add photo status details for each SK
+        $sk->getCollection()->transform(function ($item) {
+            $item->photo_status_details = $this->getPhotoStatusDetails($item);
+            return $item;
+        });
 
         if ($r->wantsJson() || $r->ajax()) {
             // Calculate stats
@@ -829,6 +835,89 @@ class SkDataController extends Controller
                 'message' => 'Failed to load rejection details'
             ], 500);
         }
+    }
+
+    /**
+     * Get photo status details for each required photo field
+     * Returns status: uploaded, missing, or corrupted/failed
+     */
+    private function getPhotoStatusDetails(SkData $sk): array
+    {
+        $requiredPhotos = $sk->getRequiredPhotos();
+        $photoApprovals = $sk->photoApprovals;
+        $statusDetails = [];
+
+        foreach ($requiredPhotos as $photoField) {
+            // Find photo approval for this field
+            $photo = $photoApprovals->firstWhere('photo_field_name', $photoField);
+
+            if (!$photo) {
+                // Photo not uploaded yet
+                $statusDetails[] = [
+                    'field' => $photoField,
+                    'label' => $this->getPhotoLabel($photoField),
+                    'status' => 'missing',
+                    'icon' => 'fa-times-circle',
+                    'color' => 'text-red-600',
+                    'bg' => 'bg-red-50'
+                ];
+            } else {
+                // Check if photo has valid storage_path with filename
+                $storagePath = $photo->storage_path ?? '';
+                $basename = basename($storagePath);
+
+                // Consider as valid file if:
+                // 1. Has file extension (e.g., .jpg, .png, .pdf)
+                // 2. Has dot in basename (even without extension, e.g., "file.")
+                // 3. Has timestamp pattern (e.g., _20251004_131955)
+                $hasValidFile = !empty($storagePath) && (
+                    pathinfo($storagePath, PATHINFO_EXTENSION) !== '' ||
+                    strpos($basename, '.') !== false ||
+                    preg_match('/_\d{8}_\d{6}/', $basename)
+                );
+
+                if ($hasValidFile) {
+                    // Photo uploaded and accessible
+                    $statusDetails[] = [
+                        'field' => $photoField,
+                        'label' => $this->getPhotoLabel($photoField),
+                        'status' => 'uploaded',
+                        'icon' => 'fa-check-circle',
+                        'color' => 'text-green-600',
+                        'bg' => 'bg-green-50',
+                        'ai_status' => $photo->ai_status ?? null
+                    ];
+                } else {
+                    // Photo record exists but file is corrupted/missing (only folder path or no extension)
+                    $statusDetails[] = [
+                        'field' => $photoField,
+                        'label' => $this->getPhotoLabel($photoField),
+                        'status' => 'corrupted',
+                        'icon' => 'fa-exclamation-triangle',
+                        'color' => 'text-yellow-600',
+                        'bg' => 'bg-yellow-50'
+                    ];
+                }
+            }
+        }
+
+        return $statusDetails;
+    }
+
+    /**
+     * Get human-readable label for photo field
+     */
+    private function getPhotoLabel(string $fieldName): string
+    {
+        $labels = [
+            'pneumatic_start' => 'Pneumatic Start',
+            'pneumatic_finish' => 'Pneumatic Finish',
+            'valve' => 'Valve',
+            'isometrik_scan' => 'Isometrik Scan',
+            'berita_acara' => 'Berita Acara',
+        ];
+
+        return $labels[$fieldName] ?? ucwords(str_replace('_', ' ', $fieldName));
     }
 
 }

@@ -23,7 +23,11 @@ class CgpApprovalController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('auth'),
-            new Middleware('role:cgp,super_admin'), // CGP Review menggunakan role cgp
+            // Role jalur can ONLY access jalur-photos and approve jalur photos
+            // All other methods require cgp or super_admin
+            new Middleware('role:cgp,super_admin', except: ['jalurPhotos', 'approvePhoto']),
+            // jalurPhotos and approvePhoto can be accessed by cgp, super_admin, OR jalur
+            new Middleware('role:cgp,super_admin,jalur', only: ['jalurPhotos', 'approvePhoto']),
         ];
     }
 

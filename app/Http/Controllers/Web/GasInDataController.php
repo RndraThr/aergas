@@ -57,7 +57,13 @@ class GasInDataController extends Controller
        $gasIn = $q->paginate((int) $r->get('per_page', 15))->withQueryString();
 
        // Load related data for each Gas In
-       $gasIn->load('createdBy:id,name');
+       $gasIn->load('createdBy:id,name', 'photoApprovals');
+
+       // Add photo status details for each Gas In
+       $gasIn->getCollection()->transform(function ($item) {
+           $item->photo_status_details = $this->getPhotoStatusDetails($item);
+           return $item;
+       });
 
        if ($r->wantsJson() || $r->ajax()) {
            // Calculate stats
@@ -762,6 +768,85 @@ class GasInDataController extends Controller
                'message' => 'Failed to load rejection details'
            ], 500);
        }
+   }
+
+   /**
+    * Get photo status details for a Gas In record
+    */
+   private function getPhotoStatusDetails(GasInData $gasIn): array
+   {
+       $requiredPhotos = $gasIn->getRequiredPhotos();
+       $photoApprovals = $gasIn->photoApprovals;
+       $statusDetails = [];
+
+       foreach ($requiredPhotos as $photoField) {
+           $photo = $photoApprovals->firstWhere('photo_field_name', $photoField);
+
+           if (!$photo) {
+               // Photo not uploaded
+               $statusDetails[] = [
+                   'field' => $photoField,
+                   'label' => $this->getPhotoLabel($photoField),
+                   'status' => 'missing',
+                   'icon' => 'fa-times-circle',
+                   'color' => 'text-red-600',
+                   'bg' => 'bg-red-50'
+               ];
+           } else {
+               // Check if photo has valid storage_path with filename
+               $storagePath = $photo->storage_path ?? '';
+               $basename = basename($storagePath);
+
+               // Consider as valid file if:
+               // 1. Has file extension (e.g., .jpg, .png, .pdf)
+               // 2. Has dot in basename (even without extension, e.g., "file.")
+               // 3. Has timestamp pattern (e.g., _20251004_131955)
+               $hasValidFile = !empty($storagePath) && (
+                   pathinfo($storagePath, PATHINFO_EXTENSION) !== '' ||
+                   strpos($basename, '.') !== false ||
+                   preg_match('/_\d{8}_\d{6}/', $basename)
+               );
+
+               if ($hasValidFile) {
+                   $statusDetails[] = [
+                       'field' => $photoField,
+                       'label' => $this->getPhotoLabel($photoField),
+                       'status' => 'uploaded',
+                       'icon' => 'fa-check-circle',
+                       'color' => 'text-green-600',
+                       'bg' => 'bg-green-50',
+                       'ai_status' => $photo->ai_status ?? null
+                   ];
+               } else {
+                   // Corrupted: only folder path, no filename
+                   $statusDetails[] = [
+                       'field' => $photoField,
+                       'label' => $this->getPhotoLabel($photoField),
+                       'status' => 'corrupted',
+                       'icon' => 'fa-exclamation-triangle',
+                       'color' => 'text-yellow-600',
+                       'bg' => 'bg-yellow-50'
+                   ];
+               }
+           }
+       }
+
+       return $statusDetails;
+   }
+
+   /**
+    * Get human-readable label for photo field
+    */
+   private function getPhotoLabel(string $fieldName): string
+   {
+       $labels = [
+           'ba_gas_in' => 'BA Gas In',
+           'foto_bubble_test' => 'Foto Bubble Test',
+           'foto_regulator' => 'Foto Regulator',
+           'foto_kompor_menyala' => 'Foto Kompor Menyala',
+       ];
+
+       return $labels[$fieldName] ?? ucwords(str_replace('_', ' ', $fieldName));
    }
 
 }
