@@ -148,17 +148,20 @@
                             $photoUrl = $photo->photo_url;
                             $fileId = null;
 
-                            // Handle Google Drive URLs with proper size parameter
+                            // Extract Google Drive file ID and use direct thumbnail URL
                             if (str_contains($photoUrl, 'drive.google.com')) {
+                                // Extract file ID from various Google Drive URL formats
                                 if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $photoUrl, $matches)) {
                                     $fileId = $matches[1];
-                                    $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}=w800";
                                 } elseif (preg_match('/id=([a-zA-Z0-9_-]+)/', $photoUrl, $matches)) {
                                     $fileId = $matches[1];
-                                    $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}=w800";
                                 } elseif (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $photoUrl, $matches)) {
                                     $fileId = $matches[1];
-                                    $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}=w800";
+                                }
+
+                                // Use Google's direct thumbnail URL (more reliable)
+                                if ($fileId) {
+                                    $photoUrl = "https://drive.google.com/thumbnail?id={$fileId}&sz=w800";
                                 }
                             } elseif (strpos($photoUrl, 'http') !== 0) {
                                 $photoUrl = asset('storage/' . ltrim($photoUrl, '/'));

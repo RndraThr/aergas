@@ -264,15 +264,23 @@
                                         </div>
                                     @elseif($photo->photo_url && !empty(trim($photo->photo_url)))
                                         @php
-                                            // Use authenticated proxy for Google Drive images
+                                            // Extract Google Drive file ID and use direct URL
                                             $imageUrl = $photo->photo_url;
                                             $fileId = null;
 
                                             if (str_contains($imageUrl, 'drive.google.com')) {
+                                                // Extract file ID from various Google Drive URL formats
                                                 if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $imageUrl, $matches)) {
                                                     $fileId = $matches[1];
-                                                    // Use our authenticated proxy route
-                                                    $imageUrl = route('drive.image', ['fileId' => $fileId]);
+                                                } elseif (preg_match('/id=([a-zA-Z0-9_-]+)/', $imageUrl, $matches)) {
+                                                    $fileId = $matches[1];
+                                                } elseif (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $imageUrl, $matches)) {
+                                                    $fileId = $matches[1];
+                                                }
+
+                                                // Use Google's direct thumbnail URL (more reliable)
+                                                if ($fileId) {
+                                                    $imageUrl = "https://drive.google.com/thumbnail?id={$fileId}&sz=w800";
                                                 }
                                             }
                                         @endphp
