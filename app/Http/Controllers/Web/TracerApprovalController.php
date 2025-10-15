@@ -304,6 +304,124 @@ class TracerApprovalController extends Controller implements HasMiddleware
     }
 
     /**
+     * Replace photo (Admin/Super Admin only)
+     */
+    public function replacePhoto(Request $request)
+    {
+        // Validate admin/super_admin permission
+        if (!Auth::user()->hasAnyRole(['admin', 'super_admin'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Hanya admin/super_admin yang dapat mengganti foto.'
+            ], 403);
+        }
+
+        $request->validate([
+            'photo_id' => 'required|integer|exists:photo_approvals,id',
+            'new_photo' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB max
+            'module_name' => 'required|string',
+            'replacement_notes' => 'nullable|string|max:1000',
+            'ai_precheck' => 'nullable|boolean'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $photoApproval = PhotoApproval::findOrFail($request->photo_id);
+            $replacementNotes = $request->replacement_notes ?? 'Photo replaced by ' . Auth::user()->name;
+            $runAiPrecheck = $request->boolean('ai_precheck', false);
+
+            // Store old photo information for logging
+            $oldPhotoUrl = $photoApproval->photo_url;
+            $oldStoragePath = $photoApproval->storage_path;
+
+            // Upload new photo using PhotoApprovalService
+            $uploadedFile = $request->file('new_photo');
+
+            // Determine module data for proper storage
+            $moduleData = match($photoApproval->module_name) {
+                'sk' => SkData::where('reff_id_pelanggan', $photoApproval->reff_id_pelanggan)->first(),
+                'sr' => SrData::where('reff_id_pelanggan', $photoApproval->reff_id_pelanggan)->first(),
+                'gas_in' => GasInData::where('reff_id_pelanggan', $photoApproval->reff_id_pelanggan)->first(),
+                'jalur_lowering' => JalurLoweringData::find($photoApproval->module_record_id),
+                'jalur_joint' => JalurJointData::find($photoApproval->module_record_id),
+                default => null
+            };
+
+            if (!$moduleData) {
+                throw new Exception('Module data tidak ditemukan');
+            }
+
+            // Use PhotoApprovalService to upload the new photo
+            // handleUploadAndValidate will upload file and update/create PhotoApproval record
+            $result = $this->photoApprovalService->handleUploadAndValidate(
+                module: strtoupper($photoApproval->module_name),
+                reffId: $photoApproval->reff_id_pelanggan,
+                slotIncoming: $photoApproval->photo_field_name,
+                file: $uploadedFile,
+                userId: Auth::id()
+            );
+
+            if (!$result['success']) {
+                throw new Exception($result['message'] ?? 'Upload failed');
+            }
+
+            // Get the updated photo approval
+            $photoApproval->refresh();
+
+            // Run AI precheck if requested
+            if ($runAiPrecheck) {
+                try {
+                    $aiResult = $this->photoApprovalService->runAIPrecheck($photoApproval);
+                    $photoApproval->refresh();
+                } catch (Exception $e) {
+                    Log::warning('AI precheck failed after photo replacement: ' . $e->getMessage());
+                }
+            }
+
+            // Log the replacement action
+            Log::info('Photo replaced by admin', [
+                'photo_id' => $photoApproval->id,
+                'reff_id' => $photoApproval->reff_id_pelanggan,
+                'module' => $photoApproval->module_name,
+                'field' => $photoApproval->photo_field_name,
+                'old_photo_url' => $oldPhotoUrl,
+                'new_photo_url' => $photoApproval->photo_url,
+                'replaced_by' => Auth::user()->name,
+                'replacement_notes' => $replacementNotes,
+                'ai_precheck' => $runAiPrecheck
+            ]);
+
+            // Update module status if needed
+            $this->updateModuleStatus($photoApproval);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Foto berhasil diganti. Status approval telah direset.',
+                'data' => [
+                    'photo_approval' => $photoApproval,
+                    'ai_precheck_run' => $runAiPrecheck
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Replace photo error: ' . $e->getMessage(), [
+                'photo_id' => $request->photo_id,
+                'user' => Auth::user()->name,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengganti foto: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Batch approve untuk module
      */
     public function approveModule(Request $request)

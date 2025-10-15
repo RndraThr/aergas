@@ -469,26 +469,40 @@
                                     </div>
 
                                     <!-- Actions -->
-                                    @if($moduleAvailable && !$photo->tracer_approved_at)
-                                        @if($photo->tracer_rejected_at && (!$photo->updated_at || $photo->updated_at <= $photo->tracer_rejected_at))
-                                            <!-- Photo is rejected and not updated since rejection -->
-                                            <div class="text-center py-2">
-                                                <span class="text-sm text-gray-500">Photo rejected. Please update photo to re-review.</span>
-                                            </div>
-                                        @else
-                                            <!-- Photo is pending or updated after rejection -->
-                                            <div class="flex space-x-2">
-                                                <button onclick="approvePhoto({{ $photo->id }})" 
-                                                        class="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
-                                                    ✅ Approve
-                                                </button>
-                                                <button onclick="rejectPhoto({{ $photo->id }})" 
-                                                        class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
-                                                    ❌ Reject
-                                                </button>
-                                            </div>
+                                    <div class="space-y-2">
+                                        <!-- Replace Photo Button (Admin/Super Admin Only) -->
+                                        @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
+                                        <button type="button" onclick="openReplacePhotoModal({{ $photo->id }}, '{{ addslashes($photo->photo_field_name) }}', '{{ addslashes($module) }}')"
+                                                class="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center justify-center space-x-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                                            </svg>
+                                            <span>Replace Photo</span>
+                                        </button>
                                         @endif
-                                    @endif
+
+                                        <!-- Approve/Reject Buttons -->
+                                        @if($moduleAvailable && !$photo->tracer_approved_at)
+                                            @if($photo->tracer_rejected_at && (!$photo->updated_at || $photo->updated_at <= $photo->tracer_rejected_at))
+                                                <!-- Photo is rejected and not updated since rejection -->
+                                                <div class="text-center py-2">
+                                                    <span class="text-sm text-gray-500">Photo rejected. Please update photo to re-review.</span>
+                                                </div>
+                                            @else
+                                                <!-- Photo is pending or updated after rejection -->
+                                                <div class="flex space-x-2">
+                                                    <button onclick="approvePhoto({{ $photo->id }})"
+                                                            class="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
+                                                        ✅ Approve
+                                                    </button>
+                                                    <button onclick="rejectPhoto({{ $photo->id }})"
+                                                            class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
+                                                        ❌ Reject
+                                                    </button>
+                                                </div>
+                                            @endif
+                                        @endif
+                                    </div>
                                     @endif
                                 </div>
                             </div>
@@ -545,6 +559,92 @@
 <!-- Photo Modal -->
 <div id="photoModal" class="photo-modal" onclick="closePhotoModal()">
     <img id="modalPhoto" src="" alt="">
+</div>
+
+<!-- Replace Photo Modal -->
+<div id="replacePhotoModal" class="fixed inset-0 bg-black bg-opacity-50 z-[1000] hidden items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-lg">
+            <h3 class="text-lg font-semibold">Replace Photo</h3>
+            <p class="text-blue-100 text-sm mt-1" id="replacePhotoFieldName"></p>
+        </div>
+
+        <!-- Modal Body -->
+        <form id="replacePhotoForm" enctype="multipart/form-data" class="p-6">
+            @csrf
+            <input type="hidden" name="photo_id" id="replacePhotoId">
+            <input type="hidden" name="module_name" id="replaceModuleName">
+
+            <!-- Warning Notice -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-yellow-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <div>
+                        <h4 class="text-sm font-medium text-yellow-800">Perhatian</h4>
+                        <p class="text-xs text-yellow-700 mt-1">Mengganti foto akan mereset status approval dan foto harus direview ulang.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Upload -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Upload Foto Baru <span class="text-red-500">*</span>
+                </label>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
+                    <input type="file" name="new_photo" id="replacePhotoFile" accept="image/*,.pdf"
+                           class="hidden" onchange="handleFileSelect(this)">
+                    <label for="replacePhotoFile" class="cursor-pointer">
+                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        <span class="text-sm text-gray-600">Klik untuk pilih file</span>
+                        <p class="text-xs text-gray-500 mt-1">JPG, PNG, PDF (Max 5MB)</p>
+                    </label>
+                </div>
+                <div id="selectedFileName" class="text-sm text-gray-600 mt-2 hidden"></div>
+            </div>
+
+            <!-- AI Precheck Option -->
+            <div class="mb-4">
+                <label class="flex items-center">
+                    <input type="checkbox" name="ai_precheck" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <span class="ml-2 text-sm text-gray-700">Jalankan AI Precheck setelah upload</span>
+                </label>
+                <p class="text-xs text-gray-500 mt-1 ml-6">AI akan otomatis mengecek kualitas foto yang diupload</p>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Catatan Penggantian</label>
+                <textarea name="replacement_notes" rows="3"
+                          placeholder="Alasan penggantian foto..."
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex space-x-3">
+                <button type="button" onclick="closeReplacePhotoModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors">
+                    Batal
+                </button>
+                <button type="submit"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                    <span id="replacePhotoSubmitText">Replace Photo</span>
+                    <span id="replacePhotoLoadingText" class="hidden">
+                        <svg class="animate-spin h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Uploading...
+                    </span>
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- Notes Modal -->
@@ -899,6 +999,100 @@ function toggleRejectionDetails(photoId, type) {
     }
 }
 
+// Replace Photo Modal Functions
+function openReplacePhotoModal(photoId, fieldName, moduleName) {
+    document.getElementById('replacePhotoId').value = photoId;
+    document.getElementById('replaceModuleName').value = moduleName;
+    document.getElementById('replacePhotoFieldName').textContent = formatFieldName(fieldName);
+    document.getElementById('replacePhotoModal').classList.remove('hidden');
+    document.getElementById('replacePhotoModal').classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeReplacePhotoModal() {
+    document.getElementById('replacePhotoModal').classList.add('hidden');
+    document.getElementById('replacePhotoModal').classList.remove('flex');
+    document.body.style.overflow = 'auto';
+    document.getElementById('replacePhotoForm').reset();
+    document.getElementById('selectedFileName').classList.add('hidden');
+}
+
+function formatFieldName(fieldName) {
+    return fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function handleFileSelect(input) {
+    const fileName = input.files[0]?.name;
+    const fileNameDisplay = document.getElementById('selectedFileName');
+    if (fileName) {
+        fileNameDisplay.textContent = '📎 ' + fileName;
+        fileNameDisplay.classList.remove('hidden');
+    } else {
+        fileNameDisplay.classList.add('hidden');
+    }
+}
+
+// Handle Replace Photo Form Submission
+document.getElementById('replacePhotoForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // Validate file is selected
+    const fileInput = document.getElementById('replacePhotoFile');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Silakan pilih file foto terlebih dahulu');
+        return;
+    }
+
+    // Validate file size (5MB max)
+    const file = fileInput.files[0];
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+        alert('Ukuran file terlalu besar. Maksimal 5MB');
+        return;
+    }
+
+    const submitBtn = document.querySelector('#replacePhotoForm button[type="submit"]');
+    const submitText = document.getElementById('replacePhotoSubmitText');
+    const loadingText = document.getElementById('replacePhotoLoadingText');
+
+    // Show loading state
+    submitBtn.disabled = true;
+    submitText.classList.add('hidden');
+    loadingText.classList.remove('hidden');
+
+    const formData = new FormData(this);
+
+    fetch('{{ route("approvals.tracer.replace-photo") }}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert('Foto berhasil diganti! Halaman akan di-reload.');
+            closeReplacePhotoModal();
+            location.reload();
+        } else {
+            // Show error message
+            alert('Error: ' + (data.message || 'Gagal mengganti foto'));
+            submitBtn.disabled = false;
+            submitText.classList.remove('hidden');
+            loadingText.classList.add('hidden');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan saat mengganti foto');
+        submitBtn.disabled = false;
+        submitText.classList.remove('hidden');
+        loadingText.classList.add('hidden');
+    });
+});
+
 // Reject module due to missing photo
 function rejectMissingPhoto(module, photoFieldName, photoLabel) {
     const defaultMessage = `Foto ${photoLabel} belum diupload. Mohon upload foto wajib terlebih dahulu sebelum submit untuk approval.`;
@@ -916,5 +1110,14 @@ function rejectMissingPhoto(module, photoFieldName, photoLabel) {
 
     document.getElementById('notesModal').classList.remove('hidden');
 }
+
+// Close modals on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closePhotoModal();
+        closeNotesModal();
+        closeReplacePhotoModal();
+    }
+});
 </script>
 @endpush

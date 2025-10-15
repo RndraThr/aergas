@@ -683,6 +683,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
 
             // Photo Actions
             Route::post('/photos/approve', [TracerApprovalController::class, 'approvePhoto'])->name('approve-photo');
+            Route::post('/photos/replace', [TracerApprovalController::class, 'replacePhoto'])->name('replace-photo');
             Route::post('/modules/approve', [TracerApprovalController::class, 'approveModule'])->name('approve-module');
             Route::post('/modules/reject', [TracerApprovalController::class, 'rejectModule'])->name('reject-module');
             Route::post('/ai-review', [TracerApprovalController::class, 'aiReview'])->name('ai-review');
