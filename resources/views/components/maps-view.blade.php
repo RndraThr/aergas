@@ -195,6 +195,150 @@
 
     {{-- Map Container --}}
     <div class="relative">
+        {{-- Drawing Manager Panel - Bottom Left with popup upwards --}}
+        <div class="absolute bottom-4 left-4 z-[1000]"
+             x-data="{ expanded: false, activeTab: 'layers' }">
+
+            {{-- Expanded Panel (opens upward) --}}
+            <div x-show="expanded"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 transform translate-y-4"
+                 x-transition:enter-end="opacity-100 transform translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 transform translate-y-0"
+                 x-transition:leave-end="opacity-0 transform translate-y-4"
+                 class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden max-w-xs mb-2"
+                 style="max-height: calc(100vh - 12rem);">
+
+                {{-- Header --}}
+                <div class="p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white border-b border-blue-700">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-layer-group"></i>
+                            <span class="font-semibold text-sm">Drawing Manager</span>
+                        </div>
+                        <button @click="expanded = false" class="hover:bg-white/20 rounded p-1 transition-colors">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Content --}}
+                <div class="max-h-96 overflow-y-auto">
+                {{-- Tabs --}}
+                <div class="flex border-b border-gray-200 bg-gray-50">
+                    <button @click="activeTab = 'layers'"
+                            :class="activeTab === 'layers' ? 'bg-white border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:bg-gray-100'"
+                            class="flex-1 px-3 py-2 text-xs font-medium transition-colors">
+                        <i class="fas fa-layer-group mr-1"></i> Layers
+                    </button>
+                    <button @click="activeTab = 'shapes'"
+                            :class="activeTab === 'shapes' ? 'bg-white border-b-2 border-purple-600 text-purple-600' : 'text-gray-600 hover:bg-gray-100'"
+                            class="flex-1 px-3 py-2 text-xs font-medium transition-colors">
+                        <i class="fas fa-shapes mr-1"></i> Shapes
+                    </button>
+                </div>
+
+                {{-- Layers Tab --}}
+                <div x-show="activeTab === 'layers'" class="p-3 space-y-2">
+                    {{-- Customer Markers Toggle --}}
+                    <label class="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-map-marker-alt text-blue-600 w-4"></i>
+                            <span class="text-sm text-gray-700">Customer Markers</span>
+                        </div>
+                        <input type="checkbox" x-model="layersVisible.markers" @change="toggleMarkersLayer()"
+                               class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+                    </label>
+
+                    {{-- Drawing Mode Toggle --}}
+                    <div class="pt-2 border-t border-gray-200">
+                        <label class="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-pencil-ruler text-green-600 w-4"></i>
+                                <span class="text-sm text-gray-700">Drawing Mode</span>
+                            </div>
+                            <input type="checkbox" x-model="drawingMode" @change="toggleDrawingMode()"
+                                   class="w-4 h-4 text-green-600 rounded focus:ring-green-500">
+                        </label>
+                        <p class="text-xs text-gray-500 px-2 mt-1">Dims markers for easier drawing</p>
+                    </div>
+                </div>
+
+                {{-- Shapes Tab --}}
+                <div x-show="activeTab === 'shapes'" class="p-3">
+                    {{-- Show/Hide All --}}
+                    <div class="flex gap-2 mb-3">
+                        <button @click="showAllShapes()" class="flex-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors">
+                            <i class="fas fa-eye mr-1"></i> Show All
+                        </button>
+                        <button @click="hideAllShapes()" class="flex-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 transition-colors">
+                            <i class="fas fa-eye-slash mr-1"></i> Hide All
+                        </button>
+                    </div>
+
+                    {{-- Shapes List --}}
+                    <div class="space-y-1 max-h-64 overflow-y-auto">
+                        <template x-if="mapFeatures.length === 0">
+                            <div class="text-center py-6 text-gray-400">
+                                <i class="fas fa-shapes text-3xl mb-2"></i>
+                                <p class="text-xs">No shapes drawn yet</p>
+                            </div>
+                        </template>
+
+                        <template x-for="feature in mapFeatures" :key="feature.id">
+                            <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded border border-gray-100 group">
+                                <div class="flex items-center gap-2 flex-1 min-w-0">
+                                    {{-- Shape Icon --}}
+                                    <div class="flex-shrink-0">
+                                        <i class="fas text-sm"
+                                           :class="{
+                                               'fa-draw-polygon text-purple-600': feature.properties.feature_type === 'polygon' || feature.properties.feature_type === 'circle',
+                                               'fa-minus text-blue-600': feature.properties.feature_type === 'line'
+                                           }"></i>
+                                    </div>
+
+                                    {{-- Shape Info --}}
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-xs font-medium text-gray-700 truncate"
+                                             x-text="feature.properties.name || getShapeDefaultName(feature)"></div>
+                                        <div class="text-xs text-gray-500" x-text="getShapeTypeLabel(feature.properties.feature_type)"></div>
+                                    </div>
+                                </div>
+
+                                {{-- Action Buttons --}}
+                                <div class="flex items-center gap-1 flex-shrink-0">
+                                    {{-- Toggle Visibility --}}
+                                    <button @click="toggleShapeVisibility(feature.id)"
+                                            class="p-1 rounded hover:bg-gray-200 transition-colors"
+                                            :title="hiddenShapes.includes(feature.id) ? 'Show' : 'Hide'">
+                                        <i class="fas text-xs"
+                                           :class="hiddenShapes.includes(feature.id) ? 'fa-eye-slash text-gray-400' : 'fa-eye text-blue-600'"></i>
+                                    </button>
+
+                                    {{-- Zoom to Shape --}}
+                                    <button @click="zoomToShape(feature.id)"
+                                            class="p-1 rounded hover:bg-gray-200 transition-colors"
+                                            title="Zoom to shape">
+                                        <i class="fas fa-search-location text-xs text-green-600"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            {{-- Collapsed Button (always visible at bottom-left) --}}
+            <button @click="expanded = !expanded"
+                    class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2 border border-blue-700">
+                <i class="fas fa-layer-group"></i>
+                <span class="font-semibold text-sm">Drawing Manager</span>
+                <i class="fas fa-chevron-up text-xs ml-1"></i>
+            </button>
+        </div>
+
         <div id="aergas-map" class="h-96 lg:h-[500px] w-full" style="z-index: 1;"></div>
 
         {{-- Loading Spinner --}}
@@ -525,6 +669,14 @@ function mapsComponent() {
             hiddenStatuses: [],
             hiddenProgress: []
         },
+
+        // Layer visibility controls
+        layersVisible: {
+            markers: true,
+            drawings: true
+        },
+        hiddenShapes: [], // Array of feature IDs that are hidden
+        shapeLayersMap: {}, // Map feature ID to Leaflet layer object
 
         // Drawing tool properties
         drawingMode: false,
@@ -1191,10 +1343,19 @@ function mapsComponent() {
             console.log('L.Draw available:', typeof L.Draw);
             console.log('L.Control.Draw available:', typeof L.Control.Draw);
 
-            // Initialize feature group for drawn layers
+            // Initialize feature group for drawn layers with higher z-index
             this.drawnLayers = new L.FeatureGroup();
             this.map.addLayer(this.drawnLayers);
-            console.log('Drawn layers group created:', this.drawnLayers);
+
+            // Set z-index to ensure drawings are above markers
+            // Leaflet default z-index for markers is 600, set drawings to 650
+            if (this.drawnLayers.getPane) {
+                const pane = this.drawnLayers.getPane();
+                if (pane) {
+                    pane.style.zIndex = 650;
+                }
+            }
+            console.log('Drawn layers group created with elevated z-index:', this.drawnLayers);
 
             // Setup drawing controls - initially disabled, will be activated by buttons
             this.drawingControl = new L.Control.Draw({
@@ -1297,8 +1458,9 @@ function mapsComponent() {
         },
 
         addFeaturesToMap() {
-            // Clear existing drawn layers
+            // Clear existing drawn layers and shape map
             this.drawnLayers.clearLayers();
+            this.shapeLayersMap = {};
 
             this.mapFeatures.forEach(feature => {
                 if (feature.properties.is_visible) {
@@ -1307,7 +1469,14 @@ function mapsComponent() {
                     });
 
                     layer.feature_id = feature.id;
-                    this.drawnLayers.addLayer(layer);
+
+                    // Store layer in map for visibility toggle
+                    this.shapeLayersMap[feature.id] = layer;
+
+                    // Only add to map if not hidden
+                    if (!this.hiddenShapes.includes(feature.id)) {
+                        this.drawnLayers.addLayer(layer);
+                    }
 
                     // Add name label if feature has a name (after layer is added to map)
                     if (feature.properties.name) {
@@ -1632,6 +1801,10 @@ function mapsComponent() {
                 if (result.success) {
                     layer.feature_id = result.feature.id;
                     this.mapFeatures.push(result.feature);
+
+                    // Add to shapeLayersMap for visibility control
+                    this.shapeLayersMap[result.feature.id] = layer;
+
                     console.log('Feature saved successfully:', result.feature);
                     alert('Feature saved successfully!');
                 } else {
@@ -2077,6 +2250,158 @@ function mapsComponent() {
             }
             // Re-render markers with new filter
             this.addMarkersToMap();
+        },
+
+        // ==================== LAYER TOGGLE FUNCTIONS ====================
+
+        toggleMarkersLayer() {
+            if (this.layersVisible.markers) {
+                // Show markers
+                if (this.markerClusterGroup) {
+                    this.map.addLayer(this.markerClusterGroup);
+                }
+            } else {
+                // Hide markers
+                if (this.markerClusterGroup) {
+                    this.map.removeLayer(this.markerClusterGroup);
+                }
+            }
+        },
+
+        toggleDrawingsLayer() {
+            if (this.layersVisible.drawings) {
+                // Show drawings
+                if (this.drawnLayers) {
+                    this.map.addLayer(this.drawnLayers);
+                }
+            } else {
+                // Hide drawings
+                if (this.drawnLayers) {
+                    this.map.removeLayer(this.drawnLayers);
+                }
+            }
+        },
+
+        toggleDrawingMode() {
+            if (this.drawingMode) {
+                // Entering drawing mode
+                // Dim markers by reducing opacity
+                if (this.markerClusterGroup) {
+                    this.markerClusterGroup.setOpacity(0.3);
+                }
+                // Bring drawings to front
+                if (this.drawnLayers) {
+                    this.drawnLayers.bringToFront();
+                }
+                // Show notification
+                console.log('Drawing mode ON: Markers dimmed for easier drawing');
+            } else {
+                // Exiting drawing mode
+                // Restore full marker opacity
+                if (this.markerClusterGroup) {
+                    this.markerClusterGroup.setOpacity(1.0);
+                }
+                console.log('Drawing mode OFF: Markers restored');
+            }
+        },
+
+        // ==================== INDIVIDUAL SHAPE MANAGEMENT ====================
+
+        toggleShapeVisibility(featureId) {
+            const index = this.hiddenShapes.indexOf(featureId);
+            const layer = this.shapeLayersMap[featureId];
+
+            if (index > -1) {
+                // Shape is hidden, show it
+                this.hiddenShapes.splice(index, 1);
+                if (layer && this.drawnLayers) {
+                    this.drawnLayers.addLayer(layer);
+                }
+            } else {
+                // Shape is visible, hide it
+                this.hiddenShapes.push(featureId);
+                if (layer && this.drawnLayers) {
+                    this.drawnLayers.removeLayer(layer);
+                }
+            }
+        },
+
+        showAllShapes() {
+            // Clear hidden shapes array
+            this.hiddenShapes = [];
+            // Add all layers back to drawnLayers
+            Object.values(this.shapeLayersMap).forEach(layer => {
+                if (layer && this.drawnLayers && !this.drawnLayers.hasLayer(layer)) {
+                    this.drawnLayers.addLayer(layer);
+                }
+            });
+        },
+
+        hideAllShapes() {
+            // Add all feature IDs to hidden array
+            this.hiddenShapes = this.mapFeatures.map(f => f.id);
+            // Remove all layers from map
+            if (this.drawnLayers) {
+                this.drawnLayers.clearLayers();
+            }
+        },
+
+        zoomToShape(featureId) {
+            const layer = this.shapeLayersMap[featureId];
+            if (layer) {
+                // If shape is hidden, show it first
+                const hiddenIndex = this.hiddenShapes.indexOf(featureId);
+                if (hiddenIndex > -1) {
+                    this.toggleShapeVisibility(featureId);
+                }
+
+                // Zoom to shape
+                if (layer.getBounds) {
+                    this.map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+                } else if (layer.getLatLng) {
+                    this.map.setView(layer.getLatLng(), 16);
+                }
+
+                // Flash the shape to highlight it
+                if (layer.setStyle) {
+                    const originalStyle = {
+                        color: layer.options.color,
+                        weight: layer.options.weight
+                    };
+                    // Flash effect
+                    layer.setStyle({ color: '#ff0000', weight: 6 });
+                    setTimeout(() => {
+                        layer.setStyle(originalStyle);
+                    }, 500);
+                }
+            }
+        },
+
+        getShapeDefaultName(feature) {
+            const type = feature.properties.feature_type;
+            const id = feature.id;
+
+            // Try to get cluster or line number name
+            if (feature.properties.cluster_id) {
+                const cluster = this.clusters.find(c => c.id === feature.properties.cluster_id);
+                if (cluster) return cluster.name;
+            }
+            if (feature.properties.line_number_id) {
+                const lineNum = this.lineNumbers.find(l => l.id === feature.properties.line_number_id);
+                if (lineNum) return lineNum.line_number;
+            }
+
+            // Fallback to type + ID
+            return `${this.getShapeTypeLabel(type)} #${id}`;
+        },
+
+        getShapeTypeLabel(type) {
+            const labels = {
+                'line': 'Line',
+                'polygon': 'Polygon',
+                'circle': 'Circle'
+            };
+            return labels[type] || type;
         }
     }
 }
@@ -2116,6 +2441,20 @@ document.addEventListener('click', function(e) {
 
 .leaflet-control-container {
     z-index: 999 !important;
+}
+
+/* Drawing layers should be above marker clusters */
+.leaflet-overlay-pane {
+    z-index: 400 !important;
+}
+
+.leaflet-marker-pane {
+    z-index: 600 !important;
+}
+
+/* Marker cluster opacity transition */
+.marker-cluster-group {
+    transition: opacity 0.3s ease-in-out;
 }
 
 /* Force legend to be above everything */
