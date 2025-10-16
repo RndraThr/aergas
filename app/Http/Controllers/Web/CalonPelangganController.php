@@ -190,7 +190,7 @@ class CalonPelangganController extends Controller
             'email'            => 'nullable|email',
             'latitude'         => 'nullable|numeric|between:-90,90',
             'longitude'        => 'nullable|numeric|between:-180,180',
-            'coordinate_source' => 'nullable|in:manual,gps,maps,survey',
+            'coordinate_source' => 'nullable|in:manual,gps,maps,survey,excel_import',
         ]);
 
         if ($validator->fails()) {
@@ -328,7 +328,7 @@ class CalonPelangganController extends Controller
                 'email'           => 'nullable|email',
                 'latitude'        => 'nullable|numeric|between:-90,90',
                 'longitude'       => 'nullable|numeric|between:-180,180',
-                'coordinate_source' => 'nullable|in:manual,gps,maps,survey'
+                'coordinate_source' => 'nullable|in:manual,gps,maps,survey,excel_import'
             ];
 
             // jika boleh ubah reff, tambahkan rule unik (excluded current key)
