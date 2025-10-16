@@ -87,7 +87,7 @@
                     <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     <input type="text"
                            x-model="filters.search"
-                           @input.debounce.500ms="fetchCustomers()"
+                           @input.debounce.500ms="fetchCustomers(true)"
                            placeholder="Nama, Reff ID, alamat, atau telepon..."
                            class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                 </div>
@@ -95,7 +95,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select x-model="filters.status" @change="fetchCustomers()"
+                <select x-model="filters.status" @change="fetchCustomers(true)"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                     <option value="">Semua Status</option>
                     <option value="pending">Pending</option>
@@ -107,7 +107,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Progress</label>
-                <select x-model="filters.progress_status" @change="fetchCustomers()"
+                <select x-model="filters.progress_status" @change="fetchCustomers(true)"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                     <option value="">Semua Progress</option>
                     <option value="validasi">Validasi</option>
@@ -168,7 +168,7 @@
 
                 <div class="flex items-center space-x-2">
                     <span class="text-sm text-gray-500">Show:</span>
-                    <select x-model="pagination.per_page" @change="fetchCustomers()"
+                    <select x-model="pagination.per_page" @change="fetchCustomers(true)"
                             class="border border-gray-300 rounded px-2 py-1 text-sm">
                         <option value="15">15</option>
                         <option value="25">25</option>
@@ -494,8 +494,13 @@ function customersData() {
             return modules[0];
         },
 
-        async fetchCustomers() {
+        async fetchCustomers(resetPage = false) {
             this.loading = true;
+
+            // Auto-reset to page 1 when filters change
+            if (resetPage) {
+                this.pagination.current_page = 1;
+            }
 
             try {
                 const params = new URLSearchParams({
@@ -526,6 +531,14 @@ function customersData() {
                         from: data.data.from,
                         to: data.data.to
                     };
+
+                    // Smart pagination: if current page > last page, auto-adjust
+                    if (this.pagination.current_page > this.pagination.last_page && this.pagination.last_page > 0) {
+                        this.pagination.current_page = this.pagination.last_page;
+                        this.fetchCustomers(); // Re-fetch with adjusted page
+                        return;
+                    }
+
                     // Progress percentage now comes from database
                 }
             } catch (error) {
@@ -548,7 +561,7 @@ function customersData() {
 
         setQuickFilter(filter) {
             this.quickFilter = filter;
-            
+
             // Reset filters first
             this.filters.status = '';
             this.filters.progress_status = '';
@@ -583,7 +596,7 @@ function customersData() {
                     break;
             }
 
-            this.fetchCustomers();
+            this.fetchCustomers(true);
         },
 
         resetFilters() {
@@ -595,7 +608,7 @@ function customersData() {
                 padukuhan: ''
             };
             this.quickFilter = '';
-            this.fetchCustomers();
+            this.fetchCustomers(true);
         },
 
         getModuleUrl(module, reffId) {

@@ -20,16 +20,17 @@
     <!-- Filters -->
     <div class="bg-white rounded-lg shadow mb-6">
         <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- Row 1: Search and Status -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                    <input type="text" x-model="filters.search" @input.debounce.500ms="fetchCustomers()"
+                    <input type="text" x-model="filters.search" @input.debounce.500ms="fetchCustomers(true)"
                            placeholder="Reff ID, Nama, atau Alamat"
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select x-model="filters.status" @change="fetchCustomers()"
+                    <select x-model="filters.status" @change="fetchCustomers(true)"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Semua Status</option>
                         <option value="sk_pending">SK Pending</option>
@@ -37,9 +38,72 @@
                         <option value="gas_in_pending">Gas In Pending</option>
                     </select>
                 </div>
-                <div class="flex items-end space-x-2">
-                    <button @click="resetFilters()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-medium">
-                        Reset
+            </div>
+
+            <!-- Row 2: Date Filters -->
+            <div class="border-t pt-4">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
+                    <span class="text-sm font-medium text-gray-700">Filter Tanggal Lapangan</span>
+                    <span class="ml-2 text-xs text-gray-500">(Tanggal Instalasi/Pemasangan/Gas In)</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">Module</label>
+                        <select x-model="filters.date_module" @change="fetchCustomers(true)"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="all">Semua Module</option>
+                            <option value="sk">SK (Instalasi)</option>
+                            <option value="sr">SR (Pemasangan)</option>
+                            <option value="gas_in">Gas In</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">Dari Tanggal</label>
+                        <input type="date" x-model="filters.date_from" @change="fetchCustomers(true)"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">Sampai Tanggal</label>
+                        <input type="date" x-model="filters.date_to" @change="fetchCustomers(true)"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-end space-x-2">
+                        <button @click="resetDateFilter()"
+                                x-show="filters.date_from || filters.date_to"
+                                class="w-full px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-md text-sm font-medium">
+                            <i class="fas fa-times mr-1"></i>Reset Tanggal
+                        </button>
+                    </div>
+                    <div class="flex items-end space-x-2">
+                        <button @click="resetFilters()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
+                            <i class="fas fa-redo mr-1"></i>Reset Semua
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Date Filters -->
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <span class="text-xs text-gray-600 mr-2">Quick Filter:</span>
+                    <button @click="setQuickDateFilter('today')"
+                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
+                        Hari Ini
+                    </button>
+                    <button @click="setQuickDateFilter('yesterday')"
+                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
+                        Kemarin
+                    </button>
+                    <button @click="setQuickDateFilter('week')"
+                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
+                        7 Hari Terakhir
+                    </button>
+                    <button @click="setQuickDateFilter('month')"
+                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
+                        30 Hari Terakhir
+                    </button>
+                    <button @click="setQuickDateFilter('this_month')"
+                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
+                        Bulan Ini
                     </button>
                 </div>
             </div>
@@ -274,17 +338,28 @@ function tracerCustomersData() {
         },
         filters: {
             search: '{{ request("search") }}',
-            status: '{{ request("status") }}'
+            status: '{{ request("status") }}',
+            date_from: '{{ request("date_from") }}',
+            date_to: '{{ request("date_to") }}',
+            date_module: '{{ request("date_module", "all") }}'
         },
         loading: false,
 
-        async fetchCustomers() {
+        async fetchCustomers(resetPage = false) {
+            // Auto-reset pagination when filters change
+            if (resetPage) {
+                this.pagination.current_page = 1;
+            }
+
             this.loading = true;
 
             try {
                 const params = new URLSearchParams({
                     search: this.filters.search,
                     status: this.filters.status,
+                    date_from: this.filters.date_from,
+                    date_to: this.filters.date_to,
+                    date_module: this.filters.date_module,
                     page: this.pagination.current_page,
                     ajax: 1
                 });
@@ -308,6 +383,12 @@ function tracerCustomersData() {
                         from: data.data.from,
                         to: data.data.to
                     };
+
+                    // Smart pagination: Auto-adjust if current page exceeds last page
+                    if (this.pagination.current_page > this.pagination.last_page && this.pagination.last_page > 0) {
+                        this.pagination.current_page = this.pagination.last_page;
+                        await this.fetchCustomers(false); // Fetch again with adjusted page
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching customers:', error);
@@ -319,10 +400,60 @@ function tracerCustomersData() {
         resetFilters() {
             this.filters = {
                 search: '',
-                status: ''
+                status: '',
+                date_from: '',
+                date_to: '',
+                date_module: 'all'
             };
-            this.pagination.current_page = 1;
-            this.fetchCustomers();
+            this.fetchCustomers(true);
+        },
+
+        resetDateFilter() {
+            this.filters.date_from = '';
+            this.filters.date_to = '';
+            this.filters.date_module = 'all';
+            this.fetchCustomers(true);
+        },
+
+        setQuickDateFilter(period) {
+            const today = new Date();
+            const formatDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            switch(period) {
+                case 'today':
+                    this.filters.date_from = formatDate(today);
+                    this.filters.date_to = formatDate(today);
+                    break;
+                case 'yesterday':
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    this.filters.date_from = formatDate(yesterday);
+                    this.filters.date_to = formatDate(yesterday);
+                    break;
+                case 'week':
+                    const weekAgo = new Date(today);
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    this.filters.date_from = formatDate(weekAgo);
+                    this.filters.date_to = formatDate(today);
+                    break;
+                case 'month':
+                    const monthAgo = new Date(today);
+                    monthAgo.setDate(monthAgo.getDate() - 30);
+                    this.filters.date_from = formatDate(monthAgo);
+                    this.filters.date_to = formatDate(today);
+                    break;
+                case 'this_month':
+                    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                    this.filters.date_from = formatDate(firstDay);
+                    this.filters.date_to = formatDate(today);
+                    break;
+            }
+            this.fetchCustomers(true);
         },
 
         get paginationPages() {

@@ -25,12 +25,12 @@
   <div class="bg-white p-4 rounded-xl card-shadow">
     <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
       <div class="md:col-span-4">
-        <input type="text" x-model="filters.q" @input.debounce.500ms="fetchData()"
+        <input type="text" x-model="filters.q" @input.debounce.500ms="fetchData(true)"
                placeholder="Cari Reff ID, Customer, atau Status..."
                class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
       </div>
       <div>
-        <select x-model="filters.module_status" @change="fetchData()"
+        <select x-model="filters.module_status" @change="fetchData(true)"
                 class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
           <option value="">Semua Status</option>
           <option value="draft">Draft</option>
@@ -50,12 +50,12 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
       <div>
         <label class="block text-xs text-gray-600 mb-1">Tanggal Instalasi Dari</label>
-        <input type="date" x-model="filters.tanggal_dari" @change="fetchData()"
+        <input type="date" x-model="filters.tanggal_dari" @change="fetchData(true)"
                class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
       </div>
       <div>
         <label class="block text-xs text-gray-600 mb-1">Tanggal Instalasi Sampai</label>
-        <input type="date" x-model="filters.tanggal_sampai" @change="fetchData()"
+        <input type="date" x-model="filters.tanggal_sampai" @change="fetchData(true)"
                class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
       </div>
       <div class="flex items-end">
@@ -293,7 +293,12 @@ function srIndexData() {
         },
         loading: false,
 
-        async fetchData() {
+        async fetchData(resetPage = false) {
+            // Auto-reset to page 1 when filters change
+            if (resetPage) {
+                this.pagination.current_page = 1;
+            }
+
             this.loading = true;
 
             try {
@@ -326,6 +331,13 @@ function srIndexData() {
                         to: data.data.to
                     };
                     this.stats = data.stats || this.stats;
+
+                    // Smart pagination: if current page > last page, auto-adjust
+                    if (this.pagination.current_page > this.pagination.last_page && this.pagination.last_page > 0) {
+                        this.pagination.current_page = this.pagination.last_page;
+                        this.fetchData(); // Re-fetch with adjusted page
+                        return;
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching SR data:', error);
@@ -341,15 +353,13 @@ function srIndexData() {
                 tanggal_dari: '',
                 tanggal_sampai: ''
             };
-            this.pagination.current_page = 1;
-            this.fetchData();
+            this.fetchData(true);
         },
 
         resetDateFilter() {
             this.filters.tanggal_dari = '';
             this.filters.tanggal_sampai = '';
-            this.pagination.current_page = 1;
-            this.fetchData();
+            this.fetchData(true);
         },
 
         formatDate(date) {

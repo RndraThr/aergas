@@ -82,14 +82,14 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
                 <input type="text"
                        x-model="filters.search"
-                       @input.debounce.500ms="loadUsers()"
+                       @input.debounce.500ms="loadUsers(true)"
                        placeholder="Search by name, username, email..."
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                <select x-model="filters.role" @change="loadUsers()"
+                <select x-model="filters.role" @change="loadUsers(true)"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                     <option value="">All Roles</option>
                     <option value="super_admin">Super Admin</option>
@@ -105,7 +105,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select x-model="filters.is_active" @change="loadUsers()"
+                <select x-model="filters.is_active" @change="loadUsers(true)"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                     <option value="">All Status</option>
                     <option value="1">Active</option>
@@ -115,7 +115,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Per Page</label>
-                <select x-model="filters.per_page" @change="loadUsers()"
+                <select x-model="filters.per_page" @change="loadUsers(true)"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                     <option value="15">15</option>
                     <option value="25">25</option>
@@ -587,8 +587,14 @@ function userManagement() {
             this.loadUsers();
         },
 
-        async loadUsers() {
+        async loadUsers(resetPage = false) {
             this.loading = true;
+
+            // Auto-reset to page 1 when filters change
+            if (resetPage) {
+                this.filters.page = 1;
+            }
+
             try {
                 const params = new URLSearchParams({
                     ...this.filters,
@@ -613,6 +619,14 @@ function userManagement() {
                         from: result.data.from,
                         to: result.data.to
                     };
+
+                    // Smart pagination: if current page > last page, auto-adjust
+                    if (this.filters.page > this.pagination.last_page && this.pagination.last_page > 0) {
+                        this.filters.page = this.pagination.last_page;
+                        await this.loadUsers(); // Re-fetch with adjusted page
+                        return;
+                    }
+
                     this.stats = result.stats || {};
                     this.availableRoles = result.available_roles || [];
                 }

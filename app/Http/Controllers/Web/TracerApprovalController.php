@@ -52,6 +52,15 @@ class TracerApprovalController extends Controller implements HasMiddleware
             // Simple query first - get all customers with photo approvals
             $query = CalonPelanggan::with(['skData', 'srData', 'gasInData', 'photoApprovals']);
 
+            // Filter berdasarkan tanggal lapangan
+            $dateFrom = $request->get('date_from');
+            $dateTo = $request->get('date_to');
+            $dateModule = $request->get('date_module', 'all'); // all, sk, sr, gas_in
+
+            if ($dateFrom && $dateTo) {
+                $this->applyDateFilter($query, $dateFrom, $dateTo, $dateModule);
+            }
+
             // Filter berdasarkan status
             $status = $request->get('status');
 
@@ -64,11 +73,32 @@ class TracerApprovalController extends Controller implements HasMiddleware
                     })->orWhereHas('skData');
                 });
             } elseif ($status === 'sr_pending') {
-                // Show all customers with SR data (locked or unlocked)
-                $query->whereHas('srData');
+                // SR Pending: SK must be completed (cgp_review or completed) AND SR has pending photos
+                $query->whereHas('skData', function($skQ) {
+                    // SK harus sudah di-approve tracer (minimal cgp_review)
+                    $skQ->whereIn('module_status', ['cgp_review', 'completed']);
+                })->where(function($q) {
+                    // DAN SR ada foto pending atau ada data SR
+                    $q->whereHas('photoApprovals', function($photoQ) {
+                        $photoQ->where('module_name', 'sr')
+                              ->where('photo_status', 'tracer_pending');
+                    })->orWhereHas('srData');
+                });
             } elseif ($status === 'gas_in_pending') {
-                // Show all customers with Gas In data (locked or unlocked)
-                $query->whereHas('gasInData');
+                // Gas In Pending: SK AND SR must be completed AND Gas In has pending photos
+                $query->whereHas('skData', function($skQ) {
+                    // SK harus sudah di-approve tracer (minimal cgp_review)
+                    $skQ->whereIn('module_status', ['cgp_review', 'completed']);
+                })->whereHas('srData', function($srQ) {
+                    // SR harus sudah di-approve tracer (minimal cgp_review)
+                    $srQ->whereIn('module_status', ['cgp_review', 'completed']);
+                })->where(function($q) {
+                    // DAN Gas In ada foto pending atau ada data Gas In
+                    $q->whereHas('photoApprovals', function($photoQ) {
+                        $photoQ->where('module_name', 'gas_in')
+                              ->where('photo_status', 'tracer_pending');
+                    })->orWhereHas('gasInData');
+                });
             } else {
                 // Default: show customers that have photos pending tracer approval OR have any module data
                 $query->where(function($q) {
@@ -525,6 +555,45 @@ class TracerApprovalController extends Controller implements HasMiddleware
     }
 
     // ==================== PRIVATE METHODS ====================
+
+    /**
+     * Apply date filter based on module field dates (tanggal_instalasi, tanggal_pemasangan, tanggal_gas_in)
+     */
+    private function applyDateFilter($query, string $dateFrom, string $dateTo, string $dateModule): void
+    {
+        if ($dateModule === 'all') {
+            // Filter untuk semua module - customer muncul jika salah satu module ada dalam range tanggal
+            $query->where(function($q) use ($dateFrom, $dateTo) {
+                // SK: tanggal_instalasi
+                $q->orWhereHas('skData', function($skQ) use ($dateFrom, $dateTo) {
+                    $skQ->whereBetween('tanggal_instalasi', [$dateFrom, $dateTo]);
+                })
+                // SR: tanggal_pemasangan
+                ->orWhereHas('srData', function($srQ) use ($dateFrom, $dateTo) {
+                    $srQ->whereBetween('tanggal_pemasangan', [$dateFrom, $dateTo]);
+                })
+                // Gas In: tanggal_gas_in
+                ->orWhereHas('gasInData', function($gasInQ) use ($dateFrom, $dateTo) {
+                    $gasInQ->whereBetween('tanggal_gas_in', [$dateFrom, $dateTo]);
+                });
+            });
+        } elseif ($dateModule === 'sk') {
+            // Filter hanya SK berdasarkan tanggal_instalasi
+            $query->whereHas('skData', function($skQ) use ($dateFrom, $dateTo) {
+                $skQ->whereBetween('tanggal_instalasi', [$dateFrom, $dateTo]);
+            });
+        } elseif ($dateModule === 'sr') {
+            // Filter hanya SR berdasarkan tanggal_pemasangan
+            $query->whereHas('srData', function($srQ) use ($dateFrom, $dateTo) {
+                $srQ->whereBetween('tanggal_pemasangan', [$dateFrom, $dateTo]);
+            });
+        } elseif ($dateModule === 'gas_in') {
+            // Filter hanya Gas In berdasarkan tanggal_gas_in
+            $query->whereHas('gasInData', function($gasInQ) use ($dateFrom, $dateTo) {
+                $gasInQ->whereBetween('tanggal_gas_in', [$dateFrom, $dateTo]);
+            });
+        }
+    }
 
     private function getTracerStats(): array
     {

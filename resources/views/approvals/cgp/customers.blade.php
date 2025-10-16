@@ -24,7 +24,7 @@
                 <!-- Status Filter -->
                 <div class="flex items-center space-x-2">
                     <label class="text-sm font-medium text-gray-700">Filter Status:</label>
-                    <select x-model="filters.status" @change="fetchCustomers()"
+                    <select x-model="filters.status" @change="fetchCustomers(true)"
                             class="border border-gray-300 rounded-md px-3 py-1 text-sm">
                         <option value="">Semua Status</option>
                         <option value="sk_ready">SK Ready for CGP</option>
@@ -36,7 +36,7 @@
                 <!-- Search -->
                 <div class="flex items-center space-x-2">
                     <label class="text-sm font-medium text-gray-700">Search:</label>
-                    <input type="text" x-model="filters.search" @input.debounce.500ms="fetchCustomers()"
+                    <input type="text" x-model="filters.search" @input.debounce.500ms="fetchCustomers(true)"
                            placeholder="Reff ID, Nama, Alamat..."
                            class="border border-gray-300 rounded-md px-3 py-1 text-sm w-64">
                 </div>
@@ -193,8 +193,13 @@ function cgpCustomersData() {
         },
         loading: false,
 
-        async fetchCustomers() {
+        async fetchCustomers(resetPage = false) {
             this.loading = true;
+
+            // Auto-reset: jika current page > 1 dan resetPage = true, reset ke page 1
+            if (resetPage && this.pagination.current_page > 1) {
+                this.pagination.current_page = 1;
+            }
 
             try {
                 const params = new URLSearchParams({
@@ -215,7 +220,7 @@ function cgpCustomersData() {
 
                 if (data.success) {
                     this.customers = data.data.data || [];
-                    this.pagination = {
+                    const newPagination = {
                         current_page: data.data.current_page,
                         last_page: data.data.last_page,
                         per_page: data.data.per_page,
@@ -223,6 +228,15 @@ function cgpCustomersData() {
                         from: data.data.from,
                         to: data.data.to
                     };
+
+                    // Smart pagination: jika current page > last page, fetch ulang dari page terakhir
+                    if (newPagination.current_page > newPagination.last_page && newPagination.last_page > 0) {
+                        this.pagination.current_page = newPagination.last_page;
+                        this.fetchCustomers(false); // fetch ulang tanpa reset
+                        return;
+                    }
+
+                    this.pagination = newPagination;
                 }
             } catch (error) {
                 console.error('Error fetching customers:', error);
@@ -236,8 +250,7 @@ function cgpCustomersData() {
                 search: '',
                 status: ''
             };
-            this.pagination.current_page = 1;
-            this.fetchCustomers();
+            this.fetchCustomers(true);
         },
 
         get paginationPages() {
