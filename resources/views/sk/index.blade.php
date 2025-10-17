@@ -135,8 +135,10 @@
                 <span class="px-2 py-1 text-xs font-medium rounded-full"
                       :class="getStatusClass(row.module_status || row.status)"
                       x-text="getStatusText(row.module_status || row.status)"></span>
+
+                {{-- Rejection indicator - Always show if there are rejections --}}
                 <template x-if="row.rejected_photos_count > 0">
-                  <div class="relative rejection-hover-trigger">
+                  <div class="relative">
                     <button class="text-red-600 hover:text-red-800 text-xs flex items-center gap-1"
                             :data-sk-id="row.id"
                             @mouseenter="showRejectionPopup(row.id, $event.target)"
@@ -180,7 +182,7 @@
                   <a :href="`/sk/${row.id}/edit`"
                      class="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                      title="Edit SK">
-                    <i class="fas fa-edit mr-1"></i>Perbaiki
+                    <i class="fas fa-edit mr-1"></i>Edit
                   </a>
                 </template>
                 <template x-if="canEdit(row)">
@@ -220,7 +222,7 @@
 
 {{-- Rejection Popup Container (Fixed Position) --}}
 <div id="rejection-popup-container" class="hidden fixed w-96 bg-white border border-red-200 rounded-lg shadow-xl z-[9999] max-h-96 overflow-y-auto"
-     onmouseenter="keepPopupOpen(window.currentSkId)"
+     onmouseenter="keepPopupOpen(window.currentSkId, 'rejection')"
      onmouseleave="hideRejectionPopup(window.currentSkId)">
   <div class="p-3 bg-red-50 border-b border-red-200 flex items-center gap-2">
     <i class="fas fa-exclamation-circle text-red-600"></i>
@@ -232,6 +234,23 @@
     </div>
   </div>
 </div>
+
+{{-- COMMENTED: Incomplete Popup Container - Replaced with Status Foto column --}}
+{{--
+<div id="incomplete-popup-container" class="hidden fixed w-96 bg-white border border-yellow-200 rounded-lg shadow-xl z-[9999] max-h-96 overflow-y-auto"
+     onmouseenter="keepIncompletePopupOpen(window.currentIncompleteSkId)"
+     onmouseleave="hideIncompletePopup(window.currentIncompleteSkId)">
+  <div class="p-3 bg-yellow-50 border-b border-yellow-200 flex items-center gap-2">
+    <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+    <span class="font-semibold text-sm text-gray-900">Data Tidak Lengkap</span>
+  </div>
+  <div class="p-3" id="incomplete-popup-content">
+    <div class="flex items-center justify-center py-4 text-xs text-gray-500">
+      <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+    </div>
+  </div>
+</div>
+--}}
 
 {{-- Delete Modal (unchanged, kept for consistency) --}}
 <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center transition-opacity duration-300">
@@ -522,57 +541,69 @@ const hideTimers = {};
 window.currentSkId = null;
 
 function showRejectionPopup(skId, triggerElement) {
-  // Clear any existing timer
-  if (hideTimers[skId]) {
-    clearTimeout(hideTimers[skId]);
-    delete hideTimers[skId];
-  }
+    if (hideTimers[skId]) {
+        clearTimeout(hideTimers[skId]);
+        delete hideTimers[skId];
+    }
 
-  const popup = document.getElementById('rejection-popup-container');
-  const contentEl = document.getElementById('rejection-popup-content');
+    const popup = document.getElementById('rejection-popup-container');
+    if (!popup) return;
 
-  if (!popup) return;
+    window.currentSkId = skId;
 
-  // Store current SK ID globally
-  window.currentSkId = skId;
+    // --- KUNCI PERBAIKAN: Ukur tinggi popup yang sebenarnya ---
+    // 1. Hapus kelas 'hidden' agar bisa diukur, tapi sembunyikan dengan cara lain
+    popup.classList.remove('hidden');
+    popup.style.visibility = 'hidden'; // Buat tidak terlihat tapi tetap memakan ruang
+    popup.style.top = '-9999px';      // Pindahkan ke luar layar sementara
 
-  // Get trigger position
-  const triggerRect = triggerElement.getBoundingClientRect();
-  const popupHeight = 400;
-  const viewportHeight = window.innerHeight;
-  const viewportWidth = window.innerWidth;
+    // 2. Ambil tinggi sebenarnya setelah konten dimuat (atau dari cache)
+    const actualPopupHeight = popup.offsetHeight;
 
-  // Calculate horizontal position (position to the right of trigger)
-  let leftPos = triggerRect.right + 8; // 8px spacing from trigger
-  // Ensure popup doesn't overflow right edge
-  if (leftPos + 384 > viewportWidth) {
-    leftPos = triggerRect.left - 384 - 8; // Show on left side if no space on right
-  }
+    // 3. Kembalikan style, kita sudah dapat ukurannya
+    popup.style.visibility = '';
+    popup.style.top = '';
+    popup.classList.add('hidden'); // Sembunyikan lagi sebelum diposisikan
 
-  // Calculate vertical position (align with trigger top)
-  let topPos = triggerRect.top;
+    // Ambil info posisi dan ukuran yang dibutuhkan
+    const triggerRect = triggerElement.getBoundingClientRect();
+    const popupWidth = popup.offsetWidth;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const spacing = 12; // Jarak popup dari ikon
 
-  // Adjust if popup would overflow bottom
-  if (topPos + popupHeight > viewportHeight) {
-    topPos = viewportHeight - popupHeight - 20;
-  }
+    // --- LOGIKA POSISI FINAL ---
 
-  // Adjust if popup would overflow top
-  if (topPos < 20) {
-    topPos = 20;
-  }
+    // 1. Tentukan Posisi Horizontal (sudah benar)
+    let leftPos = triggerRect.right + spacing;
+    if (leftPos + popupWidth > viewportWidth - spacing) {
+        leftPos = triggerRect.left - popupWidth - spacing;
+    }
 
-  // Position popup
-  popup.style.left = `${leftPos}px`;
-  popup.style.top = `${topPos}px`;
-  popup.classList.remove('hidden');
+    // 2. Tentukan Posisi Vertikal (dengan tinggi yang akurat)
+    let topPos = triggerRect.top; // Default: Buka ke bawah (sejajar atas)
 
-  // Load data if not loaded yet
-  if (!loadedRejections.has(skId)) {
-    // Reset content
+    // Cek apakah mentok bawah, menggunakan TINGGI SEBENARNYA
+    if (topPos + actualPopupHeight > viewportHeight - spacing) {
+        // Jika mentok: Buka ke atas (sejajarkan bagian bawah popup dengan bagian bawah ikon)
+        topPos = triggerRect.bottom - actualPopupHeight;
+    }
+
+    // Koreksi akhir agar tidak keluar dari atas layar
+    if (topPos < spacing) {
+        topPos = spacing;
+    }
+
+    // Terapkan posisi dan tampilkan popup
+    popup.style.left = `${leftPos}px`;
+    popup.style.top = `${topPos}px`;
+    popup.classList.remove('hidden');
+
+    // Muat data (logika ini tetap sama)
+    const contentEl = document.getElementById('rejection-popup-content');
     contentEl.innerHTML = '<div class="flex items-center justify-center py-4 text-xs text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
+    loadedRejections.delete(skId);
     loadRejectionPopup(skId);
-  }
 }
 
 function hideRejectionPopup(skId) {
@@ -620,7 +651,7 @@ async function loadRejectionPopup(skId) {
         html += `
           <div class="border-l-2 ${rejection.rejected_by_type === 'tracer' ? 'border-blue-400' : 'border-orange-400'} pl-2 py-2">
             <div class="flex items-start justify-between mb-1">
-              <div class="font-medium text-xs text-gray-900">${rejection.photo_field}</div>
+              <div class="font-medium text-xs text-gray-900">${rejection.slot_label || rejection.photo_field}</div>
               <span class="px-1.5 py-0.5 rounded text-xs font-medium ${badgeColor}">${rejectedBy}</span>
             </div>
             <div class="text-xs text-gray-600 mb-1">${rejection.reason || 'No reason provided'}</div>
@@ -643,6 +674,143 @@ async function loadRejectionPopup(skId) {
     contentDiv.innerHTML = '<div class="text-xs text-red-500 text-center py-2">Failed to load</div>';
   }
 }
+
+// COMMENTED: Incomplete Photos Hover Popup - Replaced with Status Foto column
+/*
+const loadedIncomplete = new Set();
+const incompleteHideTimers = {};
+window.currentIncompleteSkId = null;
+
+function showIncompletePopup(skId, triggerElement) {
+    if (incompleteHideTimers[skId]) {
+        clearTimeout(incompleteHideTimers[skId]);
+        delete incompleteHideTimers[skId];
+    }
+
+    const popup = document.getElementById('incomplete-popup-container');
+    if (!popup) return;
+
+    window.currentIncompleteSkId = skId;
+
+    // --- KUNCI PERBAIKAN: Ukur tinggi popup yang sebenarnya ---
+    popup.classList.remove('hidden');
+    popup.style.visibility = 'hidden';
+    popup.style.top = '-9999px';
+
+    const actualPopupHeight = popup.offsetHeight;
+
+    popup.style.visibility = '';
+    popup.style.top = '';
+    popup.classList.add('hidden');
+
+    // Ambil info posisi dan ukuran yang dibutuhkan
+    const triggerRect = triggerElement.getBoundingClientRect();
+    const popupWidth = popup.offsetWidth;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const spacing = 12;
+
+    // --- LOGIKA POSISI FINAL ---
+
+    // 1. Tentukan Posisi Horizontal
+    let leftPos = triggerRect.right + spacing;
+    if (leftPos + popupWidth > viewportWidth - spacing) {
+        leftPos = triggerRect.left - popupWidth - spacing;
+    }
+
+    // 2. Tentukan Posisi Vertikal
+    let topPos = triggerRect.top; // Default: Buka ke bawah
+
+    // Cek apakah mentok bawah, menggunakan TINGGI SEBENARNYA
+    if (topPos + actualPopupHeight > viewportHeight - spacing) {
+        // Jika mentok: Buka ke atas
+        topPos = triggerRect.bottom - actualPopupHeight;
+    }
+
+    // Koreksi akhir agar tidak keluar dari atas layar
+    if (topPos < spacing) {
+        topPos = spacing;
+    }
+
+    // Terapkan posisi dan tampilkan popup
+    popup.style.left = `${leftPos}px`;
+    popup.style.top = `${topPos}px`;
+    popup.classList.remove('hidden');
+
+    // Muat data
+    const contentEl = document.getElementById('incomplete-popup-content');
+    contentEl.innerHTML = '<div class="flex items-center justify-center py-4 text-xs text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
+    loadedIncomplete.delete(skId);
+    loadIncompletePopup(skId);
+}
+
+function hideIncompletePopup(skId) {
+  // Set timer specific to this popup
+  incompleteHideTimers[skId] = setTimeout(() => {
+    const popup = document.getElementById('incomplete-popup-container');
+    if (popup && window.currentIncompleteSkId === skId) {
+      popup.classList.add('hidden');
+      window.currentIncompleteSkId = null;
+    }
+    delete incompleteHideTimers[skId];
+  }, 200);
+}
+
+function keepIncompletePopupOpen(skId) {
+  if (incompleteHideTimers[skId]) {
+    clearTimeout(incompleteHideTimers[skId]);
+    delete incompleteHideTimers[skId];
+  }
+}
+
+async function loadIncompletePopup(skId) {
+  const contentDiv = document.getElementById('incomplete-popup-content');
+  if (!contentDiv) return;
+
+  try {
+    const response = await fetch(`/sk/${skId}/incomplete-details`, {
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Accept': 'application/json',
+      }
+    });
+
+    if (!response.ok) throw new Error('Failed to load incomplete details');
+
+    const data = await response.json();
+
+    if (data.success && data.incomplete && data.incomplete.length > 0) {
+      let html = '<div class="space-y-2">';
+
+      data.incomplete.forEach((item) => {
+        const statusBadgeColor = item.is_required ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700';
+        const statusLabel = item.is_required ? 'Required' : 'Optional';
+
+        html += `
+          <div class="border-l-2 border-yellow-400 pl-2 py-2">
+            <div class="flex items-start justify-between mb-1">
+              <div class="font-medium text-xs text-gray-900">${item.slot_label}</div>
+              <span class="px-1.5 py-0.5 rounded text-xs font-medium ${statusBadgeColor}">${statusLabel}</span>
+            </div>
+            <div class="text-xs text-gray-600 mb-1">${item.reason}</div>
+            ${item.uploaded_at ? `<div class="text-xs text-gray-500">Uploaded: ${item.uploaded_at}</div>` : ''}
+            ${item.ai_score ? `<div class="text-xs text-gray-500">AI Score: ${item.ai_score}</div>` : ''}
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      contentDiv.innerHTML = html;
+      loadedIncomplete.add(skId);
+    } else {
+      contentDiv.innerHTML = '<div class="text-xs text-gray-500 text-center py-2">No incomplete data found</div>';
+    }
+  } catch (error) {
+    console.error('Error loading incomplete details:', error);
+    contentDiv.innerHTML = '<div class="text-xs text-red-500 text-center py-2">Failed to load</div>';
+  }
+}
+*/
 </script>
 @endpush
 

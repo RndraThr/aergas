@@ -43,6 +43,7 @@ class CheckRole
         Log::warning('Role access denied', [
             'user_id' => $user->id,
             'user_role' => $user->role,
+            'user_roles' => $user->getAllActiveRoles(),
             'required_roles' => $allowedRoles,
             'route' => $request->route()?->getName(),
             'ip' => $request->ip(),
@@ -55,7 +56,9 @@ class CheckRole
             ], 403);
         }
 
-        abort(403, 'Akses ditolak. Anda tidak memiliki izin untuk mengakses halaman ini.');
+        // Redirect to user's default role page instead of showing 403
+        $defaultUrl = $this->getDefaultUrlForUser($user);
+        return redirect($defaultUrl)->with('warning', 'Anda tidak memiliki akses ke halaman tersebut. Anda dialihkan ke halaman utama Anda.');
     }
 
     /**
@@ -110,5 +113,37 @@ class CheckRole
             // Deny access on error for security
             return false;
         }
+    }
+
+    /**
+     * Get default URL based on user's role priority
+     * Uses same logic as AuthController::computeRedirectUrlFor
+     */
+    private function getDefaultUrlForUser($user): string
+    {
+        $roles = $user->getAllActiveRoles();
+
+        if (empty($roles)) {
+            // Fallback to dashboard if no roles found
+            return '/dashboard';
+        }
+
+        // Role priority (highest to lowest)
+        $priority = ['cgp', 'sk', 'sr', 'gas_in', 'jalur', 'admin', 'tracer', 'super_admin'];
+
+        // Sort user's roles by priority
+        usort($roles, fn($a, $b) => array_search($a, $priority, true) <=> array_search($b, $priority, true));
+
+        $topRole = $roles[0] ?? 'admin';
+
+        // Map role to default URL
+        return match ($topRole) {
+            'cgp'       => '/approvals/cgp',
+            'sk'        => '/sk',
+            'sr'        => '/sr',
+            'gas_in'    => '/gas-in',
+            'jalur'     => '/jalur',
+            default     => '/dashboard', // admin, tracer, super_admin
+        };
     }
 }

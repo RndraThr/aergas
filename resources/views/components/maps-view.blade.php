@@ -482,7 +482,7 @@
         </div>
 
         {{-- Legend Toggle Button --}}
-        <div class="map-legend absolute top-4 right-4 max-h-[calc(100vh-8rem)] overflow-y-auto" x-data="{ legendExpanded: false }" style="z-index: 1001 !important;">
+        <div class="map-legend absolute top-4 right-4 max-h-[calc(100vh-8rem)] overflow-y-auto" x-data="{ legendExpanded: false }">
             <!-- Collapsed Legend Button -->
             <div x-show="!legendExpanded" class="bg-white rounded-lg shadow-xl border border-gray-200 p-3 cursor-pointer hover:shadow-2xl transition-all" @click="legendExpanded = true">
                 <div class="flex items-center text-aergas-navy">
@@ -2594,5 +2594,22 @@ document.addEventListener('click', function(e) {
     line-height: 30px;
     color: white;
     font-weight: bold;
+}
+
+/* Mobile responsive z-index adjustments */
+@media (max-width: 1023px) {
+    /* Lower z-index for draw button and panel on mobile to allow sidebar to appear above them */
+    .absolute.top-4.left-16 {
+        z-index: 30 !important;
+    }
+
+    .absolute.top-4.left-32 {
+        z-index: 30 !important;
+    }
+
+    /* Lower z-index for legend on mobile */
+    .map-legend {
+        z-index: 30 !important;
+    }
 }
 </style>

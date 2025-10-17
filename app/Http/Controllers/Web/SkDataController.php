@@ -57,14 +57,28 @@ class SkDataController extends Controller
 
         $sk = $q->paginate((int) $r->get('per_page', 15))->withQueryString();
 
-        // Load related data for each SK
+        // Load related data for each SK including photoApprovals
         $sk->load('createdBy:id,name', 'photoApprovals');
 
-        // Add photo status details for each SK
-        $sk->getCollection()->transform(function ($item) {
-            $item->photo_status_details = $this->getPhotoStatusDetails($item);
-            return $item;
-        });
+        // Calculate incomplete photos count for each SK (photos not uploaded + corrupt photos)
+        $cfgSlots = (array) (config('aergas_photos.modules.SK.slots') ?? []);
+        $totalSlotsCount = count($cfgSlots);
+
+        foreach ($sk as $skItem) {
+            // Count ALL uploaded photos (including rejected ones)
+            $uploadedCount = $skItem->photoApprovals->count();
+
+            // Count corrupt/broken photos (uploaded but file is missing/corrupt)
+            $corruptCount = $skItem->photoApprovals->filter(function($photo) {
+                return empty($photo->photo_url) || empty($photo->storage_path) || empty($photo->drive_file_id);
+            })->count();
+
+            // Missing photos = (total slots - uploaded) + corrupt photos
+            $skItem->incomplete_photos_count = max(0, ($totalSlotsCount - $uploadedCount) + $corruptCount);
+
+            // Add photo status details for each SK
+            $skItem->photo_status_details = $this->getPhotoStatusDetails($skItem);
+        }
 
         if ($r->wantsJson() || $r->ajax()) {
             // Calculate stats
@@ -101,7 +115,7 @@ class SkDataController extends Controller
 
     public function show(Request $r, SkData $sk)
     {
-        $sk->load(['calonPelanggan', 'photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'files']);
+        $sk->load(['calonPelanggan', 'photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'files', 'tracerApprovedBy', 'cgpApprovedBy']);
 
         if ($r->wantsJson() || $r->ajax()) {
             return response()->json($sk);
@@ -779,6 +793,9 @@ class SkDataController extends Controller
     public function getRejectionDetails(SkData $sk)
     {
         try {
+            // Get config slots for SK module to get original labels
+            $cfgSlots = (array) (config('aergas_photos.modules.SK.slots') ?? []);
+
             $rejectedPhotos = $sk->photoApprovals()
                 ->where(function($q) {
                     $q->whereNotNull('tracer_rejected_at')
@@ -787,7 +804,7 @@ class SkDataController extends Controller
                 ->with(['tracerUser', 'cgpUser'])
                 ->get();
 
-            $rejections = $rejectedPhotos->map(function($photo) {
+            $rejections = $rejectedPhotos->map(function($photo) use ($cfgSlots) {
                 $rejectedByType = null;
                 $rejectedByName = null;
                 $reason = null;
@@ -808,9 +825,12 @@ class SkDataController extends Controller
                     $category = $photo->cgp_rejection_category;
                 }
 
+                // Get original label from config (e.g., "Scan Isometrik SK (TTD Lengkap)")
+                $slotLabel = $cfgSlots[$photo->photo_field_name]['label'] ?? $photo->slot_label ?? $photo->photo_field_name;
+
                 return [
                     'photo_field' => $photo->photo_field_name,
-                    'slot_label' => $photo->slot_label ?? null,
+                    'slot_label' => $slotLabel,
                     'rejected_by_type' => $rejectedByType,
                     'rejected_by_name' => $rejectedByName,
                     'reason' => $reason,
@@ -833,6 +853,70 @@ class SkDataController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load rejection details'
+            ], 500);
+        }
+    }
+
+    public function getIncompleteDetails(SkData $sk)
+    {
+        try {
+            // Get config slots for SK module
+            $cfgSlots = (array) (config('aergas_photos.modules.SK.slots') ?? []);
+
+            // Get ALL uploaded photos (including rejected ones)
+            $uploadedPhotos = $sk->photoApprovals()
+                ->get()
+                ->keyBy('photo_field_name');
+
+            $incompleteItems = [];
+
+            // Check each slot - missing photos + corrupt photos
+            foreach ($cfgSlots as $slotKey => $slotConfig) {
+                $isRequired = $slotConfig['required'] ?? false;
+                $label = $slotConfig['label'] ?? $slotKey;
+                $photo = $uploadedPhotos->get($slotKey);
+
+                if (!$photo) {
+                    // Photo not uploaded at all
+                    $incompleteItems[] = [
+                        'slot_key' => $slotKey,
+                        'slot_label' => $label,
+                        'status' => 'not_uploaded',
+                        'reason' => $isRequired ? 'Foto wajib belum diupload' : 'Foto opsional belum diupload',
+                        'is_required' => $isRequired
+                    ];
+                } else {
+                    // Check if photo is corrupt (uploaded but file missing/broken)
+                    $isCorrupt = empty($photo->photo_url) || empty($photo->storage_path) || empty($photo->drive_file_id);
+
+                    if ($isCorrupt) {
+                        $incompleteItems[] = [
+                            'slot_key' => $slotKey,
+                            'slot_label' => $label,
+                            'status' => 'corrupt',
+                            'reason' => 'Foto rusak atau tidak dapat diakses (file corrupt)',
+                            'is_required' => $isRequired,
+                            'uploaded_at' => $photo->uploaded_at ? $photo->uploaded_at->format('d/m/Y H:i') : null
+                        ];
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'incomplete' => $incompleteItems,
+                'total_count' => count($incompleteItems)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Get SK incomplete details failed', [
+                'sk_id' => $sk->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load incomplete details'
             ], 500);
         }
     }
@@ -905,10 +989,18 @@ class SkDataController extends Controller
     }
 
     /**
-     * Get human-readable label for photo field
+     * Get human-readable label for photo field from config
      */
     private function getPhotoLabel(string $fieldName): string
     {
+        // Get label from config first
+        $cfgSlots = (array) (config('aergas_photos.modules.SK.slots') ?? []);
+
+        if (isset($cfgSlots[$fieldName]['label'])) {
+            return $cfgSlots[$fieldName]['label'];
+        }
+
+        // Fallback to hardcoded labels (for backward compatibility)
         $labels = [
             'pneumatic_start' => 'Pneumatic Start',
             'pneumatic_finish' => 'Pneumatic Finish',

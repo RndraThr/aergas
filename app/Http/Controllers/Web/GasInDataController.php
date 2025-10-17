@@ -100,7 +100,7 @@ class GasInDataController extends Controller
 
    public function show(Request $r, GasInData $gasIn)
    {
-       $gasIn->load(['calonPelanggan', 'photoApprovals', 'files']);
+       $gasIn->load(['calonPelanggan', 'photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'files', 'tracerApprovedBy', 'cgpApprovedBy']);
 
        if ($r->wantsJson() || $r->ajax()) {
            return response()->json($gasIn);
@@ -712,6 +712,9 @@ class GasInDataController extends Controller
    public function getRejectionDetails(GasInData $gasIn)
    {
        try {
+           // Get config slots for GAS_IN module to get original labels
+           $cfgSlots = (array) (config('aergas_photos.modules.GAS_IN.slots') ?? []);
+
            $rejectedPhotos = $gasIn->photoApprovals()
                ->where(function($q) {
                    $q->whereNotNull('tracer_rejected_at')
@@ -720,7 +723,7 @@ class GasInDataController extends Controller
                ->with(['tracerUser', 'cgpUser'])
                ->get();
 
-           $rejections = $rejectedPhotos->map(function($photo) {
+           $rejections = $rejectedPhotos->map(function($photo) use ($cfgSlots) {
                $rejectedByType = null;
                $rejectedByName = null;
                $reason = null;
@@ -741,9 +744,12 @@ class GasInDataController extends Controller
                    $category = $photo->cgp_rejection_category;
                }
 
+               // Get original label from config
+               $slotLabel = $cfgSlots[$photo->photo_field_name]['label'] ?? $photo->slot_label ?? $photo->photo_field_name;
+
                return [
                    'photo_field' => $photo->photo_field_name,
-                   'slot_label' => $photo->slot_label ?? null,
+                   'slot_label' => $slotLabel,
                    'rejected_by_type' => $rejectedByType,
                    'rejected_by_name' => $rejectedByName,
                    'reason' => $reason,
@@ -835,10 +841,18 @@ class GasInDataController extends Controller
    }
 
    /**
-    * Get human-readable label for photo field
+    * Get human-readable label for photo field from config
     */
    private function getPhotoLabel(string $fieldName): string
    {
+       // Get label from config first
+       $cfgSlots = (array) (config('aergas_photos.modules.GAS_IN.slots') ?? []);
+
+       if (isset($cfgSlots[$fieldName]['label'])) {
+           return $cfgSlots[$fieldName]['label'];
+       }
+
+       // Fallback to hardcoded labels (for backward compatibility)
        $labels = [
            'ba_gas_in' => 'BA Gas In',
            'foto_bubble_test' => 'Foto Bubble Test',

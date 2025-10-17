@@ -284,12 +284,13 @@
                                                 }
                                             }
                                         @endphp
-                                        <img data-src="{{ $imageUrl }}"
+                                        <img src="{{ $imageUrl }}"
                                              alt="{{ $photo->photo_field_name }}"
-                                             class="photo-preview w-full h-48 object-cover lazy-image bg-gray-100"
+                                             class="photo-preview w-full h-48 object-cover"
                                              onclick="openPhotoModal('{{ $imageUrl }}')"
                                              data-file-id="{{ $fileId }}"
                                              data-original-url="{{ $photo->photo_url }}"
+                                             onerror="tryAlternativeUrls(this)"
                                              loading="lazy">
                                     @else
                                         <div class="flex flex-col items-center justify-center h-48 text-gray-400">

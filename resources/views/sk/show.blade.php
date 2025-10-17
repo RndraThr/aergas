@@ -22,7 +22,7 @@
       @if($sk->canEdit() || in_array($sk->module_status, ['draft', 'ai_validation', 'tracer_review', 'rejected']) && auth()->user()->hasAnyRole(['admin', 'super_admin', 'sk', 'tracer']))
         <a href="{{ route('sk.edit',$sk->id) }}" class="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
           @if($sk->module_status === 'rejected')
-            <i class="fas fa-edit mr-1"></i>Perbaiki
+            <i class="fas fa-edit mr-1"></i>Edit
           @else
             Edit
           @endif
@@ -200,26 +200,6 @@
     @endif
   </div>
 
-  @if($sk->calonPelanggan)
-    <div class="bg-white rounded-xl card-shadow p-6">
-      <h2 class="font-semibold mb-3 text-gray-800">Customer</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <div class="text-xs text-gray-500">Nama</div>
-          <div class="font-medium">{{ $sk->calonPelanggan->nama_pelanggan }}</div>
-        </div>
-        <div>
-          <div class="text-xs text-gray-500">Telepon</div>
-          <div class="font-medium">{{ $sk->calonPelanggan->no_telepon ?? '-' }}</div>
-        </div>
-        <div>
-          <div class="text-xs text-gray-500">Alamat</div>
-          <div class="font-medium">{{ $sk->calonPelanggan->alamat ?? '-' }}</div>
-        </div>
-      </div>
-    </div>
-  @endif
-
   @php
     $rejectedPhotos = $sk->photoApprovals->filter(function($photo) {
       return $photo->tracer_rejected_at || $photo->cgp_rejected_at;
@@ -329,6 +309,125 @@
             </div>
           </div>
         @endif
+      </div>
+    </div>
+  @endif
+
+  @if($sk->calonPelanggan)
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+          <i class="fas fa-user text-white"></i>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-800">Informasi Pelanggan</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="space-y-1">
+          <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Nama Pelanggan</div>
+          <div class="font-semibold text-gray-900">{{ $sk->calonPelanggan->nama_pelanggan }}</div>
+        </div>
+        <div class="space-y-1">
+          <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">No. Telepon</div>
+          <div class="font-medium text-gray-700">
+            @if($sk->calonPelanggan->no_telepon)
+              <a href="tel:{{ $sk->calonPelanggan->no_telepon }}" class="text-green-600 hover:text-green-800 transition-colors">
+                <i class="fas fa-phone mr-1"></i>{{ $sk->calonPelanggan->no_telepon }}
+              </a>
+            @else
+              <span class="text-gray-400">-</span>
+            @endif
+          </div>
+        </div>
+        <div class="space-y-1">
+          <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Email</div>
+          <div class="font-medium text-gray-700">
+            @if($sk->calonPelanggan->email)
+              <a href="mailto:{{ $sk->calonPelanggan->email }}" class="text-green-600 hover:text-green-800 transition-colors">
+                <i class="fas fa-envelope mr-1"></i>{{ $sk->calonPelanggan->email }}
+              </a>
+            @else
+              <span class="text-gray-400">-</span>
+            @endif
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-6 border-t border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Alamat Lengkap</div>
+            <div class="font-medium text-gray-700">{{ $sk->calonPelanggan->alamat ?? '-' }}</div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Kelurahan</div>
+            <div class="font-medium text-gray-700">
+              @if($sk->calonPelanggan->kelurahan)
+                <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <i class="fas fa-map-marker-alt mr-1"></i>{{ $sk->calonPelanggan->kelurahan }}
+                </div>
+              @else
+                <span class="text-gray-400">-</span>
+              @endif
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Padukuhan</div>
+            <div class="font-medium text-gray-700">
+              @if($sk->calonPelanggan->padukuhan)
+                <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <i class="fas fa-home mr-1"></i>{{ $sk->calonPelanggan->padukuhan }}
+                </div>
+              @else
+                <span class="text-gray-400">-</span>
+              @endif
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registration Info -->
+      <div class="mt-6 pt-6 border-t border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tanggal Registrasi</div>
+            <div class="font-medium text-gray-700">
+              {{ $sk->calonPelanggan->tanggal_registrasi ? $sk->calonPelanggan->tanggal_registrasi->format('d F Y') : '-' }}
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status Customer</div>
+            <div class="font-medium">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                @class([
+                  'bg-green-100 text-green-800' => $sk->calonPelanggan->status === 'lanjut',
+                  'bg-yellow-100 text-yellow-800' => $sk->calonPelanggan->status === 'pending',
+                  'bg-gray-100 text-gray-800' => $sk->calonPelanggan->status === 'menunda',
+                  'bg-red-100 text-red-800' => $sk->calonPelanggan->status === 'batal',
+                ])
+              ">
+                {{ ucfirst($sk->calonPelanggan->status) }}
+              </span>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Progress Status</div>
+            <div class="font-medium">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                @class([
+                  'bg-green-100 text-green-800' => $sk->calonPelanggan->progress_status === 'done',
+                  'bg-blue-100 text-blue-800' => $sk->calonPelanggan->progress_status === 'gas_in',
+                  'bg-purple-100 text-purple-800' => $sk->calonPelanggan->progress_status === 'sr',
+                  'bg-orange-100 text-orange-800' => $sk->calonPelanggan->progress_status === 'sk',
+                  'bg-yellow-100 text-yellow-800' => $sk->calonPelanggan->progress_status === 'validasi',
+                  'bg-gray-100 text-gray-800' => in_array($sk->calonPelanggan->progress_status, ['pending', 'batal']),
+                ])
+              ">
+                {{ ucwords(str_replace('_', ' ', $sk->calonPelanggan->progress_status)) }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   @endif
@@ -480,7 +579,9 @@
 
   <div class="bg-white rounded-xl card-shadow p-6 space-y-4">
     <div class="flex items-center gap-3">
-      <i class="fas fa-images text-purple-600"></i>
+      <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-images text-white"></i>
+      </div>
       <h2 class="font-semibold text-gray-800">Dokumentasi Foto</h2>
     </div>
 

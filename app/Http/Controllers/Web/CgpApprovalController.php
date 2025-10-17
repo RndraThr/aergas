@@ -247,6 +247,24 @@ class CgpApprovalController extends Controller implements HasMiddleware
                     Auth::id(),
                     $notes
                 );
+
+                // Organize photo into dedicated folder after individual approval
+                if (!in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                    try {
+                        $organizationResult = $this->folderOrganizationService->organizePhotosAfterCgpApproval(
+                            $photoApproval->reff_id_pelanggan,
+                            $photoApproval->module_name
+                        );
+                        Log::info('Individual photo organization completed', $organizationResult);
+                    } catch (Exception $e) {
+                        Log::warning('Individual photo organization failed but approval succeeded', [
+                            'photo_id' => $photoApproval->id,
+                            'reff_id' => $photoApproval->reff_id_pelanggan,
+                            'module' => $photoApproval->module_name,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
             } else {
                 $result = $this->photoApprovalService->rejectByCgp(
                     $photoApproval->id,
@@ -432,32 +450,36 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
     private function getCgpStatus($customer): array
     {
-        // Check based on PhotoApproval status instead of module data
+        // Check based on PhotoApproval status - module completed only if ALL required photos cgp_approved
+        $skCgpApprovedCount = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'sk')
+            ->where('photo_status', 'cgp_approved')
+            ->count();
+        $srCgpApprovedCount = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'sr')
+            ->where('photo_status', 'cgp_approved')
+            ->count();
+        $gasInCgpApprovedCount = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'gas_in')
+            ->where('photo_status', 'cgp_approved')
+            ->count();
+
         return [
             'sk_ready' => PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
                 ->where('module_name', 'sk')
                 ->where('photo_status', 'cgp_pending')
                 ->exists(),
-            'sk_completed' => PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->where('module_name', 'sk')
-                ->whereNotNull('cgp_approved_at')
-                ->exists(),
+            'sk_completed' => $skCgpApprovedCount >= 5, // SK requires 5 photos
             'sr_ready' => PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
                 ->where('module_name', 'sr')
                 ->where('photo_status', 'cgp_pending')
                 ->exists(),
-            'sr_completed' => PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->where('module_name', 'sr')
-                ->whereNotNull('cgp_approved_at')
-                ->exists(),
+            'sr_completed' => $srCgpApprovedCount >= 6, // SR requires 6 photos
             'gas_in_ready' => PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
                 ->where('module_name', 'gas_in')
                 ->where('photo_status', 'cgp_pending')
                 ->exists(),
-            'gas_in_completed' => PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->where('module_name', 'gas_in')
-                ->whereNotNull('cgp_approved_at')
-                ->exists(),
+            'gas_in_completed' => $gasInCgpApprovedCount >= 4, // Gas In requires 4 photos
         ];
     }
 

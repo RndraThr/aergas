@@ -24,7 +24,7 @@
       @if($gasIn->canEdit() || in_array($gasIn->module_status, ['draft', 'ai_validation', 'tracer_review', 'rejected']) && auth()->user()->hasAnyRole(['admin', 'super_admin', 'gas_in', 'tracer']))
         <a href="{{ route('gas-in.edit',$gasIn->id) }}" class="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
           @if($gasIn->module_status === 'rejected')
-            <i class="fas fa-edit mr-1"></i>Perbaiki
+            <i class="fas fa-edit mr-1"></i>Edit
           @else
             Edit
           @endif
@@ -140,11 +140,19 @@
     </div>
 
     <!-- Module Status Progress -->
-    @if($gasIn->ai_overall_status || $gasIn->tracer_approved_at || $gasIn->cgp_approved_at)
+    @php
+      $hasRejectedPhotos = $gasIn->photoApprovals->filter(function($photo) {
+        return $photo->tracer_rejected_at || $photo->cgp_rejected_at;
+      })->isNotEmpty();
+      $tracerRejectedCount = $gasIn->photoApprovals->whereNotNull('tracer_rejected_at')->count();
+      $cgpRejectedCount = $gasIn->photoApprovals->whereNotNull('cgp_rejected_at')->count();
+    @endphp
+
+    @if($gasIn->ai_overall_status || $gasIn->tracer_approved_at || $gasIn->cgp_approved_at || $hasRejectedPhotos)
       <div class="mt-6 pt-6 border-t border-orange-200">
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-4 flex-wrap">
           <div class="text-sm font-medium text-gray-700">Progress:</div>
-          
+
           @if($gasIn->ai_overall_status)
             <div class="flex items-center">
               <div class="w-3 h-3 rounded-full mr-2 {{ $gasIn->ai_overall_status === 'ready' ? 'bg-green-500' : 'bg-yellow-500' }}"></div>
@@ -153,24 +161,159 @@
               </span>
             </div>
           @endif
-          
+
           @if($gasIn->tracer_approved_at)
             <div class="flex items-center">
-              <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-              <span class="text-sm text-blue-700">Tracer Approved</span>
+              <div class="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
+              <span class="text-sm text-purple-700">
+                Tracer: {{ $gasIn->tracer_approved_at->format('d/m/Y H:i') }}
+              </span>
             </div>
           @endif
-          
+
           @if($gasIn->cgp_approved_at)
             <div class="flex items-center">
-              <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-              <span class="text-sm text-green-700">CGP Approved</span>
+              <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+              <span class="text-sm text-green-700">
+                CGP: {{ $gasIn->cgp_approved_at->format('d/m/Y H:i') }}
+              </span>
+            </div>
+          @endif
+
+          @if($tracerRejectedCount > 0)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+              <span class="text-sm text-red-700">
+                Tracer Rejected: {{ $tracerRejectedCount }} foto
+              </span>
+            </div>
+          @endif
+
+          @if($cgpRejectedCount > 0)
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full bg-orange-500 mr-2"></div>
+              <span class="text-sm text-orange-700">
+                CGP Rejected: {{ $cgpRejectedCount }} foto
+              </span>
             </div>
           @endif
         </div>
       </div>
     @endif
   </div>
+
+  @php
+    $rejectedPhotos = $gasIn->photoApprovals->filter(function($photo) {
+      return $photo->tracer_rejected_at || $photo->cgp_rejected_at;
+    });
+  @endphp
+
+  @if($gasIn->tracer_approved_at || $gasIn->cgp_approved_at || $rejectedPhotos->isNotEmpty())
+    <div class="bg-white rounded-xl card-shadow p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <i class="fas fa-clipboard-check text-orange-600"></i>
+        <h2 class="font-semibold text-gray-800">Timeline Approval</h2>
+      </div>
+
+      <div class="space-y-4">
+        @if($gasIn->tracer_approved_at)
+          <div class="flex items-start space-x-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-search text-purple-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-purple-800">Tracer Approval</h4>
+                  <p class="text-sm text-purple-600">{{ $gasIn->tracer_approved_at->format('d/m/Y H:i') }}</p>
+                </div>
+                @if($gasIn->tracerApprovedBy)
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-purple-700">{{ $gasIn->tracerApprovedBy->name }}</div>
+                    <div class="text-xs text-purple-600">{{ ucfirst($gasIn->tracerApprovedBy->role) }}</div>
+                  </div>
+                @endif
+              </div>
+            </div>
+          </div>
+        @endif
+
+        @if($gasIn->cgp_approved_at)
+          <div class="flex items-start space-x-4 p-4 bg-green-50 rounded-lg border border-green-200">
+            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-check-circle text-green-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-green-800">CGP Approval</h4>
+                  <p class="text-sm text-green-600">{{ $gasIn->cgp_approved_at->format('d/m/Y H:i') }}</p>
+                </div>
+                @if($gasIn->cgpApprovedBy)
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-green-700">{{ $gasIn->cgpApprovedBy->name }}</div>
+                    <div class="text-xs text-green-600">{{ ucfirst($gasIn->cgpApprovedBy->role) }}</div>
+                  </div>
+                @endif
+              </div>
+            </div>
+          </div>
+        @endif
+
+        {{-- Tracer Rejections - Show only once with rejector and date --}}
+        @php
+          $tracerRejection = $rejectedPhotos->where('tracer_rejected_at', '!=', null)->sortByDesc('tracer_rejected_at')->first();
+        @endphp
+        @if($tracerRejection)
+          <div class="flex items-start space-x-4 p-4 bg-red-50 rounded-lg border border-red-200">
+            <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-exclamation-triangle text-red-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-red-800">Tracer Rejection</h4>
+                  <p class="text-sm text-red-600">{{ $tracerRejection->tracer_rejected_at->format('d/m/Y H:i') }}</p>
+                </div>
+                @if($tracerRejection->tracerUser)
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-red-700">{{ $tracerRejection->tracerUser->name }}</div>
+                    <div class="text-xs text-red-600">{{ ucfirst($tracerRejection->tracerUser->role) }}</div>
+                  </div>
+                @endif
+              </div>
+            </div>
+          </div>
+        @endif
+
+        {{-- CGP Rejections - Show only once with rejector and date --}}
+        @php
+          $cgpRejection = $rejectedPhotos->where('cgp_rejected_at', '!=', null)->sortByDesc('cgp_rejected_at')->first();
+        @endphp
+        @if($cgpRejection)
+          <div class="flex items-start space-x-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+            <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-exclamation-triangle text-orange-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-orange-800">CGP Rejection</h4>
+                  <p class="text-sm text-orange-600">{{ $cgpRejection->cgp_rejected_at->format('d/m/Y H:i') }}</p>
+                </div>
+                @if($cgpRejection->cgpUser)
+                  <div class="text-right">
+                    <div class="text-sm font-medium text-orange-700">{{ $cgpRejection->cgpUser->name }}</div>
+                    <div class="text-xs text-orange-600">{{ ucfirst($cgpRejection->cgpUser->role) }}</div>
+                  </div>
+                @endif
+              </div>
+            </div>
+          </div>
+        @endif
+      </div>
+    </div>
+  @endif
 
   <!-- Customer Information -->
   @if($gasIn->calonPelanggan)
@@ -179,7 +322,7 @@
         <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
           <i class="fas fa-user text-white"></i>
         </div>
-        <h2 class="text-xl font-semibold text-gray-800">Customer Information</h2>
+        <h2 class="text-xl font-semibold text-gray-800">Informasi Pelanggan</h2>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -317,7 +460,9 @@
   <!-- Photos Section -->
   <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 space-y-4">
     <div class="flex items-center gap-3">
-      <i class="fas fa-images text-orange-600"></i>
+      <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+        <i class="fas fa-images text-white"></i>
+      </div>
       <h2 class="font-semibold text-gray-800">Dokumentasi Foto</h2>
     </div>
 
@@ -451,7 +596,7 @@
             @endif
 
             <div class="text-xs text-gray-500 text-center">
-              {{ $slotKey }}
+              {{ $slotLabels[$slotKey] ?? $slotKey }}
             </div>
           </div>
         @endforeach
