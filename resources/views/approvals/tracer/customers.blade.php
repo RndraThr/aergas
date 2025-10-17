@@ -3,7 +3,7 @@
 @section('title', 'Tracer - Customer List')
 
 @section('content')
-<div class="container mx-auto px-4 py-6" x-data="tracerCustomersData()">
+<div class="container mx-auto px-4 py-6" x-data="tracerCustomersData()" x-init="init()">
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div>
@@ -297,6 +297,7 @@
                         <!-- Action Button -->
                         <div>
                             <a :href="`/approvals/tracer/customers/${customer.reff_id_pelanggan}/photos`"
+                               @click="savePageState()"
                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium inline-flex items-center">
                                 📸 Review Photos
                                 <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -490,6 +491,37 @@ function tracerCustomersData() {
                 this.pagination.current_page++;
                 this.fetchCustomers();
             }
+        },
+
+        savePageState() {
+            // Save current page and filters to sessionStorage
+            const state = {
+                page: this.pagination.current_page,
+                filters: this.filters,
+                timestamp: Date.now()
+            };
+            sessionStorage.setItem('tracerCustomersPageState', JSON.stringify(state));
+        },
+
+        restorePageState() {
+            // Restore page state from sessionStorage
+            const savedState = sessionStorage.getItem('tracerCustomersPageState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                // Only restore if saved within last 30 minutes
+                if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                    this.pagination.current_page = state.page || 1;
+                    this.filters = state.filters || this.filters;
+                    this.fetchCustomers();
+                    // Clear the saved state after restoring
+                    sessionStorage.removeItem('tracerCustomersPageState');
+                }
+            }
+        },
+
+        init() {
+            // Check if we're returning from detail page
+            this.restorePageState();
         }
     }
 }

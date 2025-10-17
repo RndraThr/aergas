@@ -3,7 +3,7 @@
 @section('title', 'CGP - Customer Review List')
 
 @section('content')
-<div class="container mx-auto px-4 py-6" x-data="cgpCustomersData()">
+<div class="container mx-auto px-4 py-6" x-data="cgpCustomersData()" x-init="initPaginationState()">
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div>
@@ -146,6 +146,7 @@
                             </td>
                             <td class="px-6 py-4">
                                 <a :href="`/approvals/cgp/customers/${customer.reff_id_pelanggan}/photos`"
+                                   @click="savePageState()"
                                    class="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
                                     📸 Review Photos
                                 </a>
@@ -287,6 +288,32 @@ function cgpCustomersData() {
                 this.pagination.current_page++;
                 this.fetchCustomers();
             }
+        },
+
+        savePageState() {
+            const state = {
+                page: this.pagination.current_page,
+                filters: this.filters,
+                timestamp: Date.now()
+            };
+            sessionStorage.setItem('cgpCustomersPageState', JSON.stringify(state));
+        },
+
+        restorePageState() {
+            const savedState = sessionStorage.getItem('cgpCustomersPageState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                    this.pagination.current_page = state.page || 1;
+                    this.filters = state.filters || this.filters;
+                    this.fetchCustomers();
+                    sessionStorage.removeItem('cgpCustomersPageState');
+                }
+            }
+        },
+
+        initPaginationState() {
+            this.restorePageState();
         }
     }
 }

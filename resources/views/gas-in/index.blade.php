@@ -4,7 +4,7 @@
 @section('title', 'Data Gas In - AERGAS')
 
 @section('content')
-<div class="space-y-6" x-data="gasInIndexData()">
+<div class="space-y-6" x-data="gasInIndexData()" x-init="initPaginationState()">
 
   <div class="flex items-center justify-between">
     <div>
@@ -172,12 +172,14 @@
             <td class="px-4 py-3 text-right">
               <div class="flex justify-end gap-1">
                 <a :href="`/gas-in/${row.id}`"
+                   @click="savePageState()"
                    class="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                    title="Lihat Detail">
                   <i class="fas fa-eye mr-1"></i>Detail
                 </a>
                 <template x-if="canEdit(row)">
                   <a :href="`/gas-in/${row.id}/edit`"
+                     @click="savePageState()"
                      class="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                      title="Edit Gas In">
                     <i class="fas fa-edit mr-1"></i>Edit
@@ -439,6 +441,42 @@ function gasInIndexData() {
                 this.pagination.current_page++;
                 this.fetchData();
             }
+        },
+
+        savePageState() {
+            // Save current page and filters to sessionStorage
+            const state = {
+                page: this.pagination.current_page,
+                filters: this.filters,
+                timestamp: Date.now()
+            };
+            sessionStorage.setItem('gasInIndexPageState', JSON.stringify(state));
+        },
+
+        restorePageState() {
+            // Restore page state from sessionStorage
+            const savedState = sessionStorage.getItem('gasInIndexPageState');
+            if (savedState) {
+                try {
+                    const state = JSON.parse(savedState);
+                    // Only restore if saved within last 30 minutes
+                    if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                        this.pagination.current_page = state.page || 1;
+                        this.filters = state.filters || this.filters;
+                        this.fetchData();
+                        // Clear the saved state after restoring
+                        sessionStorage.removeItem('gasInIndexPageState');
+                    }
+                } catch (error) {
+                    console.error('Failed to restore pagination state:', error);
+                    sessionStorage.removeItem('gasInIndexPageState');
+                }
+            }
+        },
+
+        initPaginationState() {
+            // Check if we're returning from detail page
+            this.restorePageState();
         }
     }
 }

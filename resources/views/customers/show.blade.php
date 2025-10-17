@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Detail Pelanggan - AERGAS')
-@section('page-title', 'Detail Pelanggan')
+@section('title', 'Detail Calon Pelanggan - AERGAS')
+@section('page-title', 'Detail Calon Pelanggan')
 
 @section('content')
 <div class="space-y-6" x-data="customerDetailData()">
@@ -76,9 +76,9 @@
                 <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
             </div>
             <div class="ml-3">
-                <h3 class="text-sm font-medium text-red-800">Customer Dibatalkan</h3>
+                <h3 class="text-sm font-medium text-red-800">Calon Pelanggan Dibatalkan</h3>
                 <div class="mt-2 text-sm text-red-700">
-                    <p>Customer ini telah dibatalkan dan tidak dapat melanjutkan ke proses berikutnya (SK, SR, Gas In).</p>
+                    <p>Calon pelanggan ini telah dibatalkan dan tidak dapat melanjutkan ke proses berikutnya (SK, SR, Gas In).</p>
                     @if($customer->keterangan)
                         <p class="mt-1"><strong>Alasan:</strong> {{ $customer->keterangan }}</p>
                     @endif
@@ -160,7 +160,7 @@
         <div class="lg:col-span-2 space-y-6">
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Informasi Pelanggan</h3>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Informasi Calon Pelanggan</h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
@@ -174,7 +174,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-500">Nama Pelanggan</label>
+                        <label class="block text-sm font-medium text-gray-500">Nama Calon Pelanggan</label>
                         <div class="mt-1 text-sm text-gray-900">{{ $customer->nama_pelanggan }}</div>
                     </div>
 
@@ -184,7 +184,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-500">Jenis Pelanggan</label>
+                        <label class="block text-sm font-medium text-gray-500">Jenis Calon Pelanggan</label>
                         <div class="mt-1 text-sm text-gray-900">
                             @php
                                 $jenisMap = [
@@ -484,7 +484,7 @@ function customerDetailData() {
             const notes = prompt('Catatan validasi (opsional):');
             if (notes === null) return; // User cancelled
             
-            if (!confirm('Validate this customer? This will allow them to proceed to SK module.')) return;
+            if (!confirm('Validate calon pelanggan ini? Calon pelanggan akan bisa melanjutkan ke modul SK.')) return;
             
             try {
                 const response = await fetch(`{{ route('customers.validate', $customer->reff_id_pelanggan) }}`, {
@@ -502,14 +502,14 @@ function customerDetailData() {
                 const result = await response.json();
                 
                 if (response.ok && result.success) {
-                    window.showToast('success', result.message || 'Customer validated successfully');
+                    window.showToast('success', result.message || 'Calon pelanggan berhasil divalidasi');
                     setTimeout(() => location.reload(), 1500);
                 } else {
                     throw new Error(result.message || 'Validation failed');
                 }
             } catch (error) {
                 console.error('Validation error:', error);
-                window.showToast('error', error.message || 'Failed to validate customer');
+                window.showToast('error', error.message || 'Gagal memvalidasi calon pelanggan');
             }
         },
 
@@ -520,7 +520,7 @@ function customerDetailData() {
                 return;
             }
             
-            if (!confirm('Reject this customer? This action cannot be undone.')) return;
+            if (!confirm('Reject calon pelanggan ini? Aksi ini tidak dapat dibatalkan.')) return;
             
             try {
                 const response = await fetch(`{{ route('customers.reject', $customer->reff_id_pelanggan) }}`, {
@@ -538,14 +538,14 @@ function customerDetailData() {
                 const result = await response.json();
                 
                 if (response.ok && result.success) {
-                    window.showToast('success', result.message || 'Customer rejected successfully');
+                    window.showToast('success', result.message || 'Calon pelanggan berhasil ditolak');
                     setTimeout(() => location.reload(), 1500);
                 } else {
                     throw new Error(result.message || 'Rejection failed');
                 }
             } catch (error) {
                 console.error('Rejection error:', error);
-                window.showToast('error', error.message || 'Failed to reject customer');
+                window.showToast('error', error.message || 'Gagal menolak calon pelanggan');
             }
         },
 

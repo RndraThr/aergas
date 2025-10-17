@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Pelanggan - AERGAS')
-@section('page-title', 'Edit Pelanggan')
+@section('title', 'Edit Calon Pelanggan - AERGAS')
+@section('page-title', 'Edit Calon Pelanggan')
 
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6" x-data="customerEditData()">
@@ -12,7 +12,7 @@
                 {{ substr($customer->nama_pelanggan, 0, 1) }}
             </div>
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Edit Pelanggan</h1>
+                <h1 class="text-2xl font-bold text-gray-900">Edit Calon Pelanggan</h1>
                 <p class="text-gray-600">{{ $customer->reff_id_pelanggan }} - {{ $customer->nama_pelanggan }}</p>
             </div>
         </div>
@@ -36,7 +36,7 @@
         <div class="flex items-center space-x-3">
             <i class="fas fa-info-circle text-blue-600"></i>
             <div>
-                <div class="font-medium text-blue-900">Status Pelanggan Saat Ini</div>
+                <div class="font-medium text-blue-900">Status Calon Pelanggan Saat Ini</div>
                 <div class="text-sm text-blue-700">
                     Status: <span class="font-medium">{{ ucfirst($customer->status) }}</span> |
                     Progress: <span class="font-medium">{{ ucfirst($customer->progress_status) }}</span>
@@ -56,7 +56,7 @@
                 </div>
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">Informasi Dasar</h2>
-                    <p class="text-sm text-gray-600">Update data identitas pelanggan</p>
+                    <p class="text-sm text-gray-600">Update data identitas calon pelanggan</p>
                 </div>
             </div>
 
@@ -72,7 +72,7 @@
 
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Nama Pelanggan <span class="text-red-500">*</span>
+                        Nama Calon Pelanggan <span class="text-red-500">*</span>
                     </label>
                     <input type="text"
                            x-model="form.nama_pelanggan"
@@ -95,7 +95,7 @@
                 </div>
 
                 <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Pelanggan</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Calon Pelanggan</label>
                     <select x-model="form.jenis_pelanggan"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                         <option value="pengembangan">Pengembangan</option>
@@ -164,7 +164,7 @@
                 </div>
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">Informasi Lokasi</h2>
-                    <p class="text-sm text-gray-600">Update koordinat GPS lokasi pelanggan</p>
+                    <p class="text-sm text-gray-600">Update koordinat GPS lokasi calon pelanggan</p>
                 </div>
             </div>
 
@@ -251,13 +251,13 @@
                 </div>
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">Manajemen Status</h2>
-                    <p class="text-sm text-gray-600">Update status dan progress pelanggan</p>
+                    <p class="text-sm text-gray-600">Update status dan progress calon pelanggan</p>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Status Pelanggan</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status Calon Pelanggan</label>
                     <select x-model="form.status"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                         <option value="pending">Pending</option>
@@ -265,7 +265,7 @@
                         <option value="in_progress">In Progress</option>
                         <option value="batal">Batal</option>
                     </select>
-                    <p class="mt-1 text-xs text-gray-500">Status workflow pelanggan</p>
+                    <p class="mt-1 text-xs text-gray-500">Status workflow calon pelanggan</p>
                 </div>
 
                 <div>
@@ -289,7 +289,7 @@
                     <i class="fas fa-exclamation-triangle text-yellow-600 mt-0.5"></i>
                     <div class="text-sm text-yellow-700">
                         <p class="font-medium">Perhatian: Perubahan Status</p>
-                        <p>Perubahan status atau progress dapat mempengaruhi workflow pelanggan. Pastikan perubahan sudah sesuai dengan kondisi aktual.</p>
+                        <p>Perubahan status atau progress dapat mempengaruhi workflow calon pelanggan. Pastikan perubahan sudah sesuai dengan kondisi aktual.</p>
                     </div>
                 </div>
             </div>
@@ -334,7 +334,7 @@
                         :disabled="submitting || !hasChanges"
                         :class="hasChanges ? 'bg-gradient-to-r from-aergas-navy to-aergas-orange hover:shadow-lg' : 'bg-gray-400 cursor-not-allowed'"
                         class="px-6 py-2 text-white rounded-lg transition-all duration-300 disabled:opacity-50">
-                    <span x-show="!submitting">Update Pelanggan</span>
+                    <span x-show="!submitting">Update Calon Pelanggan</span>
                     <span x-show="submitting">
                         <i class="fas fa-spinner animate-spin mr-2"></i>Updating...
                     </span>
@@ -499,7 +499,7 @@ function customerEditData() {
                 }
 
                 if (response.ok && result.success) {
-                    this.showNotification('Data pelanggan berhasil diperbarui!', 'success');
+                    this.showNotification('Data calon pelanggan berhasil diperbarui!', 'success');
                     this.originalForm = { ...this.form };
 
                     setTimeout(() => {
