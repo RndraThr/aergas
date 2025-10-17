@@ -3,7 +3,7 @@
 @section('title', 'Data Lowering')
 
 @section('content')
-<div class="container mx-auto px-6 py-8">
+<div class="container mx-auto px-6 py-8" x-data="jalurLoweringPageData()" x-init="restorePageState()">
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Data Lowering</h1>
@@ -177,7 +177,8 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex justify-end space-x-2">
-                                    <a href="{{ route('jalur.lowering.show', $lowering) }}" 
+                                    <a href="{{ route('jalur.lowering.show', $lowering) }}"
+                                       @click="savePageState()"
                                        class="text-blue-600 hover:text-blue-900">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -185,7 +186,8 @@
                                         </svg>
                                     </a>
                                     @if(in_array($lowering->status_laporan, ['draft', 'revisi_tracer', 'revisi_cgp']))
-                                        <a href="{{ route('jalur.lowering.edit', $lowering) }}" 
+                                        <a href="{{ route('jalur.lowering.edit', $lowering) }}"
+                                           @click="savePageState()"
                                            class="text-indigo-600 hover:text-indigo-900">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -238,4 +240,54 @@
         @endif
     </div>
 </div>
+
+@push('scripts')
+<script>
+function jalurLoweringPageData() {
+    return {
+        savePageState() {
+            // Save current page and filter parameters to sessionStorage
+            const currentUrl = new URL(window.location.href);
+            const state = {
+                page: currentUrl.searchParams.get('page') || '1',
+                search: currentUrl.search,
+                timestamp: Date.now()
+            };
+            sessionStorage.setItem('jalurLoweringPageState', JSON.stringify(state));
+        },
+
+        restorePageState() {
+            // Restore page state from sessionStorage when returning from detail/edit page
+            const savedState = sessionStorage.getItem('jalurLoweringPageState');
+
+            if (savedState) {
+                try {
+                    const state = JSON.parse(savedState);
+
+                    // Only restore if saved within last 30 minutes (1800000 ms)
+                    if (Date.now() - state.timestamp < 1800000) {
+                        const currentUrl = new URL(window.location.href);
+                        const hasPageParam = currentUrl.searchParams.has('page');
+
+                        // Only redirect if we don't already have pagination parameters
+                        // This prevents infinite loops
+                        if (!hasPageParam && state.search) {
+                            const baseUrl = window.location.origin + window.location.pathname;
+                            window.location.href = baseUrl + state.search;
+                        }
+                    }
+
+                    // Clear the saved state after restoring to prevent unwanted redirects
+                    sessionStorage.removeItem('jalurLoweringPageState');
+                } catch (error) {
+                    console.error('Failed to restore pagination state:', error);
+                    sessionStorage.removeItem('jalurLoweringPageState');
+                }
+            }
+        }
+    }
+}
+</script>
+@endpush
+
 @endsection

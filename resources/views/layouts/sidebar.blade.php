@@ -68,26 +68,53 @@
         <!-- Navigation -->
         <nav class="flex-1 px-4 py-6 overflow-y-auto sidebar-scroll">
             <div class="space-y-1">
-                <!-- Dashboard -->
+                <!-- Dashboard with Submenu -->
                 @if(auth()->user()->hasAnyRole(['admin', 'cgp', 'tracer', 'super_admin', 'jalur']))
-                <a href="{{ route('dashboard') }}"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('dashboard') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-chart-pie mr-3 text-lg {{ request()->routeIs('dashboard') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
-                    Dashboard
-                    @if(request()->routeIs('dashboard'))
-                        <div class="ml-auto">
-                            <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
-                        </div>
-                    @endif
-                </a>
+                @php
+                    $isDashboardActive = request()->routeIs('dashboard') || request()->routeIs('jalur.dashboard');
+                @endphp
+                <div x-data="{ dashboardOpen: {{ $isDashboardActive ? 'true' : 'false' }} }" class="space-y-1">
+                    <button @click="dashboardOpen = !dashboardOpen"
+                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ $isDashboardActive ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <i class="fas fa-chart-pie w-5 mr-3 text-lg {{ $isDashboardActive ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        <span class="flex-1 text-left">Dashboard</span>
+                        <svg class="w-5 h-5 transition-transform duration-200" :class="{ 'rotate-180': dashboardOpen }"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Submenu -->
+                    <div x-show="dashboardOpen"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 transform -translate-y-1"
+                         x-transition:enter-end="opacity-100 transform translate-y-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 transform translate-y-0"
+                         x-transition:leave-end="opacity-0 transform -translate-y-1"
+                         class="space-y-1 ml-6 mt-1">
+                        <a href="{{ route('dashboard') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('dashboard') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-tachometer-alt w-5 mr-3 text-sm"></i>
+                            Dashboard Utama
+                        </a>
+                        @if(auth()->user()->hasAnyRole(['admin', 'super_admin', 'jalur']))
+                        <a href="{{ route('jalur.dashboard') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.dashboard') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-chart-line w-5 mr-3 text-sm"></i>
+                            Dashboard Jalur
+                        </a>
+                        @endif
+                    </div>
+                </div>
                 @endif
 
-                <!-- Data Pelanggan -->
+                <!-- Data Calon Pelanggan -->
                 @if(auth()->user()->hasAnyRole(['admin','sk','sr','gas_in','cgp','tracer','super_admin']))
                     <a href="{{ route('customers.index') }}"
                     class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('customers.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-users mr-3 text-lg {{ request()->routeIs('customers.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
-                        Data Pelanggan
+                        <i class="fas fa-users w-5 mr-3 text-lg {{ request()->routeIs('customers.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        Data Calon Pelanggan
                         @if(request()->routeIs('customers.*'))
                             <div class="ml-auto"><div class="w-2 h-2 bg-aergas-orange rounded-full"></div></div>
                         @endif
@@ -106,7 +133,7 @@
                 <!-- SK Data -->
                 <a href="{{ route('sk.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('sk.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-fire mr-3 text-lg {{ request()->routeIs('sk.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    <i class="fas fa-fire w-5 mr-3 text-lg {{ request()->routeIs('sk.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                     SK Form
                     @if(request()->routeIs('sk.*'))
                         <div class="ml-auto">
@@ -120,7 +147,7 @@
                 <!-- SR Data -->
                 <a href="{{ route('sr.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('sr.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-house-user mr-3 text-lg {{ request()->routeIs('sr.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    <i class="fas fa-house-user w-5 mr-3 text-lg {{ request()->routeIs('sr.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                     SR Form
                     @if(request()->routeIs('sr.*'))
                         <div class="ml-auto">
@@ -134,7 +161,7 @@
                 <!-- Gas In Data -->
                 <a href="{{ route('gas-in.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('gas-in.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-gas-pump mr-3 text-lg {{ request()->routeIs('gas-in.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    <i class="fas fa-gas-pump w-5 mr-3 text-lg {{ request()->routeIs('gas-in.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                     Gas In Form
                     @if(request()->routeIs('gas-in.*'))
                         <div class="ml-auto">
@@ -147,12 +174,12 @@
                 @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                 <!-- Jalur Management with Submenu -->
                 @php
-                    $isJalurActive = request()->routeIs('jalur.*') && !request()->routeIs('jalur.reports*');
+                    $isJalurActive = request()->routeIs('jalur.*') && !request()->routeIs('jalur.reports*') && !request()->routeIs('jalur.dashboard');
                 @endphp
                 <div x-data="{ jalurOpen: {{ $isJalurActive ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="jalurOpen = !jalurOpen"
                             class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ $isJalurActive ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-road mr-3 text-lg {{ $isJalurActive ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        <i class="fas fa-road w-5 mr-3 text-lg {{ $isJalurActive ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         <span class="flex-1 text-left">Jalur Management</span>
                         <svg class="w-5 h-5 transition-transform duration-200" :class="{ 'rotate-180': jalurOpen }"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,55 +196,50 @@
                          x-transition:leave-start="opacity-100 transform translate-y-0"
                          x-transition:leave-end="opacity-0 transform -translate-y-1"
                          class="space-y-1 ml-6 mt-1">
-                        <a href="{{ route('jalur.dashboard') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.dashboard') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-chart-line mr-2 text-sm"></i>
-                            Dashboard Jalur
-                        </a>
                         <a href="{{ route('jalur.clusters.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.clusters.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-layer-group mr-2 text-sm"></i>
+                            <i class="fas fa-layer-group w-5 mr-3 text-sm"></i>
                             Clusters
                         </a>
                         <a href="{{ route('jalur.line-numbers.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.line-numbers.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-list-ol mr-2 text-sm"></i>
+                            <i class="fas fa-list-ol w-5 mr-3 text-sm"></i>
                             Line Numbers
                         </a>
                         <a href="{{ route('jalur.lowering.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.lowering.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-arrow-down mr-2 text-sm"></i>
+                            <i class="fas fa-arrow-down w-5 mr-3 text-sm"></i>
                             Lowering Data
                         </a>
                         <a href="{{ route('jalur.joint.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.joint.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-link mr-2 text-sm"></i>
+                            <i class="fas fa-link w-5 mr-3 text-sm"></i>
                             Joint Data
                         </a>
                         <a href="{{ route('jalur.joint-numbers.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.joint-numbers.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-hashtag mr-2 text-sm"></i>
+                            <i class="fas fa-hashtag w-5 mr-3 text-sm"></i>
                             Joint Numbers
                         </a>
                         @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                         <a href="{{ route('jalur.fitting-types.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.fitting-types.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-cogs mr-2 text-sm"></i>
+                            <i class="fas fa-cogs w-5 mr-3 text-sm"></i>
                             Fitting Types
                         </a>
                         @endif
                     </div>
                 </div>
 
-                @elseif (auth()->user()->hasAnyRole(['jalur']))
+@elseif (auth()->user()->hasAnyRole(['jalur']))
                 <!-- Jalur Management with Submenu for Jalur-only users -->
                 @php
-                    $isJalurActiveForJalurRole = request()->routeIs('jalur.*') && !request()->routeIs('jalur.reports*');
+                    $isJalurActiveForJalurRole = request()->routeIs('jalur.*') && !request()->routeIs('jalur.reports*') && !request()->routeIs('jalur.dashboard');
                 @endphp
                 <div x-data="{ jalurOpen: {{ $isJalurActiveForJalurRole ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="jalurOpen = !jalurOpen"
                             class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ $isJalurActiveForJalurRole ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-road mr-3 text-lg {{ $isJalurActiveForJalurRole ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        <i class="fas fa-road w-5 mr-3 text-lg {{ $isJalurActiveForJalurRole ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         <span class="flex-1 text-left">Jalur Management</span>
                         <svg class="w-5 h-5 transition-transform duration-200" :class="{ 'rotate-180': jalurOpen }"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,34 +256,29 @@
                          x-transition:leave-start="opacity-100 transform translate-y-0"
                          x-transition:leave-end="opacity-0 transform -translate-y-1"
                          class="space-y-1 ml-6 mt-1">
-                        <a href="{{ route('jalur.dashboard') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.dashboard') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-chart-line mr-2 text-sm"></i>
-                            Dashboard Jalur
-                        </a>
                         <a href="{{ route('jalur.clusters.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.clusters.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-layer-group mr-2 text-sm"></i>
+                            <i class="fas fa-layer-group w-5 mr-3 text-sm"></i>
                             Clusters
                         </a>
                         <a href="{{ route('jalur.line-numbers.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.line-numbers.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-list-ol mr-2 text-sm"></i>
+                            <i class="fas fa-list-ol w-5 mr-3 text-sm"></i>
                             Line Numbers
                         </a>
                         <a href="{{ route('jalur.lowering.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.lowering.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-arrow-down mr-2 text-sm"></i>
+                            <i class="fas fa-arrow-down w-5 mr-3 text-sm"></i>
                             Lowering Data
                         </a>
                         <a href="{{ route('jalur.joint.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.joint.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-link mr-2 text-sm"></i>
+                            <i class="fas fa-link w-5 mr-3 text-sm"></i>
                             Joint Data
                         </a>
                         <a href="{{ route('jalur.joint-numbers.index') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.joint-numbers.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-hashtag mr-2 text-sm"></i>
+                            <i class="fas fa-hashtag w-5 mr-3 text-sm"></i>
                             Joint Numbers
                         </a>
                     </div>
@@ -270,7 +287,7 @@
                 <!-- Reports Menu for Jalur Role -->
                 <a href="{{ route('jalur.reports') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('jalur.reports*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-chart-bar mr-3 text-lg {{ request()->routeIs('jalur.reports*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    <i class="fas fa-chart-bar w-5 mr-3 text-lg {{ request()->routeIs('jalur.reports*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                     Laporan Jalur
                     @if(request()->routeIs('jalur.reports*'))
                         <div class="ml-auto">
@@ -323,7 +340,7 @@
                 <div x-data="{ tracerOpen: {{ request()->routeIs('approvals.tracer.*') ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="tracerOpen = !tracerOpen"
                             class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.tracer.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-search mr-3 text-lg {{ request()->routeIs('approvals.tracer.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        <i class="fas fa-search w-5 mr-3 text-lg {{ request()->routeIs('approvals.tracer.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         <span class="flex-1 text-left">Tracer Review</span>
                         @php
                             $pendingTracer = \App\Models\PhotoApproval::where('photo_status', 'tracer_pending')->count();
@@ -348,12 +365,12 @@
                          class="space-y-1 ml-6 mt-1">
                         <a href="{{ route('approvals.tracer.customers') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.tracer.customers') || request()->routeIs('approvals.tracer.customer-photos') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-users mr-2 text-sm"></i>
-                            Customers (SK, SR, Gas In)
+                            <i class="fas fa-users w-5 mr-3 text-sm"></i>
+                            Calon Pelanggan (SK, SR, Gas In)
                         </a>
                         <a href="{{ route('approvals.tracer.jalur-photos') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.tracer.jalur-photos') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-road mr-2 text-sm"></i>
+                            <i class="fas fa-road w-5 mr-3 text-sm"></i>
                             Jalur (Lowering, Joint)
                         </a>
                     </div>
@@ -365,7 +382,7 @@
                 <div x-data="{ cgpOpen: {{ request()->routeIs('approvals.cgp.*') ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="cgpOpen = !cgpOpen"
                             class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-clipboard-check mr-3 text-lg {{ request()->routeIs('approvals.cgp.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        <i class="fas fa-clipboard-check w-5 mr-3 text-lg {{ request()->routeIs('approvals.cgp.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         <span class="flex-1 text-left">CGP Review</span>
                         @php
                             $pendingCgp = \App\Models\PhotoApproval::where('photo_status', 'cgp_pending')->count();
@@ -390,12 +407,12 @@
                          class="space-y-1 ml-6 mt-1">
                         <a href="{{ route('approvals.cgp.customers') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.cgp.customers') || request()->routeIs('approvals.cgp.customer-photos') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-users mr-2 text-sm"></i>
-                            Customers (SK, SR, Gas In)
+                            <i class="fas fa-users w-5 mr-3 text-sm"></i>
+                            Calon Pelanggan (SK, SR, Gas In)
                         </a>
                         <a href="{{ route('approvals.cgp.jalur-photos') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.cgp.jalur-photos') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-road mr-2 text-sm"></i>
+                            <i class="fas fa-road w-5 mr-3 text-sm"></i>
                             Jalur (Lowering, Joint)
                         </a>
                     </div>
@@ -412,7 +429,7 @@
 
                 <a href="{{ route('approvals.cgp.jalur-photos') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.jalur-photos') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-clipboard-check mr-3 text-lg {{ request()->routeIs('approvals.cgp.jalur-photos') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    <i class="fas fa-clipboard-check w-5 mr-3 text-lg {{ request()->routeIs('approvals.cgp.jalur-photos') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                     <span class="flex-1 text-left">CGP Review - Jalur</span>
                     @php
                         $pendingJalurCgp = \App\Models\PhotoApproval::where('photo_status', 'cgp_pending')
@@ -429,7 +446,7 @@
                 <!-- Notifications -->
                 <a href="{{ route('notifications.index') }}"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('notifications.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-bell mr-3 text-lg {{ request()->routeIs('notifications.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    <i class="fas fa-bell w-5 mr-3 text-lg {{ request()->routeIs('notifications.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                     Notifications
                 </a>
 
@@ -437,24 +454,24 @@
                 <div class="relative" x-data="{ open: {{ request()->routeIs('reports.*') || request()->routeIs('jalur.reports*') ? 'true' : 'false' }} }">
                     <button @click="open = !open"
                             class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('reports.*') || request()->routeIs('jalur.reports*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-chart-bar mr-3 text-lg {{ request()->routeIs('reports.*') || request()->routeIs('jalur.reports*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        <i class="fas fa-chart-bar w-5 mr-3 text-lg {{ request()->routeIs('reports.*') || request()->routeIs('jalur.reports*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         Reports
                         <i class="fas fa-chevron-down ml-auto text-xs transition-transform duration-200" :class="open ? 'rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform scale-y-90" x-transition:enter-end="opacity-100 transform scale-y-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 transform scale-y-100" x-transition:leave-end="opacity-0 transform scale-y-90" class="mt-1 space-y-1 ml-6 transform-origin-top">
                         <a href="{{ route('reports.dashboard') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('reports.dashboard') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-tachometer-alt mr-2 text-sm"></i>
+                            <i class="fas fa-tachometer-alt w-5 mr-3 text-sm"></i>
                             Laporan Dashboard
                         </a>
                         <a href="{{ route('reports.comprehensive') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('reports.comprehensive') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-file-alt mr-2 text-sm"></i>
+                            <i class="fas fa-file-alt w-5 mr-3 text-sm"></i>
                             Laporan Komprehensif
                         </a>
                         <a href="{{ route('jalur.reports') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.reports*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-road mr-2 text-sm"></i>
+                            <i class="fas fa-road w-5 mr-3 text-sm"></i>
                             Laporan Jalur
                         </a>
                     </div>
@@ -474,7 +491,7 @@
                 <div x-data="{ open: {{ request()->routeIs('imports.*') ? 'true' : 'false' }} }" class="relative">
                     <button @click="open = !open"
                             class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('imports.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-file-excel mr-3 text-lg {{ request()->routeIs('imports.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        <i class="fas fa-file-excel w-5 mr-3 text-lg {{ request()->routeIs('imports.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         Import Excel
                         <div class="ml-auto flex items-center">
                             @if(request()->routeIs('imports.*'))
@@ -497,22 +514,22 @@
 
                         <!-- Calon Pelanggan Import -->
                         <a href="{{ route('imports.calon-pelanggan.form') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.calon-pelanggan.*') ? 'bg-aergas-orange/10 text-aergas-navy border-l-2 border-aergas-orange' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
-                            <i class="fas fa-users text-xs mr-3"></i>
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.calon-pelanggan.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-users w-5 mr-3 text-sm"></i>
                             Calon Pelanggan
                         </a>
 
                         <!-- Coordinates Import -->
                         <a href="{{ route('imports.coordinates.form') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.coordinates.*') ? 'bg-aergas-orange/10 text-aergas-navy border-l-2 border-aergas-orange' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
-                            <i class="fas fa-map-marker-alt text-xs mr-3"></i>
-                            Koordinat Pelanggan
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.coordinates.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-map-marker-alt w-5 mr-3 text-sm"></i>
+                            Koordinat Calon Pelanggan
                         </a>
 
                         <!-- SK Berita Acara Import -->
                         <a href="{{ route('imports.sk-berita-acara.form') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.sk-berita-acara.*') ? 'bg-aergas-orange/10 text-aergas-navy border-l-2 border-aergas-orange' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50' }}">
-                            <i class="fas fa-file-pdf text-xs mr-3"></i>
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.sk-berita-acara.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-file-pdf w-5 mr-3 text-sm"></i>
                             SK Berita Acara
                         </a>
 
@@ -524,7 +541,7 @@
                 <!-- File Manager -->
                 <a href="#"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-400 cursor-not-allowed">
-                    <i class="fas fa-folder mr-3 text-lg text-gray-300"></i>
+                    <i class="fas fa-folder w-5 mr-3 text-lg text-gray-300"></i>
                     File Manager
                     <span class="ml-auto text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Soon</span>
                 </a>
@@ -532,7 +549,7 @@
                 <!-- Audit Logs -->
                 <a href="#"
                    class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-400 cursor-not-allowed">
-                    <i class="fas fa-history mr-3 text-lg text-gray-300"></i>
+                    <i class="fas fa-history w-5 mr-3 text-lg text-gray-300"></i>
                     Audit Logs
                     <span class="ml-auto text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Soon</span>
                 </a>
@@ -548,14 +565,14 @@
                     <!-- System Settings -->
                     <a href="{{ route('admin.settings') }}"
                     class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('admin.settings') ? 'bg-aergas-orange text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-cogs mr-3 text-lg {{ request()->routeIs('admin.settings') ? 'text-white' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        <i class="fas fa-cogs w-5 mr-3 text-lg {{ request()->routeIs('admin.settings') ? 'text-white' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         System Settings
                     </a>
 
                     <!-- User Management -->
                     <a href="{{ route('admin.users') }}"
                     class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('admin.users*') ? 'bg-aergas-orange text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-users-cog mr-3 text-lg {{ request()->routeIs('admin.users*') ? 'text-white' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                        <i class="fas fa-users-cog w-5 mr-3 text-lg {{ request()->routeIs('admin.users*') ? 'text-white' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         User Management
                     </a>
                     @endif
@@ -567,7 +584,7 @@
             <!-- Profile -->
             <a href="{{ route('auth.me') }}"
                class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                <i class="fas fa-user mr-3 text-lg text-gray-400 group-hover:text-gray-600"></i>
+                <i class="fas fa-user w-5 mr-3 text-lg text-gray-400 group-hover:text-gray-600"></i>
                 My Profile
             </a>
 
@@ -582,8 +599,8 @@
             <form method="POST" action="{{ route('logout') }}" class="mt-2">
                 @csrf
                 <button type="submit"
-                        class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:text-gray-900 hover:bg-red-50 hover:text-red-600">
-                    <i class="fas fa-sign-out-alt mr-3 text-lg text-gray-400 group-hover:text-red-500"></i>
+                        class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-600 hover:bg-red-50 hover:text-red-600">
+                    <i class="fas fa-sign-out-alt w-5 mr-3 text-lg text-gray-400 group-hover:text-red-500"></i>
                     Logout
                 </button>
             </form>

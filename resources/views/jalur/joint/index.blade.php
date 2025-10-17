@@ -3,7 +3,7 @@
 @section('title', 'Data Joint/Sambungan')
 
 @section('content')
-<div class="container mx-auto px-6 py-8">
+<div class="container mx-auto px-6 py-8" id="jointIndexPage">
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Data Joint/Sambungan</h1>
@@ -169,7 +169,8 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex justify-end space-x-2">
-                                    <a href="{{ route('jalur.joint.show', $joint) }}" 
+                                    <a href="{{ route('jalur.joint.show', $joint) }}"
+                                       onclick="savePageState()"
                                        class="text-blue-600 hover:text-blue-900">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -177,7 +178,8 @@
                                         </svg>
                                     </a>
                                     @if(in_array($joint->status_laporan, ['draft', 'revisi_tracer', 'revisi_cgp']))
-                                        <a href="{{ route('jalur.joint.edit', $joint) }}" 
+                                        <a href="{{ route('jalur.joint.edit', $joint) }}"
+                                           onclick="savePageState()"
                                            class="text-indigo-600 hover:text-indigo-900">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -230,4 +232,65 @@
         @endif
     </div>
 </div>
+
+@push('scripts')
+<script>
+    // Pagination state persistence for joint/sambungan index
+    function savePageState() {
+        const currentUrl = new URL(window.location.href);
+        const state = {
+            page: currentUrl.searchParams.get('page') || 1,
+            search: currentUrl.searchParams.get('search') || '',
+            cluster_id: currentUrl.searchParams.get('cluster_id') || '',
+            line_number_id: currentUrl.searchParams.get('line_number_id') || '',
+            fitting_type_id: currentUrl.searchParams.get('fitting_type_id') || '',
+            status: currentUrl.searchParams.get('status') || '',
+            timestamp: Date.now()
+        };
+        sessionStorage.setItem('jalurJointPageState', JSON.stringify(state));
+    }
+
+    function restorePageState() {
+        const savedState = sessionStorage.getItem('jalurJointPageState');
+        if (savedState) {
+            const state = JSON.parse(savedState);
+            // Only restore if saved within last 30 minutes
+            if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                const currentUrl = new URL(window.location.href);
+
+                // Check if we already have query parameters (user manually navigated)
+                if (!currentUrl.searchParams.has('page') &&
+                    !currentUrl.searchParams.has('search') &&
+                    !currentUrl.searchParams.has('cluster_id') &&
+                    !currentUrl.searchParams.has('line_number_id') &&
+                    !currentUrl.searchParams.has('fitting_type_id') &&
+                    !currentUrl.searchParams.has('status')) {
+
+                    // Restore state only if no manual navigation
+                    const params = new URLSearchParams();
+                    if (state.page && state.page !== '1') params.set('page', state.page);
+                    if (state.search) params.set('search', state.search);
+                    if (state.cluster_id) params.set('cluster_id', state.cluster_id);
+                    if (state.line_number_id) params.set('line_number_id', state.line_number_id);
+                    if (state.fitting_type_id) params.set('fitting_type_id', state.fitting_type_id);
+                    if (state.status) params.set('status', state.status);
+
+                    if (params.toString()) {
+                        window.location.href = currentUrl.pathname + '?' + params.toString();
+                    }
+                }
+
+                // Clear the saved state after restoring
+                sessionStorage.removeItem('jalurJointPageState');
+            }
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        restorePageState();
+    });
+</script>
+@endpush
+
 @endsection

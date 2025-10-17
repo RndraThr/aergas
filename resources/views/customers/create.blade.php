@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Tambah Pelanggan - AERGAS')
-@section('page-title', 'Tambah Pelanggan')
+@section('title', 'Tambah Calon Pelanggan - AERGAS')
+@section('page-title', 'Tambah Calon Pelanggan')
 
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6" x-data="customerCreateData()">
 
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Tambah Pelanggan Baru</h1>
+            <h1 class="text-2xl font-bold text-gray-900">Tambah Calon Pelanggan Baru</h1>
             <p class="text-gray-600 mt-1">Daftarkan calon pelanggan gas AERGAS</p>
         </div>
 
@@ -68,13 +68,13 @@
 
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Nama Pelanggan <span class="text-red-500">*</span>
+                        Nama Calon Pelanggan <span class="text-red-500">*</span>
                     </label>
                     <input type="text"
                            x-model="form.nama_pelanggan"
                            :class="errors.nama_pelanggan ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
-                           placeholder="Nama lengkap pelanggan"
+                           placeholder="Nama lengkap calon pelanggan"
                            required>
                     <div x-show="errors.nama_pelanggan" class="mt-1 text-sm text-red-600" x-text="errors.nama_pelanggan"></div>
                 </div>
@@ -123,7 +123,7 @@
                 </div>
 
                 <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Pelanggan</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Calon Pelanggan</label>
                     <select x-model="form.jenis_pelanggan"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                         <option value="pengembangan">Pengembangan</option>
@@ -287,7 +287,7 @@
                         <span>Reference ID belum valid</span>
                     </template>
                     <template x-if="!form.nama_pelanggan">
-                        <span>Nama pelanggan diperlukan</span>
+                        <span>Nama calon pelanggan diperlukan</span>
                     </template>
                     <template x-if="!form.alamat">
                         <span>Alamat diperlukan</span>
@@ -304,7 +304,7 @@
                         :disabled="submitting || !formValid"
                         :class="formValid ? 'bg-gradient-to-r from-aergas-navy to-aergas-orange hover:shadow-lg' : 'bg-gray-400 cursor-not-allowed'"
                         class="px-6 py-2 text-white rounded-lg transition-all duration-300 disabled:opacity-50">
-                    <span x-show="!submitting">Daftarkan Pelanggan</span>
+                    <span x-show="!submitting">Daftarkan Calon Pelanggan</span>
                     <span x-show="submitting">
                         <i class="fas fa-spinner animate-spin mr-2"></i>Mendaftarkan...
                     </span>
@@ -437,7 +437,7 @@ function customerCreateData() {
                 const data = await response.json();
 
                 if (data.success) {
-                    window.showToast('success', 'Pelanggan berhasil didaftarkan!');
+                    window.showToast('success', 'Calon pelanggan berhasil didaftarkan!');
 
                     setTimeout(() => {
                         window.location.href = data.data ? `/customers/${data.data.reff_id_pelanggan}` : '{{ route('customers.index') }}';
@@ -446,12 +446,12 @@ function customerCreateData() {
                     if (data.errors) {
                         this.errors = data.errors;
                     } else {
-                        window.showToast('error', data.message || 'Gagal mendaftarkan pelanggan');
+                        window.showToast('error', data.message || 'Gagal mendaftarkan calon pelanggan');
                     }
                 }
             } catch (error) {
                 console.error('Error submitting form:', error);
-                window.showToast('error', 'Terjadi kesalahan saat mendaftarkan pelanggan');
+                window.showToast('error', 'Terjadi kesalahan saat mendaftarkan calon pelanggan');
             } finally {
                 this.submitting = false;
             }

@@ -3,7 +3,7 @@
 @section('title', 'Line Numbers')
 
 @section('content')
-<div class="container mx-auto px-6 py-8">
+<div class="container mx-auto px-6 py-8" x-data="lineNumbersData()" x-init="initPaginationState()">
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Line Numbers</h1>
@@ -137,14 +137,16 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex justify-end space-x-2">
-                                    <a href="{{ route('jalur.line-numbers.show', $lineNumber) }}" 
+                                    <a href="{{ route('jalur.line-numbers.show', $lineNumber) }}"
+                                       @click="savePageState()"
                                        class="text-blue-600 hover:text-blue-900">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                         </svg>
                                     </a>
-                                    <a href="{{ route('jalur.line-numbers.edit', $lineNumber) }}" 
+                                    <a href="{{ route('jalur.line-numbers.edit', $lineNumber) }}"
+                                       @click="savePageState()"
                                        class="text-indigo-600 hover:text-indigo-900">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -194,4 +196,62 @@
         @endif
     </div>
 </div>
+
+@push('scripts')
+<script>
+function lineNumbersData() {
+    return {
+        savePageState() {
+            // Save current page and filters to sessionStorage
+            const state = {
+                page: {{ $lineNumbers->currentPage() ?? 1 }},
+                search: '{{ request('search') ?? '' }}',
+                cluster_id: '{{ request('cluster_id') ?? '' }}',
+                diameter: '{{ request('diameter') ?? '' }}',
+                timestamp: Date.now()
+            };
+            sessionStorage.setItem('jalurLineNumbersPageState', JSON.stringify(state));
+        },
+
+        restorePageState() {
+            // Restore page state from sessionStorage
+            const savedState = sessionStorage.getItem('jalurLineNumbersPageState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                // Only restore if saved within last 30 minutes
+                if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                    // Build URL with saved state
+                    const params = new URLSearchParams();
+                    if (state.page && state.page > 1) {
+                        params.append('page', state.page);
+                    }
+                    if (state.search) {
+                        params.append('search', state.search);
+                    }
+                    if (state.cluster_id) {
+                        params.append('cluster_id', state.cluster_id);
+                    }
+                    if (state.diameter) {
+                        params.append('diameter', state.diameter);
+                    }
+
+                    // Redirect to the saved state if parameters exist
+                    if (params.toString()) {
+                        window.location.href = '{{ route('jalur.line-numbers.index') }}?' + params.toString();
+                    }
+
+                    // Clear the saved state after restoring
+                    sessionStorage.removeItem('jalurLineNumbersPageState');
+                }
+            }
+        },
+
+        initPaginationState() {
+            // Check if we're returning from detail/edit page
+            this.restorePageState();
+        }
+    }
+}
+</script>
+@endpush
 @endsection

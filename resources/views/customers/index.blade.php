@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Data Pelanggan - AERGAS')
-@section('page-title', 'Data Pelanggan')
+@section('title', 'Data Calon Pelanggan - AERGAS')
+@section('page-title', 'Data Calon Pelanggan')
 
 @section('content')
-<div class="space-y-6" x-data="customersData()">
+<div class="space-y-6" x-data="customersData()" x-init="initPaginationState()">
 
     <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-4 lg:space-y-0">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Data Pelanggan</h1>
+            <h1 class="text-2xl font-bold text-gray-900">Data Calon Pelanggan</h1>
             <p class="text-gray-600 mt-1">Kelola data calon pelanggan gas AERGAS</p>
         </div>
 
@@ -27,9 +27,10 @@
                 </a>
 
                 <a href="{{ route('customers.create') }}"
+                   @click="savePageState()"
                    class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-aergas-navy to-aergas-orange text-white rounded-lg hover:shadow-lg transition-all duration-300">
                     <i class="fas fa-plus"></i>
-                    <span>Tambah Pelanggan</span>
+                    <span>Tambah Calon Pelanggan</span>
                 </a>
             @endif
         </div>
@@ -37,7 +38,7 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <x-stat-card
-            title="Total Pelanggan"
+            title="Total Calon Pelanggan"
             :value="$stats['total_customers'] ?? 0"
             icon="fas fa-users"
             color="blue"
@@ -47,47 +48,47 @@
             :value="$stats['pending_validation'] ?? 0"
             icon="fas fa-user-clock"
             color="yellow"
-            description="Pelanggan menunggu validasi admin/tracer"
+            description="Calon pelanggan menunggu validasi admin/tracer"
         />
         <x-stat-card
             title="Tervalidasi"
             :value="$stats['validated_customers'] ?? 0"
             icon="fas fa-user-check"
             color="green"
-            description="Pelanggan sudah divalidasi dan dapat melanjutkan"
+            description="Calon pelanggan sudah divalidasi dan dapat melanjutkan"
         />
         <x-stat-card
             title="Dalam Proses"
             :value="$stats['in_progress_customers'] ?? 0"
             icon="fas fa-tasks"
             color="purple"
-            description="Pelanggan sedang dalam tahap SK/SR/Gas In"
+            description="Calon pelanggan sedang dalam tahap SK/SR/Gas In"
         />
         <x-stat-card
             title="Selesai"
             :value="$stats['completed_customers'] ?? 0"
             icon="fas fa-check-circle"
             color="green"
-            description="Pelanggan telah selesai (done)"
+            description="Calon pelanggan telah selesai (done)"
         />
         <x-stat-card
             title="Batal"
             :value="$stats['cancelled_customers'] ?? 0"
             icon="fas fa-times-circle"
             color="red"
-            description="Pelanggan dibatalkan"
+            description="Calon pelanggan dibatalkan"
         />
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Cari Pelanggan</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Cari Calon Pelanggan</label>
                 <div class="relative">
                     <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     <input type="text"
                            x-model="filters.search"
-                           @input.debounce.500ms="fetchCustomers()"
+                           @input.debounce.500ms="fetchCustomers(true)"
                            placeholder="Nama, Reff ID, alamat, atau telepon..."
                            class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                 </div>
@@ -95,7 +96,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select x-model="filters.status" @change="fetchCustomers()"
+                <select x-model="filters.status" @change="fetchCustomers(true)"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                     <option value="">Semua Status</option>
                     <option value="pending">Pending</option>
@@ -107,7 +108,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Progress</label>
-                <select x-model="filters.progress_status" @change="fetchCustomers()"
+                <select x-model="filters.progress_status" @change="fetchCustomers(true)"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
                     <option value="">Semua Progress</option>
                     <option value="validasi">Validasi</option>
@@ -162,13 +163,13 @@
         <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-gray-900">
-                    Daftar Pelanggan
+                    Daftar Calon Pelanggan
                     <span class="text-sm font-normal text-gray-500" x-text="'(' + pagination.total + ' total)'"></span>
                 </h3>
 
                 <div class="flex items-center space-x-2">
                     <span class="text-sm text-gray-500">Show:</span>
-                    <select x-model="pagination.per_page" @change="fetchCustomers()"
+                    <select x-model="pagination.per_page" @change="fetchCustomers(true)"
                             class="border border-gray-300 rounded px-2 py-1 text-sm">
                         <option value="15">15</option>
                         <option value="25">25</option>
@@ -196,7 +197,7 @@
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <button @click="sortBy('nama_pelanggan')" class="flex items-center space-x-1 hover:text-gray-700">
-                                <span>Pelanggan</span>
+                                <span>Calon Pelanggan</span>
                                 <i class="fas fa-sort text-xs"></i>
                             </button>
                         </th>
@@ -320,12 +321,14 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex items-center space-x-2">
                                     <a :href="'/customers/' + customer.reff_id_pelanggan"
+                                       @click="savePageState()"
                                        class="text-aergas-orange hover:text-aergas-navy transition-colors">
                                         <i class="fas fa-eye"></i>
                                     </a>
 
                                     @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
                                         <a :href="'/customers/' + customer.reff_id_pelanggan + '/edit'"
+                                           @click="savePageState()"
                                            class="text-blue-600 hover:text-blue-800 transition-colors">
                                             <i class="fas fa-edit"></i>
                                         </a>
@@ -349,6 +352,7 @@
                                                 </template>
 
                                                 <a :href="'/customers/' + customer.reff_id_pelanggan"
+                                                   @click="savePageState()"
                                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                                     <i class="fas fa-info-circle mr-2"></i>
                                                     Detail
@@ -494,8 +498,13 @@ function customersData() {
             return modules[0];
         },
 
-        async fetchCustomers() {
+        async fetchCustomers(resetPage = false) {
             this.loading = true;
+
+            // Auto-reset to page 1 when filters change
+            if (resetPage) {
+                this.pagination.current_page = 1;
+            }
 
             try {
                 const params = new URLSearchParams({
@@ -526,6 +535,14 @@ function customersData() {
                         from: data.data.from,
                         to: data.data.to
                     };
+
+                    // Smart pagination: if current page > last page, auto-adjust
+                    if (this.pagination.current_page > this.pagination.last_page && this.pagination.last_page > 0) {
+                        this.pagination.current_page = this.pagination.last_page;
+                        this.fetchCustomers(); // Re-fetch with adjusted page
+                        return;
+                    }
+
                     // Progress percentage now comes from database
                 }
             } catch (error) {
@@ -548,7 +565,7 @@ function customersData() {
 
         setQuickFilter(filter) {
             this.quickFilter = filter;
-            
+
             // Reset filters first
             this.filters.status = '';
             this.filters.progress_status = '';
@@ -583,7 +600,7 @@ function customersData() {
                     break;
             }
 
-            this.fetchCustomers();
+            this.fetchCustomers(true);
         },
 
         resetFilters() {
@@ -595,7 +612,7 @@ function customersData() {
                 padukuhan: ''
             };
             this.quickFilter = '';
-            this.fetchCustomers();
+            this.fetchCustomers(true);
         },
 
         getModuleUrl(module, reffId) {
@@ -671,6 +688,37 @@ function customersData() {
                 this.pagination.current_page++;
                 this.fetchCustomers();
             }
+        },
+
+        savePageState() {
+            // Save current page and filters to sessionStorage
+            const state = {
+                page: this.pagination.current_page,
+                filters: this.filters,
+                timestamp: Date.now()
+            };
+            sessionStorage.setItem('customersIndexPageState', JSON.stringify(state));
+        },
+
+        restorePageState() {
+            // Restore page state from sessionStorage
+            const savedState = sessionStorage.getItem('customersIndexPageState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                // Only restore if saved within last 30 minutes
+                if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                    this.pagination.current_page = state.page || 1;
+                    this.filters = state.filters || this.filters;
+                    this.fetchCustomers();
+                    // Clear the saved state after restoring
+                    sessionStorage.removeItem('customersIndexPageState');
+                }
+            }
+        },
+
+        initPaginationState() {
+            // Check if we're returning from detail page
+            this.restorePageState();
         }
     }
 }

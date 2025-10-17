@@ -3,7 +3,7 @@
 @section('title', 'Manajemen Nomor Joint')
 
 @section('content')
-<div class="container mx-auto px-4 py-6">
+<div class="container mx-auto px-4 py-6" x-data="jointNumbersData()" x-init="initPaginationState()">
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div>
@@ -137,11 +137,13 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end space-x-2">
-                                    <a href="{{ route('jalur.joint-numbers.show', $jointNumber) }}" 
+                                    <a href="{{ route('jalur.joint-numbers.show', $jointNumber) }}"
+                                       @click="savePageState()"
                                        class="text-blue-600 hover:text-blue-900">
                                         👁️ Lihat
                                     </a>
-                                    <a href="{{ route('jalur.joint-numbers.edit', $jointNumber) }}" 
+                                    <a href="{{ route('jalur.joint-numbers.edit', $jointNumber) }}"
+                                       @click="savePageState()"
                                        class="text-indigo-600 hover:text-indigo-900">
                                         ✏️ Edit
                                     </a>
@@ -184,4 +186,55 @@
         {{ $jointNumbers->appends(request()->query())->links('vendor.pagination.alpine-style') }}
     </div>
 </div>
+
+@push('scripts')
+<script>
+function jointNumbersData() {
+    return {
+        savePageState() {
+            // Save current page and filters to sessionStorage
+            const state = {
+                page: {{ $jointNumbers->currentPage() }},
+                search: '{{ request("search") }}',
+                cluster_id: '{{ request("cluster_id") }}',
+                fitting_type_id: '{{ request("fitting_type_id") }}',
+                timestamp: Date.now()
+            };
+            sessionStorage.setItem('jalurJointNumbersPageState', JSON.stringify(state));
+        },
+
+        restorePageState() {
+            // Restore page state from sessionStorage
+            const savedState = sessionStorage.getItem('jalurJointNumbersPageState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                // Only restore if saved within last 30 minutes
+                if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                    // Build URL with saved state
+                    const params = new URLSearchParams();
+                    if (state.page > 1) params.append('page', state.page);
+                    if (state.search) params.append('search', state.search);
+                    if (state.cluster_id) params.append('cluster_id', state.cluster_id);
+                    if (state.fitting_type_id) params.append('fitting_type_id', state.fitting_type_id);
+
+                    // Redirect to the saved state
+                    const queryString = params.toString();
+                    if (queryString) {
+                        window.location.href = '{{ route("jalur.joint-numbers.index") }}?' + queryString;
+                    }
+
+                    // Clear the saved state after restoring
+                    sessionStorage.removeItem('jalurJointNumbersPageState');
+                }
+            }
+        },
+
+        initPaginationState() {
+            // Check if we're returning from detail/edit page
+            this.restorePageState();
+        }
+    }
+}
+</script>
+@endpush
 @endsection

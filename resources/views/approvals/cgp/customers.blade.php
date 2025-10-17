@@ -3,7 +3,7 @@
 @section('title', 'CGP - Customer Review List')
 
 @section('content')
-<div class="container mx-auto px-4 py-6" x-data="cgpCustomersData()">
+<div class="container mx-auto px-4 py-6" x-data="cgpCustomersData()" x-init="initPaginationState()">
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div>
@@ -24,7 +24,7 @@
                 <!-- Status Filter -->
                 <div class="flex items-center space-x-2">
                     <label class="text-sm font-medium text-gray-700">Filter Status:</label>
-                    <select x-model="filters.status" @change="fetchCustomers()"
+                    <select x-model="filters.status" @change="fetchCustomers(true)"
                             class="border border-gray-300 rounded-md px-3 py-1 text-sm">
                         <option value="">Semua Status</option>
                         <option value="sk_ready">SK Ready for CGP</option>
@@ -36,7 +36,7 @@
                 <!-- Search -->
                 <div class="flex items-center space-x-2">
                     <label class="text-sm font-medium text-gray-700">Search:</label>
-                    <input type="text" x-model="filters.search" @input.debounce.500ms="fetchCustomers()"
+                    <input type="text" x-model="filters.search" @input.debounce.500ms="fetchCustomers(true)"
                            placeholder="Reff ID, Nama, Alamat..."
                            class="border border-gray-300 rounded-md px-3 py-1 text-sm w-64">
                 </div>
@@ -146,6 +146,7 @@
                             </td>
                             <td class="px-6 py-4">
                                 <a :href="`/approvals/cgp/customers/${customer.reff_id_pelanggan}/photos`"
+                                   @click="savePageState()"
                                    class="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
                                     📸 Review Photos
                                 </a>
@@ -193,8 +194,13 @@ function cgpCustomersData() {
         },
         loading: false,
 
-        async fetchCustomers() {
+        async fetchCustomers(resetPage = false) {
             this.loading = true;
+
+            // Auto-reset: jika current page > 1 dan resetPage = true, reset ke page 1
+            if (resetPage && this.pagination.current_page > 1) {
+                this.pagination.current_page = 1;
+            }
 
             try {
                 const params = new URLSearchParams({
@@ -215,7 +221,7 @@ function cgpCustomersData() {
 
                 if (data.success) {
                     this.customers = data.data.data || [];
-                    this.pagination = {
+                    const newPagination = {
                         current_page: data.data.current_page,
                         last_page: data.data.last_page,
                         per_page: data.data.per_page,
@@ -223,6 +229,15 @@ function cgpCustomersData() {
                         from: data.data.from,
                         to: data.data.to
                     };
+
+                    // Smart pagination: jika current page > last page, fetch ulang dari page terakhir
+                    if (newPagination.current_page > newPagination.last_page && newPagination.last_page > 0) {
+                        this.pagination.current_page = newPagination.last_page;
+                        this.fetchCustomers(false); // fetch ulang tanpa reset
+                        return;
+                    }
+
+                    this.pagination = newPagination;
                 }
             } catch (error) {
                 console.error('Error fetching customers:', error);
@@ -236,8 +251,7 @@ function cgpCustomersData() {
                 search: '',
                 status: ''
             };
-            this.pagination.current_page = 1;
-            this.fetchCustomers();
+            this.fetchCustomers(true);
         },
 
         get paginationPages() {
@@ -274,6 +288,32 @@ function cgpCustomersData() {
                 this.pagination.current_page++;
                 this.fetchCustomers();
             }
+        },
+
+        savePageState() {
+            const state = {
+                page: this.pagination.current_page,
+                filters: this.filters,
+                timestamp: Date.now()
+            };
+            sessionStorage.setItem('cgpCustomersPageState', JSON.stringify(state));
+        },
+
+        restorePageState() {
+            const savedState = sessionStorage.getItem('cgpCustomersPageState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                    this.pagination.current_page = state.page || 1;
+                    this.filters = state.filters || this.filters;
+                    this.fetchCustomers();
+                    sessionStorage.removeItem('cgpCustomersPageState');
+                }
+            }
+        },
+
+        initPaginationState() {
+            this.restorePageState();
         }
     }
 }
