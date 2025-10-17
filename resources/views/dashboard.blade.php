@@ -82,28 +82,28 @@
         </div>
     </div>
 
-   <!-- Charts Section -->
+   <!-- Charts Section 1 - Photo Approvals, Customer Types, Module Status -->
    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
        <!-- Photo Approval Status Chart -->
        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
-           <div class="flex items-center justify-between mb-6">
-               <div class="flex items-center space-x-3">
-                   <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                       <i class="fas fa-camera text-white"></i>
+           <div class="flex items-center justify-between mb-4">
+               <div class="flex items-center space-x-2">
+                   <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                       <i class="fas fa-camera text-white text-sm"></i>
                    </div>
                    <div>
-                       <h2 class="text-lg font-semibold text-gray-900">Photo Approvals</h2>
-                       <div class="text-sm text-gray-500">Status Distribution</div>
+                       <h2 class="text-sm font-semibold text-gray-900">Photo Approvals</h2>
+                       <div class="text-xs text-gray-500">Status Distribution</div>
                    </div>
                </div>
-               <div class="text-2xl font-bold text-purple-600" x-text="(data.photos?.total_photos || 0)">0</div>
+               <div class="text-xl font-bold text-purple-600" x-text="(data.photos?.total_photos || 0)">0</div>
            </div>
            <div class="relative h-64">
                <canvas id="photoApprovalChart" class="w-full h-full"></canvas>
                <div x-show="chartLoading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
                    <div class="flex items-center space-x-2 text-gray-600">
-                       <i class="fas fa-spinner animate-spin"></i>
-                       <span>Loading chart...</span>
+                       <i class="fas fa-spinner animate-spin text-sm"></i>
+                       <span class="text-xs">Loading...</span>
                    </div>
                </div>
            </div>
@@ -111,24 +111,24 @@
 
        <!-- Customer Types Chart -->
        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
-           <div class="flex items-center justify-between mb-6">
-               <div class="flex items-center space-x-3">
-                   <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                       <i class="fas fa-users text-white"></i>
+           <div class="flex items-center justify-between mb-4">
+               <div class="flex items-center space-x-2">
+                   <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                       <i class="fas fa-users text-white text-sm"></i>
                    </div>
                    <div>
-                       <h2 class="text-lg font-semibold text-gray-900">Customer Types</h2>
-                       <div class="text-sm text-gray-500">Type Distribution</div>
+                       <h2 class="text-sm font-semibold text-gray-900">Customer Types</h2>
+                       <div class="text-xs text-gray-500">Type Distribution</div>
                    </div>
                </div>
-               <div class="text-2xl font-bold text-blue-600" x-text="(data.totals?.total_customers || 0)">0</div>
+               <div class="text-xl font-bold text-blue-600" x-text="(data.totals?.total_customers || 0)">0</div>
            </div>
            <div class="relative h-64">
                <canvas id="customerTypesChart" class="w-full h-full"></canvas>
                <div x-show="chartLoading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
                    <div class="flex items-center space-x-2 text-gray-600">
-                       <i class="fas fa-spinner animate-spin"></i>
-                       <span>Loading chart...</span>
+                       <i class="fas fa-spinner animate-spin text-sm"></i>
+                       <span class="text-xs">Loading...</span>
                    </div>
                </div>
            </div>
@@ -136,410 +136,186 @@
 
        <!-- Module Completion Status Chart -->
        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
-           <div class="flex items-center justify-between mb-6">
-               <div class="flex items-center space-x-3">
-                   <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-                       <i class="fas fa-tasks text-white"></i>
+           <div class="flex items-center justify-between mb-4">
+               <div class="flex items-center space-x-2">
+                   <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                       <i class="fas fa-tasks text-white text-sm"></i>
                    </div>
                    <div>
-                       <h2 class="text-lg font-semibold text-gray-900">Module Status</h2>
-                       <div class="text-sm text-gray-500">Completion Rate</div>
+                       <h2 class="text-sm font-semibold text-gray-900">Module Status</h2>
+                       <div class="text-xs text-gray-500">Completion Rate</div>
                    </div>
                </div>
-               <div class="text-2xl font-bold text-green-600" x-text="((data.totals?.completion_rate || 0) + '%')">0%</div>
+               <div class="text-xl font-bold text-green-600" x-text="((data.totals?.completion_rate || 0) + '%')">0%</div>
            </div>
            <div class="relative h-64">
                <canvas id="moduleStatusChart" class="w-full h-full"></canvas>
                <div x-show="chartLoading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
                    <div class="flex items-center space-x-2 text-gray-600">
-                       <i class="fas fa-spinner animate-spin"></i>
-                       <span>Loading chart...</span>
+                       <i class="fas fa-spinner animate-spin text-sm"></i>
+                       <span class="text-xs">Loading...</span>
                    </div>
                </div>
            </div>
        </div>
    </div>
 
-   <!-- Module Charts Section -->
-   <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-       <!-- Total Module Chart -->
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
-           <div class="flex items-center justify-between mb-6">
-               <div class="flex items-center space-x-3">
-                   <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                       <i class="fas fa-chart-pie text-white"></i>
+   <!-- Charts Section 2 - Total Modules & All Modules Distribution (1:2 proportion) -->
+   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+       <!-- Total Module Chart - 1/3 width -->
+       <div class="lg:col-span-1 bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
+           <div class="flex items-center justify-between mb-4">
+               <div class="flex items-center space-x-2">
+                   <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                       <i class="fas fa-chart-pie text-white text-sm"></i>
                    </div>
                    <div>
-                       <h2 class="text-lg font-semibold text-gray-900">Total Modules</h2>
-                       <div class="text-sm text-gray-500">All Modules</div>
+                       <h2 class="text-sm font-semibold text-gray-900">Total Modules</h2>
+                       <div class="text-xs text-gray-500">All Modules</div>
                    </div>
                </div>
-               <div class="text-2xl font-bold text-indigo-600" x-text="((data.modules?.sk?.total || 0) + (data.modules?.sr?.total || 0) + (data.modules?.gas_in?.total || 0))">0</div>
+               <div class="text-xl font-bold text-indigo-600" x-text="((data.modules?.sk?.total || 0) + (data.modules?.sr?.total || 0) + (data.modules?.gas_in?.total || 0))">0</div>
            </div>
-           <div class="relative h-48">
+           <div class="relative h-80">
                <canvas id="totalModuleChart" class="w-full h-full"></canvas>
                <div x-show="chartLoading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
                    <div class="flex items-center space-x-2 text-gray-600">
-                       <i class="fas fa-spinner animate-spin"></i>
-                       <span>Loading...</span>
+                       <i class="fas fa-spinner animate-spin text-sm"></i>
+                       <span class="text-xs">Loading...</span>
                    </div>
                </div>
            </div>
        </div>
 
-       <!-- SK Module Chart -->
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
-           <div class="flex items-center justify-between mb-6">
-               <div class="flex items-center space-x-3">
-                   <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
-                       <i class="fas fa-fire text-white"></i>
+       <!-- Combined Module Chart - 2/3 width -->
+       <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
+           <div class="flex items-center justify-between mb-4">
+               <div class="flex items-center space-x-2">
+                   <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                       <i class="fas fa-layer-group text-white text-sm"></i>
                    </div>
                    <div>
-                       <h2 class="text-lg font-semibold text-gray-900">SK Module</h2>
-                       <div class="text-sm text-gray-500">Sambungan Kompor</div>
+                       <h2 class="text-sm font-semibold text-gray-900">All Modules Distribution</h2>
+                       <div class="text-xs text-gray-500">SK, SR, and Gas In Modules</div>
                    </div>
                </div>
-               <div class="text-2xl font-bold text-red-600" x-text="(data.modules?.sk?.total || 0)">0</div>
            </div>
-           <div class="relative h-48">
-               <canvas id="skModuleChart" class="w-full h-full"></canvas>
+           <div class="relative h-80">
+               <canvas id="combinedModuleChart" class="w-full h-full"></canvas>
                <div x-show="chartLoading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
                    <div class="flex items-center space-x-2 text-gray-600">
                        <i class="fas fa-spinner animate-spin"></i>
-                       <span>Loading...</span>
-                   </div>
-               </div>
-           </div>
-       </div>
-
-       <!-- SR Module Chart -->
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
-           <div class="flex items-center justify-between mb-6">
-               <div class="flex items-center space-x-3">
-                   <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center">
-                       <i class="fas fa-route text-white"></i>
-                   </div>
-                   <div>
-                       <h2 class="text-lg font-semibold text-gray-900">SR Module</h2>
-                       <div class="text-sm text-gray-500">Sambungan Rumah</div>
-                   </div>
-               </div>
-               <div class="text-2xl font-bold text-yellow-600" x-text="(data.modules?.sr?.total || 0)">0</div>
-           </div>
-           <div class="relative h-48">
-               <canvas id="srModuleChart" class="w-full h-full"></canvas>
-               <div x-show="chartLoading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
-                   <div class="flex items-center space-x-2 text-gray-600">
-                       <i class="fas fa-spinner animate-spin"></i>
-                       <span>Loading...</span>
-                   </div>
-               </div>
-           </div>
-       </div>
-
-       <!-- Gas In Module Chart -->
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
-           <div class="flex items-center justify-between mb-6">
-               <div class="flex items-center space-x-3">
-                   <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-                       <i class="fas fa-gas-pump text-white"></i>
-                   </div>
-                   <div>
-                       <h2 class="text-lg font-semibold text-gray-900">Gas In Module</h2>
-                       <div class="text-sm text-gray-500">Gas Installation</div>
-                   </div>
-               </div>
-               <div class="text-2xl font-bold text-orange-600" x-text="(data.modules?.gas_in?.total || 0)">0</div>
-           </div>
-           <div class="relative h-48">
-               <canvas id="gasInModuleChart" class="w-full h-full"></canvas>
-               <div x-show="chartLoading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
-                   <div class="flex items-center space-x-2 text-gray-600">
-                       <i class="fas fa-spinner animate-spin"></i>
-                       <span>Loading...</span>
+                       <span class="text-xs">Loading...</span>
                    </div>
                </div>
            </div>
        </div>
    </div>
 
-   <!-- Module Status Cards -->
-   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-           <div class="flex items-center justify-between mb-4">
-               <div class="flex items-center space-x-3">
-                   <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
-                       <i class="fas fa-fire text-white"></i>
+   <!-- Quick Actions Overlay -->
+   <div x-data="{ quickActionsOpen: false }" class="fixed bottom-6 right-6 z-[1100]">
+       <!-- Quick Actions Menu -->
+       <div x-show="quickActionsOpen"
+            x-transition:enter="transition ease-out duration-300 transform"
+            x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+            x-transition:leave="transition ease-in duration-200 transform"
+            x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+            x-transition:leave-end="opacity-0 translate-y-4 scale-95"
+            class="absolute bottom-20 right-0 bg-transparent"
+            style="display: none;">
+
+           <div class="flex flex-col items-end space-y-2 p-2">
+               @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
+               <div @click="window.location.href='{{ route('customers.create') }}'"
+                    class="flex items-center justify-end space-x-3 cursor-pointer transition-all duration-200 group">
+                   <span class="text-sm font-medium text-gray-800 bg-white/90 px-4 py-2 rounded-lg shadow-lg whitespace-nowrap group-hover:bg-blue-50">Add Customer</span>
+                   <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-110">
+                       <i class="fas fa-user-plus text-white text-base"></i>
                    </div>
-                   <h3 class="text-lg font-semibold text-gray-900">SK Module</h3>
                </div>
-           </div>
-           <div class="space-y-3">
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Total SK:</span>
-                   <span class="font-medium" x-text="data.modules?.sk?.total || 0">0</span>
+               @endif
+
+               <div @click="window.location.href='{{ route('customers.index') }}'"
+                    class="flex items-center justify-end space-x-3 cursor-pointer transition-all duration-200 group">
+                   <span class="text-sm font-medium text-gray-800 bg-white/90 px-4 py-2 rounded-lg shadow-lg whitespace-nowrap group-hover:bg-gray-50">View Customers</span>
+                   <div class="w-12 h-12 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-110">
+                       <i class="fas fa-list text-white text-base"></i>
+                   </div>
                </div>
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Draft:</span>
-                   <span class="text-gray-500" x-text="data.modules?.sk?.draft || 0">0</span>
+
+               @if(auth()->user()->hasAnyRole(['sk', 'tracer', 'admin', 'super_admin']))
+               <div @click="window.location.href='{{ route('sk.create') }}'"
+                    class="flex items-center justify-end space-x-3 cursor-pointer transition-all duration-200 group">
+                   <span class="text-sm font-medium text-gray-800 bg-white/90 px-4 py-2 rounded-lg shadow-lg whitespace-nowrap group-hover:bg-green-50">Create SK</span>
+                   <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-110">
+                       <i class="fas fa-fire text-white text-base"></i>
+                   </div>
                </div>
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Ready for Review:</span>
-                   <span class="text-blue-600" x-text="data.modules?.sk?.ready || 0">0</span>
+
+               <div @click="window.location.href='{{ route('sk.index') }}'"
+                    class="flex items-center justify-end space-x-3 cursor-pointer transition-all duration-200 group">
+                   <span class="text-sm font-medium text-gray-800 bg-white/90 px-4 py-2 rounded-lg shadow-lg whitespace-nowrap group-hover:bg-green-50">SK Module</span>
+                   <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-110">
+                       <i class="fas fa-tasks text-white text-base"></i>
+                   </div>
                </div>
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Completed:</span>
-                   <span class="text-green-600 font-semibold" x-text="data.modules?.sk?.completed || 0">0</span>
+               @endif
+
+               @if(auth()->user()->hasAnyRole(['sr', 'tracer', 'admin', 'super_admin']))
+               <div @click="window.location.href='{{ route('sr.create') }}'"
+                    class="flex items-center justify-end space-x-3 cursor-pointer transition-all duration-200 group">
+                   <span class="text-sm font-medium text-gray-800 bg-white/90 px-4 py-2 rounded-lg shadow-lg whitespace-nowrap group-hover:bg-yellow-50">Create SR</span>
+                   <div class="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-110">
+                       <i class="fas fa-plus text-white text-base"></i>
+                   </div>
                </div>
+
+               <div @click="window.location.href='{{ route('sr.index') }}'"
+                    class="flex items-center justify-end space-x-3 cursor-pointer transition-all duration-200 group">
+                   <span class="text-sm font-medium text-gray-800 bg-white/90 px-4 py-2 rounded-lg shadow-lg whitespace-nowrap group-hover:bg-yellow-50">SR Module</span>
+                   <div class="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-110">
+                       <i class="fas fa-route text-white text-base"></i>
+                   </div>
+               </div>
+               @endif
+
+               @if(auth()->user()->hasAnyRole(['gas_in', 'tracer', 'admin', 'super_admin']))
+               <div @click="window.location.href='{{ route('gas-in.create') }}'"
+                    class="flex items-center justify-end space-x-3 cursor-pointer transition-all duration-200 group">
+                   <span class="text-sm font-medium text-gray-800 bg-white/90 px-4 py-2 rounded-lg shadow-lg whitespace-nowrap group-hover:bg-orange-50">Create Gas In</span>
+                   <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-110">
+                       <i class="fas fa-plus text-white text-base"></i>
+                   </div>
+               </div>
+
+               <div @click="window.location.href='{{ route('gas-in.index') }}'"
+                    class="flex items-center justify-end space-x-3 cursor-pointer transition-all duration-200 group">
+                   <span class="text-sm font-medium text-gray-800 bg-white/90 px-4 py-2 rounded-lg shadow-lg whitespace-nowrap group-hover:bg-orange-50">Gas In Module</span>
+                   <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-110">
+                       <i class="fas fa-gas-pump text-white text-base"></i>
+                   </div>
+               </div>
+               @endif
+
+               @if(auth()->user()->hasAnyRole(['tracer', 'admin', 'super_admin']))
+               <div @click="window.location.href='{{ route('photos.index') }}'"
+                    class="flex items-center justify-end space-x-3 cursor-pointer transition-all duration-200 group">
+                   <span class="text-sm font-medium text-gray-800 bg-white/90 px-4 py-2 rounded-lg shadow-lg whitespace-nowrap group-hover:bg-purple-50">Photo Review</span>
+                   <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-110">
+                       <i class="fas fa-clipboard-check text-white text-base"></i>
+                   </div>
+               </div>
+               @endif
            </div>
        </div>
 
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-           <div class="flex items-center justify-between mb-4">
-               <div class="flex items-center space-x-3">
-                   <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-                       <i class="fas fa-route text-white"></i>
-                   </div>
-                   <h3 class="text-lg font-semibold text-gray-900">SR Module</h3>
-               </div>
-           </div>
-           <div class="space-y-3">
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Total SR:</span>
-                   <span class="font-medium" x-text="data.modules?.sr?.total || 0">0</span>
-               </div>
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Draft:</span>
-                   <span class="text-gray-500" x-text="data.modules?.sr?.draft || 0">0</span>
-               </div>
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Ready for Review:</span>
-                   <span class="text-blue-600" x-text="data.modules?.sr?.ready || 0">0</span>
-               </div>
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Completed:</span>
-                   <span class="text-green-600 font-semibold" x-text="data.modules?.sr?.completed || 0">0</span>
-               </div>
-           </div>
-       </div>
-
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-           <div class="flex items-center justify-between mb-4">
-               <div class="flex items-center space-x-3">
-                   <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                       <i class="fas fa-gas-pump text-white"></i>
-                   </div>
-                   <h3 class="text-lg font-semibold text-gray-900">Gas In Module</h3>
-               </div>
-           </div>
-           <div class="space-y-3">
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Total Gas In:</span>
-                   <span class="font-medium" x-text="data.modules?.gas_in?.total || 0">0</span>
-               </div>
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Draft:</span>
-                   <span class="text-gray-500" x-text="data.modules?.gas_in?.draft || 0">0</span>
-               </div>
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Ready for Review:</span>
-                   <span class="text-blue-600" x-text="data.modules?.gas_in?.ready || 0">0</span>
-               </div>
-               <div class="flex justify-between text-sm">
-                   <span class="text-gray-600">Completed:</span>
-                   <span class="text-green-600 font-semibold" x-text="data.modules?.gas_in?.completed || 0">0</span>
-               </div>
-           </div>
-       </div>
-   </div>
-
-   <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-       <div class="flex items-center justify-between mb-6">
-           <h2 class="text-xl font-semibold text-gray-900">Quick Actions</h2>
-           <span class="text-sm text-gray-500">Choose an action to get started</span>
-       </div>
-
-       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-           @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
-           <div class="group p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl hover:from-blue-100 hover:to-blue-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
-                onclick="window.location.href='{{ route('customers.create') }}'">
-               <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
-                   <i class="fas fa-user-plus text-white"></i>
-               </div>
-               <div class="text-sm font-semibold text-gray-900">Add Customer</div>
-               <div class="text-xs text-gray-600 mt-1">Register new customer</div>
-           </div>
-           @endif
-
-           <div class="group p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl hover:from-gray-100 hover:to-gray-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
-                onclick="window.location.href='{{ route('customers.index') }}'">
-               <div class="w-10 h-10 bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
-                   <i class="fas fa-list text-white"></i>
-               </div>
-               <div class="text-sm font-semibold text-gray-900">View Customers</div>
-               <div class="text-xs text-gray-600 mt-1">Browse customer list</div>
-           </div>
-
-           @if(auth()->user()->hasAnyRole(['sk', 'tracer', 'admin', 'super_admin']))
-           <div class="group p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl hover:from-green-100 hover:to-green-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
-                onclick="window.location.href='{{ route('sk.create') }}'">
-               <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
-                   <i class="fas fa-fire text-white"></i>
-               </div>
-               <div class="text-sm font-semibold text-gray-900">Create SK</div>
-               <div class="text-xs text-gray-600 mt-1">New SK document</div>
-           </div>
-
-           <div class="group p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl hover:from-green-100 hover:to-green-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
-                onclick="window.location.href='{{ route('sk.index') }}'">
-               <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
-                   <i class="fas fa-tasks text-white"></i>
-               </div>
-               <div class="text-sm font-semibold text-gray-900">SK Module</div>
-               <div class="text-xs text-gray-600 mt-1">View & manage SK</div>
-           </div>
-           @endif
-
-           @if(auth()->user()->hasAnyRole(['sr', 'tracer', 'admin', 'super_admin']))
-           <div class="group p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
-                onclick="window.location.href='{{ route('sr.create') }}'">
-               <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
-                   <i class="fas fa-plus text-white"></i>
-               </div>
-               <div class="text-sm font-semibold text-gray-900">Create SR</div>
-               <div class="text-xs text-gray-600 mt-1">New Sambungan Rumah</div>
-           </div>
-
-           <div class="group p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
-                onclick="window.location.href='{{ route('sr.index') }}'">
-               <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
-                   <i class="fas fa-route text-white"></i>
-               </div>
-               <div class="text-sm font-semibold text-gray-900">SR Module</div>
-               <div class="text-xs text-gray-600 mt-1">Sambungan Rumah data</div>
-           </div>
-           @endif
-
-           @if(auth()->user()->hasAnyRole(['gas_in', 'tracer', 'admin', 'super_admin']))
-           <div class="group p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl hover:from-orange-100 hover:to-orange-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
-                onclick="window.location.href='{{ route('gas-in.create') }}'">
-               <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
-                   <i class="fas fa-plus text-white"></i>
-               </div>
-               <div class="text-sm font-semibold text-gray-900">Create Gas In</div>
-               <div class="text-xs text-gray-600 mt-1">New Gas In entry</div>
-           </div>
-
-           <div class="group p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl hover:from-orange-100 hover:to-orange-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
-                onclick="window.location.href='{{ route('gas-in.index') }}'">
-               <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
-                   <i class="fas fa-gas-pump text-white"></i>
-               </div>
-               <div class="text-sm font-semibold text-gray-900">Gas In</div>
-               <div class="text-xs text-gray-600 mt-1">Gas In data</div>
-           </div>
-           @endif
-
-           @if(auth()->user()->hasAnyRole(['tracer', 'admin', 'super_admin']))
-           <div class="group p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl hover:from-purple-100 hover:to-purple-200 transition-all duration-300 cursor-pointer transform hover:scale-105"
-                onclick="window.location.href='{{ route('photos.index') }}'">
-               <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-3 group-hover:shadow-lg transition-all">
-                   <i class="fas fa-clipboard-check text-white"></i>
-               </div>
-               <div class="text-sm font-semibold text-gray-900">Photo Review</div>
-               <div class="text-xs text-gray-600 mt-1">Approve photos</div>
-           </div>
-           @endif
-       </div>
-   </div>
-
-   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 h-fit">
-           <div class="flex items-center justify-between mb-6">
-               <h2 class="text-xl font-semibold text-gray-900">Module Statistics</h2>
-               <div class="text-sm text-gray-500">Real-time data</div>
-           </div>
-
-           <div class="space-y-3">
-               <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                   <div class="flex items-center space-x-3">
-                       <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                           <i class="fas fa-fire text-white text-sm"></i>
-                       </div>
-                       <div>
-                           <div class="font-medium text-gray-900">SK Module</div>
-                           <div class="text-sm text-gray-600">Sambungan Kompor</div>
-                       </div>
-                   </div>
-                   <div class="text-right">
-                       <div class="text-lg font-bold text-gray-900" x-text="data.modules?.module_details?.sk?.completed || 0">0</div>
-                       <div class="text-xs text-green-600">completed</div>
-                   </div>
-               </div>
-
-               <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                   <div class="flex items-center space-x-3">
-                       <div class="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
-                           <i class="fas fa-route text-white text-sm"></i>
-                       </div>
-                       <div>
-                           <div class="font-medium text-gray-900">SR Module</div>
-                           <div class="text-sm text-gray-600">Sambungan Rumah</div>
-                       </div>
-                   </div>
-                   <div class="text-right">
-                       <div class="text-lg font-bold text-gray-900" x-text="data.modules?.module_details?.sr?.completed || 0">0</div>
-                       <div class="text-xs text-yellow-600">completed</div>
-                   </div>
-               </div>
-
-               <div class="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                   <div class="flex items-center space-x-3">
-                       <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-                           <i class="fas fa-gas-pump text-white text-sm"></i>
-                       </div>
-                       <div>
-                           <div class="font-medium text-gray-900">Gas In</div>
-                           <div class="text-sm text-gray-600">Gas In</div>
-                       </div>
-                   </div>
-                   <div class="text-right">
-                       <div class="text-lg font-bold text-gray-900" x-text="data.modules?.module_details?.gas_in?.completed || 0">0</div>
-                       <div class="text-xs text-orange-600">completed</div>
-                   </div>
-               </div>
-           </div>
-       </div>
-
-       <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 h-fit">
-           <div class="flex items-center justify-between mb-6">
-               <h2 class="text-xl font-semibold text-gray-900">Recent Activities</h2>
-               <a href="{{ route('notifications.index') }}"
-                  class="text-aergas-orange hover:text-aergas-navy text-sm font-medium transition-colors">
-                   View all
-               </a>
-           </div>
-
-           <div class="space-y-3 max-h-72 overflow-y-auto">
-               <template x-for="activity in data.activities?.slice(0, 5)" :key="activity.id">
-                   <div class="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                       <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                           <i class="fas fa-circle text-xs text-gray-400"></i>
-                       </div>
-                       <div class="flex-1 min-w-0">
-                           <p class="text-sm text-gray-900 font-medium" x-text="activity.description">Activity description</p>
-                           <p class="text-xs text-gray-500 mt-1" x-text="activity.time_ago">Time ago</p>
-                       </div>
-                   </div>
-               </template>
-
-               <div x-show="!data.activities || data.activities.length === 0" class="text-center py-6 text-gray-500">
-                   <i class="fas fa-clock text-2xl mb-2 text-gray-300"></i>
-                   <p class="text-sm">No recent activities</p>
-                   <p class="text-xs text-gray-400 mt-1">Activities will appear here when available</p>
-               </div>
-           </div>
-       </div>
+       <!-- Floating Action Button -->
+       <button @click="quickActionsOpen = !quickActionsOpen"
+               class="w-16 h-16 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-full shadow-2xl hover:shadow-3xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95">
+           <i class="fas fa-bolt text-white text-2xl" x-show="!quickActionsOpen"></i>
+           <i class="fas fa-times text-white text-2xl" x-show="quickActionsOpen" style="display: none;"></i>
+       </button>
    </div>
 
    @if(auth()->user()->hasAnyRole(['tracer', 'super_admin']))
@@ -618,9 +394,7 @@ function dashboardData() {
         customerTypesChart: null,
         moduleStatusChart: null,
         totalModuleChart: null,
-        skModuleChart: null,
-        srModuleChart: null,
-        gasInModuleChart: null,
+        combinedModuleChart: null,
 
         init() {
             this.loadData().then(() => {
@@ -628,7 +402,7 @@ function dashboardData() {
                     setTimeout(() => {
                         this.initInstallationChart();
                         this.initDonutCharts();
-                        this.initModuleCharts();
+                        this.initCombinedModuleChart();
                     }, 100);
                 });
             });
@@ -715,7 +489,8 @@ function dashboardData() {
                     // Update charts after data refresh
                     this.$nextTick(() => {
                         this.updateDonutCharts();
-                        this.updateModuleCharts();
+                        this.updateTotalModuleChart();
+                        this.updateCombinedModuleChart();
                     });
 
                     window.showToast('success', 'Dashboard updated successfully');
@@ -957,6 +732,9 @@ function dashboardData() {
             setTimeout(() => {
                 this.initModuleStatusChart();
             }, 600);
+            setTimeout(() => {
+                this.initTotalModuleChart();
+            }, 800);
         },
 
         initPhotoApprovalChart() {
@@ -1259,21 +1037,6 @@ function dashboardData() {
             }
         },
 
-        initModuleCharts() {
-            setTimeout(() => {
-                this.initTotalModuleChart();
-            }, 800);
-            setTimeout(() => {
-                this.initSkModuleChart();
-            }, 1000);
-            setTimeout(() => {
-                this.initSrModuleChart();
-            }, 1200);
-            setTimeout(() => {
-                this.initGasInModuleChart();
-            }, 1400);
-        },
-
         initTotalModuleChart() {
             const canvas = document.getElementById('totalModuleChart');
             if (!canvas) {
@@ -1299,7 +1062,7 @@ function dashboardData() {
                         labels: ['SK Module', 'SR Module', 'Gas In Module'],
                         datasets: [{
                             data: [skTotal, srTotal, gasInTotal],
-                            backgroundColor: ['#EF4444', '#EAB308', '#F97316'],
+                            backgroundColor: ['#10B981', '#F59E0B', '#F97316'], // Green, Yellow, Orange
                             borderWidth: 2,
                             borderColor: '#fff',
                             hoverOffset: 4
@@ -1350,58 +1113,187 @@ function dashboardData() {
             }
         },
 
-        initSkModuleChart() {
-            const canvas = document.getElementById('skModuleChart');
+        initCombinedModuleChart() {
+            const canvas = document.getElementById('combinedModuleChart');
             if (!canvas) {
-                console.warn('SK module chart canvas not found');
+                console.warn('Combined module chart canvas not found');
                 return;
             }
 
             try {
                 const ctx = canvas.getContext('2d');
 
-                if (this.skModuleChart) {
-                    this.skModuleChart.destroy();
-                    this.skModuleChart = null;
+                if (this.combinedModuleChart) {
+                    this.combinedModuleChart.destroy();
+                    this.combinedModuleChart = null;
                 }
 
-                const moduleData = this.data.modules?.sk || {};
-                const chartData = {
-                    labels: ['Completed', 'In Progress', 'Draft', 'Rejected'],
-                    data: [
-                        moduleData.completed || 0,
-                        moduleData.in_progress || 0,
-                        moduleData.draft || 0,
-                        moduleData.rejected || 0
-                    ],
-                    colors: ['#10B981', '#F59E0B', '#6B7280', '#EF4444']
+                // Get data for all modules
+                const skData = this.data.modules?.sk || {};
+                const srData = this.data.modules?.sr || {};
+                const gasInData = this.data.modules?.gas_in || {};
+
+                // Each module gets exactly 1/3 of the circle (equal segments)
+                const segmentSize = 100; // Base size for each main segment (1/3)
+
+                // Function to normalize data within a segment
+                const normalizeSegment = (completed, inProgress, draft, rejected) => {
+                    const total = completed + inProgress + draft + rejected;
+                    if (total === 0) {
+                        return [segmentSize/4, segmentSize/4, segmentSize/4, segmentSize/4];
+                    }
+                    return [
+                        (completed / total) * segmentSize,
+                        (inProgress / total) * segmentSize,
+                        (draft / total) * segmentSize,
+                        (rejected / total) * segmentSize
+                    ];
                 };
 
-                this.skModuleChart = new Chart(ctx, {
+                // Normalize data for each module
+                const skNormalized = normalizeSegment(
+                    skData.completed || 0,
+                    skData.in_progress || 0,
+                    skData.draft || 0,
+                    skData.rejected || 0
+                );
+
+                const srNormalized = normalizeSegment(
+                    srData.completed || 0,
+                    srData.in_progress || 0,
+                    srData.draft || 0,
+                    srData.rejected || 0
+                );
+
+                const gasInNormalized = normalizeSegment(
+                    gasInData.completed || 0,
+                    gasInData.in_progress || 0,
+                    gasInData.draft || 0,
+                    gasInData.rejected || 0
+                );
+
+                // Labels for legend
+                const chartLabels = [
+                    'SK - Completed', 'SK - In Progress', 'SK - Draft', 'SK - Rejected',
+                    'SR - Completed', 'SR - In Progress', 'SR - Draft', 'SR - Rejected',
+                    'Gas In - Completed', 'Gas In - In Progress', 'Gas In - Draft', 'Gas In - Rejected'
+                ];
+
+                // Store actual values for tooltip/legend
+                const actualValues = [
+                    skData.completed || 0, skData.in_progress || 0, skData.draft || 0, skData.rejected || 0,
+                    srData.completed || 0, srData.in_progress || 0, srData.draft || 0, srData.rejected || 0,
+                    gasInData.completed || 0, gasInData.in_progress || 0, gasInData.draft || 0, gasInData.rejected || 0
+                ];
+
+                // Color themes for each module
+                const skColors = ['#059669', '#10B981', '#34D399', '#6EE7B7'];
+                const srColors = ['#D97706', '#F59E0B', '#FBBF24', '#FCD34D'];
+                const gasInColors = ['#EA580C', '#F97316', '#FB923C', '#FDBA74'];
+
+                this.combinedModuleChart = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
-                        labels: chartData.labels,
-                        datasets: [{
-                            data: chartData.data,
-                            backgroundColor: chartData.colors,
-                            borderWidth: 2,
-                            borderColor: '#fff',
-                            hoverOffset: 4
-                        }]
+                        labels: chartLabels,
+                        datasets: [
+                            // SK Module Dataset
+                            {
+                                label: 'SK Module',
+                                data: skNormalized,
+                                actualValues: actualValues.slice(0, 4),
+                                backgroundColor: skColors,
+                                borderWidth: 0,
+                                spacing: 0,
+                                hoverOffset: 8
+                            },
+                            // SR Module Dataset
+                            {
+                                label: 'SR Module',
+                                data: srNormalized,
+                                actualValues: actualValues.slice(4, 8),
+                                backgroundColor: srColors,
+                                borderWidth: 0,
+                                spacing: 0,
+                                hoverOffset: 8
+                            },
+                            // Gas In Module Dataset
+                            {
+                                label: 'Gas In Module',
+                                data: gasInNormalized,
+                                actualValues: actualValues.slice(8, 12),
+                                backgroundColor: gasInColors,
+                                borderWidth: 0,
+                                spacing: 0,
+                                hoverOffset: 8
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                position: 'bottom',
+                                display: true,
+                                position: 'right',
+                                align: 'start',
                                 labels: {
-                                    padding: 10,
+                                    padding: 12,
                                     usePointStyle: true,
+                                    pointStyle: 'circle',
                                     font: {
-                                        size: 10
+                                        size: 11
                                     },
-                                    boxWidth: 10
+                                    boxWidth: 10,
+                                    boxHeight: 10,
+                                    generateLabels: function(chart) {
+                                        const allLabels = [];
+                                        const allActualValues = [];
+
+                                        // Collect all actual values from all datasets
+                                        chart.data.datasets.forEach(dataset => {
+                                            if (dataset.actualValues) {
+                                                allActualValues.push(...dataset.actualValues);
+                                            }
+                                        });
+
+                                        const totalActual = allActualValues.reduce((a, b) => a + b, 0);
+
+                                        // Generate labels for all datasets
+                                        let globalIndex = 0;
+                                        chart.data.datasets.forEach((dataset, datasetIndex) => {
+                                            const meta = chart.getDatasetMeta(datasetIndex);
+
+                                            dataset.data.forEach((value, index) => {
+                                                const actualValue = dataset.actualValues[index];
+                                                const percentage = totalActual > 0 ? Math.round((actualValue / totalActual) * 100) : 0;
+                                                const label = chart.data.labels[globalIndex];
+
+                                                allLabels.push({
+                                                    text: `${label}: ${actualValue} (${percentage}%)`,
+                                                    fillStyle: dataset.backgroundColor[index],
+                                                    strokeStyle: dataset.backgroundColor[index],
+                                                    hidden: meta.data[index] ? meta.data[index].hidden : false,
+                                                    datasetIndex: datasetIndex,
+                                                    index: index
+                                                });
+
+                                                globalIndex++;
+                                            });
+                                        });
+
+                                        return allLabels;
+                                    }
+                                },
+                                onClick: function(e, legendItem, legend) {
+                                    const chart = legend.chart;
+                                    const datasetIndex = legendItem.datasetIndex;
+                                    const index = legendItem.index;
+                                    const meta = chart.getDatasetMeta(datasetIndex);
+
+                                    if (meta.data[index]) {
+                                        meta.data[index].hidden = !meta.data[index].hidden;
+                                        chart.update();
+                                    }
                                 }
                             },
                             tooltip: {
@@ -1409,204 +1301,48 @@ function dashboardData() {
                                 titleColor: '#fff',
                                 bodyColor: '#fff',
                                 cornerRadius: 8,
+                                padding: 12,
                                 callbacks: {
                                     label: function(context) {
-                                        const label = context.label || '';
-                                        const value = context.raw;
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                                        return `${label}: ${value} (${percentage}%)`;
+                                        const datasetIndex = context.datasetIndex;
+                                        const dataIndex = context.dataIndex;
+                                        const actualValue = context.dataset.actualValues[dataIndex];
+
+                                        // Calculate total from all datasets
+                                        let totalActual = 0;
+                                        context.chart.data.datasets.forEach(ds => {
+                                            if (ds.actualValues) {
+                                                totalActual += ds.actualValues.reduce((a, b) => a + b, 0);
+                                            }
+                                        });
+
+                                        const percentage = totalActual > 0 ? Math.round((actualValue / totalActual) * 100) : 0;
+
+                                        // Get label from global labels array
+                                        let labelIndex = 0;
+                                        for (let i = 0; i < datasetIndex; i++) {
+                                            labelIndex += context.chart.data.datasets[i].data.length;
+                                        }
+                                        labelIndex += dataIndex;
+                                        const label = context.chart.data.labels[labelIndex];
+
+                                        return `${label}: ${actualValue} (${percentage}%)`;
                                     }
                                 }
                             }
                         },
-                        cutout: '60%',
+                        cutout: '45%', // Reduced from 65% to make segments thicker
                         animation: {
                             animateRotate: true,
-                            duration: 1000
+                            duration: 1200
                         }
                     }
                 });
 
-                console.log('SK module chart initialized successfully');
+                console.log('Combined module chart initialized successfully');
             } catch (error) {
-                console.error('Error initializing SK module chart:', error);
+                console.error('Error initializing combined module chart:', error);
             }
-        },
-
-        initSrModuleChart() {
-            const canvas = document.getElementById('srModuleChart');
-            if (!canvas) {
-                console.warn('SR module chart canvas not found');
-                return;
-            }
-
-            try {
-                const ctx = canvas.getContext('2d');
-
-                if (this.srModuleChart) {
-                    this.srModuleChart.destroy();
-                    this.srModuleChart = null;
-                }
-
-                const moduleData = this.data.modules?.sr || {};
-                const chartData = {
-                    labels: ['Completed', 'In Progress', 'Draft', 'Rejected'],
-                    data: [
-                        moduleData.completed || 0,
-                        moduleData.in_progress || 0,
-                        moduleData.draft || 0,
-                        moduleData.rejected || 0
-                    ],
-                    colors: ['#10B981', '#F59E0B', '#6B7280', '#EF4444']
-                };
-
-                this.srModuleChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: chartData.labels,
-                        datasets: [{
-                            data: chartData.data,
-                            backgroundColor: chartData.colors,
-                            borderWidth: 2,
-                            borderColor: '#fff',
-                            hoverOffset: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    padding: 10,
-                                    usePointStyle: true,
-                                    font: {
-                                        size: 10
-                                    },
-                                    boxWidth: 10
-                                }
-                            },
-                            tooltip: {
-                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                                titleColor: '#fff',
-                                bodyColor: '#fff',
-                                cornerRadius: 8,
-                                callbacks: {
-                                    label: function(context) {
-                                        const label = context.label || '';
-                                        const value = context.raw;
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                                        return `${label}: ${value} (${percentage}%)`;
-                                    }
-                                }
-                            }
-                        },
-                        cutout: '60%',
-                        animation: {
-                            animateRotate: true,
-                            duration: 1000
-                        }
-                    }
-                });
-
-                console.log('SR module chart initialized successfully');
-            } catch (error) {
-                console.error('Error initializing SR module chart:', error);
-            }
-        },
-
-        initGasInModuleChart() {
-            const canvas = document.getElementById('gasInModuleChart');
-            if (!canvas) {
-                console.warn('Gas In module chart canvas not found');
-                return;
-            }
-
-            try {
-                const ctx = canvas.getContext('2d');
-
-                if (this.gasInModuleChart) {
-                    this.gasInModuleChart.destroy();
-                    this.gasInModuleChart = null;
-                }
-
-                const moduleData = this.data.modules?.gas_in || {};
-                const chartData = {
-                    labels: ['Completed', 'In Progress', 'Draft', 'Rejected'],
-                    data: [
-                        moduleData.completed || 0,
-                        moduleData.in_progress || 0,
-                        moduleData.draft || 0,
-                        moduleData.rejected || 0
-                    ],
-                    colors: ['#10B981', '#F59E0B', '#6B7280', '#EF4444']
-                };
-
-                this.gasInModuleChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: chartData.labels,
-                        datasets: [{
-                            data: chartData.data,
-                            backgroundColor: chartData.colors,
-                            borderWidth: 2,
-                            borderColor: '#fff',
-                            hoverOffset: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    padding: 10,
-                                    usePointStyle: true,
-                                    font: {
-                                        size: 10
-                                    },
-                                    boxWidth: 10
-                                }
-                            },
-                            tooltip: {
-                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                                titleColor: '#fff',
-                                bodyColor: '#fff',
-                                cornerRadius: 8,
-                                callbacks: {
-                                    label: function(context) {
-                                        const label = context.label || '';
-                                        const value = context.raw;
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                                        return `${label}: ${value} (${percentage}%)`;
-                                    }
-                                }
-                            }
-                        },
-                        cutout: '60%',
-                        animation: {
-                            animateRotate: true,
-                            duration: 1000
-                        }
-                    }
-                });
-
-                console.log('Gas In module chart initialized successfully');
-            } catch (error) {
-                console.error('Error initializing Gas In module chart:', error);
-            }
-        },
-
-        updateModuleCharts() {
-            setTimeout(() => this.updateTotalModuleChart(), 100);
-            setTimeout(() => this.updateSkModuleChart(), 200);
-            setTimeout(() => this.updateSrModuleChart(), 300);
-            setTimeout(() => this.updateGasInModuleChart(), 400);
         },
 
         updateTotalModuleChart() {
@@ -1624,60 +1360,69 @@ function dashboardData() {
             }
         },
 
-        updateSkModuleChart() {
-            if (!this.skModuleChart) return;
+        updateCombinedModuleChart() {
+            if (!this.combinedModuleChart) return;
 
             try {
-                const moduleData = this.data.modules?.sk || {};
-                const chartData = [
-                    moduleData.completed || 0,
-                    moduleData.in_progress || 0,
-                    moduleData.draft || 0,
-                    moduleData.rejected || 0
+                const skData = this.data.modules?.sk || {};
+                const srData = this.data.modules?.sr || {};
+                const gasInData = this.data.modules?.gas_in || {};
+
+                const segmentSize = 100;
+
+                const normalizeSegment = (completed, inProgress, draft, rejected) => {
+                    const total = completed + inProgress + draft + rejected;
+                    if (total === 0) {
+                        return [segmentSize/4, segmentSize/4, segmentSize/4, segmentSize/4];
+                    }
+                    return [
+                        (completed / total) * segmentSize,
+                        (inProgress / total) * segmentSize,
+                        (draft / total) * segmentSize,
+                        (rejected / total) * segmentSize
+                    ];
+                };
+
+                const skNormalized = normalizeSegment(
+                    skData.completed || 0,
+                    skData.in_progress || 0,
+                    skData.draft || 0,
+                    skData.rejected || 0
+                );
+
+                const srNormalized = normalizeSegment(
+                    srData.completed || 0,
+                    srData.in_progress || 0,
+                    srData.draft || 0,
+                    srData.rejected || 0
+                );
+
+                const gasInNormalized = normalizeSegment(
+                    gasInData.completed || 0,
+                    gasInData.in_progress || 0,
+                    gasInData.draft || 0,
+                    gasInData.rejected || 0
+                );
+
+                const actualValues = [
+                    skData.completed || 0, skData.in_progress || 0, skData.draft || 0, skData.rejected || 0,
+                    srData.completed || 0, srData.in_progress || 0, srData.draft || 0, srData.rejected || 0,
+                    gasInData.completed || 0, gasInData.in_progress || 0, gasInData.draft || 0, gasInData.rejected || 0
                 ];
 
-                this.skModuleChart.data.datasets[0].data = chartData;
-                this.skModuleChart.update('none');
+                // Update each dataset
+                this.combinedModuleChart.data.datasets[0].data = skNormalized;
+                this.combinedModuleChart.data.datasets[0].actualValues = actualValues.slice(0, 4);
+
+                this.combinedModuleChart.data.datasets[1].data = srNormalized;
+                this.combinedModuleChart.data.datasets[1].actualValues = actualValues.slice(4, 8);
+
+                this.combinedModuleChart.data.datasets[2].data = gasInNormalized;
+                this.combinedModuleChart.data.datasets[2].actualValues = actualValues.slice(8, 12);
+
+                this.combinedModuleChart.update('none');
             } catch (error) {
-                console.error('Error updating SK module chart:', error);
-            }
-        },
-
-        updateSrModuleChart() {
-            if (!this.srModuleChart) return;
-
-            try {
-                const moduleData = this.data.modules?.sr || {};
-                const chartData = [
-                    moduleData.completed || 0,
-                    moduleData.in_progress || 0,
-                    moduleData.draft || 0,
-                    moduleData.rejected || 0
-                ];
-
-                this.srModuleChart.data.datasets[0].data = chartData;
-                this.srModuleChart.update('none');
-            } catch (error) {
-                console.error('Error updating SR module chart:', error);
-            }
-        },
-
-        updateGasInModuleChart() {
-            if (!this.gasInModuleChart) return;
-
-            try {
-                const moduleData = this.data.modules?.gas_in || {};
-                const chartData = [
-                    moduleData.completed || 0,
-                    moduleData.in_progress || 0,
-                    moduleData.draft || 0,
-                    moduleData.rejected || 0
-                ];
-
-                this.gasInModuleChart.data.datasets[0].data = chartData;
-                this.gasInModuleChart.update('none');
-            } catch (error) {
-                console.error('Error updating Gas In module chart:', error);
+                console.error('Error updating combined module chart:', error);
             }
         }
     }

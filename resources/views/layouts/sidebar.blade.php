@@ -146,10 +146,13 @@
 
                 @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                 <!-- Jalur Management with Submenu -->
-                <div x-data="{ jalurOpen: {{ request()->routeIs('jalur.*') ? 'true' : 'false' }} }" class="space-y-1">
+                @php
+                    $isJalurActive = request()->routeIs('jalur.*') && !request()->routeIs('jalur.reports*');
+                @endphp
+                <div x-data="{ jalurOpen: {{ $isJalurActive ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="jalurOpen = !jalurOpen"
-                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('jalur.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-road mr-3 text-lg {{ request()->routeIs('jalur.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ $isJalurActive ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <i class="fas fa-road mr-3 text-lg {{ $isJalurActive ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         <span class="flex-1 text-left">Jalur Management</span>
                         <svg class="w-5 h-5 transition-transform duration-200" :class="{ 'rotate-180': jalurOpen }"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -195,11 +198,6 @@
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.joint-numbers.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                             <i class="fas fa-hashtag mr-2 text-sm"></i>
                             Joint Numbers
-                        </a>
-                        <a href="{{ route('jalur.reports') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.reports*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-chart-bar mr-2 text-sm"></i>
-                            Laporan
                         </a>
                         @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                         <a href="{{ route('jalur.fitting-types.index') }}"
@@ -213,10 +211,13 @@
 
                 @elseif (auth()->user()->hasAnyRole(['jalur']))
                 <!-- Jalur Management with Submenu for Jalur-only users -->
-                <div x-data="{ jalurOpen: {{ request()->routeIs('jalur.*') ? 'true' : 'false' }} }" class="space-y-1">
+                @php
+                    $isJalurActiveForJalurRole = request()->routeIs('jalur.*') && !request()->routeIs('jalur.reports*');
+                @endphp
+                <div x-data="{ jalurOpen: {{ $isJalurActiveForJalurRole ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="jalurOpen = !jalurOpen"
-                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('jalur.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-road mr-3 text-lg {{ request()->routeIs('jalur.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ $isJalurActiveForJalurRole ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <i class="fas fa-road mr-3 text-lg {{ $isJalurActiveForJalurRole ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         <span class="flex-1 text-left">Jalur Management</span>
                         <svg class="w-5 h-5 transition-transform duration-200" :class="{ 'rotate-180': jalurOpen }"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -263,13 +264,20 @@
                             <i class="fas fa-hashtag mr-2 text-sm"></i>
                             Joint Numbers
                         </a>
-                        <a href="{{ route('jalur.reports') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.reports*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-chart-bar mr-2 text-sm"></i>
-                            Laporan
-                        </a>
                     </div>
                 </div>
+
+                <!-- Reports Menu for Jalur Role -->
+                <a href="{{ route('jalur.reports') }}"
+                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('jalur.reports*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                    <i class="fas fa-chart-bar mr-3 text-lg {{ request()->routeIs('jalur.reports*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    Laporan Jalur
+                    @if(request()->routeIs('jalur.reports*'))
+                        <div class="ml-auto">
+                            <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
+                        </div>
+                    @endif
+                </a>
                 @endif
 
                 @if(auth()->user()->hasAnyRole(['admin', 'cgp', 'tracer', 'super_admin']))
@@ -426,23 +434,28 @@
                 </a>
 
                 <!-- Reports with Submenu -->
-                <div class="relative" x-data="{ open: {{ request()->routeIs('reports.*') ? 'true' : 'false' }} }">
+                <div class="relative" x-data="{ open: {{ request()->routeIs('reports.*') || request()->routeIs('jalur.reports*') ? 'true' : 'false' }} }">
                     <button @click="open = !open"
-                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('reports.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-chart-bar mr-3 text-lg {{ request()->routeIs('reports.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('reports.*') || request()->routeIs('jalur.reports*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <i class="fas fa-chart-bar mr-3 text-lg {{ request()->routeIs('reports.*') || request()->routeIs('jalur.reports*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         Reports
                         <i class="fas fa-chevron-down ml-auto text-xs transition-transform duration-200" :class="open ? 'rotate-180' : ''"></i>
                     </button>
-                    <div x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform scale-y-90" x-transition:enter-end="opacity-100 transform scale-y-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 transform scale-y-100" x-transition:leave-end="opacity-0 transform scale-y-90" class="mt-1 space-y-1 transform-origin-top">
+                    <div x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform scale-y-90" x-transition:enter-end="opacity-100 transform scale-y-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 transform scale-y-100" x-transition:leave-end="opacity-0 transform scale-y-90" class="mt-1 space-y-1 ml-6 transform-origin-top">
                         <a href="{{ route('reports.dashboard') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('reports.dashboard') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-chart-line mr-2 text-sm"></i>
-                            Dashboard
+                            <i class="fas fa-tachometer-alt mr-2 text-sm"></i>
+                            Laporan Dashboard
                         </a>
                         <a href="{{ route('reports.comprehensive') }}"
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('reports.comprehensive') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-table mr-2 text-sm"></i>
-                            Laporan Lengkap
+                            <i class="fas fa-file-alt mr-2 text-sm"></i>
+                            Laporan Komprehensif
+                        </a>
+                        <a href="{{ route('jalur.reports') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('jalur.reports*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-road mr-2 text-sm"></i>
+                            Laporan Jalur
                         </a>
                     </div>
                 </div>
