@@ -391,7 +391,7 @@ class PhotoApprovalService
             $user = User::findOrFail($userId);
 
             if (!$user->isAdminLike() && !$user->isCgp()) throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP approval');
-            if ($pa->photo_status !== 'cgp_pending') throw new Exception("Photo is not in cgp_pending status. Current: {$pa->photo_status}");
+            if (!in_array($pa->photo_status, ['tracer_approved', 'cgp_pending'])) throw new Exception("Photo is not ready for CGP approval. Current: {$pa->photo_status}");
 
             $old = $pa->photo_status;
             $pa->update([
@@ -440,7 +440,7 @@ class PhotoApprovalService
             $user = User::findOrFail($userId);
 
             if (!$user->isAdminLike() && !$user->isCgp()) throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP rejection');
-            if ($pa->photo_status !== 'cgp_pending') throw new Exception("Photo is not in cgp_pending status. Current: {$pa->photo_status}");
+            if (!in_array($pa->photo_status, ['tracer_approved', 'cgp_pending'])) throw new Exception("Photo is not ready for CGP rejection. Current: {$pa->photo_status}");
 
             $old = $pa->photo_status;
             $pa->update([
@@ -485,14 +485,23 @@ class PhotoApprovalService
                 throw new Exception('Unauthorized: Only CGP can perform this action');
             }
 
-            // Get photos with cgp_pending status
-            $photos = PhotoApproval::where('module_name', strtolower($module))
+            // Get photos ready for CGP approval (tracer_approved or cgp_pending)
+            // Group by photo_field_name to get only latest record
+            $allPhotos = PhotoApproval::where('module_name', strtolower($module))
                 ->where('reff_id_pelanggan', $moduleData->reff_id_pelanggan)
-                ->where('photo_status', 'cgp_pending')
-                ->get();
+                ->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])
+                ->get()
+                ->groupBy('photo_field_name')
+                ->map(function($photoGroup) {
+                    // Get the latest photo (highest id) for each field
+                    return $photoGroup->sortByDesc('id')->first();
+                })
+                ->values();
+
+            $photos = $allPhotos;
 
             if ($photos->count() === 0) {
-                throw new Exception('Tidak ada foto yang perlu di-approve');
+                throw new Exception('Tidak ada foto yang ready untuk di-approve');
             }
 
             $approved = [];

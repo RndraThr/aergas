@@ -832,7 +832,7 @@
                                             @endif
                                         </div>
 
-                                            @if($moduleReady && !$photo->cgp_approved_at && $photo->photo_status === 'cgp_pending')
+                                            @if(!$photo->cgp_approved_at && !$photo->cgp_rejected_at && in_array($photo->photo_status, ['tracer_approved', 'cgp_pending']))
                                                 <div class="flex space-x-2">
                                                     <button onclick="approvePhoto({{ $photo->id }})"
                                                             id="approveBtn_{{ $photo->id }}"

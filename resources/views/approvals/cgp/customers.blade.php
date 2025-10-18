@@ -111,12 +111,12 @@
                                         </span>
                                     </template>
                                     <template x-if="customer.cgp_status?.sr_ready && !customer.cgp_status?.sr_completed">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                             ⏳ SR Ready for CGP
                                         </span>
                                     </template>
                                     <template x-if="customer.cgp_status?.sr_in_progress && !customer.cgp_status?.sr_ready && !customer.cgp_status?.sr_completed">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                             🔄 SR In Progress
                                         </span>
                                     </template>
@@ -133,12 +133,12 @@
                                         </span>
                                     </template>
                                     <template x-if="customer.cgp_status?.gas_in_ready && !customer.cgp_status?.gas_in_completed">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                             ⏳ Gas In Ready for CGP
                                         </span>
                                     </template>
                                     <template x-if="customer.cgp_status?.gas_in_in_progress && !customer.cgp_status?.gas_in_ready && !customer.cgp_status?.gas_in_completed">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                             🔄 Gas In In Progress
                                         </span>
                                     </template>
@@ -153,7 +153,7 @@
                                 <div class="flex items-center space-x-1">
                                     <!-- SK Progress -->
                                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs"
-                                         :class="customer.cgp_status?.sk_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.sk_ready ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-400')">
+                                         :class="customer.cgp_status?.sk_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.sk_ready ? 'bg-yellow-100 text-yellow-600' : (customer.cgp_status?.sk_in_progress ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'))">
                                         <span x-text="customer.cgp_status?.sk_completed ? '✓' : 'SK'"></span>
                                     </div>
                                     <div class="w-4 h-px"
@@ -161,7 +161,7 @@
 
                                     <!-- SR Progress -->
                                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs"
-                                         :class="customer.cgp_status?.sr_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.sr_ready ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400')">
+                                         :class="customer.cgp_status?.sr_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.sr_ready ? 'bg-green-100 text-green-600' : (customer.cgp_status?.sr_in_progress ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'))">
                                         <span x-text="customer.cgp_status?.sr_completed ? '✓' : 'SR'"></span>
                                     </div>
                                     <div class="w-4 h-px"
@@ -169,7 +169,7 @@
 
                                     <!-- Gas In Progress -->
                                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs"
-                                         :class="customer.cgp_status?.gas_in_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.gas_in_ready ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-400')">
+                                         :class="customer.cgp_status?.gas_in_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.gas_in_ready ? 'bg-green-100 text-green-600' : (customer.cgp_status?.gas_in_in_progress ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'))">
                                         <span x-text="customer.cgp_status?.gas_in_completed ? '✓' : 'GI'"></span>
                                     </div>
                                 </div>
