@@ -137,43 +137,6 @@
                     @endif
                 @endforeach
             </div>
-            
-            <!-- Warning for Incomplete Modules -->
-            @php 
-                $incompleteModules = collect($completionStatus)->filter(function($status, $module) {
-                    return !$status['completion_summary']['is_complete'];
-                })->keys();
-            @endphp
-            
-            @if($incompleteModules->isNotEmpty())
-                <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <div class="flex items-start">
-                        <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium text-amber-800">Incomplete Modules Detected</h3>
-                            <div class="mt-2 text-sm text-amber-700">
-                                <p>The following modules have missing required slots:</p>
-                                <ul class="mt-1 ml-4 list-disc">
-                                    @foreach($incompleteModules as $module)
-                                        @php 
-                                            $moduleName = ['sk' => 'SK', 'sr' => 'SR', 'gas_in' => 'Gas In'][$module];
-                                            $missing = count($completionStatus[$module]['missing_required']);
-                                        @endphp
-                                        <li><strong>{{ $moduleName }}</strong>: {{ $missing }} missing required slot{{ $missing > 1 ? 's' : '' }}</li>
-                                    @endforeach
-                                </ul>
-                                <p class="mt-2 font-medium">
-                                    ⚠️ Consider requesting missing photos before final CGP approval.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endif
         </div>
     </div>
     @endif
@@ -197,6 +160,20 @@
                             <span class="text-yellow-600 font-bold">SK</span>
                         </div>
                         <span class="text-sm font-medium text-yellow-600">SK Ready for CGP</span>
+                    @elseif($cgpStatus['sk_in_progress'] ?? false)
+                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-blue-600">SK In Progress</span>
+                    @elseif($cgpStatus['sk_waiting_tracer'] ?? false)
+                        <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-orange-600">SK Waiting Tracer</span>
                     @else
                         <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2">
                             <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -228,6 +205,20 @@
                             <span class="text-blue-600 font-bold">SR</span>
                         </div>
                         <span class="text-sm font-medium text-blue-600">SR Ready for CGP</span>
+                    @elseif($cgpStatus['sr_in_progress'] ?? false)
+                        <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-indigo-600">SR In Progress</span>
+                    @elseif($cgpStatus['sr_waiting_tracer'] ?? false)
+                        <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-orange-600">SR Waiting Tracer</span>
                     @else
                         <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2">
                             <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,6 +250,20 @@
                             <span class="text-purple-600 font-bold">GI</span>
                         </div>
                         <span class="text-sm font-medium text-purple-600">Gas In Ready for CGP</span>
+                    @elseif($cgpStatus['gas_in_in_progress'] ?? false)
+                        <div class="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-pink-600">Gas In In Progress</span>
+                    @elseif($cgpStatus['gas_in_waiting_tracer'] ?? false)
+                        <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-orange-600">Gas In Waiting Tracer</span>
                     @else
                         <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2">
                             <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -398,7 +403,15 @@
         $moduleCompleted = ($module === 'sk' && $cgpStatus['sk_completed']) ||
                            ($module === 'sr' && $cgpStatus['sr_completed']) ||
                            ($module === 'gas_in' && $cgpStatus['gas_in_completed']);
-        $moduleAvailable = $moduleReady || $moduleCompleted;
+        $moduleInProgress = ($module === 'sk' && ($cgpStatus['sk_in_progress'] ?? false)) ||
+                            ($module === 'sr' && ($cgpStatus['sr_in_progress'] ?? false)) ||
+                            ($module === 'gas_in' && ($cgpStatus['gas_in_in_progress'] ?? false));
+        $moduleWaitingTracer = ($module === 'sk' && ($cgpStatus['sk_waiting_tracer'] ?? false)) ||
+                               ($module === 'sr' && ($cgpStatus['sr_waiting_tracer'] ?? false)) ||
+                               ($module === 'gas_in' && ($cgpStatus['gas_in_waiting_tracer'] ?? false));
+
+        // Module available if: ready, completed, in progress, or waiting tracer
+        $moduleAvailable = $moduleReady || $moduleCompleted || $moduleInProgress || $moduleWaitingTracer;
 
         // foto + urut
         $modulePhotos = collect($photos[$module] ?? [])->sortBy(function($p) use ($orderIndex) {
