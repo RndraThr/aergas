@@ -93,6 +93,16 @@
                                             ⏳ SK Ready for CGP
                                         </span>
                                     </template>
+                                    <template x-if="customer.cgp_status?.sk_in_progress && !customer.cgp_status?.sk_ready && !customer.cgp_status?.sk_completed">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            🔄 SK In Progress
+                                        </span>
+                                    </template>
+                                    <template x-if="customer.cgp_status?.sk_waiting_tracer && !customer.cgp_status?.sk_ready && !customer.cgp_status?.sk_in_progress && !customer.cgp_status?.sk_completed">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                            ⏱️ SK Waiting Tracer
+                                        </span>
+                                    </template>
 
                                     <!-- SR Status -->
                                     <template x-if="customer.cgp_status?.sr_completed">
@@ -105,6 +115,16 @@
                                             ⏳ SR Ready for CGP
                                         </span>
                                     </template>
+                                    <template x-if="customer.cgp_status?.sr_in_progress && !customer.cgp_status?.sr_ready && !customer.cgp_status?.sr_completed">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                            🔄 SR In Progress
+                                        </span>
+                                    </template>
+                                    <template x-if="customer.cgp_status?.sr_waiting_tracer && !customer.cgp_status?.sr_ready && !customer.cgp_status?.sr_in_progress && !customer.cgp_status?.sr_completed">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                            ⏱️ SR Waiting Tracer
+                                        </span>
+                                    </template>
 
                                     <!-- Gas In Status -->
                                     <template x-if="customer.cgp_status?.gas_in_completed">
@@ -115,6 +135,16 @@
                                     <template x-if="customer.cgp_status?.gas_in_ready && !customer.cgp_status?.gas_in_completed">
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                             ⏳ Gas In Ready for CGP
+                                        </span>
+                                    </template>
+                                    <template x-if="customer.cgp_status?.gas_in_in_progress && !customer.cgp_status?.gas_in_ready && !customer.cgp_status?.gas_in_completed">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                                            🔄 Gas In In Progress
+                                        </span>
+                                    </template>
+                                    <template x-if="customer.cgp_status?.gas_in_waiting_tracer && !customer.cgp_status?.gas_in_ready && !customer.cgp_status?.gas_in_in_progress && !customer.cgp_status?.gas_in_completed">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                            ⏱️ Gas In Waiting Tracer
                                         </span>
                                     </template>
                                 </div>

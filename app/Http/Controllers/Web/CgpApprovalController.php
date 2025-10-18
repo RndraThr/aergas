@@ -61,27 +61,27 @@ class CgpApprovalController extends Controller implements HasMiddleware
             $status = $request->get('status');
 
             if ($status === 'sk_ready') {
-                // SK photos pending CGP approval
+                // SK photos that need CGP attention (pending, in-progress, or waiting tracer)
                 $query->whereHas('photoApprovals', function($q) {
                     $q->where('module_name', 'sk')
-                      ->where('photo_status', 'cgp_pending');
+                      ->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected', 'tracer_pending']);
                 });
             } elseif ($status === 'sr_ready') {
-                // SR photos pending CGP approval
+                // SR photos that need CGP attention (pending, in-progress, or waiting tracer)
                 $query->whereHas('photoApprovals', function($q) {
                     $q->where('module_name', 'sr')
-                      ->where('photo_status', 'cgp_pending');
+                      ->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected', 'tracer_pending']);
                 });
             } elseif ($status === 'gas_in_ready') {
-                // Gas In photos pending CGP approval
+                // Gas In photos that need CGP attention (pending, in-progress, or waiting tracer)
                 $query->whereHas('photoApprovals', function($q) {
                     $q->where('module_name', 'gas_in')
-                      ->where('photo_status', 'cgp_pending');
+                      ->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected', 'tracer_pending']);
                 });
             } else {
-                // Default: show all customers with photos pending CGP approval OR already approved
+                // Default: show all customers with photos in CGP workflow
                 $query->whereHas('photoApprovals', function($q) {
-                    $q->whereIn('photo_status', ['cgp_pending', 'cgp_approved']);
+                    $q->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected']);
                 });
             }
 
@@ -464,22 +464,71 @@ class CgpApprovalController extends Controller implements HasMiddleware
             ->where('photo_status', 'cgp_approved')
             ->count();
 
+        // Check for photos that have been reviewed by CGP (approved or rejected)
+        $skInProgress = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'sk')
+            ->whereIn('photo_status', ['cgp_approved', 'cgp_rejected'])
+            ->exists();
+        $srInProgress = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'sr')
+            ->whereIn('photo_status', ['cgp_approved', 'cgp_rejected'])
+            ->exists();
+        $gasInInProgress = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'gas_in')
+            ->whereIn('photo_status', ['cgp_approved', 'cgp_rejected'])
+            ->exists();
+
+        // Check for photos waiting for tracer approval
+        $skWaitingTracer = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'sk')
+            ->whereIn('photo_status', ['tracer_pending', 'tracer_rejected'])
+            ->exists();
+        $srWaitingTracer = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'sr')
+            ->whereIn('photo_status', ['tracer_pending', 'tracer_rejected'])
+            ->exists();
+        $gasInWaitingTracer = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'gas_in')
+            ->whereIn('photo_status', ['tracer_pending', 'tracer_rejected'])
+            ->exists();
+
+        $skReady = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'sk')
+            ->where('photo_status', 'cgp_pending')
+            ->exists();
+        $srReady = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'sr')
+            ->where('photo_status', 'cgp_pending')
+            ->exists();
+        $gasInReady = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+            ->where('module_name', 'gas_in')
+            ->where('photo_status', 'cgp_pending')
+            ->exists();
+
+        $skCompleted = $skCgpApprovedCount >= 5; // SK requires 5 photos
+        $srCompleted = $srCgpApprovedCount >= 6; // SR requires 6 photos
+        $gasInCompleted = $gasInCgpApprovedCount >= 4; // Gas In requires 4 photos
+
         return [
-            'sk_ready' => PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->where('module_name', 'sk')
-                ->where('photo_status', 'cgp_pending')
-                ->exists(),
-            'sk_completed' => $skCgpApprovedCount >= 5, // SK requires 5 photos
-            'sr_ready' => PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->where('module_name', 'sr')
-                ->where('photo_status', 'cgp_pending')
-                ->exists(),
-            'sr_completed' => $srCgpApprovedCount >= 6, // SR requires 6 photos
-            'gas_in_ready' => PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->where('module_name', 'gas_in')
-                ->where('photo_status', 'cgp_pending')
-                ->exists(),
-            'gas_in_completed' => $gasInCgpApprovedCount >= 4, // Gas In requires 4 photos
+            // Ready statuses (has cgp_pending photos)
+            'sk_ready' => $skReady,
+            'sr_ready' => $srReady,
+            'gas_in_ready' => $gasInReady,
+
+            // In progress statuses (has approved/rejected but not completed)
+            'sk_in_progress' => $skInProgress && !$skCompleted,
+            'sr_in_progress' => $srInProgress && !$srCompleted,
+            'gas_in_in_progress' => $gasInInProgress && !$gasInCompleted,
+
+            // Waiting tracer statuses (has tracer_pending/rejected)
+            'sk_waiting_tracer' => $skWaitingTracer,
+            'sr_waiting_tracer' => $srWaitingTracer,
+            'gas_in_waiting_tracer' => $gasInWaitingTracer,
+
+            // Completed statuses
+            'sk_completed' => $skCompleted,
+            'sr_completed' => $srCompleted,
+            'gas_in_completed' => $gasInCompleted,
         ];
     }
 
@@ -491,15 +540,17 @@ class CgpApprovalController extends Controller implements HasMiddleware
             'gas_in' => []
         ];
 
-        $cgpStatus = $this->getCgpStatus($customer);
-
         // For each module, get slot completion status which includes ALL slots (uploaded + not uploaded)
         foreach (['sk', 'sr', 'gas_in'] as $module) {
-            $moduleReady = ($module === 'sk' && ($cgpStatus['sk_ready'] || $cgpStatus['sk_completed'])) ||
-                          ($module === 'sr' && ($cgpStatus['sr_ready'] || $cgpStatus['sr_completed'])) ||
-                          ($module === 'gas_in' && ($cgpStatus['gas_in_ready'] || $cgpStatus['gas_in_completed']));
+            // Check if module has ANY photos that have been reviewed/approved by tracer
+            // Include: cgp_pending, cgp_approved, AND cgp_rejected
+            $hasTracerApprovedPhotos = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+                ->where('module_name', $module)
+                ->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected'])
+                ->exists();
 
-            if (!$moduleReady) {
+            // Only show module if it has photos that went through tracer approval
+            if (!$hasTracerApprovedPhotos) {
                 continue;
             }
 
@@ -509,10 +560,17 @@ class CgpApprovalController extends Controller implements HasMiddleware
                 // Get ALL slots from config (both required and optional)
                 $slotCompletion = $moduleData->getSlotCompletionStatus();
 
-                // Get uploaded photos that have been approved by tracer
+                // Get uploaded photos that have been reviewed by CGP
                 $uploadedPhotos = PhotoApproval::where('module_name', $module)
                     ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                    ->whereNotNull('tracer_approved_at')
+                    ->where(function($q) {
+                        // Show photos that either:
+                        // 1. Have been approved by tracer (cgp_pending status)
+                        // 2. Already approved by CGP (cgp_approved status)
+                        // 3. Rejected by CGP (cgp_rejected status)
+                        $q->whereNotNull('tracer_approved_at')
+                          ->orWhereIn('photo_status', ['cgp_approved', 'cgp_rejected']);
+                    })
                     ->with(['tracerUser', 'cgpUser'])
                     ->get()
                     ->keyBy('photo_field_name');
@@ -559,7 +617,14 @@ class CgpApprovalController extends Controller implements HasMiddleware
                 // No module data - just get uploaded photos (fallback)
                 $photos[$module] = PhotoApproval::where('module_name', $module)
                     ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                    ->whereNotNull('tracer_approved_at')
+                    ->where(function($q) {
+                        // Show photos that either:
+                        // 1. Have been approved by tracer (cgp_pending status)
+                        // 2. Already approved by CGP (cgp_approved status)
+                        // 3. Rejected by CGP (cgp_rejected status)
+                        $q->whereNotNull('tracer_approved_at')
+                          ->orWhereIn('photo_status', ['cgp_approved', 'cgp_rejected']);
+                    })
                     ->with(['tracerUser', 'cgpUser'])
                     ->orderBy('photo_field_name')
                     ->get();
