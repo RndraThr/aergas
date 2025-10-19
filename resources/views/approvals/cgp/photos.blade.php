@@ -201,17 +201,17 @@
                         </div>
                         <span class="text-sm font-medium text-green-600">SR Approved by CGP</span>
                     @elseif($cgpStatus['sr_ready'])
-                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                            <span class="text-blue-600 font-bold">SR</span>
+                        <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-2">
+                            <span class="text-yellow-600 font-bold">SR</span>
                         </div>
-                        <span class="text-sm font-medium text-blue-600">SR Ready for CGP</span>
+                        <span class="text-sm font-medium text-yellow-600">SR Ready for CGP</span>
                     @elseif($cgpStatus['sr_in_progress'] ?? false)
-                        <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mb-2">
-                            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                             </svg>
                         </div>
-                        <span class="text-sm font-medium text-indigo-600">SR In Progress</span>
+                        <span class="text-sm font-medium text-blue-600">SR In Progress</span>
                     @elseif($cgpStatus['sr_waiting_tracer'] ?? false)
                         <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-2">
                             <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -246,17 +246,17 @@
                         </div>
                         <span class="text-sm font-medium text-green-600">Gas In Approved by CGP</span>
                     @elseif($cgpStatus['gas_in_ready'])
-                        <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-2">
-                            <span class="text-purple-600 font-bold">GI</span>
+                        <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-2">
+                            <span class="text-yellow-600 font-bold">GI</span>
                         </div>
-                        <span class="text-sm font-medium text-purple-600">Gas In Ready for CGP</span>
+                        <span class="text-sm font-medium text-yellow-600">Gas In Ready for CGP</span>
                     @elseif($cgpStatus['gas_in_in_progress'] ?? false)
-                        <div class="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mb-2">
-                            <svg class="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                             </svg>
                         </div>
-                        <span class="text-sm font-medium text-pink-600">Gas In In Progress</span>
+                        <span class="text-sm font-medium text-blue-600">Gas In In Progress</span>
                     @elseif($cgpStatus['gas_in_waiting_tracer'] ?? false)
                         <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-2">
                             <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -419,9 +419,9 @@
             return $orderIndex[$key] ?? PHP_INT_MAX;
         })->values();
 
-        // Check if there are any photos that need CGP approval (not placeholder and status cgp_pending)
+        // Check if there are any photos that need CGP approval (not placeholder and status tracer_approved or cgp_pending)
         $hasPhotosToApprove = $modulePhotos->filter(function($photo) {
-            return !($photo->is_placeholder ?? false) && $photo->photo_status === 'cgp_pending';
+            return !($photo->is_placeholder ?? false) && in_array($photo->photo_status, ['tracer_approved', 'cgp_pending']);
         })->isNotEmpty();
 
         // ---------- MATERIAL (dinamis per modul) ----------
@@ -496,6 +496,11 @@
             ];
         }
 
+        if ($module === 'gas_in') {
+            // Gas In doesn't have material section, just set accent for icons
+            $materialAccent = 'from-orange-500 to-amber-600';
+        }
+
         // kalau dua-duanya kosong, lewati card
         $shouldRenderCard = $showMaterial || $moduleAvailable;
     @endphp
@@ -510,8 +515,22 @@
                             <i class="fas fa-layer-group text-white"></i>
                         </div>
                         <div>
-                            <h2 class="text-lg font-semibold text-gray-900">{{ strtoupper($module) }} Material & Photos</h2>
-                            <p class="text-sm text-gray-600">Ringkasan material dan foto tracer-approved</p>
+                            @php
+                                $moduleTitle = match($module) {
+                                    'sk' => 'SK Material & Photos',
+                                    'sr' => 'SR Material & Photos',
+                                    'gas_in' => 'Gas In Photos',
+                                    default => strtoupper($module) . ' Photos'
+                                };
+                                $moduleSubtitle = match($module) {
+                                    'sk' => 'Ringkasan material dan foto tracer-approved',
+                                    'sr' => 'Ringkasan material dan foto tracer-approved',
+                                    'gas_in' => 'Foto tracer-approved',
+                                    default => 'Foto tracer-approved'
+                                };
+                            @endphp
+                            <h2 class="text-lg font-semibold text-gray-900">{{ $moduleTitle }}</h2>
+                            <p class="text-sm text-gray-600">{{ $moduleSubtitle }}</p>
                         </div>
                     </div>
 
@@ -523,10 +542,18 @@
                         @endif
 
                         @if($moduleReady && !$moduleCompleted && $hasPhotosToApprove)
+                            @php
+                                $approveButtonText = match($module) {
+                                    'sk' => 'Approve All SK',
+                                    'sr' => 'Approve All SR',
+                                    'gas_in' => 'Approve All Gas In',
+                                    default => 'Approve All ' . strtoupper($module)
+                                };
+                            @endphp
                             <button onclick="approveModule('{{ $module }}')"
                                     id="approveModuleBtn_{{ $module }}"
                                     class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200">
-                                <span class="approve-text">✅ Approve All {{ strtoupper($module) }}</span>
+                                <span class="approve-text">✅ {{ $approveButtonText }}</span>
                                 <span class="approve-loading hidden">
                                     <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -539,6 +566,288 @@
                     </div>
                 </div>
             </div>
+
+            {{-- SECTION 0: SK INFORMATION (untuk module SK saja) --}}
+            @if($module === 'sk' && $customer->skData)
+                @php
+                    $sk = $customer->skData;
+                @endphp
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow">
+                            <i class="fas fa-info-circle text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900">SK Information</h3>
+                            <p class="text-sm text-gray-600">Service connection installation</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created By</div>
+                            @if($sk->createdBy)
+                                <div>
+                                    <div class="font-semibold text-gray-900">{{ $sk->createdBy->name }}</div>
+                                    <div class="text-xs text-gray-500">{{ ucwords(str_replace('_', ' ', $sk->createdBy->role ?? '')) }}</div>
+                                </div>
+                            @else
+                                <div class="font-medium text-gray-400">-</div>
+                            @endif
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tanggal Instalasi</div>
+                            <div class="flex items-center">
+                                <i class="fas fa-calendar-alt text-green-500 mr-2"></i>
+                                <div class="font-semibold text-gray-900">
+                                    {{ $sk->tanggal_instalasi ? $sk->tanggal_instalasi->format('d F Y') : 'Belum ditentukan' }}
+                                </div>
+                            </div>
+                            @if($sk->tanggal_instalasi)
+                                <div class="text-xs text-gray-500">
+                                    {{ $sk->tanggal_instalasi->diffForHumans() }}
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status</div>
+                            <div>
+                                <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium
+                                    @if($sk->status === 'draft') bg-gray-100 text-gray-700 border border-gray-200
+                                    @elseif($sk->status === 'ready_for_tracer') bg-blue-100 text-blue-800 border border-blue-200
+                                    @elseif($sk->status === 'approved_scheduled') bg-yellow-100 text-yellow-800 border border-yellow-200
+                                    @elseif($sk->status === 'tracer_approved') bg-purple-100 text-purple-800 border border-purple-200
+                                    @elseif($sk->status === 'cgp_approved') bg-amber-100 text-amber-800 border border-amber-200
+                                    @elseif(str_contains($sk->status, 'rejected')) bg-red-100 text-red-800 border border-red-200
+                                    @elseif($sk->status === 'completed') bg-green-100 text-green-800 border border-green-200
+                                    @else bg-gray-100 text-gray-700 border border-gray-200
+                                    @endif
+                                ">
+                                    <div class="w-2 h-2 rounded-full mr-2
+                                        @if($sk->status === 'draft') bg-gray-400
+                                        @elseif($sk->status === 'ready_for_tracer') bg-blue-500
+                                        @elseif($sk->status === 'approved_scheduled') bg-yellow-500
+                                        @elseif($sk->status === 'tracer_approved') bg-purple-500
+                                        @elseif($sk->status === 'cgp_approved') bg-amber-500
+                                        @elseif(str_contains($sk->status, 'rejected')) bg-red-500
+                                        @elseif($sk->status === 'completed') bg-green-500
+                                        @else bg-gray-400
+                                        @endif
+                                    "></div>
+                                    {{ ucwords(str_replace('_', ' ', $sk->status)) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created At</div>
+                            <div class="flex items-center">
+                                <i class="fas fa-clock text-green-500 mr-2"></i>
+                                <div>
+                                    <div class="font-semibold text-gray-900">
+                                        {{ $sk->created_at ? $sk->created_at->format('d/m/Y H:i') : '-' }}
+                                    </div>
+                                    @if($sk->created_at)
+                                        <div class="text-xs text-gray-500">
+                                            {{ $sk->created_at->diffForHumans() }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- SECTION 0.5: SR INFORMATION (untuk module SR saja) --}}
+            @if($module === 'sr' && $customer->srData)
+                @php
+                    $sr = $customer->srData;
+                @endphp
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center shadow">
+                            <i class="fas fa-info-circle text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900">SR Information</h3>
+                            <p class="text-sm text-gray-600">Service regulator installation</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created By</div>
+                            @if($sr->createdBy)
+                                <div>
+                                    <div class="font-semibold text-gray-900">{{ $sr->createdBy->name }}</div>
+                                    <div class="text-xs text-gray-500">{{ ucwords(str_replace('_', ' ', $sr->createdBy->role ?? '')) }}</div>
+                                </div>
+                            @else
+                                <div class="font-medium text-gray-400">-</div>
+                            @endif
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tanggal Pemasangan</div>
+                            <div class="flex items-center">
+                                <i class="fas fa-calendar-alt text-yellow-500 mr-2"></i>
+                                <div class="font-semibold text-gray-900">
+                                    {{ $sr->tanggal_pemasangan ? $sr->tanggal_pemasangan->format('d F Y') : 'Belum ditentukan' }}
+                                </div>
+                            </div>
+                            @if($sr->tanggal_pemasangan)
+                                <div class="text-xs text-gray-500">
+                                    {{ $sr->tanggal_pemasangan->diffForHumans() }}
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status</div>
+                            <div>
+                                <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium
+                                    @if($sr->status === 'draft') bg-gray-100 text-gray-700 border border-gray-200
+                                    @elseif($sr->status === 'ready_for_tracer') bg-blue-100 text-blue-800 border border-blue-200
+                                    @elseif($sr->status === 'approved_scheduled') bg-yellow-100 text-yellow-800 border border-yellow-200
+                                    @elseif($sr->status === 'tracer_approved') bg-purple-100 text-purple-800 border border-purple-200
+                                    @elseif($sr->status === 'cgp_approved') bg-amber-100 text-amber-800 border border-amber-200
+                                    @elseif(str_contains($sr->status, 'rejected')) bg-red-100 text-red-800 border border-red-200
+                                    @elseif($sr->status === 'completed') bg-green-100 text-green-800 border border-green-200
+                                    @else bg-gray-100 text-gray-700 border border-gray-200
+                                    @endif
+                                ">
+                                    <div class="w-2 h-2 rounded-full mr-2
+                                        @if($sr->status === 'draft') bg-gray-400
+                                        @elseif($sr->status === 'ready_for_tracer') bg-blue-500
+                                        @elseif($sr->status === 'approved_scheduled') bg-yellow-500
+                                        @elseif($sr->status === 'tracer_approved') bg-purple-500
+                                        @elseif($sr->status === 'cgp_approved') bg-amber-500
+                                        @elseif(str_contains($sr->status, 'rejected')) bg-red-500
+                                        @elseif($sr->status === 'completed') bg-green-500
+                                        @else bg-gray-400
+                                        @endif
+                                    "></div>
+                                    {{ ucwords(str_replace('_', ' ', $sr->status)) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created At</div>
+                            <div class="flex items-center">
+                                <i class="fas fa-clock text-yellow-500 mr-2"></i>
+                                <div>
+                                    <div class="font-semibold text-gray-900">
+                                        {{ $sr->created_at ? $sr->created_at->format('d/m/Y H:i') : '-' }}
+                                    </div>
+                                    @if($sr->created_at)
+                                        <div class="text-xs text-gray-500">
+                                            {{ $sr->created_at->diffForHumans() }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- SECTION 0.6: GAS IN INFORMATION (untuk module Gas In saja) --}}
+            @if($module === 'gas_in' && $customer->gasInData)
+                @php
+                    $gasIn = $customer->gasInData;
+                @endphp
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg flex items-center justify-center shadow">
+                            <i class="fas fa-info-circle text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900">Gas In Information</h3>
+                            <p class="text-sm text-gray-600">Gas installation information</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created By</div>
+                            @if($gasIn->createdBy)
+                                <div>
+                                    <div class="font-semibold text-gray-900">{{ $gasIn->createdBy->name }}</div>
+                                    <div class="text-xs text-gray-500">{{ ucwords(str_replace('_', ' ', $gasIn->createdBy->role ?? '')) }}</div>
+                                </div>
+                            @else
+                                <div class="font-medium text-gray-400">-</div>
+                            @endif
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tanggal Gas In</div>
+                            <div class="flex items-center">
+                                <i class="fas fa-calendar-alt text-orange-500 mr-2"></i>
+                                <div class="font-semibold text-gray-900">
+                                    {{ $gasIn->tanggal_gas_in ? $gasIn->tanggal_gas_in->format('d F Y') : 'Belum ditentukan' }}
+                                </div>
+                            </div>
+                            @if($gasIn->tanggal_gas_in)
+                                <div class="text-xs text-gray-500">
+                                    {{ $gasIn->tanggal_gas_in->diffForHumans() }}
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status</div>
+                            <div>
+                                <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium
+                                    @if($gasIn->status === 'draft') bg-gray-100 text-gray-700 border border-gray-200
+                                    @elseif($gasIn->status === 'ready_for_tracer') bg-blue-100 text-blue-800 border border-blue-200
+                                    @elseif($gasIn->status === 'approved_scheduled') bg-yellow-100 text-yellow-800 border border-yellow-200
+                                    @elseif($gasIn->status === 'tracer_approved') bg-purple-100 text-purple-800 border border-purple-200
+                                    @elseif($gasIn->status === 'cgp_approved') bg-amber-100 text-amber-800 border border-amber-200
+                                    @elseif(str_contains($gasIn->status, 'rejected')) bg-red-100 text-red-800 border border-red-200
+                                    @elseif($gasIn->status === 'completed') bg-green-100 text-green-800 border border-green-200
+                                    @else bg-gray-100 text-gray-700 border border-gray-200
+                                    @endif
+                                ">
+                                    <div class="w-2 h-2 rounded-full mr-2
+                                        @if($gasIn->status === 'draft') bg-gray-400
+                                        @elseif($gasIn->status === 'ready_for_tracer') bg-blue-500
+                                        @elseif($gasIn->status === 'approved_scheduled') bg-yellow-500
+                                        @elseif($gasIn->status === 'tracer_approved') bg-purple-500
+                                        @elseif($gasIn->status === 'cgp_approved') bg-amber-500
+                                        @elseif(str_contains($gasIn->status, 'rejected')) bg-red-500
+                                        @elseif($gasIn->status === 'completed') bg-green-500
+                                        @else bg-gray-400
+                                        @endif
+                                    "></div>
+                                    {{ ucwords(str_replace('_', ' ', $gasIn->status)) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Created At</div>
+                            <div class="flex items-center">
+                                <i class="fas fa-clock text-orange-500 mr-2"></i>
+                                <div>
+                                    <div class="font-semibold text-gray-900">
+                                        {{ $gasIn->created_at ? $gasIn->created_at->format('d/m/Y H:i') : '-' }}
+                                    </div>
+                                    @if($gasIn->created_at)
+                                        <div class="text-xs text-gray-500">
+                                            {{ $gasIn->created_at->diffForHumans() }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
 
             {{-- SECTION 1: MATERIAL (ATAS) --}}
             @if($showMaterial)
@@ -617,12 +926,29 @@
             @if($moduleAvailable)
                 <div class="p-6">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-base font-semibold text-gray-900">{{ strtoupper($module) }} Photos (Tracer Approved)</h3>
-                        @if($moduleCompleted)
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">✅ CGP Approved</span>
-                        @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending CGP Review</span>
-                        @endif
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 bg-gradient-to-br {{ $materialAccent ?: 'from-slate-400 to-slate-500' }} rounded-lg flex items-center justify-center shadow">
+                                <i class="fas fa-images text-white text-sm"></i>
+                            </div>
+                            <div>
+                                @php
+                                    $photosTitle = match($module) {
+                                        'sk' => 'SK Photos (Tracer Approved)',
+                                        'sr' => 'SR Photos (Tracer Approved)',
+                                        'gas_in' => 'Gas In Photos (Tracer Approved)',
+                                        default => strtoupper($module) . ' Photos (Tracer Approved)'
+                                    };
+                                @endphp
+                                <h3 class="text-base font-semibold text-gray-900">{{ $photosTitle }}</h3>
+                            </div>
+                        </div>
+                        <div>
+                            @if($moduleCompleted)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">✅ CGP Approved</span>
+                            @else
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending CGP Review</span>
+                            @endif
+                        </div>
                     </div>
 
                     @if($modulePhotos->count() > 0)
@@ -992,7 +1318,16 @@ function rejectPhoto(photoId) {
 function approveModule(module) {
     // Set button loading state
     setButtonLoadingState(`approveModuleBtn_${module}`, 'approve-text', 'approve-loading');
-    openNotesModal(`Approve All ${module.toUpperCase()} Photos`, 'approveModule', null, module);
+
+    // Format module name properly
+    const moduleNames = {
+        'sk': 'SK',
+        'sr': 'SR',
+        'gas_in': 'Gas In'
+    };
+    const moduleName = moduleNames[module] || module.toUpperCase();
+
+    openNotesModal(`Approve All ${moduleName} Photos`, 'approveModule', null, module);
 }
 
 // Button loading state functions
@@ -1086,7 +1421,15 @@ document.getElementById('notesForm').addEventListener('submit', function(e) {
         url = '{{ route("approvals.cgp.approve-module") }}';
         formData.append('reff_id', reffId);
         formData.append('module', currentModule);
-        actionText = `Approving all ${currentModule.toUpperCase()} photos`;
+
+        // Format module name properly for toast message
+        const moduleNames = {
+            'sk': 'SK',
+            'sr': 'SR',
+            'gas_in': 'Gas In'
+        };
+        const moduleName = moduleNames[currentModule] || currentModule.toUpperCase();
+        actionText = `Approving all ${moduleName} photos`;
     } else if (currentAction === 'approve') {
         url = '{{ route("approvals.cgp.approve-photo") }}';
         formData.append('photo_id', currentPhotoId);

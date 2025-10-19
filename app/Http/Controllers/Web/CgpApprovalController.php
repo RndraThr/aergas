@@ -469,6 +469,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
         $getLatestPhotos = function($module) use ($customer) {
             return PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
                 ->where('module_name', $module)
+                ->with('cgpUser') // Load CGP user for rejection info
                 ->get()
                 ->groupBy('photo_field_name')
                 ->map(function($photos) {
@@ -517,6 +518,11 @@ class CgpApprovalController extends Controller implements HasMiddleware
         $srInProgress = ($srHasReviewedPhotos || $srWaitingTracer) && !$srHasReadyPhotos && !$srCompleted;
         $gasInInProgress = ($gasInHasReviewedPhotos || $gasInWaitingTracer) && !$gasInHasReadyPhotos && !$gasInCompleted;
 
+        // Get rejection info for each module
+        $skRejections = $this->getRejectionInfo($skLatestPhotos);
+        $srRejections = $this->getRejectionInfo($srLatestPhotos);
+        $gasInRejections = $this->getRejectionInfo($gasInLatestPhotos);
+
         return [
             // Ready statuses (has photos ready to approve/reject)
             'sk_ready' => $skReady,
@@ -537,7 +543,78 @@ class CgpApprovalController extends Controller implements HasMiddleware
             'sk_completed' => $skCompleted,
             'sr_completed' => $srCompleted,
             'gas_in_completed' => $gasInCompleted,
+
+            // Rejection info
+            'sk_rejections' => $skRejections,
+            'sr_rejections' => $srRejections,
+            'gas_in_rejections' => $gasInRejections,
         ];
+    }
+
+    private function getRejectionInfo($latestPhotos): array
+    {
+        // Filter only rejected photos
+        $rejectedPhotos = $latestPhotos->where('photo_status', 'cgp_rejected');
+
+        if ($rejectedPhotos->isEmpty()) {
+            return [
+                'has_rejections' => false,
+                'count' => 0,
+                'rejections' => []
+            ];
+        }
+
+        // Group rejections by user and collect details
+        $rejectionsByUser = [];
+        $allRejections = [];
+
+        foreach ($rejectedPhotos as $photo) {
+            $cgpUserId = $photo->cgp_user_id;
+            $cgpUserName = $photo->cgpUser?->name ?? 'Unknown User';
+
+            // Initialize user entry if not exists
+            if (!isset($rejectionsByUser[$cgpUserId])) {
+                $rejectionsByUser[$cgpUserId] = [
+                    'user_id' => $cgpUserId,
+                    'user_name' => $cgpUserName,
+                    'count' => 0,
+                    'photos' => []
+                ];
+            }
+
+            // Add photo details
+            $photoLabel = $this->getPhotoLabel($photo->photo_field_name, $photo->module_name);
+            $rejectionsByUser[$cgpUserId]['count']++;
+            $rejectionsByUser[$cgpUserId]['photos'][] = [
+                'field_name' => $photo->photo_field_name,
+                'label' => $photoLabel,
+                'notes' => $photo->cgp_notes,
+                'rejected_at' => $photo->cgp_rejected_at?->format('d/m/Y H:i'),
+            ];
+
+            $allRejections[] = [
+                'user_name' => $cgpUserName,
+                'field_name' => $photo->photo_field_name,
+                'label' => $photoLabel,
+                'notes' => $photo->cgp_notes,
+                'rejected_at' => $photo->cgp_rejected_at?->format('d/m/Y H:i'),
+            ];
+        }
+
+        return [
+            'has_rejections' => true,
+            'count' => $rejectedPhotos->count(),
+            'by_user' => array_values($rejectionsByUser),
+            'all' => $allRejections,
+        ];
+    }
+
+    private function getPhotoLabel($fieldName, $module): string
+    {
+        $module = strtoupper($module);
+        $config = config("aergas_photos.modules.{$module}.slots.{$fieldName}");
+
+        return $config['label'] ?? ucwords(str_replace('_', ' ', $fieldName));
     }
 
     private function getPhotosForCgp($customer): array
