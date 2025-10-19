@@ -627,94 +627,67 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
         // For each module, get slot completion status which includes ALL slots (uploaded + not uploaded)
         foreach (['sk', 'sr', 'gas_in'] as $module) {
-            // Check if module has ANY photos that are ready for CGP review or already reviewed
-            // This includes: tracer_approved, cgp_pending, cgp_approved, cgp_rejected
-            $hasRelevantPhotos = PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                ->where('module_name', $module)
-                ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
-                ->exists();
+            $moduleData = $this->getModuleData($customer->reff_id_pelanggan, $module);
 
-            // Only show module if it has photos that are relevant for CGP
-            if (!$hasRelevantPhotos) {
+            // Skip if module data doesn't exist
+            if (!$moduleData) {
                 continue;
             }
 
-            $moduleData = $this->getModuleData($customer->reff_id_pelanggan, $module);
+            // Get ALL slots from config (both required and optional)
+            $slotCompletion = $moduleData->getSlotCompletionStatus();
 
-            if ($moduleData) {
-                // Get ALL slots from config (both required and optional)
-                $slotCompletion = $moduleData->getSlotCompletionStatus();
+            // Get uploaded photos that are ready for CGP review
+            // Only include: tracer_approved, cgp_pending, cgp_approved, cgp_rejected
+            // Group by photo_field_name and get the LATEST record (highest ID) for each
+            $uploadedPhotos = PhotoApproval::where('module_name', $module)
+                ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
+                ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
+                ->with(['tracerUser', 'cgpUser'])
+                ->get()
+                ->groupBy('photo_field_name')
+                ->map(function($photos) {
+                    // Get the latest photo (highest id) for each field
+                    return $photos->sortByDesc('id')->first();
+                });
 
-                // Get uploaded photos for CGP review
-                // Include all photos with statuses: tracer_approved, cgp_pending, cgp_approved, cgp_rejected
-                // Group by photo_field_name and get the LATEST record (highest ID) for each
-                $uploadedPhotos = PhotoApproval::where('module_name', $module)
-                    ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                    ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
-                    ->with(['tracerUser', 'cgpUser'])
-                    ->get()
-                    ->groupBy('photo_field_name')
-                    ->map(function($photos) {
-                        // Get the latest photo (highest id) for each field
-                        return $photos->sortByDesc('id')->first();
-                    });
+            // Build array with ALL slots (uploaded + placeholders for not ready)
+            $allPhotos = [];
+            foreach ($slotCompletion as $slotKey => $slotInfo) {
+                if (isset($uploadedPhotos[$slotKey])) {
+                    // Photo ready for CGP - use actual PhotoApproval model
+                    $allPhotos[] = $uploadedPhotos[$slotKey];
+                } else {
+                    // Photo not ready for CGP (draft/tracer_pending/not uploaded)
+                    // Create placeholder object
+                    $placeholder = (object) [
+                        'id' => null,
+                        'photo_field_name' => $slotKey,
+                        'photo_url' => null,
+                        'photo_status' => 'missing',
+                        'uploaded_at' => null,
+                        'tracer_approved_at' => null,
+                        'tracer_rejected_at' => null,
+                        'cgp_approved_at' => null,
+                        'cgp_rejected_at' => null,
+                        'ai_approved_at' => null,
+                        'ai_confidence_score' => null,
+                        'ai_notes' => null,
+                        'tracer_notes' => null,
+                        'cgp_notes' => null,
+                        'tracerUser' => null,
+                        'cgpUser' => null,
+                        'is_placeholder' => true,
+                        'slot_label' => $slotInfo['label'],
+                        'is_required' => $slotInfo['required'],
+                    ];
 
-                // Build array with ALL slots (uploaded + placeholders for unuploaded)
-                $allPhotos = [];
-                foreach ($slotCompletion as $slotKey => $slotInfo) {
-                    if (isset($uploadedPhotos[$slotKey])) {
-                        // Photo exists - use actual PhotoApproval model
-                        $allPhotos[] = $uploadedPhotos[$slotKey];
-                    } else {
-                        // Photo not uploaded - create placeholder object
-                        $placeholder = (object) [
-                            'id' => null,
-                            'photo_field_name' => $slotKey,
-                            'photo_url' => null,
-                            'photo_status' => 'missing',
-                            'uploaded_at' => null,
-                            'tracer_approved_at' => null,
-                            'tracer_rejected_at' => null,
-                            'cgp_approved_at' => null,
-                            'cgp_rejected_at' => null,
-                            'ai_approved_at' => null,
-                            'ai_confidence_score' => null,
-                            'ai_notes' => null,
-                            'tracer_notes' => null,
-                            'cgp_notes' => null,
-                            'tracerUser' => null,
-                            'cgpUser' => null,
-                            'is_placeholder' => true,
-                            'slot_label' => $slotInfo['label'],
-                            'is_required' => $slotInfo['required'],
-                        ];
-
-                        // Only show placeholder for required photos
-                        if ($slotInfo['required']) {
-                            $allPhotos[] = $placeholder;
-                        }
-                    }
+                    // Show placeholder for ALL photos (required and optional)
+                    $allPhotos[] = $placeholder;
                 }
-
-                $photos[$module] = $allPhotos;
-            } else {
-                // No module data - just get uploaded photos (fallback)
-                // Include all photos with statuses: tracer_approved, cgp_pending, cgp_approved, cgp_rejected
-                // Group by photo_field_name to get latest record
-                $uploadedPhotos = PhotoApproval::where('module_name', $module)
-                    ->where('reff_id_pelanggan', $customer->reff_id_pelanggan)
-                    ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
-                    ->with(['tracerUser', 'cgpUser'])
-                    ->get()
-                    ->groupBy('photo_field_name')
-                    ->map(function($photos) {
-                        // Get the latest photo (highest id) for each field
-                        return $photos->sortByDesc('id')->first();
-                    })
-                    ->values(); // Convert back to indexed array
-
-                $photos[$module] = $uploadedPhotos->toArray();
             }
+
+            $photos[$module] = $allPhotos;
         }
 
         return $photos;

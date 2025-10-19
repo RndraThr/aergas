@@ -396,6 +396,16 @@
 
 @foreach($modules as $module)
     @php
+        // Get module data
+        $moduleData = ($module === 'sk') ? $customer->skData :
+                      (($module === 'sr') ? $customer->srData :
+                      (($module === 'gas_in') ? $customer->gasInData : null));
+
+        // Skip if module data doesn't exist
+        if (!$moduleData) {
+            continue;
+        }
+
         // status siap/complete modul
         $moduleReady = ($module === 'sk' && $cgpStatus['sk_ready']) ||
                        ($module === 'sr' && $cgpStatus['sr_ready']) ||
@@ -410,8 +420,12 @@
                                ($module === 'sr' && ($cgpStatus['sr_waiting_tracer'] ?? false)) ||
                                ($module === 'gas_in' && ($cgpStatus['gas_in_waiting_tracer'] ?? false));
 
-        // Module available if: ready, completed, in progress, or waiting tracer
-        $moduleAvailable = $moduleReady || $moduleCompleted || $moduleInProgress || $moduleWaitingTracer;
+        // Module always available if data exists
+        $moduleAvailable = true;
+
+        // Locked logic: SR locked until SK complete, Gas In locked until SR complete
+        $isLocked = ($module === 'sr' && !$cgpStatus['sk_completed']) ||
+                    ($module === 'gas_in' && !$cgpStatus['sr_completed']);
 
         // foto + urut
         $modulePhotos = collect($photos[$module] ?? [])->sortBy(function($p) use ($orderIndex) {
@@ -506,13 +520,13 @@
     @endphp
 
     @if($shouldRenderCard)
-        <div class="bg-white rounded-lg shadow mb-6 border border-gray-200">
+        <div class="bg-white rounded-lg shadow mb-6 border border-gray-200 {{ $isLocked ? 'opacity-60' : '' }}">
             {{-- HEADER CARD: Judul modul + status + approve all (kalau perlu) --}}
             <div class="p-6 border-b border-gray-200">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-gradient-to-br {{ $materialAccent ?: 'from-slate-400 to-slate-500' }} rounded-lg flex items-center justify-center shadow">
-                            <i class="fas fa-layer-group text-white"></i>
+                        <div class="w-10 h-10 bg-gradient-to-br {{ $materialAccent ?: 'from-slate-400 to-slate-500' }} rounded-lg flex items-center justify-center shadow {{ $isLocked ? 'grayscale' : '' }}">
+                            <i class="fas {{ $isLocked ? 'fa-lock' : 'fa-layer-group' }} text-white"></i>
                         </div>
                         <div>
                             @php
@@ -528,20 +542,36 @@
                                     'gas_in' => 'Foto tracer-approved',
                                     default => 'Foto tracer-approved'
                                 };
+
+                                if ($isLocked) {
+                                    $lockedMessage = match($module) {
+                                        'sr' => 'Locked - Complete SK first',
+                                        'gas_in' => 'Locked - Complete SR first',
+                                        default => 'Locked'
+                                    };
+                                }
                             @endphp
-                            <h2 class="text-lg font-semibold text-gray-900">{{ $moduleTitle }}</h2>
-                            <p class="text-sm text-gray-600">{{ $moduleSubtitle }}</p>
+                            <h2 class="text-lg font-semibold {{ $isLocked ? 'text-gray-500' : 'text-gray-900' }}">{{ $moduleTitle }}</h2>
+                            <p class="text-sm {{ $isLocked ? 'text-gray-400' : 'text-gray-600' }}">
+                                @if($isLocked)
+                                    🔒 {{ $lockedMessage }}
+                                @else
+                                    {{ $moduleSubtitle }}
+                                @endif
+                            </p>
                         </div>
                     </div>
 
                     <div class="flex items-center gap-2">
-                        @if($moduleCompleted)
+                        @if($isLocked)
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">🔒 Locked</span>
+                        @elseif($moduleCompleted)
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">✅ CGP Approved</span>
                         @elseif($moduleReady)
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">⏳ Pending CGP Review</span>
                         @endif
 
-                        @if($moduleReady && !$moduleCompleted && $hasPhotosToApprove)
+                        @if(!$isLocked && $moduleReady && !$moduleCompleted && $hasPhotosToApprove)
                             @php
                                 $approveButtonText = match($module) {
                                     'sk' => 'Approve All SK',
@@ -567,8 +597,8 @@
                 </div>
             </div>
 
-            {{-- SECTION 0: SK INFORMATION (untuk module SK saja) --}}
-            @if($module === 'sk' && $customer->skData)
+            {{-- SECTION 0: SK INFORMATION --}}
+            @if($module === 'sk')
                 @php
                     $sk = $customer->skData;
                 @endphp
@@ -661,8 +691,8 @@
                 </div>
             @endif
 
-            {{-- SECTION 0.5: SR INFORMATION (untuk module SR saja) --}}
-            @if($module === 'sr' && $customer->srData)
+            {{-- SECTION 0.5: SR INFORMATION --}}
+            @if($module === 'sr')
                 @php
                     $sr = $customer->srData;
                 @endphp
@@ -755,8 +785,8 @@
                 </div>
             @endif
 
-            {{-- SECTION 0.6: GAS IN INFORMATION (untuk module Gas In saja) --}}
-            @if($module === 'gas_in' && $customer->gasInData)
+            {{-- SECTION 0.6: GAS IN INFORMATION --}}
+            @if($module === 'gas_in')
                 @php
                     $gasIn = $customer->gasInData;
                 @endphp
@@ -1159,30 +1189,36 @@
                                         </div>
 
                                             @if(!$photo->cgp_approved_at && !$photo->cgp_rejected_at && in_array($photo->photo_status, ['tracer_approved', 'cgp_pending']))
-                                                <div class="flex space-x-2">
-                                                    <button onclick="approvePhoto({{ $photo->id }})"
-                                                            id="approveBtn_{{ $photo->id }}"
-                                                            class="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-all duration-200">
-                                                        <span class="approve-text">✅ Approve</span>
-                                                        <span class="approve-loading hidden">
-                                                            <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
-                                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                            </svg>
-                                                        </span>
-                                                    </button>
-                                                    <button onclick="rejectPhoto({{ $photo->id }})"
-                                                            id="rejectBtn_{{ $photo->id }}"
-                                                            class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-all duration-200">
-                                                        <span class="reject-text">❌ Reject</span>
-                                                        <span class="reject-loading hidden">
-                                                            <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
-                                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                            </svg>
-                                                        </span>
-                                                    </button>
-                                                </div>
+                                                @if($isLocked)
+                                                    <div class="text-center py-2">
+                                                        <span class="text-xs text-gray-400">🔒 Locked - Complete previous module first</span>
+                                                    </div>
+                                                @else
+                                                    <div class="flex space-x-2">
+                                                        <button onclick="approvePhoto({{ $photo->id }})"
+                                                                id="approveBtn_{{ $photo->id }}"
+                                                                class="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-all duration-200">
+                                                            <span class="approve-text">✅ Approve</span>
+                                                            <span class="approve-loading hidden">
+                                                                <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
+                                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
+                                                            </span>
+                                                        </button>
+                                                        <button onclick="rejectPhoto({{ $photo->id }})"
+                                                                id="rejectBtn_{{ $photo->id }}"
+                                                                class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-all duration-200">
+                                                            <span class="reject-text">❌ Reject</span>
+                                                            <span class="reject-loading hidden">
+                                                                <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
+                                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                @endif
                                             @endif
                                         @endif
 
