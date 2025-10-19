@@ -103,6 +103,31 @@
                                             ⏱️ SK Waiting Tracer
                                         </span>
                                     </template>
+                                    <!-- SK Rejection Info -->
+                                    <template x-if="customer.cgp_status?.sk_rejections?.has_rejections">
+                                        <div class="mt-1.5 space-y-1">
+                                            <template x-for="rejection in customer.cgp_status.sk_rejections.all" :key="rejection.field_name">
+                                                <div class="bg-red-50 border border-red-200 rounded px-2 py-1.5 text-xs">
+                                                    <div class="flex items-start gap-1.5">
+                                                        <svg class="w-3 h-3 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                                        </svg>
+                                                        <div class="flex-1 min-w-0">
+                                                            <div class="flex items-start justify-between gap-2 mb-0.5">
+                                                                <div class="font-medium text-red-800" x-text="rejection.label"></div>
+                                                                <div class="text-red-500 text-[10px] flex items-center gap-1 flex-shrink-0">
+                                                                    <span x-text="rejection.user_name"></span>
+                                                                    <span>•</span>
+                                                                    <span x-text="rejection.rejected_at"></span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="text-red-600" x-show="rejection.notes" x-text="rejection.notes"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
 
                                     <!-- SR Status -->
                                     <template x-if="customer.cgp_status?.sr_completed">
@@ -111,12 +136,12 @@
                                         </span>
                                     </template>
                                     <template x-if="customer.cgp_status?.sr_ready && !customer.cgp_status?.sr_completed">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                             ⏳ SR Ready for CGP
                                         </span>
                                     </template>
                                     <template x-if="customer.cgp_status?.sr_in_progress && !customer.cgp_status?.sr_ready && !customer.cgp_status?.sr_completed">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                             🔄 SR In Progress
                                         </span>
                                     </template>
@@ -124,6 +149,31 @@
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                                             ⏱️ SR Waiting Tracer
                                         </span>
+                                    </template>
+                                    <!-- SR Rejection Info -->
+                                    <template x-if="customer.cgp_status?.sr_rejections?.has_rejections">
+                                        <div class="mt-1.5 space-y-1">
+                                            <template x-for="rejection in customer.cgp_status.sr_rejections.all" :key="rejection.field_name">
+                                                <div class="bg-red-50 border border-red-200 rounded px-2 py-1.5 text-xs">
+                                                    <div class="flex items-start gap-1.5">
+                                                        <svg class="w-3 h-3 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                                        </svg>
+                                                        <div class="flex-1 min-w-0">
+                                                            <div class="flex items-start justify-between gap-2 mb-0.5">
+                                                                <div class="font-medium text-red-800" x-text="rejection.label"></div>
+                                                                <div class="text-red-500 text-[10px] flex items-center gap-1 flex-shrink-0">
+                                                                    <span x-text="rejection.user_name"></span>
+                                                                    <span>•</span>
+                                                                    <span x-text="rejection.rejected_at"></span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="text-red-600" x-show="rejection.notes" x-text="rejection.notes"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
                                     </template>
 
                                     <!-- Gas In Status -->
@@ -133,12 +183,12 @@
                                         </span>
                                     </template>
                                     <template x-if="customer.cgp_status?.gas_in_ready && !customer.cgp_status?.gas_in_completed">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                             ⏳ Gas In Ready for CGP
                                         </span>
                                     </template>
                                     <template x-if="customer.cgp_status?.gas_in_in_progress && !customer.cgp_status?.gas_in_ready && !customer.cgp_status?.gas_in_completed">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                             🔄 Gas In In Progress
                                         </span>
                                     </template>
@@ -147,13 +197,38 @@
                                             ⏱️ Gas In Waiting Tracer
                                         </span>
                                     </template>
+                                    <!-- Gas In Rejection Info -->
+                                    <template x-if="customer.cgp_status?.gas_in_rejections?.has_rejections">
+                                        <div class="mt-1.5 space-y-1">
+                                            <template x-for="rejection in customer.cgp_status.gas_in_rejections.all" :key="rejection.field_name">
+                                                <div class="bg-red-50 border border-red-200 rounded px-2 py-1.5 text-xs">
+                                                    <div class="flex items-start gap-1.5">
+                                                        <svg class="w-3 h-3 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                                        </svg>
+                                                        <div class="flex-1 min-w-0">
+                                                            <div class="flex items-start justify-between gap-2 mb-0.5">
+                                                                <div class="font-medium text-red-800" x-text="rejection.label"></div>
+                                                                <div class="text-red-500 text-[10px] flex items-center gap-1 flex-shrink-0">
+                                                                    <span x-text="rejection.user_name"></span>
+                                                                    <span>•</span>
+                                                                    <span x-text="rejection.rejected_at"></span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="text-red-600" x-show="rejection.notes" x-text="rejection.notes"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
                             </td>
                             <td class="px-6 py-4">
                                 <div class="flex items-center space-x-1">
                                     <!-- SK Progress -->
                                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs"
-                                         :class="customer.cgp_status?.sk_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.sk_ready ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-400')">
+                                         :class="customer.cgp_status?.sk_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.sk_ready ? 'bg-yellow-100 text-yellow-600' : (customer.cgp_status?.sk_in_progress ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'))">
                                         <span x-text="customer.cgp_status?.sk_completed ? '✓' : 'SK'"></span>
                                     </div>
                                     <div class="w-4 h-px"
@@ -161,7 +236,7 @@
 
                                     <!-- SR Progress -->
                                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs"
-                                         :class="customer.cgp_status?.sr_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.sr_ready ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400')">
+                                         :class="customer.cgp_status?.sr_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.sr_ready ? 'bg-yellow-100 text-yellow-600' : (customer.cgp_status?.sr_in_progress ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'))">
                                         <span x-text="customer.cgp_status?.sr_completed ? '✓' : 'SR'"></span>
                                     </div>
                                     <div class="w-4 h-px"
@@ -169,7 +244,7 @@
 
                                     <!-- Gas In Progress -->
                                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs"
-                                         :class="customer.cgp_status?.gas_in_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.gas_in_ready ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-400')">
+                                         :class="customer.cgp_status?.gas_in_completed ? 'bg-green-100 text-green-600' : (customer.cgp_status?.gas_in_ready ? 'bg-yellow-100 text-yellow-600' : (customer.cgp_status?.gas_in_in_progress ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'))">
                                         <span x-text="customer.cgp_status?.gas_in_completed ? '✓' : 'GI'"></span>
                                     </div>
                                 </div>
@@ -202,6 +277,85 @@
 
         <!-- Pagination -->
         <x-pagination />
+    </div>
+
+    <!-- Rejection Details Modal -->
+    <div x-data="rejectionModal()" x-show="isOpen" @keydown.escape.window="closeModal()"
+         class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="closeModal()"></div>
+
+        <!-- Modal -->
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="relative bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+                <!-- Header -->
+                <div class="bg-red-50 border-b border-red-200 px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                                <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900" x-text="moduleTitle + ' Rejections'"></h3>
+                                <p class="text-sm text-gray-600" x-text="`${rejectionData.count} photo(s) rejected`"></p>
+                            </div>
+                        </div>
+                        <button @click="closeModal()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Body -->
+                <div class="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+                    <!-- Group by User -->
+                    <template x-for="userRejections in rejectionData.by_user" :key="userRejections.user_id">
+                        <div class="mb-6 last:mb-0">
+                            <!-- User Header -->
+                            <div class="flex items-center mb-3 pb-2 border-b border-gray-200">
+                                <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mr-2">
+                                    <span class="text-white text-xs font-medium" x-text="userRejections.user_name.charAt(0).toUpperCase()"></span>
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-gray-900" x-text="userRejections.user_name"></div>
+                                    <div class="text-xs text-gray-500" x-text="`Rejected ${userRejections.count} photo(s)`"></div>
+                                </div>
+                            </div>
+
+                            <!-- Photos List -->
+                            <div class="space-y-3">
+                                <template x-for="photo in userRejections.photos" :key="photo.field_name">
+                                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div>
+                                                <div class="font-medium text-gray-900" x-text="photo.label"></div>
+                                                <div class="text-xs text-gray-500" x-text="photo.rejected_at"></div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2" x-show="photo.notes">
+                                            <div class="text-xs font-medium text-gray-500 mb-1">Rejection Notes:</div>
+                                            <div class="text-sm text-gray-700 bg-white rounded p-2 border border-gray-200" x-text="photo.notes || '-'"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Footer -->
+                <div class="bg-gray-50 border-t border-gray-200 px-6 py-4">
+                    <button @click="closeModal()"
+                            class="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -344,6 +498,42 @@ function cgpCustomersData() {
 
         initPaginationState() {
             this.restorePageState();
+        },
+
+        showRejectionDetails(module, rejections) {
+            window.dispatchEvent(new CustomEvent('open-rejection-modal', {
+                detail: { module, rejections }
+            }));
+        }
+    }
+}
+
+// Rejection Modal Component
+function rejectionModal() {
+    return {
+        isOpen: false,
+        moduleTitle: '',
+        rejectionData: {
+            count: 0,
+            by_user: []
+        },
+
+        init() {
+            window.addEventListener('open-rejection-modal', (event) => {
+                this.openModal(event.detail.module, event.detail.rejections);
+            });
+        },
+
+        openModal(module, rejections) {
+            this.moduleTitle = module;
+            this.rejectionData = rejections;
+            this.isOpen = true;
+            document.body.style.overflow = 'hidden';
+        },
+
+        closeModal() {
+            this.isOpen = false;
+            document.body.style.overflow = '';
         }
     }
 }
