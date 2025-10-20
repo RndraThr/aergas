@@ -95,13 +95,76 @@ class CgpApprovalController extends Controller implements HasMiddleware
                 });
             }
 
-            $customers = $query->orderBy('created_at', 'desc')->paginate(15);
+            // Get all customers (without pagination first for custom sorting)
+            $allCustomers = $query->get();
 
-            // Add CGP status untuk setiap customer
-            $customers->getCollection()->transform(function ($customer) {
+            // Add CGP status and relevant dates for each customer
+            $allCustomers->transform(function ($customer) {
                 $customer->cgp_status = $this->getCgpStatus($customer);
+
+                // Get module-specific dates for sorting
+                $customer->tanggal_instalasi = $customer->skData?->tanggal_instalasi;
+                $customer->tanggal_pemasangan = $customer->srData?->tanggal_pemasangan;
+                $customer->tanggal_gas_in = $customer->gasInData?->tanggal_gas_in;
+
+                // Debug: Add priority score to customer object for visibility
+                $customer->priority_score = $this->getPriorityScore($customer->cgp_status);
+
                 return $customer;
             });
+
+            // Sort by priority first, then by module-specific date (chain sorting)
+            $sorted = $allCustomers->sort(function($a, $b) {
+                // First priority: compare priority scores (lower score = higher priority)
+                $priorityA = $this->getPriorityScore($a->cgp_status);
+                $priorityB = $this->getPriorityScore($b->cgp_status);
+
+                if ($priorityA !== $priorityB) {
+                    return $priorityA <=> $priorityB; // ASC: lower score first
+                }
+
+                // Same priority: compare by module-specific date (older first - FIFO)
+                // Priority 1 (SK Ready) -> use tanggal_instalasi
+                // Priority 2 (SR Ready) -> use tanggal_pemasangan
+                // Priority 3 (Gas In Ready) -> use tanggal_gas_in
+                // Others -> use fallback date
+
+                $dateA = null;
+                $dateB = null;
+
+                if ($priorityA === 1) { // SK Ready
+                    $dateA = $a->tanggal_instalasi;
+                    $dateB = $b->tanggal_instalasi;
+                } elseif ($priorityA === 2) { // SR Ready
+                    $dateA = $a->tanggal_pemasangan;
+                    $dateB = $b->tanggal_pemasangan;
+                } elseif ($priorityA === 3) { // Gas In Ready
+                    $dateA = $a->tanggal_gas_in;
+                    $dateB = $b->tanggal_gas_in;
+                }
+
+                // Convert to string for comparison, use fallback if null
+                $timeA = $dateA ? $dateA->format('Y-m-d H:i:s') : '9999-12-31 23:59:59';
+                $timeB = $dateB ? $dateB->format('Y-m-d H:i:s') : '9999-12-31 23:59:59';
+
+                return $timeA <=> $timeB; // ASC: older time first (FIFO - First In, First Out)
+            })->values();
+
+            // Manual pagination
+            $page = $request->get('page', 1);
+            $perPage = 15;
+            $offset = ($page - 1) * $perPage;
+            $total = $sorted->count();
+            $items = $sorted->slice($offset, $perPage)->values();
+
+            // Create paginator instance
+            $customers = new \Illuminate\Pagination\LengthAwarePaginator(
+                $items,
+                $total,
+                $perPage,
+                $page,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
 
             if ($request->ajax() || $request->get('ajax')) {
                 // Transform items to include cgp_status
@@ -442,6 +505,38 @@ class CgpApprovalController extends Controller implements HasMiddleware
     }
 
     // ==================== PRIVATE METHODS ====================
+
+    /**
+     * Get priority score for sorting customers
+     * Lower score = higher priority (appears at top)
+     */
+    private function getPriorityScore(array $cgpStatus): int
+    {
+        // Priority 1: SK Ready (highest priority - needs immediate action)
+        if ($cgpStatus['sk_ready'] ?? false) {
+            return 1;
+        }
+
+        // Priority 2: SR Ready (ready after SK complete)
+        if ($cgpStatus['sr_ready'] ?? false) {
+            return 2;
+        }
+
+        // Priority 3: Gas In Ready (ready after SR complete)
+        if ($cgpStatus['gas_in_ready'] ?? false) {
+            return 3;
+        }
+
+        // Priority 4: In Progress (partially reviewed, needs follow-up)
+        if (($cgpStatus['sk_in_progress'] ?? false) ||
+            ($cgpStatus['sr_in_progress'] ?? false) ||
+            ($cgpStatus['gas_in_in_progress'] ?? false)) {
+            return 4;
+        }
+
+        // Priority 5: Completed or Waiting Tracer (lowest priority)
+        return 5;
+    }
 
     private function getCgpStats(): array
     {
