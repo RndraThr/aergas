@@ -414,23 +414,11 @@
                 </div>
 
                 {{-- Drawing Types --}}
-                <div class="grid grid-cols-3 gap-1">
-                    <button @click="startDrawing('line')"
-                            class="flex flex-col items-center p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
-                        <i class="fas fa-minus text-sm"></i>
-                        <span class="text-xs mt-1">Line</span>
-                    </button>
-
+                <div class="grid grid-cols-1 gap-1">
                     <button @click="startDrawing('polygon')"
                             class="flex flex-col items-center p-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors">
                         <i class="fas fa-draw-polygon text-sm"></i>
-                        <span class="text-xs mt-1">Area</span>
-                    </button>
-
-                    <button @click="startDrawing('circle')"
-                            class="flex flex-col items-center p-2 bg-pink-500 text-white rounded hover:bg-pink-600 transition-colors">
-                        <i class="fas fa-circle text-sm"></i>
-                        <span class="text-xs mt-1">Circle</span>
+                        <span class="text-xs mt-1">Draw Cluster Area</span>
                     </button>
                 </div>
 
@@ -1361,7 +1349,16 @@ function mapsComponent() {
             this.drawingControl = new L.Control.Draw({
                 draw: {
                     polyline: false,
-                    polygon: false,
+                    polygon: {
+                        allowIntersection: false,
+                        showArea: true,
+                        shapeOptions: {
+                            color: '#8b5cf6',
+                            weight: 2,
+                            opacity: 0.8,
+                            fillOpacity: 0.2
+                        }
+                    },
                     circle: false,
                     rectangle: false,
                     marker: false,
@@ -1463,6 +1460,13 @@ function mapsComponent() {
             this.shapeLayersMap = {};
 
             this.mapFeatures.forEach(feature => {
+                // FILTER: Skip jalur features (features with line_number_id)
+                // Dashboard Utama only shows customer-related features
+                if (feature.properties.line_number_id) {
+                    console.log('Skipping jalur feature:', feature.properties.name);
+                    return; // Skip this feature
+                }
+
                 if (feature.properties.is_visible) {
                     const layer = L.geoJSON(feature, {
                         style: feature.properties.style

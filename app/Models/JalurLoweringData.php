@@ -34,6 +34,8 @@ class JalurLoweringData extends BaseModuleModel
         'cgp_approved_at' => 'datetime',
     ];
 
+    protected $appends = ['status_label', 'display_info'];
+
     // Relations
     public function lineNumber(): BelongsTo
     {
@@ -159,6 +161,85 @@ class JalurLoweringData extends BaseModuleModel
     public function canApproveByCgp(): bool
     {
         return $this->status_laporan === 'acc_tracer' && $this->cgp_approved_at === null;
+    }
+
+    /**
+     * Get formatted display labels with new terminology
+     */
+    public function getDisplayLabels(): array
+    {
+        return [
+            'tanggal_pemasangan' => [
+                'label' => 'Tanggal Pemasangan',
+                'value' => $this->tanggal_jalur?->format('d M Y')
+            ],
+            'lowering' => [
+                'label' => 'Lowering',
+                'value' => $this->penggelaran,
+                'unit' => 'm'
+            ],
+            'kedalaman' => [
+                'label' => 'Kedalaman',
+                'value' => $this->kedalaman_lowering,
+                'unit' => 'cm'
+            ],
+            'tipe_pekerjaan' => [
+                'label' => 'Tipe Pekerjaan',
+                'value' => $this->tipe_bongkaran,
+                'badge_color' => $this->getTipePekerjaanBadgeColor()
+            ],
+            'jenis_perkerasan' => [
+                'label' => 'Jenis Perkerasan',
+                'value' => $this->tipe_material,
+                'icon' => $this->getJenisPerkerasanIcon()
+            ]
+        ];
+    }
+
+    /**
+     * Get badge color for Tipe Pekerjaan
+     */
+    public function getTipePekerjaanBadgeColor(): string
+    {
+        return match($this->tipe_bongkaran) {
+            'Manual Boring' => 'blue',
+            'Open Cut' => 'green',
+            'Crossing' => 'orange',
+            'Zinker' => 'purple',
+            'HDD' => 'teal',
+            'Manual Boring - PK' => 'sky',
+            'Crossing - PK' => 'amber',
+            default => 'gray'
+        };
+    }
+
+    /**
+     * Get icon for Jenis Perkerasan
+     */
+    public function getJenisPerkerasanIcon(): string
+    {
+        return match($this->tipe_material) {
+            'Aspal' => 'road',
+            'Tanah' => 'terrain',
+            'Paving' => 'brick-wall',
+            'Beton' => 'building',
+            default => 'square'
+        };
+    }
+
+    /**
+     * Get display info attribute for API responses
+     */
+    public function getDisplayInfoAttribute(): array
+    {
+        return [
+            'tanggal_pemasangan' => $this->tanggal_jalur?->format('d M Y'),
+            'lowering' => number_format($this->penggelaran, 2) . ' m',
+            'kedalaman' => $this->kedalaman_lowering . ' cm',
+            'tipe_pekerjaan' => $this->tipe_bongkaran,
+            'jenis_perkerasan' => $this->tipe_material ?? '-',
+            'status' => $this->status_label
+        ];
     }
 
     public function approveByTracer(int $userId, ?string $notes = null): bool

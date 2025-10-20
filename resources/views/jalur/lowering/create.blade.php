@@ -14,51 +14,83 @@
             <form method="POST" action="{{ route('jalur.lowering.store') }}" id="loweringForm" enctype="multipart/form-data">
                 @csrf
 
-                <!-- Line Number Selection -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <label for="cluster_id" class="block text-sm font-medium text-gray-700 mb-2">
-                            Cluster <span class="text-red-500">*</span>
-                        </label>
-                        <select id="cluster_id" name="cluster_id" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('cluster_id') border-red-500 @enderror"
-                                required onchange="loadLineNumbers()">
-                            <option value="">Pilih Cluster</option>
-                            @foreach($clusters as $cluster)
-                                <option value="{{ $cluster->id }}" {{ old('cluster_id', request('cluster_id')) == $cluster->id ? 'selected' : '' }}>
-                                    {{ $cluster->nama_cluster }} ({{ $cluster->code_cluster }})
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('cluster_id')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
+                <!-- Line Number Input -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">
+                        Line Number <span class="text-red-500">*</span>
+                    </label>
 
-                    <div>
-                        <label for="line_number_id" class="block text-sm font-medium text-gray-700 mb-2">
-                            Line Number <span class="text-red-500">*</span>
-                        </label>
-                        <select id="line_number_id" name="line_number_id" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('line_number_id') border-red-500 @enderror"
-                                required>
-                            <option value="">Pilih cluster terlebih dahulu</option>
-                            @if(old('cluster_id') || request('cluster_id'))
-                                @foreach($lineNumbers as $lineNumber)
-                                    <option value="{{ $lineNumber->id }}" 
-                                            data-estimasi="{{ $lineNumber->estimasi_panjang }}"
-                                            data-total="{{ $lineNumber->total_penggelaran }}"
-                                            {{ old('line_number_id') == $lineNumber->id ? 'selected' : '' }}>
-                                        {{ $lineNumber->line_number }} (Ø{{ $lineNumber->diameter }}mm)
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+                        <div>
+                            <label for="diameter" class="block text-sm font-medium text-gray-700 mb-2">
+                                Diameter Pipa <span class="text-red-500">*</span>
+                            </label>
+                            <select id="diameter" name="diameter"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('diameter') border-red-500 @enderror"
+                                    required
+                                    onchange="updateLineNumberPreview()">
+                                <option value="">Pilih Diameter</option>
+                                <option value="63" {{ old('diameter') == '63' ? 'selected' : '' }}>63 mm</option>
+                                <option value="90" {{ old('diameter') == '90' ? 'selected' : '' }}>90 mm</option>
+                                <option value="180" {{ old('diameter') == '180' ? 'selected' : '' }}>180 mm</option>
+                            </select>
+                            @error('diameter')
+                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label for="cluster_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                Cluster <span class="text-red-500">*</span>
+                            </label>
+                            <select id="cluster_id" name="cluster_id"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('cluster_id') border-red-500 @enderror"
+                                    required
+                                    onchange="updateLineNumberPreview()">
+                                <option value="">Pilih Cluster</option>
+                                @foreach($clusters as $cluster)
+                                    <option value="{{ $cluster->id }}"
+                                            data-code="{{ $cluster->code_cluster }}"
+                                            {{ old('cluster_id', request('cluster_id')) == $cluster->id ? 'selected' : '' }}>
+                                        {{ $cluster->nama_cluster }} ({{ $cluster->code_cluster }})
                                     </option>
                                 @endforeach
-                            @endif
-                        </select>
-                        @error('line_number_id')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                        <div id="line-info" class="text-sm text-gray-500 mt-1 hidden">
-                            <!-- Line info will be loaded here -->
+                            </select>
+                            @error('cluster_id')
+                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label for="line_number_suffix" class="block text-sm font-medium text-gray-700 mb-2">
+                                Nomor Suffix <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text"
+                                   id="line_number_suffix"
+                                   name="line_number_suffix"
+                                   value="{{ old('line_number_suffix') }}"
+                                   placeholder="001"
+                                   maxlength="10"
+                                   required
+                                   oninput="updateLineNumberPreview()"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('line_number_suffix') border-red-500 @enderror">
+                            @error('line_number_suffix')
+                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                            @enderror
+                            <p class="text-xs text-gray-500 mt-1">Contoh: 001, 002, dst</p>
+                        </div>
+                    </div>
+
+                    <!-- Line Number Preview -->
+                    <div class="bg-green-50 border border-green-200 rounded-md p-3">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div>
+                                <span class="text-sm font-medium text-gray-700">Preview Line Number:</span>
+                                <span id="line_number_preview" class="ml-2 text-lg font-bold text-green-700">-</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -83,7 +115,7 @@
 
                     <div>
                         <label for="tanggal_jalur" class="block text-sm font-medium text-gray-700 mb-2">
-                            Tanggal Jalur <span class="text-red-500">*</span>
+                            Tanggal Pemasangan <span class="text-red-500">*</span>
                         </label>
                         <input type="date" 
                                id="tanggal_jalur" 
@@ -97,10 +129,10 @@
                     </div>
                 </div>
 
-                <!-- Tipe Bongkaran & Aksesoris -->
+                <!-- Tipe Pekerjaan & Aksesoris -->
                 <div class="mb-6">
                     <label for="tipe_bongkaran" class="block text-sm font-medium text-gray-700 mb-2">
-                        Tipe Bongkaran <span class="text-red-500">*</span>
+                        Tipe Pekerjaan <span class="text-red-500">*</span>
                     </label>
                     <select id="tipe_bongkaran" name="tipe_bongkaran"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tipe_bongkaran') border-red-500 @enderror"
@@ -119,10 +151,10 @@
                     @enderror
                 </div>
 
-                <!-- Tipe Material Bongkaran -->
+                <!-- Jenis Perkerasan -->
                 <div class="mb-6">
                     <label for="tipe_material" class="block text-sm font-medium text-gray-700 mb-2">
-                        Tipe Material Bongkaran
+                        Jenis Perkerasan
                     </label>
                     <select id="tipe_material" name="tipe_material"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tipe_material') border-red-500 @enderror">
@@ -135,7 +167,7 @@
                     @error('tipe_material')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                     @enderror
-                    <p class="text-xs text-gray-500 mt-1">Pilih jenis material yang akan dibongkar untuk lowering</p>
+                    <p class="text-xs text-gray-500 mt-1">Pilih jenis perkerasan pada jalur lowering</p>
                 </div>
 
                 <!-- Aksesoris (conditional) -->
@@ -260,7 +292,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                     <div>
                         <label for="penggelaran" class="block text-sm font-medium text-gray-700 mb-2">
-                            Panjang Lowering (m) <span class="text-red-500">*</span>
+                            Lowering (m) <span class="text-red-500">*</span>
                         </label>
                         <input type="number" 
                                id="penggelaran" 
@@ -298,7 +330,7 @@
 
                     <div>
                         <label for="kedalaman_lowering" class="block text-sm font-medium text-gray-700 mb-2">
-                            Kedalaman Lowering (cm) <span class="text-red-500">*</span>
+                            Kedalaman (cm) <span class="text-red-500">*</span>
                         </label>
                         <input type="number" 
                                id="kedalaman_lowering" 
@@ -488,77 +520,28 @@
 </div>
 
 <script>
-function loadLineNumbers() {
-    const clusterId = document.getElementById('cluster_id').value;
-    const lineNumberSelect = document.getElementById('line_number_id');
-    const lineInfo = document.getElementById('line-info');
-    
-    // Reset
-    lineNumberSelect.innerHTML = '<option value="">Loading...</option>';
-    lineInfo.classList.add('hidden');
-    
-    if (!clusterId) {
-        lineNumberSelect.innerHTML = '<option value="">Pilih cluster terlebih dahulu</option>';
-        return;
-    }
-    
-    fetch(`{{ route('jalur.lowering.api.line-numbers') }}?cluster_id=${clusterId}`)
-        .then(response => response.json())
-        .then(data => {
-            lineNumberSelect.innerHTML = '<option value="">Pilih Line Number</option>';
-            
-            data.forEach(line => {
-                const option = document.createElement('option');
-                option.value = line.id;
-                option.textContent = `${line.line_number} (Ø${line.diameter}mm)`;
-                
-                // Ensure numeric values with fallback
-                option.dataset.estimasi = line.estimasi_panjang || '0';
-                option.dataset.total = line.total_penggelaran || '0';
-                option.dataset.status = line.status_line || 'active';
-                
-                lineNumberSelect.appendChild(option);
-            });
-        })
-        .catch(error => {
-            console.error('Error loading line numbers:', error);
-            lineNumberSelect.innerHTML = '<option value="">Error loading data</option>';
-        });
-}
+function updateLineNumberPreview() {
+    const diameter = document.getElementById('diameter').value;
+    const clusterSelect = document.getElementById('cluster_id');
+    const selectedOption = clusterSelect.options[clusterSelect.selectedIndex];
+    const clusterCode = selectedOption.dataset.code || '';
+    const suffix = document.getElementById('line_number_suffix').value;
+    const previewElement = document.getElementById('line_number_preview');
 
-function updateLineInfo() {
-    const select = document.getElementById('line_number_id');
-    const selectedOption = select.options[select.selectedIndex];
-    const lineInfo = document.getElementById('line-info');
-    
-    if (selectedOption && selectedOption.value) {
-        // Get values with better error handling
-        const estimasi = parseFloat(selectedOption.dataset.estimasi) || 0;
-        const total = parseFloat(selectedOption.dataset.total) || 0;
-        const remaining = estimasi - total;
-        const progress = estimasi > 0 ? (total / estimasi * 100).toFixed(1) : '0.0';
-        
-        lineInfo.innerHTML = `
-            <div class="grid grid-cols-3 gap-4 p-3 bg-gray-50 rounded-md">
-                <div>
-                    <div class="text-xs text-gray-500">Estimasi</div>
-                    <div class="font-medium">${estimasi.toFixed(1)}m</div>
-                </div>
-                <div>
-                    <div class="text-xs text-gray-500">Total Penggelaran</div>
-                    <div class="font-medium">${total.toFixed(1)}m (${progress}%)</div>
-                </div>
-                <div>
-                    <div class="text-xs text-gray-500">Sisa</div>
-                    <div class="font-medium ${remaining < 0 ? 'text-red-600' : 'text-green-600'}">
-                        ${remaining.toFixed(1)}m
-                    </div>
-                </div>
-            </div>
-        `;
-        lineInfo.classList.remove('hidden');
+    if (diameter && clusterCode && suffix) {
+        const lineNumber = `${diameter}-${clusterCode}-LN${suffix}`;
+        previewElement.textContent = lineNumber;
+        previewElement.classList.remove('text-gray-400');
+        previewElement.classList.add('text-green-700');
+    } else if (diameter && clusterCode) {
+        const lineNumber = `${diameter}-${clusterCode}-LN___`;
+        previewElement.textContent = lineNumber;
+        previewElement.classList.remove('text-green-700');
+        previewElement.classList.add('text-gray-400');
     } else {
-        lineInfo.classList.add('hidden');
+        previewElement.textContent = '-';
+        previewElement.classList.remove('text-green-700');
+        previewElement.classList.add('text-gray-400');
     }
 }
 
@@ -744,9 +727,6 @@ function previewPhoto(input) {
     }
 }
 
-// Event listeners
-document.getElementById('line_number_id').addEventListener('change', updateLineInfo);
-
 // Form submit handler to ensure bongkaran is filled
 document.getElementById('loweringForm').addEventListener('submit', function(e) {
     const penggelaran = document.getElementById('penggelaran').value;
@@ -782,9 +762,9 @@ function toggleUploadMethod() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (document.getElementById('cluster_id').value) {
-        loadLineNumbers();
-    }
+    // Initialize line number preview
+    updateLineNumberPreview();
+
     if (document.getElementById('tipe_bongkaran').value) {
         updateAksesoris();
     }
@@ -797,7 +777,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('aksesoris_concrete_slab').checked) {
         toggleQuantityField('concrete_slab');
     }
-    if (document.getElementById('aksesoris_cassing').checked || 
+    if (document.getElementById('aksesoris_cassing').checked ||
         (document.getElementById('aksesoris_cassing_open_cut') && document.getElementById('aksesoris_cassing_open_cut').checked)) {
         toggleQuantityField('cassing');
     }
@@ -806,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (tipeBongkaran) {
         updateBongkaranLabel(tipeBongkaran);
     }
-    
+
     // Ensure bongkaran field has value on page load
     const penggelaran = document.getElementById('penggelaran').value;
     const bongkaran = document.getElementById('bongkaran').value;

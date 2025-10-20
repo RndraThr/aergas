@@ -60,9 +60,9 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Tipe Material</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Perkerasan</label>
                 <select name="tipe_material" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
-                    <option value="">Semua Material</option>
+                    <option value="">Semua Jenis</option>
                     <option value="Aspal" {{ request('tipe_material') === 'Aspal' ? 'selected' : '' }}>Aspal</option>
                     <option value="Tanah" {{ request('tipe_material') === 'Tanah' ? 'selected' : '' }}>Tanah</option>
                     <option value="Paving" {{ request('tipe_material') === 'Paving' ? 'selected' : '' }}>Paving</option>
@@ -122,7 +122,7 @@
                                     <div class="text-sm text-gray-900">{{ $lowering->tanggal_jalur->format('d/m/Y') }}</div>
                                     <div class="text-sm text-gray-500">{{ $lowering->tipe_bongkaran }}</div>
                                     @if($lowering->tipe_material)
-                                        <div class="text-xs text-gray-400">Material: {{ $lowering->tipe_material }}</div>
+                                        <div class="text-xs text-gray-400">Perkerasan: {{ $lowering->tipe_material }}</div>
                                     @endif
                                 </div>
                             </td>

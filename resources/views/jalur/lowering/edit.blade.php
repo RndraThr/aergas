@@ -92,7 +92,7 @@
 
                     <div>
                         <label for="tanggal_jalur" class="block text-sm font-medium text-gray-700 mb-2">
-                            Tanggal Jalur <span class="text-red-500">*</span>
+                            Tanggal Pemasangan <span class="text-red-500">*</span>
                         </label>
                         <input type="date" 
                                id="tanggal_jalur" 
@@ -106,10 +106,10 @@
                     </div>
                 </div>
 
-                <!-- Tipe Bongkaran -->
+                <!-- Tipe Pekerjaan -->
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-3">
-                        Tipe Bongkaran <span class="text-red-500">*</span>
+                        Tipe Pekerjaan <span class="text-red-500">*</span>
                     </label>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         @php
@@ -135,10 +135,10 @@
                     @enderror
                 </div>
 
-                <!-- Tipe Material -->
+                <!-- Jenis Perkerasan -->
                 <div class="mb-6">
                     <label for="tipe_material" class="block text-sm font-medium text-gray-700 mb-2">
-                        Tipe Material Bongkaran
+                        Jenis Perkerasan
                     </label>
                     <select id="tipe_material"
                             name="tipe_material"
@@ -158,7 +158,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                     <div>
                         <label for="penggelaran" class="block text-sm font-medium text-gray-700 mb-2">
-                            Panjang Lowering (meter) <span class="text-red-500">*</span>
+                            Lowering (m) <span class="text-red-500">*</span>
                         </label>
                         <input type="number" 
                                id="penggelaran" 
@@ -201,7 +201,7 @@
 
                     <div>
                         <label for="kedalaman_lowering" class="block text-sm font-medium text-gray-700 mb-2">
-                            Kedalaman Lowering (cm) <span class="text-red-500">*</span>
+                            Kedalaman (cm) <span class="text-red-500">*</span>
                         </label>
                         <input type="number" 
                                id="kedalaman_lowering" 

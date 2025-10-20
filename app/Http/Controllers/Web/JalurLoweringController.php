@@ -72,11 +72,13 @@ class JalurLoweringController extends Controller
 
     public function store(Request $request)
     {
-        // Determine upload method and create conditional validation rules
+        // Determine upload method
         $uploadMethod = $request->input('upload_method', 'file');
-        
+
         $validationRules = [
-            'line_number_id' => 'required|exists:jalur_line_numbers,id',
+            'diameter' => 'required|in:63,90,180',
+            'cluster_id' => 'required|exists:jalur_clusters,id',
+            'line_number_suffix' => 'required|string|max:10|regex:/^[0-9A-Za-z]+$/',
             'nama_jalan' => 'required|string|max:255',
             'tanggal_jalur' => 'required|date',
             'tipe_bongkaran' => 'required|in:Manual Boring,Open Cut,Crossing,Zinker,HDD,Manual Boring - PK,Crossing - PK',
@@ -103,13 +105,38 @@ class JalurLoweringController extends Controller
 
         $validated = $request->validate($validationRules);
 
+        // Build complete line number from diameter, cluster code, and suffix
+        $cluster = JalurCluster::findOrFail($validated['cluster_id']);
+        $completeLineNumber = $validated['diameter'] . '-' . $cluster->code_cluster . '-LN' . $validated['line_number_suffix'];
+
+        // Find or create line number
+        $lineNumber = JalurLineNumber::firstOrCreate(
+            [
+                'line_number' => $completeLineNumber,
+                'cluster_id' => $validated['cluster_id'],
+            ],
+            [
+                'diameter' => $validated['diameter'],
+                'estimasi_panjang' => 0,
+                'status_line' => 'draft',
+                'is_active' => true,
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
+            ]
+        );
+        $validated['line_number_id'] = $lineNumber->id;
+
+        // Clean up fields that are not in lowering_data table
+        unset($validated['diameter']);
+        unset($validated['line_number_suffix']);
+
         // Auto-fill bongkaran dengan nilai penggelaran
         $validated['bongkaran'] = $validated['penggelaran'];
-        
+
         // Remove file/link fields from validated data (handled separately)
         unset($validated['foto_evidence_penggelaran_bongkaran']);
         unset($validated['foto_evidence_penggelaran_bongkaran_link']);
-        
+
         $validated['created_by'] = Auth::id();
         $validated['updated_by'] = Auth::id();
         $validated['status_laporan'] = 'draft';

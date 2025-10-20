@@ -3,11 +3,14 @@
 @section('title', 'Jalur Dashboard')
 
 @section('content')
-<div class="container mx-auto px-6 py-8">
-    <div class="mb-8">
+<div class="container mx-auto px-6 py-8 space-y-8">
+    <div>
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Jalur Dashboard</h1>
         <p class="text-gray-600">Monitor aktivitas dan progress jalur pipa secara real-time</p>
     </div>
+
+    <!-- Jalur Maps Section -->
+    @include('components.jalur-maps-view')
 
     <!-- Recent Activity Cards -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

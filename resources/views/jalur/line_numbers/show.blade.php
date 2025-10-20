@@ -48,17 +48,17 @@
                             <dd class="mt-1 text-sm text-gray-900">{{ $lineNumber->nama_jalan }}</dd>
                         </div>
                         <div>
-                            <dt class="text-sm font-medium text-gray-500">Estimasi Panjang</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{ number_format($lineNumber->estimasi_panjang, 1) }}m</dd>
+                            <dt class="text-sm font-medium text-gray-500">MC-0</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ number_format($lineNumber->estimasi_panjang, 2) }} m</dd>
                         </div>
                         <div>
-                            <dt class="text-sm font-medium text-gray-500">Total Penggelaran</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{ number_format($lineNumber->total_penggelaran, 1) }}m</dd>
+                            <dt class="text-sm font-medium text-gray-500">Actual Lowering</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ number_format($lineNumber->total_penggelaran, 2) }} m</dd>
                         </div>
                         <div>
-                            <dt class="text-sm font-medium text-gray-500">Actual MC-100</dt>
+                            <dt class="text-sm font-medium text-gray-500">MC-100</dt>
                             <dd class="mt-1 text-sm text-gray-900">
-                                {{ $lineNumber->actual_mc100 ? number_format($lineNumber->actual_mc100, 1) . 'm' : 'Belum diinput' }}
+                                {{ $lineNumber->actual_mc100 ? number_format($lineNumber->actual_mc100, 2) . ' m' : 'Not Set' }}
                             </dd>
                         </div>
                         <div>
@@ -276,15 +276,16 @@
 
                     <!-- Progress Bar -->
                     @php
-                        $progressPercent = $lineNumber->estimasi_panjang > 0 ? ($lineNumber->total_penggelaran / $lineNumber->estimasi_panjang) * 100 : 0;
+                        $labels = $lineNumber->getDisplayLabels();
+                        $progressPercent = $labels['actual_lowering']['percentage'];
                     @endphp
                     <div class="mt-6">
                         <div class="flex justify-between text-sm text-gray-600 mb-1">
-                            <span>Penggelaran</span>
-                            <span>{{ number_format($lineNumber->total_penggelaran, 1) }}m / {{ number_format($lineNumber->estimasi_panjang, 1) }}m</span>
+                            <span>Actual Lowering</span>
+                            <span>{{ number_format($labels['actual_lowering']['value'], 2) }}m / {{ number_format($labels['mc0']['value'], 2) }}m</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: {{ min(100, $progressPercent) }}%"></div>
+                            <div class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: {{ min(100, $progressPercent) }}%"></div>
                         </div>
                     </div>
                 </div>

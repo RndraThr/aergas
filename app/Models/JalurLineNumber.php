@@ -22,6 +22,8 @@ class JalurLineNumber extends Model
         'diameter' => 'string', // Explicitly cast diameter to string for ENUM compatibility
     ];
 
+    protected $appends = ['status_label', 'display_info'];
+
     // Relations
     public function cluster(): BelongsTo
     {
@@ -162,5 +164,82 @@ class JalurLineNumber extends Model
             'completed' => 'Completed',
             default => ucfirst($this->status_line),
         };
+    }
+
+    /**
+     * Get accessor for MC-0 (formerly Estimasi)
+     */
+    public function getMc0Attribute(): float
+    {
+        return $this->estimasi_panjang;
+    }
+
+    /**
+     * Get accessor for Actual Lowering (formerly Penggelaran Total)
+     */
+    public function getActualLoweringAttribute(): float
+    {
+        return $this->total_penggelaran;
+    }
+
+    /**
+     * Get accessor for MC-100
+     */
+    public function getMc100Attribute(): ?float
+    {
+        return $this->actual_mc100;
+    }
+
+    /**
+     * Get formatted display labels with new terminology
+     */
+    public function getDisplayLabels(): array
+    {
+        return [
+            'mc0' => [
+                'label' => 'MC-0',
+                'value' => $this->estimasi_panjang,
+                'unit' => 'm',
+                'color' => 'blue'
+            ],
+            'actual_lowering' => [
+                'label' => 'Actual Lowering',
+                'value' => $this->total_penggelaran,
+                'unit' => 'm',
+                'percentage' => $this->getProgressPercentage(),
+                'color' => 'indigo'
+            ],
+            'mc100' => [
+                'label' => 'MC-100',
+                'value' => $this->actual_mc100,
+                'unit' => 'm',
+                'color' => $this->actual_mc100 ? 'green' : 'gray',
+                'is_set' => !is_null($this->actual_mc100)
+            ],
+            'variance' => [
+                'label' => 'Variance',
+                'value' => $this->getVarianceFromEstimate(),
+                'percentage' => $this->getVariancePercentage(),
+                'unit' => 'm',
+                'color' => $this->getVarianceFromEstimate() < 0 ? 'red' : 'green'
+            ]
+        ];
+    }
+
+    /**
+     * Get display info array for API responses
+     */
+    public function getDisplayInfoAttribute(): array
+    {
+        return [
+            'mc0' => number_format($this->estimasi_panjang, 2) . ' m',
+            'actual_lowering' => number_format($this->total_penggelaran, 2) . ' m (' . number_format($this->getProgressPercentage(), 2) . '%)',
+            'mc100' => $this->actual_mc100 ? number_format($this->actual_mc100, 2) . ' m' : 'Not Set',
+            'variance' => $this->actual_mc100 ?
+                ($this->getVarianceFromEstimate() > 0 ? '+' : '') . number_format($this->getVarianceFromEstimate(), 2) . ' m (' .
+                ($this->getVariancePercentage() > 0 ? '+' : '') . number_format($this->getVariancePercentage(), 2) . '%)' :
+                '-',
+            'status' => $this->status_label
+        ];
     }
 }

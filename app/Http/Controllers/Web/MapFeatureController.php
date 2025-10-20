@@ -228,8 +228,18 @@ class MapFeatureController extends Controller
                         return [
                             'id' => $lineNumber->id,
                             'line_number' => $lineNumber->line_number,
+                            'nama_jalan' => $lineNumber->nama_jalan,
+                            'diameter' => $lineNumber->diameter,
+                            'cluster_id' => $lineNumber->cluster_id,
                             'cluster_name' => $lineNumber->cluster ? $lineNumber->cluster->nama_cluster : 'No Cluster',
-                            'display_text' => "Line {$lineNumber->line_number}" .
+                            'cluster_code' => $lineNumber->cluster ? $lineNumber->cluster->code_cluster : '-',
+                            'line_code' => $lineNumber->line_code,
+                            'estimasi_panjang' => $lineNumber->estimasi_panjang,
+                            'total_penggelaran' => $lineNumber->total_penggelaran,
+                            'actual_mc100' => $lineNumber->actual_mc100,
+                            'status_line' => $lineNumber->status_line,
+                            'keterangan' => $lineNumber->keterangan,
+                            'display_text' => "{$lineNumber->line_number}" .
                                 ($lineNumber->cluster ? " - {$lineNumber->cluster->nama_cluster}" : "")
                         ];
                     });
