@@ -911,36 +911,23 @@
                             @endforeach
                         </div>
 
-                        {{-- ringkasan total --}}
-                        @if($module === 'sk')
+                        {{-- Total Panjang Pipa untuk SK --}}
+                        @if($module === 'sk' && !empty($materialTotals['total_pipa']) && $materialTotals['total_pipa'] > 0)
                             <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
                                 <div class="flex justify-between items-center">
-                                    <span class="font-medium text-green-800">Total Fitting:</span>
-                                    <span class="font-bold text-green-900 text-lg">{{ $materialTotals['total_fitting'] }} pcs</span>
+                                    <span class="font-medium text-green-800">Total Panjang Pipa:</span>
+                                    <span class="font-bold text-green-900 text-lg">{{ $materialTotals['total_pipa'] }} meter</span>
                                 </div>
-                                @if($materialTotals['total_pipa'] > 0)
-                                    <div class="flex justify-between items-center mt-2">
-                                        <span class="font-medium text-green-800">Total Pipa:</span>
-                                        <span class="font-bold text-green-900 text-lg">{{ $materialTotals['total_pipa'] }} meter</span>
-                                    </div>
-                                @endif
                             </div>
-                        @elseif($module === 'sr')
+                        @endif
+
+                        {{-- Total Panjang Pipa untuk SR --}}
+                        @if($module === 'sr' && !empty($materialTotals['total_lengths']) && $materialTotals['total_lengths'] > 0)
                             <div class="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
                                 <div class="flex justify-between items-center">
-                                    <span class="font-medium text-yellow-800">Total Items:</span>
-                                    <span class="font-bold text-yellow-900 text-lg">{{ $materialTotals['total_items'] }} pcs</span>
-                                </div>
-                                <div class="flex justify-between items-center mt-2">
-                                    <span class="font-medium text-yellow-800">Total Lengths:</span>
+                                    <span class="font-medium text-yellow-800">Total Panjang Pipa:</span>
                                     <span class="font-bold text-yellow-900 text-lg">{{ $materialTotals['total_lengths'] }} meter</span>
                                 </div>
-                                @if(!empty($materialTotals['jenis_tapping']))
-                                    <div class="flex justify-between items-center mt-2">
-                                        <span class="font-medium text-yellow-800">Jenis Tapping:</span>
-                                        <span class="font-bold text-yellow-900 text-lg">{{ $materialTotals['jenis_tapping'] }}</span>
-                                    </div>
-                                @endif
                             </div>
                         @endif
                     @endif

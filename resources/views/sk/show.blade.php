@@ -494,18 +494,14 @@
         @endforeach
       </div>
 
-      <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-        <div class="flex justify-between items-center">
-          <span class="font-medium text-green-800">Total Fitting:</span>
-          <span class="font-bold text-green-900 text-lg">{{ $totalFitting }} pcs</span>
-        </div>
-        @if($sk->panjang_pipa_gl_medium_m)
-          <div class="flex justify-between items-center mt-2">
-            <span class="font-medium text-green-800">Total Pipa:</span>
+      @if($sk->panjang_pipa_gl_medium_m)
+        <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+          <div class="flex justify-between items-center">
+            <span class="font-medium text-green-800">Total Panjang Pipa:</span>
             <span class="font-bold text-green-900 text-lg">{{ $sk->panjang_pipa_gl_medium_m }} meter</span>
           </div>
-        @endif
-      </div>
+        </div>
+      @endif
     @endif
   </div>
 

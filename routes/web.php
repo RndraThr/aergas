@@ -82,6 +82,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
     Route::get('/dashboard/installation-trend', [DashboardController::class, 'getInstallationTrend'])->name('dashboard.installation-trend');
     Route::get('/dashboard/activity-metrics', [DashboardController::class, 'getActivityMetrics'])->name('dashboard.activity-metrics');
     Route::get('/dashboard/marker/{customerId}', [DashboardController::class, 'getMarkerDetail'])->name('dashboard.marker-detail');
+    Route::get('/dashboard/pipe-exceed-detail', [DashboardController::class, 'getPipeExceedDetail'])->name('dashboard.pipe-exceed-detail');
     });
 
     // Map Features Routes

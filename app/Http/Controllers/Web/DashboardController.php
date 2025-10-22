@@ -72,6 +72,7 @@ class DashboardController extends Controller implements HasMiddleware
                 'activities' => $this->getRecentActivities(10),
                 'photos' => $this->getPhotoStats(),
                 'performance' => $this->getPerformanceMetrics(),
+                'pipe_stats' => $this->getPipeLengthStats(),
                 'updated_at' => now(),
             ];
 
@@ -381,6 +382,96 @@ class DashboardController extends Controller implements HasMiddleware
            'total_violations' => $violations,
            'compliance_percentage' => $compliance,
        ];
+   }
+
+   /**
+    * Get pipe length statistics from SK data
+    * Important: Pipes exceeding 15m threshold will incur additional charges
+    */
+   private function getPipeLengthStats(): array
+   {
+       $threshold = 15; // 15 meter threshold for additional charges
+
+       // Get all SK data with valid pipe length
+       $skWithPipe = SkData::whereNotNull('panjang_pipa_gl_medium_m')
+           ->where('panjang_pipa_gl_medium_m', '>', 0)
+           ->get(['panjang_pipa_gl_medium_m']);
+
+       $total = $skWithPipe->count();
+
+       if ($total === 0) {
+           return [
+               'average_length' => 0,
+               'total_length' => 0,
+               'total_sk' => 0,
+               'exceed_threshold' => 0,
+               'threshold' => $threshold,
+           ];
+       }
+
+       $average = $skWithPipe->avg('panjang_pipa_gl_medium_m');
+       $totalLength = $skWithPipe->sum('panjang_pipa_gl_medium_m');
+       $exceedCount = $skWithPipe->where('panjang_pipa_gl_medium_m', '>', $threshold)->count();
+
+       return [
+           'average_length' => round($average, 2),
+           'total_length' => round($totalLength, 2),
+           'total_sk' => $total,
+           'exceed_threshold' => $exceedCount,
+           'threshold' => $threshold,
+       ];
+   }
+
+   /**
+    * Get detail list of SK that exceed pipe length threshold
+    */
+   public function getPipeExceedDetail(Request $request): JsonResponse
+   {
+       try {
+           $threshold = 15;
+
+           // Get SK data - exclude nomor_sk if column doesn't exist in database
+           $exceedSk = SkData::with('calonPelanggan:reff_id_pelanggan,nama_pelanggan,alamat,kelurahan,no_telepon')
+               ->whereNotNull('panjang_pipa_gl_medium_m')
+               ->where('panjang_pipa_gl_medium_m', '>', $threshold)
+               ->orderBy('panjang_pipa_gl_medium_m', 'desc')
+               ->get([
+                   'id',
+                   'reff_id_pelanggan',
+                   'panjang_pipa_gl_medium_m',
+                   'tanggal_instalasi',
+                   'module_status'
+               ]);
+
+           $data = $exceedSk->map(function ($sk) use ($threshold) {
+               $excess = $sk->panjang_pipa_gl_medium_m - $threshold;
+               return [
+                   'id' => $sk->id,
+                   'reff_id' => $sk->reff_id_pelanggan,
+                   'nama_pelanggan' => $sk->calonPelanggan?->nama_pelanggan ?? 'N/A',
+                   'alamat' => $sk->calonPelanggan?->alamat ?? 'N/A',
+                   'kelurahan' => $sk->calonPelanggan?->kelurahan ?? 'N/A',
+                   'no_telepon' => $sk->calonPelanggan?->no_telepon ?? 'N/A',
+                   'panjang_pipa' => $sk->panjang_pipa_gl_medium_m,
+                   'excess_length' => round($excess, 2),
+                   'tanggal_instalasi' => $sk->tanggal_instalasi?->format('d M Y') ?? '-',
+                   'status' => $sk->module_status,
+               ];
+           });
+
+           return response()->json([
+               'success' => true,
+               'data' => $data,
+               'total' => $data->count(),
+               'threshold' => $threshold,
+           ]);
+       } catch (Exception $e) {
+           Log::error('Error getting pipe exceed detail', [
+               'error' => $e->getMessage(),
+               'trace' => $e->getTraceAsString()
+           ]);
+           return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+       }
    }
 
    private function resolveFilters(Request $request): array

@@ -229,24 +229,6 @@
             </div>
           @endforeach
         </div>
-
-        <div class="mt-4 p-3 bg-white rounded border">
-          <div class="text-sm text-gray-600">
-            <div class="flex justify-between items-center">
-              <span class="font-medium">Total Items:</span>
-              <span class="font-bold" x-text="calculateTotalItems()"></span>
-            </div>
-            <div class="flex justify-between items-center mt-1">
-              <span class="font-medium">Total Lengths:</span>
-              <span class="font-bold" x-text="calculateTotalLengths()"></span>
-            </div>
-            <div class="flex justify-between items-center mt-1">
-              <span class="font-medium">Status Kelengkapan:</span>
-              <span :class="isMaterialComplete() ? 'text-green-600 font-bold' : 'text-red-600 font-bold'"
-                    x-text="isMaterialComplete() ? 'LENGKAP' : 'BELUM LENGKAP'"></span>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div class="bg-orange-50 border border-orange-200 p-3 rounded text-sm">

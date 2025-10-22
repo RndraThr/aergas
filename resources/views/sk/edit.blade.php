@@ -122,20 +122,6 @@
       </div>
     </div>
 
-    <div class="mt-4 p-3 bg-white rounded border">
-      <div class="text-sm text-gray-600">
-        <div class="flex justify-between items-center">
-          <span class="font-medium">Total Fitting:</span>
-          <span class="font-bold" x-text="calculateTotalFitting()"></span>
-        </div>
-        <div class="flex justify-between items-center mt-1">
-          <span class="font-medium">Status Kelengkapan:</span>
-          <span :class="isMaterialComplete() ? 'text-green-600 font-bold' : 'text-red-600 font-bold'"
-                x-text="isMaterialComplete() ? 'LENGKAP' : 'BELUM LENGKAP'"></span>
-        </div>
-      </div>
-    </div>
-
     <div class="flex justify-end gap-3 pt-4">
       <button type="submit"
               :disabled="updating || !isMaterialComplete()"

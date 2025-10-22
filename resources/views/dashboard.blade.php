@@ -82,6 +82,117 @@
         </div>
     </div>
 
+   <!-- Pipe Length Statistics Card -->
+   <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg p-6 border-2 border-blue-200">
+       <div class="flex items-center justify-between mb-4">
+           <div class="flex items-center space-x-3">
+               <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
+                   <i class="fas fa-ruler-horizontal text-white text-xl"></i>
+               </div>
+               <div>
+                   <h2 class="text-xl font-bold text-gray-900">Panjang Pipa 1/2" GL Medium</h2>
+                   <p class="text-sm text-gray-600">Rata-rata dari semua SK yang terupload</p>
+               </div>
+           </div>
+       </div>
+
+       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-4">
+           <!-- Average Length -->
+           <div class="bg-white rounded-lg p-5 shadow-sm">
+               <div class="flex items-center justify-between">
+                   <div>
+                       <p class="text-sm font-medium text-gray-600 mb-1">Rata-rata Panjang</p>
+                       <div class="flex items-baseline space-x-2">
+                           <span class="text-3xl font-bold text-blue-600" x-text="(data.pipe_stats?.average_length || 0).toFixed(2)">0</span>
+                           <span class="text-lg text-gray-500">meter</span>
+                       </div>
+                   </div>
+                   <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                       <i class="fas fa-ruler text-blue-600"></i>
+                   </div>
+               </div>
+           </div>
+
+           <!-- Total Length -->
+           <div class="bg-white rounded-lg p-5 shadow-sm">
+               <div class="flex items-center justify-between">
+                   <div>
+                       <p class="text-sm font-medium text-gray-600 mb-1">Total Panjang Pipa</p>
+                       <div class="flex items-baseline space-x-2">
+                           <span class="text-3xl font-bold text-purple-600" x-text="(data.pipe_stats?.total_length || 0).toFixed(2)">0</span>
+                           <span class="text-lg text-gray-500">meter</span>
+                       </div>
+                   </div>
+                   <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                       <i class="fas fa-calculator text-purple-600"></i>
+                   </div>
+               </div>
+           </div>
+
+           <!-- Total SK -->
+           <div class="bg-white rounded-lg p-5 shadow-sm" x-data="{ showTooltip: false }">
+               <div class="flex items-center justify-between">
+                   <div class="flex-1">
+                       <div class="flex items-center space-x-2 mb-1">
+                           <p class="text-sm font-medium text-gray-600">SK dengan Data Pipa</p>
+                           <div class="relative">
+                               <i class="fas fa-info-circle text-gray-400 text-xs cursor-help"
+                                  @mouseenter="showTooltip = true"
+                                  @mouseleave="showTooltip = false"></i>
+                               <div x-show="showTooltip"
+                                    x-transition
+                                    class="absolute left-0 bottom-full mb-2 w-64 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-10"
+                                    style="display: none;">
+                                   <p class="font-semibold mb-1">Hanya SK yang sudah mengisi data panjang pipa</p>
+                                   <p class="text-gray-300">SK yang belum mengisi tidak dihitung dalam statistik ini</p>
+                               </div>
+                           </div>
+                       </div>
+                       <div class="flex items-baseline space-x-2">
+                           <span class="text-3xl font-bold text-green-600" x-text="data.pipe_stats?.total_sk || 0">0</span>
+                           <span class="text-lg text-gray-500">SK</span>
+                       </div>
+                   </div>
+                   <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                       <i class="fas fa-file-alt text-green-600"></i>
+                   </div>
+               </div>
+           </div>
+
+           <!-- Exceed Threshold -->
+           <div class="bg-white rounded-lg p-5 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                :class="(data.pipe_stats?.exceed_threshold || 0) > 0 ? 'ring-2 ring-orange-400' : ''"
+                @click="(data.pipe_stats?.exceed_threshold || 0) > 0 ? showPipeExceedModal() : null">
+               <div class="flex items-center justify-between">
+                   <div>
+                       <p class="text-sm font-medium text-gray-600 mb-1">Melebihi 15m</p>
+                       <div class="flex items-baseline space-x-2">
+                           <span class="text-3xl font-bold"
+                                 :class="(data.pipe_stats?.exceed_threshold || 0) > 0 ? 'text-orange-600' : 'text-gray-600'"
+                                 x-text="data.pipe_stats?.exceed_threshold || 0">0</span>
+                           <span class="text-lg text-gray-500">SK</span>
+                       </div>
+                   </div>
+                   <div class="w-10 h-10 rounded-full flex items-center justify-center"
+                        :class="(data.pipe_stats?.exceed_threshold || 0) > 0 ? 'bg-orange-100' : 'bg-gray-100'">
+                       <i class="fas fa-exclamation-triangle"
+                          :class="(data.pipe_stats?.exceed_threshold || 0) > 0 ? 'text-orange-600' : 'text-gray-600'"></i>
+                   </div>
+               </div>
+               <template x-if="(data.pipe_stats?.exceed_threshold || 0) > 0">
+                   <div class="mt-2 flex items-center justify-between">
+                       <span class="text-xs text-orange-600 font-medium">
+                           <i class="fas fa-info-circle"></i> Akan dikenakan biaya tambahan
+                       </span>
+                       <span class="text-xs text-blue-600 font-medium hover:underline">
+                           <i class="fas fa-eye"></i> Lihat Detail
+                       </span>
+                   </div>
+               </template>
+           </div>
+       </div>
+   </div>
+
    <!-- Charts Section 1 - Photo Approvals, Customer Types, Module Status -->
    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
        <!-- Photo Approval Status Chart -->
@@ -206,6 +317,118 @@
                    <div class="flex items-center space-x-2 text-gray-600">
                        <i class="fas fa-spinner animate-spin"></i>
                        <span class="text-xs">Loading...</span>
+                   </div>
+               </div>
+           </div>
+       </div>
+   </div>
+
+   <!-- Pipe Exceed Detail Modal -->
+   <div x-show="pipeExceedModalOpen"
+        x-cloak
+        @keydown.escape.window="pipeExceedModalOpen = false"
+        class="fixed inset-0 z-[1200] overflow-y-auto"
+        style="display: none;">
+       <!-- Backdrop -->
+       <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            @click="pipeExceedModalOpen = false"></div>
+
+       <!-- Modal Content -->
+       <div class="flex min-h-full items-center justify-center p-4">
+           <div class="relative bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden"
+                @click.stop>
+               <!-- Header -->
+               <div class="bg-gradient-to-r from-orange-500 to-red-600 px-6 py-4 flex items-center justify-between">
+                   <div class="flex items-center space-x-3">
+                       <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                           <i class="fas fa-exclamation-triangle text-white text-xl"></i>
+                       </div>
+                       <div>
+                           <h3 class="text-xl font-bold text-white">SK dengan Pipa Melebihi 15 Meter</h3>
+                           <p class="text-sm text-orange-100">Customer yang akan dikenakan biaya tambahan</p>
+                       </div>
+                   </div>
+                   <button @click="pipeExceedModalOpen = false"
+                           class="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-colors">
+                       <i class="fas fa-times text-xl"></i>
+                   </button>
+               </div>
+
+               <!-- Loading State -->
+               <div x-show="pipeExceedLoading" class="p-8 flex items-center justify-center">
+                   <div class="flex flex-col items-center space-y-3">
+                       <i class="fas fa-spinner fa-spin text-4xl text-orange-600"></i>
+                       <p class="text-gray-600">Memuat data...</p>
+                   </div>
+               </div>
+
+               <!-- Content -->
+               <div x-show="!pipeExceedLoading" class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                   <!-- Summary -->
+                   <div class="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
+                       <div class="flex items-center justify-between">
+                           <div>
+                               <p class="text-sm text-gray-600">Total SK yang melebihi threshold</p>
+                               <p class="text-2xl font-bold text-orange-600" x-text="pipeExceedData.length">0</p>
+                           </div>
+                           <div class="text-right">
+                               <p class="text-sm text-gray-600">Threshold</p>
+                               <p class="text-2xl font-bold text-gray-800">15 meter</p>
+                           </div>
+                       </div>
+                   </div>
+
+                   <!-- Table -->
+                   <div class="overflow-x-auto">
+                       <table class="min-w-full divide-y divide-gray-200">
+                           <thead class="bg-gray-50">
+                               <tr>
+                                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+                                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reff ID</th>
+                                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Pelanggan</th>
+                                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alamat</th>
+                                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kelurahan</th>
+                                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Telepon</th>
+                                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Panjang Pipa</th>
+                                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kelebihan</th>
+                                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                               </tr>
+                           </thead>
+                           <tbody class="bg-white divide-y divide-gray-200">
+                               <template x-for="(item, index) in pipeExceedData" :key="item.id">
+                                   <tr class="hover:bg-gray-50 transition-colors">
+                                       <td class="px-4 py-3 text-sm text-gray-900" x-text="index + 1"></td>
+                                       <td class="px-4 py-3 text-sm">
+                                           <a :href="`/customers/${item.reff_id}`"
+                                              class="text-blue-600 hover:underline font-medium"
+                                              x-text="item.reff_id">
+                                           </a>
+                                       </td>
+                                       <td class="px-4 py-3 text-sm text-gray-900" x-text="item.nama_pelanggan"></td>
+                                       <td class="px-4 py-3 text-sm text-gray-600" x-text="item.alamat"></td>
+                                       <td class="px-4 py-3 text-sm text-gray-600" x-text="item.kelurahan"></td>
+                                       <td class="px-4 py-3 text-sm text-gray-600" x-text="item.no_telepon"></td>
+                                       <td class="px-4 py-3 text-sm">
+                                           <span class="font-bold text-orange-600" x-text="item.panjang_pipa + ' m'"></span>
+                                       </td>
+                                       <td class="px-4 py-3 text-sm">
+                                           <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                               <i class="fas fa-arrow-up mr-1"></i>
+                                               <span x-text="'+' + item.excess_length + ' m'"></span>
+                                           </span>
+                                       </td>
+                                       <td class="px-4 py-3 text-sm text-gray-600" x-text="item.tanggal_instalasi"></td>
+                                   </tr>
+                               </template>
+                           </tbody>
+                       </table>
+                   </div>
+
+                   <!-- Empty State -->
+                   <div x-show="pipeExceedData.length === 0 && !pipeExceedLoading"
+                        class="text-center py-12">
+                       <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+                       <p class="text-gray-500">Tidak ada data SK yang melebihi 15 meter</p>
                    </div>
                </div>
            </div>
@@ -376,10 +599,16 @@ function dashboardData() {
             modules: { module_details: { sk: {}, sr: {}, gas_in: {} } },
             activities: [],
             performance: { sla_compliance: {} },
-            donut_stats: { photo_approval: {}, customer_types: {} }
+            donut_stats: { photo_approval: {}, customer_types: {} },
+            pipe_stats: { average_length: 0, total_length: 0, total_sk: 0, exceed_threshold: 0, threshold: 15 }
         },
         loading: false,
         lastUpdated: '{{ now()->format('H:i:s') }}',
+
+        // Pipe exceed modal
+        pipeExceedModalOpen: false,
+        pipeExceedLoading: false,
+        pipeExceedData: [],
 
         // Chart properties
         chartPeriod: 'daily',
@@ -450,7 +679,8 @@ function dashboardData() {
                                 data: [0, 0, 0],
                                 colors: ['#6366F1', '#EC4899', '#14B8A6']
                             }
-                        }
+                        },
+                        pipe_stats: result.data.pipe_stats || { average_length: 0, total_length: 0, total_sk: 0, exceed_threshold: 0, threshold: 15 }
                     };
 
                     // Merge actual data if available
@@ -1423,6 +1653,39 @@ function dashboardData() {
                 this.combinedModuleChart.update('none');
             } catch (error) {
                 console.error('Error updating combined module chart:', error);
+            }
+        },
+
+        /**
+         * Show pipe exceed detail modal
+         */
+        async showPipeExceedModal() {
+            this.pipeExceedModalOpen = true;
+            this.pipeExceedLoading = true;
+            this.pipeExceedData = [];
+
+            try {
+                const response = await fetch('{{ route('dashboard.pipe-exceed-detail') }}', {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': window.csrfToken
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.pipeExceedData = result.data;
+                    console.log('Loaded pipe exceed data:', result.data.length, 'records');
+                } else {
+                    throw new Error(result.message || 'Failed to load data');
+                }
+            } catch (error) {
+                console.error('Error loading pipe exceed detail:', error);
+                window.showToast && window.showToast('error', 'Gagal memuat data detail');
+                this.pipeExceedModalOpen = false;
+            } finally {
+                this.pipeExceedLoading = false;
             }
         }
     }

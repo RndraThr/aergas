@@ -543,22 +543,14 @@
         @endforeach
       </div>
 
-      <div class="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
-        <div class="flex justify-between items-center">
-          <span class="font-medium text-yellow-800">Total Items:</span>
-          <span class="font-bold text-yellow-900 text-lg">{{ $totalItems }} pcs</span>
-        </div>
-        <div class="flex justify-between items-center mt-2">
-          <span class="font-medium text-yellow-800">Total Lengths:</span>
-          <span class="font-bold text-yellow-900 text-lg">{{ $totalLengths }} meter</span>
-        </div>
-        @if($sr->jenis_tapping)
-          <div class="flex justify-between items-center mt-2">
-            <span class="font-medium text-yellow-800">Jenis Tapping:</span>
-            <span class="font-bold text-yellow-900 text-lg">{{ $sr->jenis_tapping }}</span>
+      @if($sr->panjang_pipa_pe_20mm_m)
+        <div class="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
+          <div class="flex justify-between items-center">
+            <span class="font-medium text-yellow-800">Total Panjang Pipa:</span>
+            <span class="font-bold text-yellow-900 text-lg">{{ $sr->panjang_pipa_pe_20mm_m }} meter</span>
           </div>
-        @endif
-      </div>
+        </div>
+      @endif
     @endif
   </div>
 
