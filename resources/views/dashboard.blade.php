@@ -540,6 +540,7 @@
            <i class="fas fa-times text-white text-2xl" x-show="quickActionsOpen" style="display: none;"></i>
        </button>
    </div>
+   {{-- Smart FAB akan ditampilkan otomatis oleh layout --}}
 
    @if(auth()->user()->hasAnyRole(['tracer', 'super_admin']))
    <div class="bg-gradient-to-r from-aergas-navy/5 to-aergas-orange/5 rounded-xl p-6 border border-aergas-orange/20">

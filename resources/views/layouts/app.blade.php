@@ -293,6 +293,9 @@
                 </div>
             </main>
         </div>
+
+        {{-- Smart FAB - Role & Context Aware Quick Actions --}}
+        <x-smart-fab />
     </div>
 
     <!-- Toast Notifications -->
