@@ -23,6 +23,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 .claude
+/docs
 
 # Backup and old files
 /resources/views/vendor/pagination/custom.blade.php

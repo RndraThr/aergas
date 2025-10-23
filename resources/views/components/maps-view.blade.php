@@ -2611,6 +2611,10 @@ document.addEventListener('click', function(e) {
         z-index: 30 !important;
     }
 
+    .absolute.bottom-4.left-4 {
+        z-index: 30 !important;
+    }
+
     /* Lower z-index for legend on mobile */
     .map-legend {
         z-index: 30 !important;

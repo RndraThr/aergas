@@ -76,7 +76,7 @@ if (typeof window.jalurMapsData === 'undefined') {
                          x-transition:leave="transition ease-in duration-100"
                          x-transition:leave-start="opacity-100 scale-100"
                          x-transition:leave-end="opacity-0 scale-95"
-                         class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-[1100]"
+                         class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-[35]"
                          style="display: none;">
 
                         <div class="p-4 space-y-3">
@@ -137,7 +137,7 @@ if (typeof window.jalurMapsData === 'undefined') {
 
             <!-- Loading Overlay -->
             <div x-show="loading"
-                 class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-[999]"
+                 class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-[30]"
                  style="display: none;">
                 <div class="flex flex-col items-center space-y-3">
                     <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -148,7 +148,7 @@ if (typeof window.jalurMapsData === 'undefined') {
 
         <!-- Feature Selection Modal (Line Number or Cluster) -->
         <div x-show="showLineNumberModal"
-             class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]"
+             class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[35]"
              style="display: none;"
              @click.self="cancelDrawing()">
             <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto" @click.stop>
@@ -1667,5 +1667,58 @@ window.jalurMapsData = function() {
 
 .jalur-popup-content {
     @apply min-w-[200px];
+}
+
+/*
+ * Z-Index Hierarchy for Jalur Map:
+ * ----------------------------------
+ * z-50  : Sidebar (from layout)
+ * z-40  : Sidebar backdrop (from layout)
+ * z-35  : Map modals and dropdowns (below sidebar)
+ * z-30  : Map loading overlay and leaflet controls (mobile)
+ * z-10  : Map controls (desktop)
+ * z-1   : Map container and panes (always at bottom)
+ *
+ * This ensures sidebar always appears above map elements
+ */
+
+/* Ensure map stays below sidebar */
+#jalur-map {
+    z-index: 1 !important;
+}
+
+#jalur-map .leaflet-pane,
+#jalur-map .leaflet-map-pane {
+    z-index: 1 !important;
+}
+
+/* Map controls should be below sidebar backdrop (z-40) and sidebar (z-50) */
+#jalur-map .leaflet-control-container {
+    z-index: 10 !important;
+}
+
+/* Mobile adjustments - keep below sidebar */
+@media (max-width: 1023px) {
+
+    div[x-data="{ open: false }"] > div[x-show="open"].absolute {
+        z-index: 35 !important;
+    }
+
+    div.fixed.inset-0.bg-black.bg-opacity-50[x-show="showLineNumberModal"] {
+         z-index: 35 !important;
+    }
+
+    .leaflet-draw {
+        z-index: 30 !important;
+    }
+
+    .leaflet-control-container .leaflet-top,
+    .leaflet-control-container .leaflet-bottom {
+         z-index: 30 !important;
+    }
+
+    .leaflet-popup-pane {
+        z-index: 35 !important;
+    }
 }
 </style>
