@@ -117,18 +117,19 @@ class FolderOrganizationService
         try {
             // No slot subfolders - put files directly in module folder
             $targetFolder = $baseFolder;
-            
-            // Generate organized filename
-            $originalFilename = $photo->stored_filename ?? basename($photo->photo_url);
-            $targetFilename = $this->generateOrganizedFilename($photo, $originalFilename);
-            
+
+            // Keep original filename - DO NOT RENAME during organization
+            // This ensures file can be reverted with same name
+            $originalFilename = $photo->stored_filename ?? basename($photo->storage_path) ?? basename($photo->photo_url);
+            $targetFilename = $originalFilename; // Keep original name
+
             $moveResult = null;
 
             // Handle Google Drive files
             if ($photo->drive_file_id && $this->canUseDrive()) {
                 $moveResult = $this->moveFileInDrive($photo, $targetFolder, $targetFilename);
             }
-            // Handle local files  
+            // Handle local files
             elseif ($photo->storage_path && $photo->storage_disk) {
                 $moveResult = $this->moveFileLocal($photo, $targetFolder, $targetFilename);
             }
@@ -288,6 +289,101 @@ class FolderOrganizationService
     }
 
     /**
+     * Revert photo organization - move file back to original upload folder
+     */
+    public function revertPhotoOrganization(PhotoApproval $photo): array
+    {
+        try {
+            Log::info("Reverting photo organization", [
+                'photo_id' => $photo->id,
+                'reff_id' => $photo->reff_id_pelanggan,
+                'module' => $photo->module_name,
+                'organized_folder' => $photo->organized_folder
+            ]);
+
+            // Check if photo was organized
+            if (!$photo->organized_at || !$photo->organized_folder) {
+                return [
+                    'success' => true,
+                    'message' => 'Photo was not organized, no revert needed',
+                    'photo_id' => $photo->id
+                ];
+            }
+
+            // Get customer info for original folder structure
+            $customer = CalonPelanggan::where('reff_id_pelanggan', $photo->reff_id_pelanggan)->first();
+            if (!$customer) {
+                throw new Exception("Customer not found for reff_id: {$photo->reff_id_pelanggan}");
+            }
+
+            // Build original upload folder: aergas/{MODULE}/{reff}__{customer_slug}/
+            $moduleUpper = strtoupper($photo->module_name);
+            $customerSlug = $customer->nama_pelanggan ? $this->slugify($customer->nama_pelanggan) : '';
+            $customerFolderName = $customerSlug ? "{$photo->reff_id_pelanggan}__{$customerSlug}" : $photo->reff_id_pelanggan;
+            $originalFolder = "aergas/{$moduleUpper}/{$customerFolderName}";
+
+            // Get original filename - preserve the exact filename that was used during upload
+            // Priority: 1) storage_path (has original filename), 2) photo_url
+            if ($photo->storage_path) {
+                $originalFilename = basename($photo->storage_path);
+            } else {
+                $originalFilename = basename($photo->photo_url);
+            }
+
+            // Move file back to original folder
+            if ($photo->drive_file_id && $this->canUseDrive()) {
+                $result = $this->moveFileInDrive($photo, $originalFolder, $originalFilename);
+            } elseif ($photo->storage_path && $photo->storage_disk) {
+                $result = $this->moveFileLocal($photo, $originalFolder, $originalFilename);
+            } else {
+                throw new Exception("No valid file location found for photo {$photo->id}");
+            }
+
+            if ($result && $result['success']) {
+                // Update photo record - clear organization fields
+                $photo->update([
+                    'storage_path' => $result['new_path'],
+                    'photo_url' => $result['new_url'],
+                    'drive_file_id' => $result['new_drive_id'] ?? $photo->drive_file_id,
+                    'drive_link' => $result['new_drive_link'] ?? $photo->drive_link,
+                    'organized_at' => null,
+                    'organized_folder' => null
+                ]);
+
+                Log::info("Photo organization reverted successfully", [
+                    'photo_id' => $photo->id,
+                    'old_folder' => $photo->organized_folder,
+                    'new_folder' => $originalFolder,
+                    'new_url' => $result['new_url']
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => 'Photo organization reverted successfully',
+                    'photo_id' => $photo->id,
+                    'old_folder' => $photo->organized_folder,
+                    'new_folder' => $originalFolder,
+                    'new_url' => $result['new_url']
+                ];
+            }
+
+            throw new Exception("File move operation failed during revert");
+
+        } catch (Exception $e) {
+            Log::error("Failed to revert photo organization", [
+                'photo_id' => $photo->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'photo_id' => $photo->id,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Create URL-safe slug from string
      */
     private function slugify(string $text): string
@@ -298,7 +394,7 @@ class FolderOrganizationService
             ['a', 'a', 'a', 'a', 'e', 'e', 'e', 'e', 'i', 'i', 'i', 'i', 'o', 'o', 'o', 'o', 'u', 'u', 'u', 'u', 'y', 'y'],
             $text
         );
-        
+
         return strtolower(preg_replace('/[^A-Za-z0-9]+/', '_', trim($text)));
     }
 }

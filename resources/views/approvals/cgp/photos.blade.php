@@ -3,6 +3,9 @@
 @section('title', 'CGP - Photo Review')
 
 @push('styles')
+<!-- SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
 <style>
     .photo-preview {
         max-height: 300px;
@@ -17,18 +20,55 @@
         width: 100%;
         height: 100%;
         background: rgba(0,0,0,0.9);
-        z-index: 1000;
-        cursor: zoom-out;
+        z-index: 9999;
+        overflow: hidden;
     }
     .photo-modal img {
         max-width: 90%;
         max-height: 90%;
-        margin: auto;
         display: block;
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+        cursor: zoom-in;
+    }
+    .photo-modal img.zoom-transition {
+        transition: transform 0.2s ease-out;
+    }
+    .photo-modal img.zoomed {
+        max-width: none;
+        max-height: none;
+        cursor: grab;
+    }
+    .photo-modal img.zoomed:active {
+        cursor: grabbing;
+    }
+    .photo-modal-controls {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        display: flex;
+        gap: 10px;
+    }
+    .photo-modal-controls button {
+        background: rgba(255,255,255,0.9);
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        font-size: 18px;
+        color: #333;
+    }
+    .photo-modal-controls button:hover {
+        background: rgba(255,255,255,1);
+        transform: scale(1.1);
     }
 </style>
 @endpush
@@ -1093,6 +1133,25 @@
                                                         @else
                                                             <p class="text-xs text-gray-500 italic">No notes</p>
                                                         @endif
+
+                                                        {{-- Revert Approval Button --}}
+                                                        <div class="mt-3 pt-3 border-t border-green-200">
+                                                            <button onclick='revertApproval({{ $photo->id }}, {{ json_encode($photo->photo_url) }})'
+                                                                    id="revertBtn_{{ $photo->id }}"
+                                                                    class="w-full bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs font-medium transition-all duration-200 flex items-center justify-center gap-2">
+                                                                <i class="fas fa-undo"></i>
+                                                                <span class="revert-text">Batalkan Approval</span>
+                                                                <span class="revert-loading hidden">
+                                                                    <svg class="animate-spin h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
+                                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                    </svg>
+                                                                </span>
+                                                            </button>
+                                                            <p class="text-xs text-gray-500 italic mt-1 text-center">
+                                                                ⚠️ Foto akan kembali ke status pending untuk di-review ulang
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             @endif
@@ -1231,7 +1290,21 @@
 </div>
 
 <!-- Photo Modal -->
-<div id="photoModal" class="photo-modal" onclick="closePhotoModal()">
+<div id="photoModal" class="photo-modal">
+    <div class="photo-modal-controls">
+        <button id="zoomInBtn" onclick="zoomIn(event)" title="Zoom In">
+            <i class="fas fa-search-plus"></i>
+        </button>
+        <button id="zoomOutBtn" onclick="zoomOut(event)" title="Zoom Out">
+            <i class="fas fa-search-minus"></i>
+        </button>
+        <button id="resetZoomBtn" onclick="resetZoom(event)" title="Reset">
+            <i class="fas fa-compress"></i>
+        </button>
+        <button onclick="closePhotoModal(event)" title="Close">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
     <img id="modalPhoto" src="" alt="">
 </div>
 
@@ -1270,6 +1343,9 @@
 @endsection
 
 @push('scripts')
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
 // Global variables
 let currentPhotoId = null;
@@ -1277,15 +1353,177 @@ let currentAction = null;
 let currentModule = null;
 const reffId = '{{ $customer->reff_id_pelanggan }}';
 
+// Photo modal zoom state
+let zoomLevel = 1;
+let isDragging = false;
+let startX, startY, translateX = 0, translateY = 0;
+
 // Photo modal functions
 function openPhotoModal(src) {
-    document.getElementById('modalPhoto').src = src;
+    const img = document.getElementById('modalPhoto');
+    img.src = src;
     document.getElementById('photoModal').style.display = 'block';
+
+    // Reset zoom
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    updateImageTransform();
+    img.classList.remove('zoomed');
 }
 
-function closePhotoModal() {
+function closePhotoModal(event) {
+    if (event) event.stopPropagation();
     document.getElementById('photoModal').style.display = 'none';
+
+    // Reset state
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    isDragging = false;
 }
+
+// Zoom functions
+function zoomIn(event) {
+    event.stopPropagation();
+    zoomLevel = Math.min(zoomLevel + 0.5, 5); // Max 5x zoom
+    updateImageTransform(true); // Enable transition for smooth zoom
+    updateZoomClass();
+}
+
+function zoomOut(event) {
+    event.stopPropagation();
+    zoomLevel = Math.max(zoomLevel - 0.5, 1); // Min 1x zoom
+    if (zoomLevel === 1) {
+        translateX = 0;
+        translateY = 0;
+    }
+    updateImageTransform(true); // Enable transition for smooth zoom
+    updateZoomClass();
+}
+
+function resetZoom(event) {
+    event.stopPropagation();
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    updateImageTransform(true); // Enable transition for smooth zoom
+    updateZoomClass();
+}
+
+function updateImageTransform(withTransition = false) {
+    const img = document.getElementById('modalPhoto');
+
+    // Add transition class only for zoom operations, not for drag
+    if (withTransition) {
+        img.classList.add('zoom-transition');
+        // Remove transition after animation completes to avoid lag during drag
+        setTimeout(() => {
+            img.classList.remove('zoom-transition');
+        }, 200); // Match transition duration (0.2s)
+    }
+
+    img.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${zoomLevel})`;
+}
+
+function updateZoomClass() {
+    const img = document.getElementById('modalPhoto');
+    if (zoomLevel > 1) {
+        img.classList.add('zoomed');
+    } else {
+        img.classList.remove('zoomed');
+    }
+}
+
+// Image dragging when zoomed
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('photoModal');
+    const img = document.getElementById('modalPhoto');
+
+    // Click on modal background to close
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closePhotoModal();
+        }
+    });
+
+    // Prevent image click from closing modal
+    img.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+
+    // Mouse wheel zoom with cursor-based zoom center
+    modal.addEventListener('wheel', function(e) {
+        if (modal.style.display === 'block') {
+            e.preventDefault();
+
+            const oldZoom = zoomLevel;
+
+            // Calculate new zoom level
+            if (e.deltaY < 0) {
+                zoomLevel = Math.min(zoomLevel + 0.2, 5);
+            } else {
+                zoomLevel = Math.max(zoomLevel - 0.2, 1);
+            }
+
+            // If zooming to 1x, reset position
+            if (zoomLevel === 1) {
+                translateX = 0;
+                translateY = 0;
+            } else if (oldZoom !== zoomLevel) {
+                // Calculate cursor position relative to modal center
+                const rect = modal.getBoundingClientRect();
+                const cursorX = e.clientX - rect.left - rect.width / 2;
+                const cursorY = e.clientY - rect.top - rect.height / 2;
+
+                // Adjust translation to keep cursor position stable
+                const zoomRatio = zoomLevel / oldZoom;
+                translateX = cursorX + (translateX - cursorX) * zoomRatio;
+                translateY = cursorY + (translateY - cursorY) * zoomRatio;
+            }
+
+            updateImageTransform(true); // Enable transition for smooth wheel zoom
+            updateZoomClass();
+        }
+    });
+
+    // Drag to pan when zoomed
+    img.addEventListener('mousedown', function(e) {
+        if (zoomLevel > 1) {
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+            e.preventDefault();
+        }
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (isDragging && zoomLevel > 1) {
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateImageTransform();
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        isDragging = false;
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (modal.style.display === 'block') {
+            if (e.key === 'Escape') {
+                closePhotoModal();
+            } else if (e.key === '+' || e.key === '=') {
+                zoomIn(e);
+            } else if (e.key === '-') {
+                zoomOut(e);
+            } else if (e.key === '0') {
+                resetZoom(e);
+            }
+        }
+    });
+});
 
 // Notes modal functions
 function openNotesModal(title, action, photoId = null, module = null) {
@@ -1336,6 +1574,187 @@ function rejectPhoto(photoId) {
     // Set button loading state
     setButtonLoadingState(`rejectBtn_${photoId}`, 'reject-text', 'reject-loading');
     openNotesModal('Reject Photo', 'reject', photoId);
+}
+
+// Revert approval with confirmation dialog
+function revertApproval(photoId, photoUrl) {
+    // Convert Google Drive view link using the same logic as main page
+    let imageUrl = photoUrl;
+    let fileId = null;
+
+    if (photoUrl.includes('drive.google.com')) {
+        // Extract file ID from Google Drive URL
+        const match = photoUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+        if (match) {
+            fileId = match[1];
+            // Use lh3.googleusercontent.com like in the main page
+            imageUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+        }
+    }
+
+    // Prepare alternative URLs for fallback
+    const alternativeUrls = fileId ? [
+        `https://lh3.googleusercontent.com/d/${fileId}`,
+        `https://drive.google.com/uc?export=view&id=${fileId}`,
+        `https://drive.google.com/uc?id=${fileId}`,
+        `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`,
+    ] : [imageUrl];
+
+    // Show confirmation dialog with photo preview using SweetAlert2
+    Swal.fire({
+        title: '⚠️ Batalkan CGP Approval?',
+        html: `
+            <div class="text-left space-y-3">
+                <div class="bg-gray-50 rounded-lg p-2">
+                    <div class="flex justify-center items-center">
+                        <img id="revertPhotoPreview"
+                             src="${imageUrl}"
+                             class="photo-preview w-full object-cover rounded-lg shadow-sm"
+                             alt="Photo Preview"
+                             style="display: block; height: 192px;"
+                             onclick="openPhotoModal('${imageUrl}')"
+                             onerror="handleRevertPhotoError(this, ${JSON.stringify(alternativeUrls)}, 0)">
+                    </div>
+                    <p class="text-xs text-center text-gray-500 italic mt-1">
+                        <i class="fas fa-search-plus mr-1"></i>Klik untuk melihat full screen
+                    </p>
+                </div>
+
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-2 rounded">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-4 w-4 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-2">
+                            <ul class="text-xs text-yellow-700 list-disc list-inside space-y-0.5">
+                                <li>Status kembali ke <strong>CGP Pending</strong></li>
+                                <li>Progress customer berkurang</li>
+                                <li>Customer bisa <strong>hilang dari laporan</strong> jika module jadi incomplete</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Alasan Pembatalan <span class="text-red-500">*</span>
+                    </label>
+                    <textarea
+                        id="revertReason"
+                        rows="2"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none text-sm"
+                        placeholder="Contoh: Salah approve, harusnya reject karena..."
+                        minlength="10"
+                        maxlength="1000"
+                        required
+                    ></textarea>
+                    <div class="flex justify-between mt-1">
+                        <p class="text-xs text-gray-500">Min 10 karakter</p>
+                        <p class="text-xs text-gray-500"><span id="charCount">0</span>/1000</p>
+                    </div>
+                </div>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-undo mr-2"></i>Ya, Batalkan',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#ea580c',
+        cancelButtonColor: '#6b7280',
+        width: '550px',
+        customClass: {
+            container: 'revert-modal-container',
+            popup: 'revert-modal-popup',
+        },
+        didOpen: () => {
+            // Character counter
+            const textarea = document.getElementById('revertReason');
+            const charCount = document.getElementById('charCount');
+
+            textarea.addEventListener('input', () => {
+                charCount.textContent = textarea.value.length;
+            });
+
+            // Focus on textarea
+            textarea.focus();
+        },
+        preConfirm: () => {
+            const reason = document.getElementById('revertReason').value.trim();
+
+            if (!reason) {
+                Swal.showValidationMessage('Alasan wajib diisi');
+                return false;
+            }
+
+            if (reason.length < 10) {
+                Swal.showValidationMessage('Alasan minimal 10 karakter');
+                return false;
+            }
+
+            return reason;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const reason = result.value;
+
+            // Show loading
+            Swal.fire({
+                title: 'Memproses...',
+                html: 'Membatalkan approval dan memindahkan foto...',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Submit revert request
+            fetch('{{ route("approvals.cgp.revert-approval") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    photo_id: photoId,
+                    reason: reason
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: data.message || 'Approval berhasil dibatalkan',
+                        confirmButtonColor: '#10b981',
+                    }).then(() => {
+                        // Reload page to show updated status
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: data.message || 'Terjadi kesalahan',
+                        confirmButtonColor: '#ef4444',
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Revert error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'Terjadi kesalahan saat membatalkan approval',
+                    confirmButtonColor: '#ef4444',
+                });
+            });
+        }
+    });
 }
 
 function approveModule(module) {
@@ -1585,17 +2004,17 @@ function tryAlternativeUrls(imgElement) {
         imgElement.parentElement.innerHTML = '<div class="flex flex-col items-center justify-center h-48 text-red-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"></path></svg><p class="text-xs mt-2">Image unavailable</p></div>';
         return;
     }
-    
+
     const alternatives = [
         `https://drive.google.com/uc?export=view&id=${fileId}`,
         `https://drive.google.com/uc?id=${fileId}`,
         `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
         `https://docs.google.com/uc?id=${fileId}`
     ];
-    
+
     let currentIndex = imgElement.dataset.attemptIndex || 0;
     currentIndex = parseInt(currentIndex);
-    
+
     if (currentIndex < alternatives.length) {
         imgElement.dataset.attemptIndex = currentIndex + 1;
         imgElement.src = alternatives[currentIndex];
@@ -1610,6 +2029,29 @@ function tryAlternativeUrls(imgElement) {
             <p class="text-xs text-gray-500 mt-1 break-all">File ID: ${fileId}</p>
             <a href="${originalUrl}" target="_blank" class="text-xs text-blue-500 mt-2 hover:underline">Open in Drive</a>
         </div>
+        `;
+    }
+}
+
+// Handle photo error in revert modal with alternative URLs
+function handleRevertPhotoError(imgElement, alternativeUrls, currentIndex) {
+    if (currentIndex < alternativeUrls.length - 1) {
+        // Try next alternative
+        const nextIndex = currentIndex + 1;
+        imgElement.onerror = function() {
+            handleRevertPhotoError(this, alternativeUrls, nextIndex);
+        };
+        imgElement.src = alternativeUrls[nextIndex];
+    } else {
+        // All alternatives failed, show error message
+        imgElement.parentElement.innerHTML = `
+            <div class="flex flex-col items-center justify-center text-gray-400 py-8">
+                <svg class="w-16 h-16 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p class="text-sm font-medium">Preview tidak tersedia</p>
+                <p class="text-xs text-gray-500 mt-1">Foto masih bisa diakses melalui link di bawah</p>
+            </div>
         `;
     }
 }

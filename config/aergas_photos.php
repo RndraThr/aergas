@@ -20,6 +20,15 @@ return [
         'reject_score'    => 50,    // Score < 50% = strong warning (tetap bisa submit tapi perlu review)
     ],
 
+    // Approval settings
+    'approval' => [
+        'cgp' => [
+            'revert_window_hours' => (int) env('CGP_REVERT_WINDOW_HOURS', 24), // Time window untuk revert approval (default 24 jam)
+            'require_double_approval' => (bool) env('CGP_REQUIRE_DOUBLE_APPROVAL', false), // Butuh 2 CGP approve
+            'critical_modules' => ['gas_in'], // Module yang butuh double approval jika enabled
+        ],
+    ],
+
     // Module configurations
     'modules' => [
 
