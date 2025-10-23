@@ -21,6 +21,7 @@ class PhotoApproval extends Model
         'tracer_rejected_at'   => 'datetime',
         'cgp_approved_at'      => 'datetime',
         'cgp_rejected_at'      => 'datetime',
+        'reverted_at'          => 'datetime',
         'uploaded_at'          => 'datetime',
         'organized_at'         => 'datetime',
         'created_at'           => 'datetime',
@@ -45,6 +46,11 @@ class PhotoApproval extends Model
     public function cgpUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cgp_user_id');
+    }
+
+    public function revertedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reverted_by');
     }
 
     public function jalurLowering(): BelongsTo

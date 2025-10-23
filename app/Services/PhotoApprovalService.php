@@ -1736,4 +1736,127 @@ class PhotoApprovalService
 
         return $prompts[$moduleType][$photoType] ?? "Analyze this {$photoType} photo for {$moduleType} module to ensure it meets quality and safety standards.";
     }
+
+    /**
+     * Revert CGP approval - undo approval and restore previous state
+     */
+    public function revertCgpApproval(int $photoApprovalId, int $userId, string $reason): array
+    {
+        DB::beginTransaction();
+        try {
+            $photo = PhotoApproval::findOrFail($photoApprovalId);
+            $user = User::findOrFail($userId);
+
+            // Authorization check
+            if (!$user->isAdminLike() && !$user->isCgp()) {
+                throw new Exception('Unauthorized: Only Admin/CGP can revert approvals');
+            }
+
+            // Can only revert cgp_approved photos
+            if ($photo->photo_status !== 'cgp_approved') {
+                throw new Exception("Only approved photos can be reverted. Current status: {$photo->photo_status}");
+            }
+
+            // Check time window (24 hours default)
+            $revertWindowHours = config('aergas_photos.approval.cgp.revert_window_hours', 24);
+            if ($photo->cgp_approved_at) {
+                $hoursSinceApproval = now()->diffInHours($photo->cgp_approved_at);
+
+                // If beyond time window, require super admin
+                if ($hoursSinceApproval > $revertWindowHours && !$user->isSuperAdmin()) {
+                    throw new Exception("Revert window expired ({$revertWindowHours} hours). Only Super Admin can revert.");
+                }
+            }
+
+            // Store original approval data for audit
+            $originalApprovalData = [
+                'cgp_user_id' => $photo->cgp_user_id,
+                'cgp_approved_at' => $photo->cgp_approved_at,
+                'cgp_notes' => $photo->cgp_notes,
+                'organized_at' => $photo->organized_at,
+                'organized_folder' => $photo->organized_folder,
+            ];
+
+            $oldStatus = $photo->photo_status;
+
+            // Revert photo status to cgp_pending (ready for re-review)
+            $photo->update([
+                'photo_status' => 'cgp_pending',
+                'cgp_approved_at' => null,
+                'cgp_user_id' => null,
+                'cgp_notes' => null,
+                'reverted_at' => now(),
+                'reverted_by' => $userId,
+                'revert_reason' => $reason,
+            ]);
+
+            // Revert file organization (move back to original folder)
+            try {
+                $folderService = app(FolderOrganizationService::class);
+                $revertResult = $folderService->revertPhotoOrganization($photo);
+
+                if (!$revertResult['success']) {
+                    Log::warning('Photo organization revert failed but approval was reverted', [
+                        'photo_id' => $photo->id,
+                        'revert_error' => $revertResult['error'] ?? 'Unknown error'
+                    ]);
+                }
+            } catch (Exception $e) {
+                Log::warning('Exception during photo organization revert', [
+                    'photo_id' => $photo->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            // Create audit log
+            $this->createAuditLog($userId, 'cgp_approval_reverted', 'PhotoApproval', $photo->id, $photo->reff_id_pelanggan, [
+                'old_status' => $oldStatus,
+                'new_status' => 'cgp_pending',
+                'revert_reason' => $reason,
+                'original_approval' => $originalApprovalData,
+                'reverted_at' => now()->toIso8601String(),
+            ]);
+
+            DB::commit();
+
+            // Recalculate module status and customer progress
+            if (!in_array($photo->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                $this->recalcModule($photo->reff_id_pelanggan, $photo->module_name);
+
+                // Update customer progress (decremental)
+                $customer = CalonPelanggan::where('reff_id_pelanggan', $photo->reff_id_pelanggan)->first();
+                if ($customer) {
+                    $this->updateCustomerProgressIncremental($customer);
+                }
+            }
+
+            Log::info('CGP approval reverted successfully', [
+                'photo_id' => $photo->id,
+                'reff_id' => $photo->reff_id_pelanggan,
+                'reverted_by' => $user->name,
+                'reason' => $reason
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Approval berhasil dibatalkan',
+                'photo_id' => $photo->id,
+                'new_status' => 'cgp_pending',
+                'original_approval' => $originalApprovalData,
+            ];
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to revert CGP approval', [
+                'photo_id' => $photoApprovalId,
+                'user_id' => $userId,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
 }

@@ -278,6 +278,46 @@ class CgpApprovalController extends Controller implements HasMiddleware
     }
 
     /**
+     * Revert CGP approval - undo approval
+     */
+    public function revertApproval(Request $request)
+    {
+        $request->validate([
+            'photo_id' => 'required|integer',
+            'reason' => 'required|string|min:10|max:1000'
+        ]);
+
+        try {
+            $result = $this->photoApprovalService->revertCgpApproval(
+                $request->get('photo_id'),
+                Auth::id(),
+                $request->get('reason')
+            );
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+                'data' => $result
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('CGP revert approval error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Approve/Reject individual photo by CGP
      */
     public function approvePhoto(Request $request)

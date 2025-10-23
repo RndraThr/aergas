@@ -721,6 +721,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
         ->group(function () {
             Route::get('/jalur-photos', [CgpApprovalController::class, 'jalurPhotos'])->name('jalur-photos');
             Route::post('/photos/approve', [CgpApprovalController::class, 'approvePhoto'])->name('approve-photo');
+            Route::post('/photos/revert', [CgpApprovalController::class, 'revertApproval'])->name('revert-approval');
         });
 
     // Notification Routes
