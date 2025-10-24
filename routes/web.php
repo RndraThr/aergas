@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController};
+use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController};
 
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -695,6 +695,24 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::post('/modules/approve', [TracerApprovalController::class, 'approveModule'])->name('approve-module');
             Route::post('/modules/reject', [TracerApprovalController::class, 'rejectModule'])->name('reject-module');
             Route::post('/ai-review', [TracerApprovalController::class, 'aiReview'])->name('ai-review');
+
+            // Jalur Approval Routes (3-Level: Cluster -> Line -> Evidence)
+            Route::prefix('jalur')->name('jalur.')->group(function () {
+                // Level 1: Cluster Selection
+                Route::get('/clusters', [TracerJalurApprovalController::class, 'clusters'])->name('clusters');
+
+                // Level 2: Line Selection (per Cluster)
+                Route::get('/clusters/{clusterId}/lines', [TracerJalurApprovalController::class, 'lines'])->name('lines');
+
+                // Level 3: Evidence Review (per Line)
+                Route::get('/lines/{lineId}/evidence', [TracerJalurApprovalController::class, 'evidence'])->name('evidence');
+
+                // Approval Actions
+                Route::post('/approve-photo', [TracerJalurApprovalController::class, 'approvePhoto'])->name('approve-photo');
+                Route::post('/reject-photo', [TracerJalurApprovalController::class, 'rejectPhoto'])->name('reject-photo');
+                Route::post('/approve-date', [TracerJalurApprovalController::class, 'approveDatePhotos'])->name('approve-date');
+                Route::post('/approve-line', [TracerJalurApprovalController::class, 'approveLine'])->name('approve-line');
+            });
 
         });
 

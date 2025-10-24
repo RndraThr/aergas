@@ -317,6 +317,67 @@
     </div>
 </div>
 
+<!-- Image Modal -->
+<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center p-4" style="z-index: 9999; overflow: hidden;">
+  <div class="photo-modal-controls">
+    <button onclick="zoomIn(event)" title="Zoom In (+)">
+      <i class="fas fa-search-plus"></i>
+    </button>
+    <button onclick="zoomOut(event)" title="Zoom Out (-)">
+      <i class="fas fa-search-minus"></i>
+    </button>
+    <button onclick="resetZoom(event)" title="Reset (0)">
+      <i class="fas fa-compress"></i>
+    </button>
+    <button onclick="closeImageModal(event)" title="Close (Esc)">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  <div class="relative max-w-4xl max-h-full">
+    <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded" style="cursor: zoom-in; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+    <div id="modalTitle" class="absolute bottom-4 left-4 right-4 text-white text-center text-lg font-medium bg-black bg-opacity-50 rounded p-2"></div>
+  </div>
+</div>
+<style>
+#imageModal img.zoom-transition {
+  transition: transform 0.2s ease-out;
+}
+#imageModal img.zoomed {
+  max-width: none;
+  max-height: none;
+  cursor: grab;
+}
+#imageModal img.zoomed:active {
+  cursor: grabbing;
+}
+.photo-modal-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  gap: 10px;
+}
+.photo-modal-controls button {
+  background: rgba(255,255,255,0.9);
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-size: 18px;
+  color: #333;
+}
+.photo-modal-controls button:hover {
+  background: rgba(255,255,255,1);
+  transform: scale(1.1);
+}
+</style>
+
 <script>
 // Advanced Google Drive Photo Display with Multiple Fallbacks (from lowering view)
 function tryAlternativeUrls(imgElement) {
@@ -349,14 +410,176 @@ function tryAlternativeUrls(imgElement) {
     imgElement.parentElement.innerHTML = '<div class="flex flex-col items-center justify-center h-48 text-orange-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><p class="text-xs mt-2">Foto Google Drive</p><button onclick="viewGoogleDrivePhoto(\''+originalUrl+'\')" class="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 border border-blue-300 rounded">📁 Buka di Drive</button></div>';
 }
 
+// Photo modal zoom state
+let zoomLevel = 1;
+let isDragging = false;
+let startX, startY, translateX = 0, translateY = 0;
+
 function openImageModal(imageUrl, title) {
-    // Simple modal implementation
-    const modal = document.createElement('div');
-    modal.innerHTML = `<div class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onclick="this.remove()">
-        <img src="${imageUrl}" class="max-w-full max-h-full" alt="${title}">
-    </div>`;
-    document.body.appendChild(modal);
+    const modal = document.getElementById('imageModal');
+    const img = document.getElementById('modalImage');
+    const modalTitle = document.getElementById('modalTitle');
+
+    img.src = imageUrl;
+    modalTitle.textContent = title || '';
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    // Reset zoom
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    updateImageTransform();
+    img.classList.remove('zoomed');
 }
+
+function closeImageModal(event) {
+    if (event) event.stopPropagation();
+    const modal = document.getElementById('imageModal');
+    modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+
+    // Reset state
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    isDragging = false;
+}
+
+// Zoom functions
+function zoomIn(event) {
+    event.stopPropagation();
+    zoomLevel = Math.min(zoomLevel + 0.5, 5);
+    updateImageTransform(true);
+    updateZoomClass();
+}
+
+function zoomOut(event) {
+    event.stopPropagation();
+    zoomLevel = Math.max(zoomLevel - 0.5, 1);
+    if (zoomLevel === 1) {
+        translateX = 0;
+        translateY = 0;
+    }
+    updateImageTransform(true);
+    updateZoomClass();
+}
+
+function resetZoom(event) {
+    event.stopPropagation();
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    updateImageTransform(true);
+    updateZoomClass();
+}
+
+function updateImageTransform(withTransition = false) {
+    const img = document.getElementById('modalImage');
+
+    if (withTransition) {
+        img.classList.add('zoom-transition');
+        setTimeout(() => {
+            img.classList.remove('zoom-transition');
+        }, 200);
+    }
+
+    img.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${zoomLevel})`;
+}
+
+function updateZoomClass() {
+    const img = document.getElementById('modalImage');
+    if (zoomLevel > 1) {
+        img.classList.add('zoomed');
+    } else {
+        img.classList.remove('zoomed');
+    }
+}
+
+// Image dragging and zoom event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('imageModal');
+    const img = document.getElementById('modalImage');
+
+    if (!modal || !img) return;
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeImageModal();
+        }
+    });
+
+    img.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+
+    modal.addEventListener('wheel', function(e) {
+        const isVisible = !modal.classList.contains('hidden');
+        if (isVisible) {
+            e.preventDefault();
+
+            const oldZoom = zoomLevel;
+
+            if (e.deltaY < 0) {
+                zoomLevel = Math.min(zoomLevel + 0.2, 5);
+            } else {
+                zoomLevel = Math.max(zoomLevel - 0.2, 1);
+            }
+
+            if (zoomLevel === 1) {
+                translateX = 0;
+                translateY = 0;
+            } else if (oldZoom !== zoomLevel) {
+                const rect = modal.getBoundingClientRect();
+                const cursorX = e.clientX - rect.left - rect.width / 2;
+                const cursorY = e.clientY - rect.top - rect.height / 2;
+
+                const zoomRatio = zoomLevel / oldZoom;
+                translateX = cursorX + (translateX - cursorX) * zoomRatio;
+                translateY = cursorY + (translateY - cursorY) * zoomRatio;
+            }
+
+            updateImageTransform(true);
+            updateZoomClass();
+        }
+    });
+
+    img.addEventListener('mousedown', function(e) {
+        if (zoomLevel > 1) {
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+            e.preventDefault();
+        }
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (isDragging && zoomLevel > 1) {
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateImageTransform();
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        isDragging = false;
+    });
+
+    document.addEventListener('keydown', function(e) {
+        const isVisible = modal && !modal.classList.contains('hidden');
+        if (isVisible) {
+            if (e.key === 'Escape') {
+                closeImageModal();
+            } else if (e.key === '+' || e.key === '=') {
+                zoomIn(e);
+            } else if (e.key === '-') {
+                zoomOut(e);
+            } else if (e.key === '0') {
+                resetZoom(e);
+            }
+        }
+    });
+});
 
 function viewGoogleDrivePhoto(path) {
     const modal = document.createElement('div');

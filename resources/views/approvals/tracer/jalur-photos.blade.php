@@ -23,18 +23,55 @@
         width: 100%;
         height: 100%;
         background: rgba(0,0,0,0.9);
-        z-index: 1000;
-        cursor: zoom-out;
+        z-index: 9999;
+        overflow: hidden;
     }
     .photo-modal img {
         max-width: 90%;
         max-height: 90%;
-        margin: auto;
         display: block;
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+        cursor: zoom-in;
+    }
+    .photo-modal img.zoom-transition {
+        transition: transform 0.2s ease-out;
+    }
+    .photo-modal img.zoomed {
+        max-width: none;
+        max-height: none;
+        cursor: grab;
+    }
+    .photo-modal img.zoomed:active {
+        cursor: grabbing;
+    }
+    .photo-modal-controls {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        display: flex;
+        gap: 10px;
+    }
+    .photo-modal-controls button {
+        background: rgba(255,255,255,0.9);
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        font-size: 18px;
+        color: #333;
+    }
+    .photo-modal-controls button:hover {
+        background: rgba(255,255,255,1);
+        transform: scale(1.1);
     }
 </style>
 @endpush
@@ -272,7 +309,21 @@
 </div>
 
 <!-- Photo Modal -->
-<div id="photoModal" class="photo-modal" onclick="closePhotoModal()">
+<div id="photoModal" class="photo-modal">
+    <div class="photo-modal-controls">
+        <button id="zoomInBtn" onclick="zoomIn(event)" title="Zoom In (+)">
+            <i class="fas fa-search-plus"></i>
+        </button>
+        <button id="zoomOutBtn" onclick="zoomOut(event)" title="Zoom Out (-)">
+            <i class="fas fa-search-minus"></i>
+        </button>
+        <button id="resetZoomBtn" onclick="resetZoom(event)" title="Reset (0)">
+            <i class="fas fa-compress"></i>
+        </button>
+        <button onclick="closePhotoModal(event)" title="Close (Esc)">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
     <img id="modalImage" src="" alt="Photo Preview">
 </div>
 
@@ -365,16 +416,167 @@
 
 @push('scripts')
 <script>
+// Photo modal zoom state
+let zoomLevel = 1;
+let isDragging = false;
+let startX, startY, translateX = 0, translateY = 0;
+
 function openPhotoModal(imageSrc) {
-    document.getElementById('modalImage').src = imageSrc;
+    const img = document.getElementById('modalImage');
+    img.src = imageSrc;
     document.getElementById('photoModal').style.display = 'block';
     document.body.style.overflow = 'hidden';
+
+    // Reset zoom
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    updateImageTransform();
+    img.classList.remove('zoomed');
 }
 
-function closePhotoModal() {
+function closePhotoModal(event) {
+    if (event) event.stopPropagation();
     document.getElementById('photoModal').style.display = 'none';
     document.body.style.overflow = 'auto';
+
+    // Reset state
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    isDragging = false;
 }
+
+// Zoom functions
+function zoomIn(event) {
+    event.stopPropagation();
+    zoomLevel = Math.min(zoomLevel + 0.5, 5);
+    updateImageTransform(true);
+    updateZoomClass();
+}
+
+function zoomOut(event) {
+    event.stopPropagation();
+    zoomLevel = Math.max(zoomLevel - 0.5, 1);
+    if (zoomLevel === 1) {
+        translateX = 0;
+        translateY = 0;
+    }
+    updateImageTransform(true);
+    updateZoomClass();
+}
+
+function resetZoom(event) {
+    event.stopPropagation();
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    updateImageTransform(true);
+    updateZoomClass();
+}
+
+function updateImageTransform(withTransition = false) {
+    const img = document.getElementById('modalImage');
+
+    if (withTransition) {
+        img.classList.add('zoom-transition');
+        setTimeout(() => {
+            img.classList.remove('zoom-transition');
+        }, 200);
+    }
+
+    img.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${zoomLevel})`;
+}
+
+function updateZoomClass() {
+    const img = document.getElementById('modalImage');
+    if (zoomLevel > 1) {
+        img.classList.add('zoomed');
+    } else {
+        img.classList.remove('zoomed');
+    }
+}
+
+// Image dragging and zoom event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('photoModal');
+    const img = document.getElementById('modalImage');
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closePhotoModal();
+        }
+    });
+
+    img.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+
+    modal.addEventListener('wheel', function(e) {
+        if (modal.style.display === 'block') {
+            e.preventDefault();
+
+            const oldZoom = zoomLevel;
+
+            if (e.deltaY < 0) {
+                zoomLevel = Math.min(zoomLevel + 0.2, 5);
+            } else {
+                zoomLevel = Math.max(zoomLevel - 0.2, 1);
+            }
+
+            if (zoomLevel === 1) {
+                translateX = 0;
+                translateY = 0;
+            } else if (oldZoom !== zoomLevel) {
+                const rect = modal.getBoundingClientRect();
+                const cursorX = e.clientX - rect.left - rect.width / 2;
+                const cursorY = e.clientY - rect.top - rect.height / 2;
+
+                const zoomRatio = zoomLevel / oldZoom;
+                translateX = cursorX + (translateX - cursorX) * zoomRatio;
+                translateY = cursorY + (translateY - cursorY) * zoomRatio;
+            }
+
+            updateImageTransform(true);
+            updateZoomClass();
+        }
+    });
+
+    img.addEventListener('mousedown', function(e) {
+        if (zoomLevel > 1) {
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+            e.preventDefault();
+        }
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (isDragging && zoomLevel > 1) {
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateImageTransform();
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        isDragging = false;
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (modal.style.display === 'block') {
+            if (e.key === 'Escape') {
+                closePhotoModal();
+            } else if (e.key === '+' || e.key === '=') {
+                zoomIn(e);
+            } else if (e.key === '-') {
+                zoomOut(e);
+            } else if (e.key === '0') {
+                resetZoom(e);
+            }
+        }
+    });
+});
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
