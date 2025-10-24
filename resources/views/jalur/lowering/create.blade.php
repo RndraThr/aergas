@@ -69,7 +69,7 @@
                                    id="line_number_suffix"
                                    name="line_number_suffix"
                                    value="{{ old('line_number_suffix') }}"
-                                   placeholder="001"
+                                   placeholder="001 atau 001A"
                                    maxlength="10"
                                    required
                                    oninput="updateLineNumberPreview()"
@@ -77,7 +77,7 @@
                             @error('line_number_suffix')
                                 <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                             @enderror
-                            <p class="text-xs text-gray-500 mt-1">Contoh: 001, 002, dst</p>
+                            <p class="text-xs text-gray-500 mt-1">Format: angka dan/atau huruf. Contoh: 001, 001A, 001AB, 002, dst</p>
                         </div>
                     </div>
 

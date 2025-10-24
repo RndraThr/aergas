@@ -128,6 +128,7 @@ class JalurLoweringController extends Controller
                 'line_number' => $completeLineNumber,
                 'cluster_id' => $validated['cluster_id'],
                 'diameter' => $validated['diameter'],
+                'nama_jalan' => null, // Will be filled later from line number edit
                 'estimasi_panjang' => 0,
                 'status_line' => 'draft',
                 'is_active' => true,
@@ -139,7 +140,8 @@ class JalurLoweringController extends Controller
         $validated['line_number_id'] = $lineNumber->id;
 
         // Get nama_jalan from line number (not from form anymore)
-        $validated['nama_jalan'] = $lineNumber->nama_jalan;
+        // If line number doesn't have nama_jalan yet, use null or empty string
+        $validated['nama_jalan'] = $lineNumber->nama_jalan ?? null;
 
         // Clean up fields that are not in lowering_data table
         unset($validated['diameter']);
