@@ -124,8 +124,12 @@ class JalurLoweringController extends Controller
             $lineNumber = $existingLineNumber;
         } else {
             // Create new line number
+            // Extract line_code from suffix (LN + suffix)
+            $lineCode = 'LN' . $validated['line_number_suffix'];
+
             $lineNumber = JalurLineNumber::create([
                 'line_number' => $completeLineNumber,
+                'line_code' => $lineCode,
                 'cluster_id' => $validated['cluster_id'],
                 'diameter' => $validated['diameter'],
                 'nama_jalan' => null, // Will be filled later from line number edit
