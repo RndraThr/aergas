@@ -79,7 +79,6 @@ class JalurLoweringController extends Controller
             'diameter' => 'required|in:63,90,180',
             'cluster_id' => 'required|exists:jalur_clusters,id',
             'line_number_suffix' => 'required|string|max:10|regex:/^[0-9A-Za-z]+$/',
-            'nama_jalan' => 'required|string|max:255',
             'tanggal_jalur' => 'required|date',
             'tipe_bongkaran' => 'required|in:Manual Boring,Open Cut,Crossing,Zinker,HDD,Manual Boring - PK,Crossing - PK',
             'tipe_material' => 'nullable|in:Aspal,Tanah,Paving,Beton',
@@ -138,6 +137,9 @@ class JalurLoweringController extends Controller
         }
 
         $validated['line_number_id'] = $lineNumber->id;
+
+        // Get nama_jalan from line number (not from form anymore)
+        $validated['nama_jalan'] = $lineNumber->nama_jalan;
 
         // Clean up fields that are not in lowering_data table
         unset($validated['diameter']);
@@ -282,9 +284,8 @@ class JalurLoweringController extends Controller
 
         // Determine upload method and create conditional validation rules
         $uploadMethod = $request->input('upload_method', 'file');
-        
+
         $validationRules = [
-            'nama_jalan' => 'required|string|max:255',
             'tanggal_jalur' => 'required|date',
             'tipe_bongkaran' => 'required|in:Manual Boring,Open Cut,Crossing,Zinker,HDD,Manual Boring - PK,Crossing - PK',
             'tipe_material' => 'nullable|in:Aspal,Tanah,Paving,Beton',

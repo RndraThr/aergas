@@ -103,37 +103,20 @@
                 </div>
 
                 <!-- Basic Info -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <label for="nama_jalan" class="block text-sm font-medium text-gray-700 mb-2">
-                            Nama Jalan <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" 
-                               id="nama_jalan" 
-                               name="nama_jalan" 
-                               value="{{ old('nama_jalan') }}"
-                               placeholder="Contoh: Jl. Karanggayam Raya"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('nama_jalan') border-red-500 @enderror"
-                               required>
-                        @error('nama_jalan')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label for="tanggal_jalur" class="block text-sm font-medium text-gray-700 mb-2">
-                            Tanggal Pemasangan <span class="text-red-500">*</span>
-                        </label>
-                        <input type="date" 
-                               id="tanggal_jalur" 
-                               name="tanggal_jalur" 
-                               value="{{ old('tanggal_jalur', date('Y-m-d')) }}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tanggal_jalur') border-red-500 @enderror"
-                               required>
-                        @error('tanggal_jalur')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
+                <div class="mb-6">
+                    <label for="tanggal_jalur" class="block text-sm font-medium text-gray-700 mb-2">
+                        Tanggal Pemasangan <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date"
+                           id="tanggal_jalur"
+                           name="tanggal_jalur"
+                           value="{{ old('tanggal_jalur', date('Y-m-d')) }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('tanggal_jalur') border-red-500 @enderror"
+                           required>
+                    @error('tanggal_jalur')
+                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                    <p class="text-xs text-gray-500 mt-1">Nama jalan akan diambil dari data Line Number</p>
                 </div>
 
                 <!-- Tipe Pekerjaan & Aksesoris -->
