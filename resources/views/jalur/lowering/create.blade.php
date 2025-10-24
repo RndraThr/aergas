@@ -93,6 +93,13 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Line Number Status Info -->
+                    <div id="line-number-status-container" class="hidden mt-3">
+                        <div id="line-number-status-message" class="p-3 rounded-md text-sm">
+                            <!-- Status message will be populated by JavaScript -->
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Basic Info -->
@@ -520,11 +527,14 @@
 </div>
 
 <script>
+let availabilityCheckTimeout = null;
+
 function updateLineNumberPreview() {
     const diameter = document.getElementById('diameter').value;
     const clusterSelect = document.getElementById('cluster_id');
     const selectedOption = clusterSelect.options[clusterSelect.selectedIndex];
     const clusterCode = selectedOption.dataset.code || '';
+    const clusterId = clusterSelect.value;
     const suffix = document.getElementById('line_number_suffix').value;
     const previewElement = document.getElementById('line_number_preview');
 
@@ -533,17 +543,184 @@ function updateLineNumberPreview() {
         previewElement.textContent = lineNumber;
         previewElement.classList.remove('text-gray-400');
         previewElement.classList.add('text-green-700');
+
+        // Check availability after a short delay (debounce)
+        clearTimeout(availabilityCheckTimeout);
+        availabilityCheckTimeout = setTimeout(() => {
+            checkLineNumberAvailability(lineNumber, clusterId);
+        }, 500);
     } else if (diameter && clusterCode) {
         const lineNumber = `${diameter}-${clusterCode}-LN___`;
         previewElement.textContent = lineNumber;
         previewElement.classList.remove('text-green-700');
         previewElement.classList.add('text-gray-400');
+        hideLineNumberStatus();
     } else {
         previewElement.textContent = '-';
         previewElement.classList.remove('text-green-700');
         previewElement.classList.add('text-gray-400');
+        hideLineNumberStatus();
     }
 }
+
+async function checkLineNumberAvailability(lineNumber, clusterId) {
+    const submitButton = document.querySelector('button[type="submit"]');
+    const statusContainer = document.getElementById('line-number-status-container');
+    const statusMessage = document.getElementById('line-number-status-message');
+
+    if (!statusContainer || !statusMessage) return;
+
+    // Show container and loading state
+    statusContainer.classList.remove('hidden');
+    statusMessage.className = 'p-3 rounded-md text-sm bg-gray-50 border border-gray-200 text-gray-700';
+    statusMessage.innerHTML = `
+        <div class="flex items-center">
+            <svg class="animate-spin h-4 w-4 mr-2 text-gray-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="font-medium">Memeriksa ketersediaan...</span>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`{{ route('jalur.lowering.api.check-line-availability') }}?line_number=${encodeURIComponent(lineNumber)}&cluster_id=${encodeURIComponent(clusterId)}`);
+
+        if (!response.ok) {
+            throw new Error('API request failed');
+        }
+
+        const data = await response.json();
+
+        // Update status message with appropriate styling and icon
+        if (data.status_class === 'success') {
+            statusMessage.className = 'p-3 rounded-lg text-sm bg-green-50 border-2 border-green-500 text-green-900 shadow-sm';
+            statusMessage.innerHTML = `
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="font-semibold">${data.status_message}</p>
+                    </div>
+                </div>
+            `;
+            // Enable submit
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        } else if (data.status_class === 'info') {
+            statusMessage.className = 'p-3 rounded-lg text-sm bg-blue-50 border-2 border-blue-500 text-blue-900 shadow-sm';
+            statusMessage.innerHTML = `
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="font-semibold">${data.status_message}</p>
+                    </div>
+                </div>
+            `;
+            // Enable submit (existing line in same cluster is OK)
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        } else if (data.status_class === 'error') {
+            statusMessage.className = 'p-3 rounded-lg text-sm bg-red-50 border-2 border-red-500 text-red-900 shadow-sm';
+            let message = `
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="font-semibold">${data.status_message}</p>
+            `;
+            if (data.existing_line) {
+                message += `
+                        <p class="mt-1 text-xs text-red-700">
+                            <span class="font-medium">Cluster:</span> ${data.existing_line.cluster_name} |
+                            <span class="font-medium">Created:</span> ${new Date(data.existing_line.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                `;
+            }
+            message += `
+                    </div>
+                </div>
+            `;
+            statusMessage.innerHTML = message;
+
+            // Disable submit for errors
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        } else if (data.status_class === 'warning') {
+            statusMessage.className = 'p-3 rounded-lg text-sm bg-yellow-50 border-2 border-yellow-500 text-yellow-900 shadow-sm';
+            statusMessage.innerHTML = `
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="font-semibold">${data.status_message}</p>
+                    </div>
+                </div>
+            `;
+            // Disable submit for warnings
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    } catch (error) {
+        console.error('Error checking line number availability:', error);
+        statusMessage.className = 'p-3 rounded-lg text-sm bg-red-50 border-2 border-red-400 text-red-900 shadow-sm';
+        statusMessage.innerHTML = `
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="font-semibold">Gagal memeriksa ketersediaan line number</p>
+                    <p class="mt-1 text-xs text-red-700">Silakan coba lagi atau lanjutkan submit (validasi tetap akan dilakukan di server)</p>
+                </div>
+            </div>
+        `;
+        // Enable submit on error (let backend validate)
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+}
+
+function hideLineNumberStatus() {
+    const statusContainer = document.getElementById('line-number-status-container');
+    const submitButton = document.querySelector('button[type="submit"]');
+
+    if (statusContainer) {
+        statusContainer.classList.add('hidden');
+    }
+
+    // Re-enable submit button when hiding status
+    if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+}
+
 
 function updateAksesoris() {
     const tipeBongkaran = document.getElementById('tipe_bongkaran').value;

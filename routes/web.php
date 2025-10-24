@@ -545,6 +545,8 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                     // API endpoints
                     Route::get('/api/line-numbers', [JalurLoweringController::class, 'getLineNumbers'])
                         ->name('api.line-numbers');
+                    Route::get('/api/check-line-availability', [JalurLoweringController::class, 'checkLineNumberAvailability'])
+                        ->name('api.check-line-availability');
                 });
 
             // Joint Data Management

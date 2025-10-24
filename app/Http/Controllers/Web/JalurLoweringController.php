@@ -109,26 +109,40 @@ class JalurLoweringController extends Controller
         $cluster = JalurCluster::findOrFail($validated['cluster_id']);
         $completeLineNumber = $validated['diameter'] . '-' . $cluster->code_cluster . '-LN' . $validated['line_number_suffix'];
 
-        // Find or create line number
-        $lineNumber = JalurLineNumber::firstOrCreate(
-            [
+        // Check if line number already exists across ALL clusters (should be globally unique)
+        $existingLineNumber = JalurLineNumber::where('line_number', $completeLineNumber)->first();
+
+        if ($existingLineNumber) {
+            // Line number exists
+            // Check if it belongs to different cluster
+            if ($existingLineNumber->cluster_id != $validated['cluster_id']) {
+                return back()
+                    ->withInput()
+                    ->with('error', "Line Number {$completeLineNumber} sudah digunakan di cluster {$existingLineNumber->cluster->nama_cluster}. Gunakan nomor lain.");
+            }
+
+            // Line number exists in same cluster - reuse it
+            $lineNumber = $existingLineNumber;
+        } else {
+            // Create new line number
+            $lineNumber = JalurLineNumber::create([
                 'line_number' => $completeLineNumber,
                 'cluster_id' => $validated['cluster_id'],
-            ],
-            [
                 'diameter' => $validated['diameter'],
                 'estimasi_panjang' => 0,
                 'status_line' => 'draft',
                 'is_active' => true,
                 'created_by' => Auth::id(),
                 'updated_by' => Auth::id(),
-            ]
-        );
+            ]);
+        }
+
         $validated['line_number_id'] = $lineNumber->id;
 
         // Clean up fields that are not in lowering_data table
         unset($validated['diameter']);
         unset($validated['line_number_suffix']);
+        unset($validated['cluster_id']); // cluster_id is not in jalur_lowering_data table
 
         // Auto-fill bongkaran dengan nilai penggelaran
         $validated['bongkaran'] = $validated['penggelaran'];
@@ -715,17 +729,66 @@ class JalurLoweringController extends Controller
     {
         // Gunakan ensureNestedFolders untuk membuat struktur folder secara otomatis
         $folderId = $googleDriveService->ensureNestedFolders($customPath);
-        
+
         // Upload file ke folder terakhir
         $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
         $fullFileName = $fileName . '.' . $ext;
-        
+
         $uploadResult = $googleDriveService->uploadFile($file, $folderId, $fullFileName);
-        
+
         return [
             'path' => $customPath . '/' . $fullFileName,
             'drive_file_id' => $uploadResult['id'] ?? null,
             'url' => $uploadResult['webViewLink'] ?? $uploadResult['webContentLink'] ?? null
         ];
+    }
+
+    /**
+     * Check line number availability (for real-time validation)
+     */
+    public function checkLineNumberAvailability(Request $request)
+    {
+        $lineNumber = $request->get('line_number');
+        $clusterId = $request->get('cluster_id');
+
+        if (empty($lineNumber)) {
+            return response()->json([
+                'error' => 'Line number is required'
+            ], 400);
+        }
+
+        // Check if line number already exists
+        $existingLineNumber = JalurLineNumber::where('line_number', $lineNumber)->first();
+
+        $isAvailable = true;
+        $statusMessage = 'Line number tersedia dan dapat digunakan';
+        $statusClass = 'success';
+
+        if ($existingLineNumber) {
+            if ($clusterId && $existingLineNumber->cluster_id != $clusterId) {
+                // Line number exists in different cluster
+                $isAvailable = false;
+                $statusMessage = "Line Number {$lineNumber} sudah digunakan di cluster {$existingLineNumber->cluster->nama_cluster}. Gunakan nomor lain.";
+                $statusClass = 'error';
+            } else {
+                // Line number exists in same cluster - can be reused
+                $isAvailable = true;
+                $statusMessage = "Line Number {$lineNumber} sudah ada di cluster ini dan akan digunakan.";
+                $statusClass = 'info';
+            }
+        }
+
+        return response()->json([
+            'is_available' => $isAvailable,
+            'line_number' => $lineNumber,
+            'status_message' => $statusMessage,
+            'status_class' => $statusClass,
+            'existing_line' => $existingLineNumber ? [
+                'id' => $existingLineNumber->id,
+                'line_number' => $existingLineNumber->line_number,
+                'cluster_name' => $existingLineNumber->cluster->nama_cluster ?? null,
+                'created_at' => $existingLineNumber->created_at->format('Y-m-d H:i:s'),
+            ] : null,
+        ]);
     }
 }

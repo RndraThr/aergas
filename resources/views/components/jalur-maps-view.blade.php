@@ -265,71 +265,120 @@ if (typeof window.jalurMapsData === 'undefined') {
             </div>
         </div>
 
-        <!-- Map Legend -->
-        <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Legend</div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <!-- Line by Diameter -->
-                <div class="space-y-2">
-                    <div class="text-xs font-medium text-gray-700 mb-2">Diameter (Auto Color)</div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-1 bg-green-500 rounded"></div>
-                        <span class="text-xs text-gray-600">Ø63mm</span>
+        <!-- Map Legend (Simple & Clean) -->
+        <div class="mt-4 bg-white rounded-lg shadow-sm border border-gray-200">
+            <!-- Legend Header -->
+            <div class="px-4 py-3 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-gray-800">Legend</h3>
+                    <span class="text-xs text-gray-500" x-show="legendLines.length > 0">
+                        <span class="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                        <span x-text="stats.lines + ' Lines'"></span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Diameter Guide - Always visible with all pipe types -->
+            <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <div class="text-xs font-medium text-gray-600 mb-2">Tipe Pipa</div>
+                <div class="grid grid-cols-3 gap-2">
+                    <!-- Pipa 63mm -->
+                    <div class="flex items-center space-x-2 px-2 py-1.5 bg-white rounded border border-gray-200">
+                        <div class="w-6 h-1 rounded" style="background-color: #10B981"></div>
+                        <span class="text-xs font-medium text-gray-700">Ø63mm</span>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-1.5 bg-blue-500 rounded"></div>
-                        <span class="text-xs text-gray-600">Ø90mm</span>
+
+                    <!-- Pipa 90mm -->
+                    <div class="flex items-center space-x-2 px-2 py-1.5 bg-white rounded border border-gray-200">
+                        <div class="w-6 h-1.5 rounded" style="background-color: #3B82F6"></div>
+                        <span class="text-xs font-medium text-gray-700">Ø90mm</span>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-2 bg-red-500 rounded"></div>
-                        <span class="text-xs text-gray-600">Ø180mm</span>
+
+                    <!-- Pipa 180mm -->
+                    <div class="flex items-center space-x-2 px-2 py-1.5 bg-white rounded border border-gray-200">
+                        <div class="w-6 h-2 rounded" style="background-color: #EF4444"></div>
+                        <span class="text-xs font-medium text-gray-700">Ø180mm</span>
                     </div>
                 </div>
 
-                <!-- Line Status -->
-                <div class="space-y-2">
-                    <div class="text-xs font-medium text-gray-700 mb-2">Status</div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-1 border-2 border-green-500 rounded"></div>
-                        <span class="text-xs text-gray-600">Completed</span>
+                <!-- Info for each diameter -->
+                <div class="mt-3 grid grid-cols-3 gap-2">
+                    <!-- Count for 63mm -->
+                    <div class="text-center px-2 py-1 bg-green-50 rounded">
+                        <div class="text-xs text-green-600 font-medium" x-text="legendLines.filter(l => l.diameter == '63').length + ' lines'">0 lines</div>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-1 border-2 border-blue-500 border-dashed rounded"></div>
-                        <span class="text-xs text-gray-600">In Progress</span>
+
+                    <!-- Count for 90mm -->
+                    <div class="text-center px-2 py-1 bg-blue-50 rounded">
+                        <div class="text-xs text-blue-600 font-medium" x-text="legendLines.filter(l => l.diameter == '90').length + ' lines'">0 lines</div>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-1 border-2 border-gray-400 rounded"></div>
-                        <span class="text-xs text-gray-600">Draft</span>
+
+                    <!-- Count for 180mm -->
+                    <div class="text-center px-2 py-1 bg-red-50 rounded">
+                        <div class="text-xs text-red-600 font-medium" x-text="legendLines.filter(l => l.diameter == '180').length + ' lines'">0 lines</div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Feature Types -->
-                <div class="space-y-2">
-                    <div class="text-xs font-medium text-gray-700 mb-2">Features</div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-4 h-4 bg-purple-100 border-2 border-purple-500 rounded"></div>
-                        <span class="text-xs text-gray-600">Cluster Area</span>
+            <!-- All Lines List (Simple) -->
+            <div class="px-4 py-3">
+                <div class="text-xs font-medium text-gray-600 mb-2">Jalur Lines</div>
+
+                <template x-if="legendLines.length === 0">
+                    <div class="text-center py-6 text-gray-400">
+                        <i class="fas fa-route text-2xl mb-2"></i>
+                        <p class="text-xs">Belum ada jalur</p>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-4 h-4 bg-orange-100 border-2 border-orange-500 rounded-full"></div>
-                        <span class="text-xs text-gray-600">Special Point</span>
-                    </div>
+                </template>
+
+                <div class="space-y-1.5 max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <template x-for="line in legendLines" :key="line.id">
+                        <div class="flex items-center justify-between px-2 py-2 rounded hover:bg-gray-50 transition-colors">
+                            <div class="flex items-center space-x-2 flex-1 min-w-0">
+                                <!-- Color bar -->
+                                <div class="w-1 h-8 rounded-full flex-shrink-0"
+                                     :style="`background-color: ${line.color}`"></div>
+
+                                <!-- Line info -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="text-xs font-bold text-gray-900" x-text="line.line_number"></span>
+                                        <span class="px-1.5 py-0.5 text-[9px] font-medium rounded"
+                                              :style="`background-color: ${line.color}15; color: ${line.color}`"
+                                              x-text="'Ø' + line.diameter + 'mm'"></span>
+                                    </div>
+                                    <div class="text-[10px] text-gray-500 truncate" x-text="line.cluster_name"></div>
+
+                                    <!-- Simple progress -->
+                                    <div class="flex items-center space-x-1 mt-1" x-show="line.estimasi_panjang > 0">
+                                        <div class="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                            <div class="h-full rounded-full"
+                                                 :style="`width: ${Math.min(line.progress, 100)}%; background-color: ${line.color}`"></div>
+                                        </div>
+                                        <span class="text-[9px] text-gray-600 font-medium" x-text="line.progress + '%'"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
+            </div>
 
-                <!-- Stats -->
-                <div class="space-y-2">
-                    <div class="text-xs font-medium text-gray-700 mb-2">Total Features</div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-600">Lines:</span>
-                        <span class="text-sm font-semibold text-blue-600" x-text="stats.lines">0</span>
+            <!-- Summary Stats (Simple) -->
+            <div class="px-4 py-3 border-t border-gray-200 bg-gray-50" x-show="legendLines.length > 0">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                        <div class="text-[10px] text-gray-500">Total MC-0</div>
+                        <div class="text-sm font-bold text-gray-700" x-text="legendLines.reduce((sum, l) => sum + (parseFloat(l.estimasi_panjang) || 0), 0).toFixed(1) + 'm'">0m</div>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-600">Polygons:</span>
-                        <span class="text-sm font-semibold text-purple-600" x-text="stats.polygons">0</span>
+                    <div>
+                        <div class="text-[10px] text-gray-500">Terpasang</div>
+                        <div class="text-sm font-bold text-green-600" x-text="legendLines.reduce((sum, l) => sum + (parseFloat(l.total_penggelaran) || 0), 0).toFixed(1) + 'm'">0m</div>
                     </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-600">Points:</span>
-                        <span class="text-sm font-semibold text-orange-600" x-text="stats.circles">0</span>
+                    <div>
+                        <div class="text-[10px] text-gray-500">Progress</div>
+                        <div class="text-sm font-bold text-blue-600"
+                             x-text="legendLines.length > 0 ? (legendLines.reduce((sum, l) => sum + (parseFloat(l.progress) || 0), 0) / legendLines.length).toFixed(1) + '%' : '0%'">0%</div>
                     </div>
                 </div>
             </div>
@@ -361,6 +410,10 @@ window.jalurMapsData = function() {
             polygons: 0,
             circles: 0
         },
+        // Dynamic legend data
+        uniqueDiameters: [],
+        uniqueStatuses: [],
+        legendLines: [], // All lines with actual colors and info
         // Line Number & Cluster selection for drawing
         availableLineNumbers: [],
         availableClusters: [],
@@ -1623,6 +1676,79 @@ window.jalurMapsData = function() {
             this.stats.lines = this.features.filter(f => f.properties.feature_type === 'line').length;
             this.stats.polygons = this.features.filter(f => f.properties.feature_type === 'polygon').length;
             this.stats.circles = this.features.filter(f => f.properties.feature_type === 'circle').length;
+
+            // Update dynamic legend data
+            this.updateDynamicLegend();
+        },
+
+        updateDynamicLegend() {
+            // Extract unique diameters from line features
+            const diameters = new Set();
+            const statuses = new Set();
+            const lines = [];
+
+            this.features.forEach(feature => {
+                if (feature.properties.feature_type === 'line') {
+                    const metadata = feature.properties.metadata || {};
+                    const style = feature.properties.style_properties || {};
+
+                    // Collect diameters
+                    if (metadata.diameter) {
+                        diameters.add(parseInt(metadata.diameter));
+                    }
+
+                    // Collect statuses
+                    if (metadata.status) {
+                        statuses.add(metadata.status);
+                    }
+
+                    // Calculate progress
+                    const estimasi = parseFloat(metadata.estimasi_panjang) || 0;
+                    const actual = parseFloat(metadata.total_penggelaran) || 0;
+                    const progress = estimasi > 0 ? ((actual / estimasi) * 100) : 0;
+
+                    // Collect line info with ACTUAL color from map
+                    lines.push({
+                        id: feature.id,
+                        name: feature.properties.name || 'Unnamed Line',
+                        line_number: metadata.line_number || '-',
+                        diameter: metadata.diameter || '-',
+                        color: style.color || '#6B7280', // ACTUAL color from style
+                        weight: style.weight || 4,
+                        cluster_name: metadata.cluster_name || '-',
+                        status: metadata.status || 'draft',
+                        estimasi_panjang: estimasi,
+                        total_penggelaran: actual,
+                        progress: progress.toFixed(1)
+                    });
+                }
+            });
+
+            // Sort diameters in ascending order
+            this.uniqueDiameters = Array.from(diameters).sort((a, b) => a - b).map(d => {
+                return {
+                    diameter: d,
+                    color: this.getDiameterColor(d.toString()),
+                    weight: this.getStyleByDiameter(d).weight
+                };
+            });
+
+            // Convert statuses to array with badge info
+            this.uniqueStatuses = Array.from(statuses).map(s => {
+                return {
+                    status: s,
+                    badge: this.getStatusBadge(s)
+                };
+            });
+
+            // Sort lines by diameter then line number
+            this.legendLines = lines.sort((a, b) => {
+                // First by diameter
+                const diameterDiff = (parseInt(a.diameter) || 0) - (parseInt(b.diameter) || 0);
+                if (diameterDiff !== 0) return diameterDiff;
+                // Then by line number
+                return (a.line_number || '').localeCompare(b.line_number || '');
+            });
         },
 
         fitMapToBounds() {
@@ -1667,6 +1793,25 @@ window.jalurMapsData = function() {
 
 .jalur-popup-content {
     @apply min-w-[200px];
+}
+
+/* Custom Scrollbar for Legend */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 /*
