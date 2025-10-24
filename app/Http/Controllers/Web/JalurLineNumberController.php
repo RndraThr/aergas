@@ -121,6 +121,7 @@ class JalurLineNumberController extends Controller
     public function update(Request $request, JalurLineNumber $lineNumber)
     {
         $validated = $request->validate([
+            'nama_jalan' => 'nullable|string|max:255',
             'estimasi_panjang' => 'required|numeric|min:0.01',
             'actual_mc100' => 'nullable|numeric|min:0',
             'keterangan' => 'nullable|string|max:1000',
@@ -131,6 +132,9 @@ class JalurLineNumberController extends Controller
 
         $lineNumber->update($validated);
         $lineNumber->updateStatus();
+
+        // Sync metadata to related map features
+        $lineNumber->syncMapFeatureMetadata();
 
         return redirect()
             ->route('jalur.line-numbers.show', $lineNumber)

@@ -135,12 +135,32 @@ class MapGeometricFeature extends Model
                 'line_number_id' => $this->line_number_id,
                 'cluster_id' => $this->cluster_id,
                 'style' => $this->style_properties,
+                'style_properties' => $this->style_properties,
                 'metadata' => $this->metadata,
                 'is_visible' => $this->is_visible,
-                'display_order' => $this->display_order
+                'display_order' => $this->display_order,
+                'created_at' => $this->created_at,
+                'updated_at' => $this->updated_at
             ],
             'geometry' => $this->geometry
         ];
+    }
+
+    /**
+     * Update metadata with fresh data (e.g., from line number changes)
+     * Merges new metadata while preserving existing custom fields
+     */
+    public function updateMetadata(array $newMetadata): void
+    {
+        $currentMetadata = $this->metadata ?? [];
+
+        // Merge new metadata with existing, new data takes precedence
+        $mergedMetadata = array_merge($currentMetadata, $newMetadata);
+
+        // Update without triggering updated_by (internal sync)
+        $this->timestamps = false;
+        $this->update(['metadata' => $mergedMetadata]);
+        $this->timestamps = true;
     }
 
     // Boot method to handle auto-naming

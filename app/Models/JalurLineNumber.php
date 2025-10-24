@@ -50,6 +50,11 @@ class JalurLineNumber extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    public function mapFeatures(): HasMany
+    {
+        return $this->hasMany(\App\Models\MapGeometricFeature::class, 'line_number_id');
+    }
+
     // Scopes
     public function scopeActive($query)
     {
@@ -241,5 +246,38 @@ class JalurLineNumber extends Model
                 '-',
             'status' => $this->status_label
         ];
+    }
+
+    /**
+     * Sync this line number's metadata to all related map features
+     * Called when line number data is updated
+     */
+    public function syncMapFeatureMetadata(): void
+    {
+        $mapFeatures = $this->mapFeatures()->get();
+
+        if ($mapFeatures->isEmpty()) {
+            return;
+        }
+
+        // Prepare fresh metadata from this line number
+        $freshMetadata = [
+            'line_number' => $this->line_number,
+            'nama_jalan' => $this->nama_jalan,
+            'diameter' => $this->diameter,
+            'cluster_name' => $this->cluster?->nama_cluster,
+            'cluster_code' => $this->cluster?->code_cluster,
+            'line_code' => $this->line_code,
+            'estimasi_panjang' => $this->estimasi_panjang,
+            'total_penggelaran' => $this->total_penggelaran,
+            'actual_mc100' => $this->actual_mc100,
+            'status' => $this->status_line,
+            'keterangan' => $this->keterangan
+        ];
+
+        // Update metadata for all related map features
+        foreach ($mapFeatures as $feature) {
+            $feature->updateMetadata($freshMetadata);
+        }
     }
 }
