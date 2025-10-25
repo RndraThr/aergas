@@ -113,7 +113,7 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div>
                                     <div class="text-sm font-medium text-gray-900">{{ $lowering->lineNumber->line_number }}</div>
-                                    <div class="text-sm text-gray-500">{{ $lowering->nama_jalan }}</div>
+                                    <div class="text-sm text-gray-500">{{ $lowering->lineNumber->nama_jalan ?? '-' }}</div>
                                     <div class="text-xs text-gray-400">{{ $lowering->lineNumber->cluster->nama_cluster }}</div>
                                 </div>
                             </td>

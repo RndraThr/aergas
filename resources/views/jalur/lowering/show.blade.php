@@ -80,7 +80,13 @@
       <div>
         <div class="text-xs text-gray-500 uppercase tracking-wider">Tipe Bongkaran</div>
         <div class="font-semibold text-gray-900 mt-1">{{ $lowering->tipe_bongkaran }}</div>
-        <div class="text-sm text-gray-600">{{ $lowering->nama_jalan }}</div>
+        <div class="text-sm text-gray-600">
+          @if($lowering->tipe_material)
+            Material: {{ $lowering->tipe_material }}
+          @else
+            {{ $lowering->nama_jalan ?? '-' }}
+          @endif
+        </div>
       </div>
       <div>
         <div class="text-xs text-gray-500 uppercase tracking-wider">Diameter Pipa</div>
@@ -122,7 +128,7 @@
   </div>
 
   <!-- Aksesoris (if applicable) -->
-  @if($lowering->tipe_bongkaran === 'Open Cut' && ($lowering->aksesoris_marker_tape || $lowering->aksesoris_concrete_slab))
+  @if($lowering->tipe_bongkaran === 'Open Cut' && ($lowering->aksesoris_marker_tape || $lowering->aksesoris_concrete_slab || $lowering->aksesoris_cassing_open_cut))
   <div class="bg-white rounded-xl card-shadow p-6">
     <div class="flex items-center gap-3 mb-4">
       <i class="fas fa-tools text-orange-600"></i>
@@ -147,6 +153,20 @@
         </div>
       </div>
       @endif
+      @if($lowering->aksesoris_cassing_open_cut && $lowering->cassing_quantity)
+      <div class="flex items-center p-4 bg-green-50 rounded-lg">
+        <i class="fas fa-grip-lines-vertical text-green-600 text-xl mr-3"></i>
+        <div>
+          <div class="font-semibold text-gray-900">Cassing</div>
+          <div class="text-sm text-gray-600">
+            {{ number_format($lowering->cassing_quantity, 1) }} meter
+            @if($lowering->cassing_type)
+              - {{ str_replace('_', ' ', ucfirst($lowering->cassing_type)) }}
+            @endif
+          </div>
+        </div>
+      </div>
+      @endif
     </div>
   </div>
   @elseif(in_array($lowering->tipe_bongkaran, ['Crossing', 'Zinker']) && $lowering->aksesoris_cassing)
@@ -156,10 +176,15 @@
       <h2 class="font-semibold text-gray-800">Aksesoris {{ $lowering->tipe_bongkaran }}</h2>
     </div>
     <div class="flex items-center p-4 bg-green-50 rounded-lg">
-      <i class="fas fa-check-circle text-green-600 text-xl mr-3"></i>
-      <div>
+      <i class="fas fa-grip-lines-vertical text-green-600 text-xl mr-3"></i>
+      <div class="flex-1">
         <div class="font-semibold text-gray-900">Cassing</div>
-        <div class="text-sm text-gray-600">Terpasang</div>
+        <div class="text-sm text-gray-600">
+          {{ number_format($lowering->cassing_quantity, 1) }} meter
+          @if($lowering->cassing_type)
+            - Diameter {{ str_replace('_', ' ', ucfirst($lowering->cassing_type)) }}
+          @endif
+        </div>
       </div>
     </div>
   </div>

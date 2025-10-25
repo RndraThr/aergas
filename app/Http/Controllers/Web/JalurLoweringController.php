@@ -72,6 +72,15 @@ class JalurLoweringController extends Controller
 
     public function store(Request $request)
     {
+        // DEBUG: Log all incoming request data
+        Log::info('=== LOWERING STORE REQUEST DEBUG ===');
+        Log::info('Tipe Bongkaran: ' . $request->input('tipe_bongkaran'));
+        Log::info('aksesoris_cassing: ' . ($request->has('aksesoris_cassing') ? 'YES - Value: ' . $request->input('aksesoris_cassing') : 'NO'));
+        Log::info('aksesoris_cassing_open_cut: ' . ($request->has('aksesoris_cassing_open_cut') ? 'YES - Value: ' . $request->input('aksesoris_cassing_open_cut') : 'NO'));
+        Log::info('cassing_quantity: ' . ($request->has('cassing_quantity') ? $request->input('cassing_quantity') : 'NOT SENT'));
+        Log::info('cassing_type: ' . ($request->has('cassing_type') ? $request->input('cassing_type') : 'NOT SENT'));
+        Log::info('All request data: ' . json_encode($request->all()));
+
         // Determine upload method
         $uploadMethod = $request->input('upload_method', 'file');
 
@@ -86,12 +95,13 @@ class JalurLoweringController extends Controller
             'bongkaran' => 'required|numeric|min:0.01',
             'kedalaman_lowering' => 'required|numeric|min:1',
             'aksesoris_cassing' => 'boolean',
+            'aksesoris_cassing_open_cut' => 'boolean',
             'aksesoris_marker_tape' => 'boolean',
             'aksesoris_concrete_slab' => 'boolean',
             'marker_tape_quantity' => 'required_if:aksesoris_marker_tape,1|nullable|numeric|min:0.1',
             'concrete_slab_quantity' => 'required_if:aksesoris_concrete_slab,1|nullable|integer|min:1',
-            'cassing_quantity' => 'required_if:aksesoris_cassing,1|nullable|numeric|min:0.1',
-            'cassing_type' => 'required_if:aksesoris_cassing,1|nullable|in:4_inch,8_inch',
+            'cassing_quantity' => 'required_if:aksesoris_cassing,1|required_if:aksesoris_cassing_open_cut,1|nullable|numeric|min:0.1',
+            'cassing_type' => 'required_if:aksesoris_cassing,1|required_if:aksesoris_cassing_open_cut,1|nullable|in:4_inch,8_inch',
             'keterangan' => 'nullable|string|max:1000',
         ];
 
@@ -100,6 +110,17 @@ class JalurLoweringController extends Controller
             $validationRules['foto_evidence_penggelaran_bongkaran'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
         } else {
             $validationRules['foto_evidence_penggelaran_bongkaran_link'] = 'required|url';
+        }
+
+        // Add conditional validation for cassing photo (if any cassing checkbox is checked)
+        if ($request->has('aksesoris_cassing') || $request->has('aksesoris_cassing_open_cut')) {
+            $uploadMethodCassing = $request->input('upload_method_cassing', 'file');
+
+            if ($uploadMethodCassing === 'file') {
+                $validationRules['foto_evidence_cassing'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
+            } else {
+                $validationRules['foto_evidence_cassing_link'] = 'required|url';
+            }
         }
 
         $validated = $request->validate($validationRules);
@@ -186,7 +207,7 @@ class JalurLoweringController extends Controller
                         $photoFields[] = 'foto_evidence_cassing';
                     }
                 } elseif (in_array($validated['tipe_bongkaran'], ['Crossing', 'Zinker'])) {
-                    if ($request->has('aksesoris_cassing') && $request->hasFile('foto_evidence_cassing')) {
+                    if (($request->has('aksesoris_cassing') || $request->has('aksesoris_cassing_open_cut')) && $request->hasFile('foto_evidence_cassing')) {
                         $photoFields[] = 'foto_evidence_cassing';
                     }
                 }
@@ -195,22 +216,22 @@ class JalurLoweringController extends Controller
             } else {
                 // Handle Google Drive link for main photo
                 $driveLink = $request->input('foto_evidence_penggelaran_bongkaran_link');
-                
+
                 try {
                     $googleDriveService = app(GoogleDriveService::class);
-                    
+
                     // Use same path structure as direct upload
                     $lineNumber = $lowering->lineNumber->line_number;
                     $clusterName = $lowering->lineNumber->cluster->nama_cluster;
                     $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
                     $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
-                    
+
                     $result = $googleDriveService->copyFromDriveLink(
-                        $driveLink, 
+                        $driveLink,
                         $customDrivePath,
                         'foto_evidence_penggelaran_bongkaran_' . time()
                     );
-                    
+
                     // Create photo approval record directly for jalur lowering
                     PhotoApproval::create([
                         'reff_id_pelanggan' => null, // Jalur doesn't have pelanggan
@@ -222,13 +243,13 @@ class JalurLoweringController extends Controller
                         'uploaded_by' => Auth::id(),
                         'uploaded_at' => now(),
                     ]);
-                    
+
                     Log::info('Google Drive photo copied successfully', [
                         'lowering_id' => $lowering->id,
                         'drive_link' => $driveLink,
                         'result' => $result
                     ]);
-                    
+
                 } catch (\Exception $e) {
                     Log::error('Failed to copy photo from Google Drive link', [
                         'lowering_id' => $lowering->id,
@@ -236,6 +257,51 @@ class JalurLoweringController extends Controller
                         'error' => $e->getMessage()
                     ]);
                     throw new \Exception('Gagal mengunduh foto dari Google Drive: ' . $e->getMessage());
+                }
+            }
+
+            // Handle cassing photo from Google Drive link (if provided)
+            if ($request->filled('foto_evidence_cassing_link') && ($request->has('aksesoris_cassing') || $request->has('aksesoris_cassing_open_cut'))) {
+                $cassingDriveLink = $request->input('foto_evidence_cassing_link');
+
+                try {
+                    $googleDriveService = app(GoogleDriveService::class);
+
+                    $lineNumber = $lowering->lineNumber->line_number;
+                    $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+                    $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
+                    $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
+
+                    $result = $googleDriveService->copyFromDriveLink(
+                        $cassingDriveLink,
+                        $customDrivePath,
+                        'foto_evidence_cassing_' . time()
+                    );
+
+                    PhotoApproval::create([
+                        'reff_id_pelanggan' => null,
+                        'module_name' => 'jalur_lowering',
+                        'module_record_id' => $lowering->id,
+                        'photo_field_name' => 'foto_evidence_cassing',
+                        'photo_url' => $result['url'],
+                        'photo_status' => 'tracer_pending',
+                        'uploaded_by' => Auth::id(),
+                        'uploaded_at' => now(),
+                    ]);
+
+                    Log::info('Google Drive cassing photo copied successfully', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $cassingDriveLink,
+                        'result' => $result
+                    ]);
+
+                } catch (\Exception $e) {
+                    Log::error('Failed to copy cassing photo from Google Drive link', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $cassingDriveLink,
+                        'error' => $e->getMessage()
+                    ]);
+                    // Don't throw, just log - cassing photo is optional
                 }
             }
 
