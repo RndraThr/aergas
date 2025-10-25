@@ -368,8 +368,8 @@
                             <i class="fas fa-users w-5 mr-3 text-sm"></i>
                             Calon Pelanggan (SK, SR, Gas In)
                         </a>
-                        <a href="{{ route('approvals.tracer.jalur-photos') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.tracer.jalur-photos') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <a href="{{ route('approvals.tracer.jalur.clusters') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.tracer.jalur.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                             <i class="fas fa-road w-5 mr-3 text-sm"></i>
                             Jalur (Lowering, Joint)
                         </a>
@@ -410,8 +410,8 @@
                             <i class="fas fa-users w-5 mr-3 text-sm"></i>
                             Calon Pelanggan (SK, SR, Gas In)
                         </a>
-                        <a href="{{ route('approvals.cgp.jalur-photos') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.cgp.jalur-photos') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                        <a href="{{ route('approvals.cgp.jalur.clusters') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.cgp.jalur.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                             <i class="fas fa-road w-5 mr-3 text-sm"></i>
                             Jalur (Lowering, Joint)
                         </a>
@@ -427,13 +427,13 @@
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">APPROVAL</span>
                 </div>
 
-                <a href="{{ route('approvals.cgp.jalur-photos') }}"
-                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.jalur-photos') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                    <i class="fas fa-clipboard-check w-5 mr-3 text-lg {{ request()->routeIs('approvals.cgp.jalur-photos') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                <a href="{{ route('approvals.cgp.jalur.clusters') }}"
+                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('approvals.cgp.jalur.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                    <i class="fas fa-clipboard-check w-5 mr-3 text-lg {{ request()->routeIs('approvals.cgp.jalur.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                     <span class="flex-1 text-left">CGP Review - Jalur</span>
                     @php
                         $pendingJalurCgp = \App\Models\PhotoApproval::where('photo_status', 'cgp_pending')
-                            ->whereIn('module_name', ['lowering', 'joint'])
+                            ->whereIn('module_name', ['jalur_lowering', 'jalur_joint'])
                             ->count();
                     @endphp
                     @if($pendingJalurCgp > 0)

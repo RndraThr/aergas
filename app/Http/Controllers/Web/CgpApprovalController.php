@@ -278,7 +278,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
     }
 
     /**
-     * Revert CGP approval - undo approval
+     * Revert CGP approval - undo approval and revert folder organization
      */
     public function revertApproval(Request $request)
     {
@@ -288,6 +288,12 @@ class CgpApprovalController extends Controller implements HasMiddleware
         ]);
 
         try {
+            DB::beginTransaction();
+
+            // Get photo first
+            $photo = PhotoApproval::findOrFail($request->get('photo_id'));
+
+            // Revert approval status
             $result = $this->photoApprovalService->revertCgpApproval(
                 $request->get('photo_id'),
                 Auth::id(),
@@ -295,11 +301,40 @@ class CgpApprovalController extends Controller implements HasMiddleware
             );
 
             if (!$result['success']) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => $result['message']
                 ], 422);
             }
+
+            // Revert folder organization if photo was organized
+            if ($photo->organized_at) {
+                try {
+                    if (in_array($photo->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                        // Revert jalur photo organization
+                        $revertResult = $this->folderOrganizationService->revertJalurPhotoOrganization($photo->fresh());
+                    } else {
+                        // Revert SK/SR/Gas In photo organization
+                        $revertResult = $this->folderOrganizationService->revertPhotoOrganization($photo->fresh());
+                    }
+
+                    if ($revertResult['success']) {
+                        Log::info('Photo organization reverted after CGP approval revert', [
+                            'photo_id' => $photo->id,
+                            'module' => $photo->module_name,
+                            'revert_result' => $revertResult
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    Log::warning('Failed to revert photo organization, but approval was reverted', [
+                        'photo_id' => $photo->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -308,6 +343,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
             ]);
 
         } catch (Exception $e) {
+            DB::rollBack();
             Log::error('CGP revert approval error: ' . $e->getMessage());
 
             return response()->json([
@@ -368,6 +404,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
                 // Organize photo into dedicated folder after individual approval
                 if (!in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                    // SK, SR, Gas In organization
                     try {
                         $organizationResult = $this->folderOrganizationService->organizePhotosAfterCgpApproval(
                             $photoApproval->reff_id_pelanggan,
@@ -378,6 +415,37 @@ class CgpApprovalController extends Controller implements HasMiddleware
                         Log::warning('Individual photo organization failed but approval succeeded', [
                             'photo_id' => $photoApproval->id,
                             'reff_id' => $photoApproval->reff_id_pelanggan,
+                            'module' => $photoApproval->module_name,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                } else {
+                    // Jalur organization - organize by line/date
+                    try {
+                        if ($photoApproval->module_name === 'jalur_lowering') {
+                            $moduleData = \App\Models\JalurLoweringData::with('lineNumber')->find($photoApproval->module_record_id);
+                            if ($moduleData) {
+                                $organizationResult = $this->folderOrganizationService->organizeJalurPhotosAfterCgpApproval(
+                                    $moduleData->line_number_id,
+                                    $moduleData->tanggal_jalur->format('Y-m-d'),
+                                    'jalur_lowering'
+                                );
+                                Log::info('Jalur lowering photo organization completed', $organizationResult);
+                            }
+                        } else {
+                            $moduleData = \App\Models\JalurJointData::with('lineNumber')->find($photoApproval->module_record_id);
+                            if ($moduleData) {
+                                $organizationResult = $this->folderOrganizationService->organizeJalurPhotosAfterCgpApproval(
+                                    $moduleData->lineNumber->id,
+                                    $moduleData->tanggal_joint->format('Y-m-d'),
+                                    'jalur_joint'
+                                );
+                                Log::info('Jalur joint photo organization completed', $organizationResult);
+                            }
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('Jalur photo organization failed but approval succeeded', [
+                            'photo_id' => $photoApproval->id,
                             'module' => $photoApproval->module_name,
                             'error' => $e->getMessage()
                         ]);
