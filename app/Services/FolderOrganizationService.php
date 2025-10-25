@@ -384,6 +384,243 @@ class FolderOrganizationService
     }
 
     /**
+     * Organize jalur photos into dedicated folders after CGP approval
+     * Structure: aergas_approved_jalur/{CLUSTER}/{LINE_NUMBER}/{DATE}/{LOWERING|JOINT}/
+     */
+    public function organizeJalurPhotosAfterCgpApproval(int $lineId, string $date, string $moduleType): array
+    {
+        try {
+            Log::info("Starting jalur photo organization for CGP approved module", [
+                'line_id' => $lineId,
+                'date' => $date,
+                'module_type' => $moduleType
+            ]);
+
+            // Get line number info
+            $lineNumber = \App\Models\JalurLineNumber::with('cluster')->find($lineId);
+            if (!$lineNumber) {
+                throw new Exception("Line number not found: {$lineId}");
+            }
+
+            // Get all CGP approved photos for this line on this date
+            $photos = PhotoApproval::where('module_name', $moduleType)
+                ->where('module_record_id', function($query) use ($lineId, $date, $moduleType) {
+                    if ($moduleType === 'jalur_lowering') {
+                        $query->select('id')
+                            ->from('jalur_lowering_data')
+                            ->where('line_number_id', $lineId)
+                            ->whereDate('tanggal_jalur', $date);
+                    } else {
+                        $query->select('id')
+                            ->from('jalur_joint_data')
+                            ->whereHas('lineNumber', function($q) use ($lineId) {
+                                $q->where('id', $lineId);
+                            })
+                            ->whereDate('tanggal_joint', $date);
+                    }
+                })
+                ->where('photo_status', 'cgp_approved')
+                ->get();
+
+            if ($photos->isEmpty()) {
+                throw new Exception("No CGP approved photos found for line {$lineId} on {$date}");
+            }
+
+            $results = [];
+            $moved = 0;
+
+            // Build organized folder structure
+            $baseFolder = $this->buildJalurOrganizedFolderPath(
+                $lineNumber->cluster->nama_cluster,
+                $lineNumber->line_number,
+                $date,
+                $moduleType
+            );
+
+            foreach ($photos as $photo) {
+                try {
+                    $result = $this->movePhotoToOrganizedFolder($photo, $baseFolder);
+                    if ($result['success']) {
+                        $moved++;
+                    }
+                    $results[] = $result;
+                } catch (Exception $e) {
+                    Log::error("Failed to move individual jalur photo", [
+                        'photo_id' => $photo->id,
+                        'line_id' => $lineId,
+                        'error' => $e->getMessage()
+                    ]);
+
+                    $results[] = [
+                        'success' => false,
+                        'photo_id' => $photo->id,
+                        'slot' => $photo->photo_field_name,
+                        'error' => $e->getMessage()
+                    ];
+                }
+            }
+
+            Log::info("Jalur photo organization completed", [
+                'line_id' => $lineId,
+                'date' => $date,
+                'module_type' => $moduleType,
+                'total_photos' => $photos->count(),
+                'successfully_moved' => $moved,
+                'base_folder' => $baseFolder
+            ]);
+
+            return [
+                'success' => true,
+                'line_id' => $lineId,
+                'line_number' => $lineNumber->line_number,
+                'cluster' => $lineNumber->cluster->nama_cluster,
+                'date' => $date,
+                'module_type' => $moduleType,
+                'total_photos' => $photos->count(),
+                'successfully_moved' => $moved,
+                'failed_moves' => $photos->count() - $moved,
+                'base_folder' => $baseFolder,
+                'details' => $results
+            ];
+
+        } catch (Exception $e) {
+            Log::error("Jalur photo organization failed", [
+                'line_id' => $lineId,
+                'date' => $date,
+                'module_type' => $moduleType,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'line_id' => $lineId,
+                'date' => $date,
+                'module_type' => $moduleType,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Build organized folder path for jalur photos
+     * Structure: aergas_approved_jalur/{CLUSTER}/{LINE_NUMBER}/{DATE}/{LOWERING|JOINT}
+     */
+    private function buildJalurOrganizedFolderPath(string $clusterName, string $lineNumber, string $date, string $moduleType): string
+    {
+        $clusterSlug = $this->slugify($clusterName);
+        $moduleFolder = $moduleType === 'jalur_lowering' ? 'LOWERING' : 'JOINT';
+
+        return "aergas_approved_jalur/{$clusterSlug}/{$lineNumber}/{$date}/{$moduleFolder}";
+    }
+
+    /**
+     * Revert jalur photo organization - move file back to original upload folder
+     */
+    public function revertJalurPhotoOrganization(PhotoApproval $photo): array
+    {
+        try {
+            Log::info("Reverting jalur photo organization", [
+                'photo_id' => $photo->id,
+                'module_name' => $photo->module_name,
+                'organized_folder' => $photo->organized_folder
+            ]);
+
+            // Check if photo was organized
+            if (!$photo->organized_at || !$photo->organized_folder) {
+                return [
+                    'success' => true,
+                    'message' => 'Photo was not organized, no revert needed',
+                    'photo_id' => $photo->id
+                ];
+            }
+
+            // Get module data to reconstruct original folder
+            if ($photo->module_name === 'jalur_lowering') {
+                $moduleData = \App\Models\JalurLoweringData::with('lineNumber.cluster')->find($photo->module_record_id);
+            } else {
+                $moduleData = \App\Models\JalurJointData::with('cluster')->find($photo->module_record_id);
+            }
+
+            if (!$moduleData) {
+                throw new Exception("Module data not found for photo {$photo->id}");
+            }
+
+            // Build original upload folder
+            $moduleFolder = strtoupper(str_replace('jalur_', '', $photo->module_name));
+
+            if ($photo->module_name === 'jalur_lowering') {
+                $clusterSlug = $this->slugify($moduleData->lineNumber->cluster->nama_cluster);
+                $lineNumber = $moduleData->lineNumber->line_number;
+                $date = $moduleData->tanggal_jalur->format('Y-m-d');
+            } else {
+                $clusterSlug = $this->slugify($moduleData->cluster->nama_cluster);
+                $lineNumber = $moduleData->nomor_joint;
+                $date = $moduleData->tanggal_joint->format('Y-m-d');
+            }
+
+            $originalFolder = "aergas/JALUR_{$moduleFolder}/{$clusterSlug}/{$lineNumber}/{$date}";
+
+            // Get original filename
+            if ($photo->storage_path) {
+                $originalFilename = basename($photo->storage_path);
+            } else {
+                $originalFilename = basename($photo->photo_url);
+            }
+
+            // Move file back to original folder
+            if ($photo->drive_file_id && $this->canUseDrive()) {
+                $result = $this->moveFileInDrive($photo, $originalFolder, $originalFilename);
+            } elseif ($photo->storage_path && $photo->storage_disk) {
+                $result = $this->moveFileLocal($photo, $originalFolder, $originalFilename);
+            } else {
+                throw new Exception("No valid file location found for photo {$photo->id}");
+            }
+
+            if ($result && $result['success']) {
+                // Update photo record - clear organization fields
+                $photo->update([
+                    'storage_path' => $result['new_path'],
+                    'photo_url' => $result['new_url'],
+                    'drive_file_id' => $result['new_drive_id'] ?? $photo->drive_file_id,
+                    'drive_link' => $result['new_drive_link'] ?? $photo->drive_link,
+                    'organized_at' => null,
+                    'organized_folder' => null
+                ]);
+
+                Log::info("Jalur photo organization reverted successfully", [
+                    'photo_id' => $photo->id,
+                    'old_folder' => $photo->organized_folder,
+                    'new_folder' => $originalFolder,
+                    'new_url' => $result['new_url']
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => 'Jalur photo organization reverted successfully',
+                    'photo_id' => $photo->id,
+                    'old_folder' => $photo->organized_folder,
+                    'new_folder' => $originalFolder,
+                    'new_url' => $result['new_url']
+                ];
+            }
+
+            throw new Exception("File move operation failed during revert");
+
+        } catch (Exception $e) {
+            Log::error("Failed to revert jalur photo organization", [
+                'photo_id' => $photo->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'photo_id' => $photo->id,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Create URL-safe slug from string
      */
     private function slugify(string $text): string

@@ -23,18 +23,55 @@
         width: 100%;
         height: 100%;
         background: rgba(0,0,0,0.9);
-        z-index: 1000;
-        cursor: zoom-out;
+        z-index: 9999;
+        overflow: hidden;
     }
     .photo-modal img {
         max-width: 90%;
         max-height: 90%;
-        margin: auto;
         display: block;
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+        cursor: zoom-in;
+    }
+    .photo-modal img.zoom-transition {
+        transition: transform 0.2s ease-out;
+    }
+    .photo-modal img.zoomed {
+        max-width: none;
+        max-height: none;
+        cursor: grab;
+    }
+    .photo-modal img.zoomed:active {
+        cursor: grabbing;
+    }
+    .photo-modal-controls {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        display: flex;
+        gap: 10px;
+    }
+    .photo-modal-controls button {
+        background: rgba(255,255,255,0.9);
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        font-size: 18px;
+        color: #333;
+    }
+    .photo-modal-controls button:hover {
+        background: rgba(255,255,255,1);
+        transform: scale(1.1);
     }
 
     /* AI Loading Animation */
@@ -566,7 +603,21 @@
 </div>
 
 <!-- Photo Modal -->
-<div id="photoModal" class="photo-modal" onclick="closePhotoModal()">
+<div id="photoModal" class="photo-modal">
+    <div class="photo-modal-controls">
+        <button id="zoomInBtn" onclick="zoomIn(event)" title="Zoom In (+)">
+            <i class="fas fa-search-plus"></i>
+        </button>
+        <button id="zoomOutBtn" onclick="zoomOut(event)" title="Zoom Out (-)">
+            <i class="fas fa-search-minus"></i>
+        </button>
+        <button id="resetZoomBtn" onclick="resetZoom(event)" title="Reset (0)">
+            <i class="fas fa-compress"></i>
+        </button>
+        <button onclick="closePhotoModal(event)" title="Close (Esc)">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
     <img id="modalPhoto" src="" alt="">
 </div>
 
@@ -762,15 +813,177 @@ let currentAction = null;
 let currentModule = null;
 const reffId = '{{ $customer->reff_id_pelanggan }}';
 
+// Photo modal zoom state
+let zoomLevel = 1;
+let isDragging = false;
+let startX, startY, translateX = 0, translateY = 0;
+
 // Photo modal functions
 function openPhotoModal(src) {
-    document.getElementById('modalPhoto').src = src;
+    const img = document.getElementById('modalPhoto');
+    img.src = src;
     document.getElementById('photoModal').style.display = 'block';
+
+    // Reset zoom
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    updateImageTransform();
+    img.classList.remove('zoomed');
 }
 
-function closePhotoModal() {
+function closePhotoModal(event) {
+    if (event) event.stopPropagation();
     document.getElementById('photoModal').style.display = 'none';
+
+    // Reset state
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    isDragging = false;
 }
+
+// Zoom functions
+function zoomIn(event) {
+    event.stopPropagation();
+    zoomLevel = Math.min(zoomLevel + 0.5, 5); // Max 5x zoom
+    updateImageTransform(true); // Enable transition for smooth zoom
+    updateZoomClass();
+}
+
+function zoomOut(event) {
+    event.stopPropagation();
+    zoomLevel = Math.max(zoomLevel - 0.5, 1); // Min 1x zoom
+    if (zoomLevel === 1) {
+        translateX = 0;
+        translateY = 0;
+    }
+    updateImageTransform(true); // Enable transition for smooth zoom
+    updateZoomClass();
+}
+
+function resetZoom(event) {
+    event.stopPropagation();
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    updateImageTransform(true); // Enable transition for smooth zoom
+    updateZoomClass();
+}
+
+function updateImageTransform(withTransition = false) {
+    const img = document.getElementById('modalPhoto');
+
+    // Add transition class only for zoom operations, not for drag
+    if (withTransition) {
+        img.classList.add('zoom-transition');
+        // Remove transition after animation completes to avoid lag during drag
+        setTimeout(() => {
+            img.classList.remove('zoom-transition');
+        }, 200); // Match transition duration (0.2s)
+    }
+
+    img.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${zoomLevel})`;
+}
+
+function updateZoomClass() {
+    const img = document.getElementById('modalPhoto');
+    if (zoomLevel > 1) {
+        img.classList.add('zoomed');
+    } else {
+        img.classList.remove('zoomed');
+    }
+}
+
+// Image dragging and zoom event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('photoModal');
+    const img = document.getElementById('modalPhoto');
+
+    // Click on modal background to close
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closePhotoModal();
+        }
+    });
+
+    // Prevent image click from closing modal
+    img.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+
+    // Mouse wheel zoom with cursor-based zoom center
+    modal.addEventListener('wheel', function(e) {
+        if (modal.style.display === 'block') {
+            e.preventDefault();
+
+            const oldZoom = zoomLevel;
+
+            // Calculate new zoom level
+            if (e.deltaY < 0) {
+                zoomLevel = Math.min(zoomLevel + 0.2, 5);
+            } else {
+                zoomLevel = Math.max(zoomLevel - 0.2, 1);
+            }
+
+            // If zooming to 1x, reset position
+            if (zoomLevel === 1) {
+                translateX = 0;
+                translateY = 0;
+            } else if (oldZoom !== zoomLevel) {
+                // Calculate cursor position relative to modal center
+                const rect = modal.getBoundingClientRect();
+                const cursorX = e.clientX - rect.left - rect.width / 2;
+                const cursorY = e.clientY - rect.top - rect.height / 2;
+
+                // Adjust translation to keep cursor position stable
+                const zoomRatio = zoomLevel / oldZoom;
+                translateX = cursorX + (translateX - cursorX) * zoomRatio;
+                translateY = cursorY + (translateY - cursorY) * zoomRatio;
+            }
+
+            updateImageTransform(true); // Enable transition for smooth wheel zoom
+            updateZoomClass();
+        }
+    });
+
+    // Drag to pan when zoomed
+    img.addEventListener('mousedown', function(e) {
+        if (zoomLevel > 1) {
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+            e.preventDefault();
+        }
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (isDragging && zoomLevel > 1) {
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateImageTransform();
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        isDragging = false;
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (modal.style.display === 'block') {
+            if (e.key === 'Escape') {
+                closePhotoModal();
+            } else if (e.key === '+' || e.key === '=') {
+                zoomIn(e);
+            } else if (e.key === '-') {
+                zoomOut(e);
+            } else if (e.key === '0') {
+                resetZoom(e);
+            }
+        }
+    });
+});
 
 // Notes modal functions
 function openNotesModal(title, action, photoId = null, module = null) {
