@@ -529,13 +529,17 @@
             $sr = $customer->srData;
 
             $labels = $sr->getMaterialLabels();
-            $totalItems = 0; $totalLengths = 0;
+            $totalItems = 0;
+
+            // Only count panjang_pipa_pe for total lengths
+            $totalLengths = (float)($sr->panjang_pipa_pe ?? 0);
 
             foreach ($sr->getRequiredMaterialItems() as $field => $val) {
                 $v = (float)($val ?? 0);
                 if ($v > 0) {
                     $materialData[] = ['label' => ($labels[$field] ?? $field), 'value' => $v, 'field' => $field];
-                    if (str_contains($field, 'panjang_')) $totalLengths += $v; else $totalItems += $v;
+                    // Count items (not panjang fields)
+                    if (!str_contains($field, 'panjang_')) $totalItems += $v;
                 }
             }
             foreach ($sr->getOptionalMaterialItems() as $field => $val) {
