@@ -79,7 +79,6 @@ class JalurLoweringController extends Controller
         Log::info('=== LOWERING STORE REQUEST DEBUG ===');
         Log::info('Tipe Bongkaran: ' . $request->input('tipe_bongkaran'));
         Log::info('aksesoris_cassing: ' . ($request->has('aksesoris_cassing') ? 'YES - Value: ' . $request->input('aksesoris_cassing') : 'NO'));
-        Log::info('aksesoris_cassing_open_cut: ' . ($request->has('aksesoris_cassing_open_cut') ? 'YES - Value: ' . $request->input('aksesoris_cassing_open_cut') : 'NO'));
         Log::info('cassing_quantity: ' . ($request->has('cassing_quantity') ? $request->input('cassing_quantity') : 'NOT SENT'));
         Log::info('cassing_type: ' . ($request->has('cassing_type') ? $request->input('cassing_type') : 'NOT SENT'));
         Log::info('All request data: ' . json_encode($request->all()));
@@ -98,13 +97,12 @@ class JalurLoweringController extends Controller
             'bongkaran' => 'required|numeric|min:0.01',
             'kedalaman_lowering' => 'required|numeric|min:1',
             'aksesoris_cassing' => 'boolean',
-            'aksesoris_cassing_open_cut' => 'boolean',
             'aksesoris_marker_tape' => 'boolean',
             'aksesoris_concrete_slab' => 'boolean',
             'marker_tape_quantity' => 'required_if:aksesoris_marker_tape,1|nullable|numeric|min:0.1',
             'concrete_slab_quantity' => 'required_if:aksesoris_concrete_slab,1|nullable|integer|min:1',
-            'cassing_quantity' => 'required_if:aksesoris_cassing,1|required_if:aksesoris_cassing_open_cut,1|nullable|numeric|min:0.1',
-            'cassing_type' => 'required_if:aksesoris_cassing,1|required_if:aksesoris_cassing_open_cut,1|nullable|in:4_inch,8_inch',
+            'cassing_quantity' => 'required_if:aksesoris_cassing,1|nullable|numeric|min:0.1',
+            'cassing_type' => 'required_if:aksesoris_cassing,1|nullable|in:4_inch,8_inch',
             'keterangan' => 'nullable|string|max:1000',
         ];
 
@@ -115,8 +113,8 @@ class JalurLoweringController extends Controller
             $validationRules['foto_evidence_penggelaran_bongkaran_link'] = 'required|url';
         }
 
-        // Add conditional validation for cassing photo (if any cassing checkbox is checked)
-        if ($request->has('aksesoris_cassing') || $request->has('aksesoris_cassing_open_cut')) {
+        // Add conditional validation for cassing photo (if cassing checkbox is checked)
+        if ($request->has('aksesoris_cassing')) {
             $uploadMethodCassing = $request->input('upload_method_cassing', 'file');
 
             if ($uploadMethodCassing === 'file') {
@@ -219,24 +217,18 @@ class JalurLoweringController extends Controller
             if ($uploadMethod === 'file') {
                 // Handle photo uploads - multiple photos based on accessories
                 $photoFields = ['foto_evidence_penggelaran_bongkaran']; // Always required
-                
-                // Add accessory photos based on tipe_bongkaran and checkboxes
-                if ($validated['tipe_bongkaran'] === 'Open Cut') {
-                    if ($request->hasFile('foto_evidence_marker_tape')) {
-                        $photoFields[] = 'foto_evidence_marker_tape';
-                    }
-                    if ($request->hasFile('foto_evidence_concrete_slab')) {
-                        $photoFields[] = 'foto_evidence_concrete_slab';
-                    }
-                    if ($request->has('aksesoris_cassing') && $request->hasFile('foto_evidence_cassing')) {
-                        $photoFields[] = 'foto_evidence_cassing';
-                    }
-                } elseif (in_array($validated['tipe_bongkaran'], ['Crossing', 'Zinker'])) {
-                    if (($request->has('aksesoris_cassing') || $request->has('aksesoris_cassing_open_cut')) && $request->hasFile('foto_evidence_cassing')) {
-                        $photoFields[] = 'foto_evidence_cassing';
-                    }
+
+                // Add accessory photos based on what checkboxes are checked (flexible for all tipe bongkaran)
+                if ($request->has('aksesoris_marker_tape') && $request->hasFile('foto_evidence_marker_tape')) {
+                    $photoFields[] = 'foto_evidence_marker_tape';
                 }
-                
+                if ($request->has('aksesoris_concrete_slab') && $request->hasFile('foto_evidence_concrete_slab')) {
+                    $photoFields[] = 'foto_evidence_concrete_slab';
+                }
+                if ($request->has('aksesoris_cassing') && $request->hasFile('foto_evidence_cassing')) {
+                    $photoFields[] = 'foto_evidence_cassing';
+                }
+
                 $this->handlePhotoUploads($request, $lowering, $photoFields);
             } else {
                 // Handle Google Drive link for main photo
@@ -286,7 +278,7 @@ class JalurLoweringController extends Controller
             }
 
             // Handle cassing photo from Google Drive link (if provided)
-            if ($request->filled('foto_evidence_cassing_link') && ($request->has('aksesoris_cassing') || $request->has('aksesoris_cassing_open_cut'))) {
+            if ($request->filled('foto_evidence_cassing_link') && $request->has('aksesoris_cassing')) {
                 $cassingDriveLink = $request->input('foto_evidence_cassing_link');
 
                 try {
