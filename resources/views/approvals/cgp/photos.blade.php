@@ -966,11 +966,11 @@
                         @endif
 
                         {{-- Total Panjang Pipa untuk SR --}}
-                        @if($module === 'sr' && !empty($materialTotals['total_lengths']) && $materialTotals['total_lengths'] > 0)
+                        @if($module === 'sr' && isset($materialTotals['total_lengths']))
                             <div class="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
                                 <div class="flex justify-between items-center">
-                                    <span class="font-medium text-yellow-800">Total Panjang Pipa:</span>
-                                    <span class="font-bold text-yellow-900 text-lg">{{ $materialTotals['total_lengths'] }} meter</span>
+                                    <span class="font-medium text-yellow-800">Total Panjang Pipa PE:</span>
+                                    <span class="font-bold text-yellow-900 text-lg">{{ number_format($materialTotals['total_lengths'], 2) }} meter</span>
                                 </div>
                             </div>
                         @endif
