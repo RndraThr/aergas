@@ -72,6 +72,9 @@ class JalurLoweringController extends Controller
 
     public function store(Request $request)
     {
+        // Increase execution time for Google Drive uploads (multiple photos can take time)
+        set_time_limit(120); // 2 minutes
+
         // DEBUG: Log all incoming request data
         Log::info('=== LOWERING STORE REQUEST DEBUG ===');
         Log::info('Tipe Bongkaran: ' . $request->input('tipe_bongkaran'));
@@ -120,6 +123,28 @@ class JalurLoweringController extends Controller
                 $validationRules['foto_evidence_cassing'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
             } else {
                 $validationRules['foto_evidence_cassing_link'] = 'required|url';
+            }
+        }
+
+        // Add conditional validation for marker tape photo
+        if ($request->has('aksesoris_marker_tape')) {
+            $uploadMethodMarkerTape = $request->input('upload_method_marker_tape', 'file');
+
+            if ($uploadMethodMarkerTape === 'file') {
+                $validationRules['foto_evidence_marker_tape'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
+            } else {
+                $validationRules['foto_evidence_marker_tape_link'] = 'required|url';
+            }
+        }
+
+        // Add conditional validation for concrete slab photo
+        if ($request->has('aksesoris_concrete_slab')) {
+            $uploadMethodConcreteSlab = $request->input('upload_method_concrete_slab', 'file');
+
+            if ($uploadMethodConcreteSlab === 'file') {
+                $validationRules['foto_evidence_concrete_slab'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
+            } else {
+                $validationRules['foto_evidence_concrete_slab_link'] = 'required|url';
             }
         }
 
@@ -302,6 +327,94 @@ class JalurLoweringController extends Controller
                         'error' => $e->getMessage()
                     ]);
                     // Don't throw, just log - cassing photo is optional
+                }
+            }
+
+            // Handle marker tape photo from Google Drive link (if provided)
+            if ($request->filled('foto_evidence_marker_tape_link') && $request->has('aksesoris_marker_tape')) {
+                $markerTapeDriveLink = $request->input('foto_evidence_marker_tape_link');
+
+                try {
+                    $googleDriveService = app(GoogleDriveService::class);
+
+                    $lineNumber = $lowering->lineNumber->line_number;
+                    $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+                    $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
+                    $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
+
+                    $result = $googleDriveService->copyFromDriveLink(
+                        $markerTapeDriveLink,
+                        $customDrivePath,
+                        'foto_evidence_marker_tape_' . time()
+                    );
+
+                    PhotoApproval::create([
+                        'reff_id_pelanggan' => null,
+                        'module_name' => 'jalur_lowering',
+                        'module_record_id' => $lowering->id,
+                        'photo_field_name' => 'foto_evidence_marker_tape',
+                        'photo_url' => $result['url'],
+                        'photo_status' => 'tracer_pending',
+                        'uploaded_by' => Auth::id(),
+                        'uploaded_at' => now(),
+                    ]);
+
+                    Log::info('Google Drive marker tape photo copied successfully', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $markerTapeDriveLink,
+                        'result' => $result
+                    ]);
+
+                } catch (\Exception $e) {
+                    Log::error('Failed to copy marker tape photo from Google Drive link', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $markerTapeDriveLink,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Handle concrete slab photo from Google Drive link (if provided)
+            if ($request->filled('foto_evidence_concrete_slab_link') && $request->has('aksesoris_concrete_slab')) {
+                $concreteSlabDriveLink = $request->input('foto_evidence_concrete_slab_link');
+
+                try {
+                    $googleDriveService = app(GoogleDriveService::class);
+
+                    $lineNumber = $lowering->lineNumber->line_number;
+                    $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+                    $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
+                    $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
+
+                    $result = $googleDriveService->copyFromDriveLink(
+                        $concreteSlabDriveLink,
+                        $customDrivePath,
+                        'foto_evidence_concrete_slab_' . time()
+                    );
+
+                    PhotoApproval::create([
+                        'reff_id_pelanggan' => null,
+                        'module_name' => 'jalur_lowering',
+                        'module_record_id' => $lowering->id,
+                        'photo_field_name' => 'foto_evidence_concrete_slab',
+                        'photo_url' => $result['url'],
+                        'photo_status' => 'tracer_pending',
+                        'uploaded_by' => Auth::id(),
+                        'uploaded_at' => now(),
+                    ]);
+
+                    Log::info('Google Drive concrete slab photo copied successfully', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $concreteSlabDriveLink,
+                        'result' => $result
+                    ]);
+
+                } catch (\Exception $e) {
+                    Log::error('Failed to copy concrete slab photo from Google Drive link', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $concreteSlabDriveLink,
+                        'error' => $e->getMessage()
+                    ]);
                 }
             }
 

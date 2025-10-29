@@ -510,12 +510,37 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 Foto Evidence Marker Tape <span class="text-red-500">*</span>
                             </label>
-                            <input type="file" 
-                                   id="foto_evidence_marker_tape" 
-                                   name="foto_evidence_marker_tape" 
-                                   accept="image/*"
-                                   class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100">
-                            <p class="text-xs text-gray-500 mt-1">Foto pemasangan marker tape pada jalur lowering.</p>
+
+                            <div class="mb-3 flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="upload_method_marker_tape" value="file" checked
+                                           onchange="toggleUploadMethodMarkerTape('file')">
+                                    <span class="ml-2 text-sm">Upload File</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="upload_method_marker_tape" value="link"
+                                           onchange="toggleUploadMethodMarkerTape('link')">
+                                    <span class="ml-2 text-sm">Google Drive Link</span>
+                                </label>
+                            </div>
+
+                            <div id="marker_tape_file_upload">
+                                <input type="file"
+                                       id="foto_evidence_marker_tape"
+                                       name="foto_evidence_marker_tape"
+                                       accept="image/*"
+                                       class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100">
+                                <p class="text-xs text-gray-500 mt-1">Foto pemasangan marker tape pada jalur lowering.</p>
+                            </div>
+
+                            <div id="marker_tape_link_upload" class="hidden">
+                                <input type="url"
+                                       id="foto_evidence_marker_tape_link"
+                                       name="foto_evidence_marker_tape_link"
+                                       placeholder="https://drive.google.com/file/d/..."
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <p class="text-xs text-gray-500 mt-1">Paste link Google Drive untuk foto marker tape.</p>
+                            </div>
                         </div>
 
                         <!-- Concrete Slab Photo -->
@@ -523,12 +548,37 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 Foto Evidence Concrete Slab <span class="text-red-500">*</span>
                             </label>
-                            <input type="file" 
-                                   id="foto_evidence_concrete_slab" 
-                                   name="foto_evidence_concrete_slab" 
-                                   accept="image/*"
-                                   class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100">
-                            <p class="text-xs text-gray-500 mt-1">Foto pemasangan concrete slab di jalur lowering.</p>
+
+                            <div class="mb-3 flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="upload_method_concrete_slab" value="file" checked
+                                           onchange="toggleUploadMethodConcreteSlab('file')">
+                                    <span class="ml-2 text-sm">Upload File</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="upload_method_concrete_slab" value="link"
+                                           onchange="toggleUploadMethodConcreteSlab('link')">
+                                    <span class="ml-2 text-sm">Google Drive Link</span>
+                                </label>
+                            </div>
+
+                            <div id="concrete_slab_file_upload">
+                                <input type="file"
+                                       id="foto_evidence_concrete_slab"
+                                       name="foto_evidence_concrete_slab"
+                                       accept="image/*"
+                                       class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100">
+                                <p class="text-xs text-gray-500 mt-1">Foto pemasangan concrete slab di jalur lowering.</p>
+                            </div>
+
+                            <div id="concrete_slab_link_upload" class="hidden">
+                                <input type="url"
+                                       id="foto_evidence_concrete_slab_link"
+                                       name="foto_evidence_concrete_slab_link"
+                                       placeholder="https://drive.google.com/file/d/..."
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500">
+                                <p class="text-xs text-gray-500 mt-1">Paste link Google Drive untuk foto concrete slab.</p>
+                            </div>
                         </div>
 
                         <!-- Cassing Photo -->
@@ -1159,15 +1209,29 @@ document.getElementById('loweringForm').addEventListener('submit', function(e) {
         document.getElementById('bongkaran').value = penggelaran;
     }
 
-    // CRITICAL FIX: Ensure cassing fields are enabled before submit
+    // CRITICAL FIX: Ensure accessory fields are enabled before submit
     const cassingCheckbox = document.getElementById('aksesoris_cassing');
     const cassingQty = document.getElementById('cassing_quantity');
     const cassingType = document.getElementById('cassing_type');
+    const markerTapeCheckbox = document.getElementById('aksesoris_marker_tape');
+    const markerTapeQty = document.getElementById('marker_tape_quantity');
+    const concreteSlabCheckbox = document.getElementById('aksesoris_concrete_slab');
+    const concreteSlabQty = document.getElementById('concrete_slab_quantity');
 
-    // Force enable fields if checkbox is checked (prevent disabled fields from blocking submission)
+    // Force enable cassing fields if checkbox is checked (prevent disabled fields from blocking submission)
     if (cassingCheckbox && cassingCheckbox.checked && !cassingCheckbox.disabled) {
         if (cassingQty) cassingQty.disabled = false;
         if (cassingType) cassingType.disabled = false;
+    }
+
+    // Force enable marker tape fields if checkbox is checked
+    if (markerTapeCheckbox && markerTapeCheckbox.checked && !markerTapeCheckbox.disabled) {
+        if (markerTapeQty) markerTapeQty.disabled = false;
+    }
+
+    // Force enable concrete slab fields if checkbox is checked
+    if (concreteSlabCheckbox && concreteSlabCheckbox.checked && !concreteSlabCheckbox.disabled) {
+        if (concreteSlabQty) concreteSlabQty.disabled = false;
     }
 });
 
@@ -1267,6 +1331,56 @@ function toggleUploadMethodCassing(method) {
         linkSection.classList.remove('hidden');
         fileInput.required = false;
         if (document.getElementById('aksesoris_cassing')?.checked) {
+            linkInput.required = true;
+        }
+        fileInput.value = '';
+    }
+}
+
+function toggleUploadMethodMarkerTape(method) {
+    const fileSection = document.getElementById('marker_tape_file_upload');
+    const linkSection = document.getElementById('marker_tape_link_upload');
+    const fileInput = document.getElementById('foto_evidence_marker_tape');
+    const linkInput = document.getElementById('foto_evidence_marker_tape_link');
+
+    if (method === 'file') {
+        fileSection.classList.remove('hidden');
+        linkSection.classList.add('hidden');
+        if (document.getElementById('aksesoris_marker_tape')?.checked) {
+            fileInput.required = true;
+        }
+        linkInput.required = false;
+        linkInput.value = '';
+    } else {
+        fileSection.classList.add('hidden');
+        linkSection.classList.remove('hidden');
+        fileInput.required = false;
+        if (document.getElementById('aksesoris_marker_tape')?.checked) {
+            linkInput.required = true;
+        }
+        fileInput.value = '';
+    }
+}
+
+function toggleUploadMethodConcreteSlab(method) {
+    const fileSection = document.getElementById('concrete_slab_file_upload');
+    const linkSection = document.getElementById('concrete_slab_link_upload');
+    const fileInput = document.getElementById('foto_evidence_concrete_slab');
+    const linkInput = document.getElementById('foto_evidence_concrete_slab_link');
+
+    if (method === 'file') {
+        fileSection.classList.remove('hidden');
+        linkSection.classList.add('hidden');
+        if (document.getElementById('aksesoris_concrete_slab')?.checked) {
+            fileInput.required = true;
+        }
+        linkInput.required = false;
+        linkInput.value = '';
+    } else {
+        fileSection.classList.add('hidden');
+        linkSection.classList.remove('hidden');
+        fileInput.required = false;
+        if (document.getElementById('aksesoris_concrete_slab')?.checked) {
             linkInput.required = true;
         }
         fileInput.value = '';
