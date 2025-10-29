@@ -852,27 +852,9 @@ function updateAksesoris() {
 function toggleQuantityField(type) {
     let checkbox, quantityField;
 
-    if (type === 'cassing') {
-        // Handle both cassing types (open cut and crossing/zinker)
-        const cassingOpenCutCheckbox = document.getElementById('aksesoris_cassing_open_cut');
-        const cassingCrossingCheckbox = document.getElementById('aksesoris_cassing');
-        const cassingOpenCutParent = document.getElementById('aksesoris-cassing-open-cut');
-        const cassingCrossingParent = document.getElementById('aksesoris-cassing');
-
-        // Check which cassing type is visible
-        if (cassingOpenCutParent && !cassingOpenCutParent.classList.contains('hidden')) {
-            // For Open Cut
-            checkbox = cassingOpenCutCheckbox;
-            quantityField = document.getElementById('cassing_quantity_field');
-        } else if (cassingCrossingParent && !cassingCrossingParent.classList.contains('hidden')) {
-            // For Crossing/Zinker
-            checkbox = cassingCrossingCheckbox;
-            quantityField = document.getElementById('cassing_crossing_quantity_field');
-        }
-    } else {
-        checkbox = document.getElementById(`aksesoris_${type}`);
-        quantityField = document.getElementById(`${type}_quantity_field`);
-    }
+    // Simplified: unified handling for all types including cassing
+    checkbox = document.getElementById(`aksesoris_${type}`);
+    quantityField = document.getElementById(`${type}_quantity_field`);
 
     if (checkbox && checkbox.checked) {
         if (quantityField) {
@@ -880,22 +862,9 @@ function toggleQuantityField(type) {
         }
         // Make quantity field required when checkbox is checked
         if (type === 'cassing') {
-            // Determine which cassing fields to use based on which parent is visible
-            const cassingCrossingParent = document.getElementById('aksesoris-cassing');
-            const cassingOpenCutParent = document.getElementById('aksesoris-cassing-open-cut');
-
-            let cassingQtyInput, cassingTypeSelect;
-
-            if (cassingCrossingParent && !cassingCrossingParent.classList.contains('hidden')) {
-                // Crossing/Zinker fields
-                cassingQtyInput = document.getElementById('cassing_quantity');
-                cassingTypeSelect = document.getElementById('cassing_type');
-            } else if (cassingOpenCutParent && !cassingOpenCutParent.classList.contains('hidden')) {
-                // Open Cut fields
-                cassingQtyInput = document.getElementById('cassing_quantity_open_cut');
-                cassingTypeSelect = document.getElementById('cassing_type_open_cut');
-            }
-
+            // Unified cassing fields (same for all tipe bongkaran)
+            const cassingQtyInput = document.getElementById('cassing_quantity');
+            const cassingTypeSelect = document.getElementById('cassing_type');
             const cassingPhotoInput = document.getElementById('foto_evidence_cassing');
 
             if (cassingQtyInput) {
@@ -917,32 +886,20 @@ function toggleQuantityField(type) {
         }
         // Remove required when checkbox is unchecked
         if (type === 'cassing') {
-            // Clear both Crossing/Zinker and Open Cut fields
-            const cassingQtyInputCrossing = document.getElementById('cassing_quantity');
-            const cassingTypeSelectCrossing = document.getElementById('cassing_type');
-            const cassingQtyInputOpenCut = document.getElementById('cassing_quantity_open_cut');
-            const cassingTypeSelectOpenCut = document.getElementById('cassing_type_open_cut');
+            // Unified cassing fields
+            const cassingQtyInput = document.getElementById('cassing_quantity');
+            const cassingTypeSelect = document.getElementById('cassing_type');
             const cassingPhotoInput = document.getElementById('foto_evidence_cassing');
 
-            if (cassingQtyInputCrossing) {
-                cassingQtyInputCrossing.disabled = true;
-                cassingQtyInputCrossing.removeAttribute('required');
-                cassingQtyInputCrossing.value = '';
+            if (cassingQtyInput) {
+                cassingQtyInput.disabled = true;
+                cassingQtyInput.removeAttribute('required');
+                cassingQtyInput.value = '';
             }
-            if (cassingTypeSelectCrossing) {
-                cassingTypeSelectCrossing.disabled = true;
-                cassingTypeSelectCrossing.removeAttribute('required');
-                cassingTypeSelectCrossing.value = '';
-            }
-            if (cassingQtyInputOpenCut) {
-                cassingQtyInputOpenCut.disabled = true;
-                cassingQtyInputOpenCut.removeAttribute('required');
-                cassingQtyInputOpenCut.value = '';
-            }
-            if (cassingTypeSelectOpenCut) {
-                cassingTypeSelectOpenCut.disabled = true;
-                cassingTypeSelectOpenCut.removeAttribute('required');
-                cassingTypeSelectOpenCut.value = '';
+            if (cassingTypeSelect) {
+                cassingTypeSelect.disabled = true;
+                cassingTypeSelect.removeAttribute('required');
+                cassingTypeSelect.value = '';
             }
             if (cassingPhotoInput) cassingPhotoInput.removeAttribute('required');
         } else {
@@ -1117,59 +1074,6 @@ function toggleUploadMethod() {
     }
 }
 
-function toggleCassingQuantityField(checkbox) {
-    const quantityField = document.getElementById('cassing_crossing_quantity_field');
-    const cassingQtyInput = document.getElementById('cassing_quantity');
-    const cassingTypeSelect = document.getElementById('cassing_type');
-    const cassingPhotoInput = document.getElementById('foto_evidence_cassing');
-    const cassingPhotoLinkInput = document.getElementById('foto_evidence_cassing_link');
-
-    if (checkbox.checked) {
-        // Show quantity fields
-        quantityField.classList.remove('hidden');
-
-        // Enable and set required
-        if (cassingQtyInput) {
-            cassingQtyInput.disabled = false;
-            cassingQtyInput.required = true;
-        }
-        if (cassingTypeSelect) {
-            cassingTypeSelect.disabled = false;
-            cassingTypeSelect.required = true;
-        }
-
-        // Set photo required based on upload method
-        const uploadMethod = document.querySelector('input[name="upload_method_cassing"]:checked')?.value || 'file';
-        if (uploadMethod === 'file' && cassingPhotoInput) {
-            cassingPhotoInput.required = true;
-        } else if (uploadMethod === 'link' && cassingPhotoLinkInput) {
-            cassingPhotoLinkInput.required = true;
-        }
-    } else {
-        // Hide quantity fields
-        quantityField.classList.add('hidden');
-
-        // Disable and remove required
-        if (cassingQtyInput) {
-            cassingQtyInput.disabled = true;
-            cassingQtyInput.required = false;
-            cassingQtyInput.value = '';
-        }
-        if (cassingTypeSelect) {
-            cassingTypeSelect.disabled = true;
-            cassingTypeSelect.required = false;
-            cassingTypeSelect.value = '';
-        }
-        if (cassingPhotoInput) {
-            cassingPhotoInput.required = false;
-            cassingPhotoInput.value = '';
-        }
-        if (cassingPhotoLinkInput) {
-            cassingPhotoLinkInput.required = false;
-            cassingPhotoLinkInput.value = '';
-        }
-    }
-}
 
 function toggleUploadMethodCassing(method) {
     const fileSection = document.getElementById('cassing_file_upload');
