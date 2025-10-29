@@ -531,8 +531,8 @@
             $labels = $sr->getMaterialLabels();
             $totalItems = 0;
 
-            // Only count panjang_pipa_pe for total lengths
-            $totalLengths = (float)($sr->panjang_pipa_pe ?? 0);
+            // Only count panjang_pipa_pe_20mm_m for total lengths
+            $totalLengths = (float)($sr->panjang_pipa_pe_20mm_m ?? 0);
 
             foreach ($sr->getRequiredMaterialItems() as $field => $val) {
                 $v = (float)($val ?? 0);
