@@ -860,6 +860,7 @@ function toggleQuantityField(type) {
         if (quantityField) {
             quantityField.classList.remove('hidden');
         }
+
         // Make quantity field required when checkbox is checked
         if (type === 'cassing') {
             // Unified cassing fields (same for all tipe bongkaran)
@@ -878,7 +879,14 @@ function toggleQuantityField(type) {
             if (cassingPhotoInput) cassingPhotoInput.setAttribute('required', 'required');
         } else {
             const qtyInput = document.getElementById(`${type}_quantity`);
-            if (qtyInput) qtyInput.setAttribute('required', 'required');
+            if (qtyInput) {
+                qtyInput.setAttribute('required', 'required');
+
+                // Auto-fill marker tape and concrete slab when checkbox is checked
+                if (type === 'marker_tape' || type === 'concrete_slab') {
+                    updateAccessoryCalculations();
+                }
+            }
         }
     } else {
         if (quantityField) {
@@ -915,12 +923,9 @@ function toggleQuantityField(type) {
 function updateBongkaran() {
     const penggelaran = document.getElementById('penggelaran').value;
     document.getElementById('bongkaran').value = penggelaran;
-    
-    // Update accessory calculations if Open Cut is selected
-    const tipeBongkaran = document.getElementById('tipe_bongkaran').value;
-    if (tipeBongkaran === 'Open Cut') {
-        updateAccessoryCalculations();
-    }
+
+    // Update accessory calculations (flexible for all tipe bongkaran)
+    updateAccessoryCalculations();
 }
 
 function updateAccessoryCalculations() {
