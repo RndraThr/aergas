@@ -199,9 +199,20 @@
                                 </label>
                             </div>
                             <div id="marker_tape_quantity_field" class="ml-6 hidden">
-                                <label for="marker_tape_quantity" class="block text-xs text-gray-600 mb-1">
-                                    Panjang (meter) - Auto-fill dari Panjang Lowering
-                                </label>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label for="marker_tape_quantity" class="block text-xs text-gray-600">
+                                        Panjang (meter)
+                                    </label>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-xs text-gray-500" id="marker_tape_mode_label">Auto-fill</span>
+                                        <button type="button"
+                                                id="marker_tape_toggle_btn"
+                                                onclick="toggleMarkerTapeMode()"
+                                                class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            Manual
+                                        </button>
+                                    </div>
+                                </div>
                                 <input type="number"
                                        id="marker_tape_quantity"
                                        name="marker_tape_quantity"
@@ -229,9 +240,20 @@
                                 </label>
                             </div>
                             <div id="concrete_slab_quantity_field" class="ml-6 hidden">
-                                <label for="concrete_slab_quantity" class="block text-xs text-gray-600 mb-1">
-                                    Jumlah (pcs) - Auto-calculate (Panjang Lowering x2)
-                                </label>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label for="concrete_slab_quantity" class="block text-xs text-gray-600">
+                                        Jumlah (pcs)
+                                    </label>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-xs text-gray-500" id="concrete_slab_mode_label">Auto-calculate (x2)</span>
+                                        <button type="button"
+                                                id="concrete_slab_toggle_btn"
+                                                onclick="toggleConcreteSlabMode()"
+                                                class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            Manual
+                                        </button>
+                                    </div>
+                                </div>
                                 <input type="number"
                                        id="concrete_slab_quantity"
                                        name="concrete_slab_quantity"
@@ -611,6 +633,10 @@
 <script>
 let availabilityCheckTimeout = null;
 
+// Mode tracking for auto/manual input
+let markerTapeAutoMode = true;
+let concreteSlabAutoMode = true;
+
 function updateLineNumberPreview() {
     const diameter = document.getElementById('diameter').value;
     const clusterSelect = document.getElementById('cluster_id');
@@ -930,16 +956,16 @@ function updateBongkaran() {
 
 function updateAccessoryCalculations() {
     const penggelaran = parseFloat(document.getElementById('penggelaran').value) || 0;
-    
-    // Update Marker Tape (same as Panjang Lowering)
+
+    // Update Marker Tape (same as Panjang Lowering) - only if in auto mode
     const markerTapeField = document.getElementById('marker_tape_quantity');
-    if (markerTapeField) {
+    if (markerTapeField && markerTapeAutoMode) {
         markerTapeField.value = penggelaran.toFixed(1);
     }
-    
-    // Update Concrete Slab (Panjang Lowering x 2)
+
+    // Update Concrete Slab (Panjang Lowering x 2) - only if in auto mode
     const concreteSlabField = document.getElementById('concrete_slab_quantity');
-    if (concreteSlabField) {
+    if (concreteSlabField && concreteSlabAutoMode) {
         concreteSlabField.value = Math.round(penggelaran * 2);
     }
 }
@@ -1188,5 +1214,75 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('bongkaran').value = penggelaran;
     }
 });
+
+// Toggle between auto-fill and manual mode for Marker Tape
+function toggleMarkerTapeMode() {
+    const field = document.getElementById('marker_tape_quantity');
+    const label = document.getElementById('marker_tape_mode_label');
+    const button = document.getElementById('marker_tape_toggle_btn');
+
+    markerTapeAutoMode = !markerTapeAutoMode;
+
+    if (markerTapeAutoMode) {
+        // Switch to Auto mode
+        field.classList.add('bg-gray-100');
+        field.classList.remove('bg-white');
+        field.readOnly = true;
+        label.textContent = 'Auto-fill';
+        button.textContent = 'Manual';
+        button.classList.remove('bg-green-500', 'hover:bg-green-600');
+        button.classList.add('bg-blue-500', 'hover:bg-blue-600');
+
+        // Trigger auto-fill
+        updateAccessoryCalculations();
+    } else {
+        // Switch to Manual mode
+        field.classList.remove('bg-gray-100');
+        field.classList.add('bg-white');
+        field.readOnly = false;
+        label.textContent = 'Manual';
+        button.textContent = 'Auto';
+        button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+        button.classList.add('bg-green-500', 'hover:bg-green-600');
+
+        // Focus on field for manual input
+        field.focus();
+    }
+}
+
+// Toggle between auto-calculate and manual mode for Concrete Slab
+function toggleConcreteSlabMode() {
+    const field = document.getElementById('concrete_slab_quantity');
+    const label = document.getElementById('concrete_slab_mode_label');
+    const button = document.getElementById('concrete_slab_toggle_btn');
+
+    concreteSlabAutoMode = !concreteSlabAutoMode;
+
+    if (concreteSlabAutoMode) {
+        // Switch to Auto mode
+        field.classList.add('bg-gray-100');
+        field.classList.remove('bg-white');
+        field.readOnly = true;
+        label.textContent = 'Auto-calculate (x2)';
+        button.textContent = 'Manual';
+        button.classList.remove('bg-green-500', 'hover:bg-green-600');
+        button.classList.add('bg-blue-500', 'hover:bg-blue-600');
+
+        // Trigger auto-calculate
+        updateAccessoryCalculations();
+    } else {
+        // Switch to Manual mode
+        field.classList.remove('bg-gray-100');
+        field.classList.add('bg-white');
+        field.readOnly = false;
+        label.textContent = 'Manual';
+        button.textContent = 'Auto';
+        button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+        button.classList.add('bg-green-500', 'hover:bg-green-600');
+
+        // Focus on field for manual input
+        field.focus();
+    }
+}
 </script>
 @endsection
