@@ -1085,7 +1085,7 @@ class PhotoApprovalService
         $uid = (int) ($uploadedBy ?? Auth::id());
 
         // For JALUR modules, skip AI and go directly to tracer_pending
-        if (in_array($moduleKey, ['JALUR_LOWERING', 'JALUR_JOINT'])) {
+        if (in_array($moduleKey, ['jalur_lowering', 'JALUR_LOWERING', 'jalur_joint', 'JALUR_JOINT'])) {
             return PhotoApproval::updateOrCreate(
                 [
                     'reff_id_pelanggan' => $reffId,

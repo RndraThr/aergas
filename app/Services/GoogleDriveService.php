@@ -319,6 +319,178 @@ class GoogleDriveService
         }
     }
 
+    /**
+     * Copy file from one location to another in Google Drive
+     * This is used for database clone scenarios to prevent modifying production files
+     *
+     * @param string $sourceFileId Source file ID (may be from production folder)
+     * @param string $targetFolderId Target folder ID (in test/dev folder)
+     * @param string $newFileName New filename for the copied file
+     * @return array ['id' => new file ID, 'name' => filename, 'webViewLink' => URL, 'webContentLink' => URL]
+     * @throws Exception
+     */
+    public function copyFile(string $sourceFileId, string $targetFolderId, string $newFileName): array
+    {
+        if (!$this->initialize()) {
+            throw new Exception('Google Drive service not available: ' . $this->getError());
+        }
+
+        try {
+            Log::info('Starting file copy for database clone scenario', [
+                'source_file_id' => $sourceFileId,
+                'target_folder_id' => $targetFolderId,
+                'new_filename' => $newFileName
+            ]);
+
+            // Step 1: Get source file metadata
+            $sourceFile = $this->drive->files->get($sourceFileId, [
+                'fields' => 'id,name,mimeType,size',
+                'supportsAllDrives' => true
+            ]);
+
+            Log::info('Source file retrieved', [
+                'name' => $sourceFile->getName(),
+                'mime' => $sourceFile->getMimeType(),
+                'size' => $sourceFile->getSize()
+            ]);
+
+            // Step 2: Download file content
+            $response = $this->drive->files->get($sourceFileId, [
+                'alt' => 'media',
+                'supportsAllDrives' => true
+            ]);
+
+            // Handle different response types
+            if ($response instanceof \GuzzleHttp\Psr7\Response) {
+                $content = $response->getBody()->getContents();
+            } elseif (is_string($response)) {
+                $content = $response;
+            } else {
+                $content = (string) $response;
+            }
+
+            if (empty($content)) {
+                throw new Exception('Downloaded file content is empty');
+            }
+
+            Log::info('File content downloaded', [
+                'size' => strlen($content)
+            ]);
+
+            // Step 3: Create new file in target folder
+            $newFile = new DriveFile([
+                'name' => $newFileName,
+                'parents' => [$targetFolderId],
+                'mimeType' => $sourceFile->getMimeType()
+            ]);
+
+            $createdFile = $this->drive->files->create($newFile, [
+                'data' => $content,
+                'mimeType' => $sourceFile->getMimeType(),
+                'uploadType' => 'multipart',
+                'fields' => 'id,name,webViewLink,webContentLink',
+                'supportsAllDrives' => true
+            ]);
+
+            // Step 4: Set permissions (anyone can read)
+            try {
+                $permission = new \Google_Service_Drive_Permission([
+                    'type' => 'anyone',
+                    'role' => 'reader'
+                ]);
+                $this->drive->permissions->create($createdFile->getId(), $permission, [
+                    'supportsAllDrives' => true
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to set permission on copied file (non-fatal)', [
+                    'file_id' => $createdFile->getId(),
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            Log::info('File copied successfully', [
+                'source_id' => $sourceFileId,
+                'new_id' => $createdFile->getId(),
+                'new_name' => $createdFile->getName()
+            ]);
+
+            return [
+                'id' => $createdFile->getId(),
+                'name' => $createdFile->getName(),
+                'webViewLink' => $createdFile->getWebViewLink(),
+                'webContentLink' => $createdFile->getWebContentLink()
+            ];
+
+        } catch (\Google\Service\Exception $e) {
+            Log::error('Google Drive API error during copy', [
+                'source_file_id' => $sourceFileId,
+                'target_folder_id' => $targetFolderId,
+                'error' => $e->getMessage(),
+                'errors' => $e->getErrors()
+            ]);
+            throw new Exception('Failed to copy file in Google Drive: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Log::error('Unexpected error during file copy', [
+                'source_file_id' => $sourceFileId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Get file information from Google Drive
+     *
+     * @param string $fileId The Google Drive file ID
+     * @return array File information including id, name, mimeType, size
+     * @throws Exception If file cannot be retrieved
+     */
+    public function getFileInfo(string $fileId): array
+    {
+        if (!$this->initialize()) {
+            throw new Exception('Google Drive service not available: ' . $this->getError());
+        }
+
+        try {
+            Log::info('Getting file info from Google Drive', [
+                'file_id' => $fileId
+            ]);
+
+            $file = $this->drive->files->get($fileId, [
+                'fields' => 'id,name,mimeType,size',
+                'supportsAllDrives' => true
+            ]);
+
+            $fileInfo = [
+                'id' => $file->getId(),
+                'name' => $file->getName(),
+                'mimeType' => $file->getMimeType(),
+                'size' => $file->getSize()
+            ];
+
+            Log::info('Successfully retrieved file info from Google Drive', [
+                'file_id' => $fileId,
+                'file_name' => $fileInfo['name']
+            ]);
+
+            return $fileInfo;
+
+        } catch (\Google_Service_Exception $e) {
+            Log::error('Google Drive API error while getting file info', [
+                'file_id' => $fileId,
+                'error' => $e->getMessage(),
+                'errors' => $e->getErrors()
+            ]);
+            throw new Exception('Failed to get file info from Google Drive: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Log::error('Unexpected error while getting file info', [
+                'file_id' => $fileId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
     public function mirrorToDrive(string $disk, string $path, string $module, string $reffId, string $sub = 'original'): array
     {
         if (!$this->initialize()) {
@@ -910,10 +1082,11 @@ class GoogleDriveService
 
             $lineNumber = $lowering->lineNumber->line_number;
             $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+            $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
 
             // Build old and new folder paths
-            $oldFolderPath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$oldDate}";
-            $newFolderPath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$newDate}";
+            $oldFolderPath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$oldDate}";
+            $newFolderPath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$newDate}";
 
             Log::info('Folder paths for reorganization', [
                 'old_path' => $oldFolderPath,

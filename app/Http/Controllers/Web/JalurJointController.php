@@ -171,26 +171,28 @@ class JalurJointController extends Controller
 
         // Handle photo upload to Google Drive
         $photoPath = null;
-        
+        $uploadResult = null;
+
         if ($uploadMethod === 'file' && $request->hasFile('foto_evidence_joint')) {
             // Handle file upload
             $file = $request->file('foto_evidence_joint');
-            
+
             // Generate descriptive filename
             $waktu = date('H-i-s');
             $tanggalFolder = date('Y-m-d');
             $fieldName = 'foto_evidence_joint';
             $fieldSlug = str_replace(['foto_evidence_', '_'], ['', '-'], $fieldName);
             $customFileName = "JOINT_{$nomorJoint}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
-            
+
             try {
                 // Upload to Google Drive with custom path structure
                 $googleDriveService = app(\App\Services\GoogleDriveService::class);
-                
-                // Create custom path: JALUR_JOINT/Cluster/JointNumber/Date/
+
+                // Create custom path: jalur_joint/cluster_slug/JointNumber/Date/
                 $clusterName = $cluster->nama_cluster;
-                $customDrivePath = "JALUR_JOINT/{$clusterName}/{$nomorJoint}/{$tanggalFolder}";
-                
+                $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
+                $customDrivePath = "jalur_joint/{$clusterSlug}/{$nomorJoint}/{$tanggalFolder}";
+
                 // Upload with custom path
                 $uploadResult = $this->uploadToCustomDrivePath(
                     $googleDriveService,
@@ -200,10 +202,10 @@ class JalurJointController extends Controller
                 );
 
                 $photoPath = $uploadResult['url'] ?? $uploadResult['path'];
-                
+
             } catch (\Exception $e) {
                 Log::error("Google Drive upload failed for joint: " . $e->getMessage());
-                
+
                 // Fallback to local storage
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $fallbackPath = "jalur/joint/{$nomorJoint}/" . $fileName;
@@ -223,9 +225,10 @@ class JalurJointController extends Controller
                 // Download and upload from Google Drive link
                 $googleDriveService = app(\App\Services\GoogleDriveService::class);
                 
-                // Create custom path: JALUR_JOINT/Cluster/JointNumber/Date/
+                // Create custom path: jalur_joint/cluster_slug/JointNumber/Date/
                 $clusterName = $cluster->nama_cluster;
-                $customDrivePath = "JALUR_JOINT/{$clusterName}/{$nomorJoint}/{$tanggalFolder}";
+                $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
+                $customDrivePath = "jalur_joint/{$clusterSlug}/{$nomorJoint}/{$tanggalFolder}";
                 
                 // Copy from Google Drive link to our Drive folder
                 $copyResult = $googleDriveService->copyFromDriveLink($driveLink, $customDrivePath, $customFileName);
@@ -327,6 +330,8 @@ class JalurJointController extends Controller
                     'module_record_id' => $joint->id,
                     'photo_field_name' => 'foto_evidence_joint',
                     'photo_url' => Storage::url($photoPath),
+                    'storage_path' => $uploadResult['path'] ?? $photoPath,
+                    'drive_file_id' => $uploadResult['drive_file_id'] ?? null,
                     'photo_status' => 'tracer_pending', // Reset to pending when replaced
                     'uploaded_by' => Auth::id(),
                     'uploaded_at' => now(),
@@ -552,9 +557,10 @@ class JalurJointController extends Controller
                 // Upload to Google Drive with custom path structure
                 $googleDriveService = app(\App\Services\GoogleDriveService::class);
                 
-                // Create custom path: JALUR_JOINT/Cluster/JointNumber/Date/
+                // Create custom path: jalur_joint/cluster_slug/JointNumber/Date/
                 $clusterName = $joint->cluster->nama_cluster;
-                $customDrivePath = "JALUR_JOINT/{$clusterName}/{$joint->nomor_joint}/{$tanggalFolder}";
+                $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
+                $customDrivePath = "jalur_joint/{$clusterSlug}/{$joint->nomor_joint}/{$tanggalFolder}";
                 
                 // Upload with custom path
                 $uploadResult = $this->uploadToCustomDrivePath(
@@ -583,13 +589,15 @@ class JalurJointController extends Controller
                 ->first();
 
             $photoUrl = str_starts_with($photoPath, 'http') ? $photoPath : Storage::url($photoPath);
-            
+
             $photoData = [
                 'reff_id_pelanggan' => null, // Jalur doesn't have pelanggan
                 'module_name' => 'jalur_joint',
                 'module_record_id' => $joint->id,
                 'photo_field_name' => $validated['photo_field_name'],
                 'photo_url' => $photoUrl,
+                'storage_path' => $uploadResult['path'] ?? $photoPath,
+                'drive_file_id' => $uploadResult['drive_file_id'] ?? null,
                 'photo_status' => 'tracer_pending', // Reset to pending when replaced
                 'uploaded_by' => Auth::id(),
                 'uploaded_at' => now(),
