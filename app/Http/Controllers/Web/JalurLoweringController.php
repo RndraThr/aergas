@@ -240,8 +240,9 @@ class JalurLoweringController extends Controller
                     // Use same path structure as direct upload
                     $lineNumber = $lowering->lineNumber->line_number;
                     $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+                    $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
                     $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
-                    $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
+                    $customDrivePath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$tanggalFolder}";
 
                     $result = $googleDriveService->copyFromDriveLink(
                         $driveLink,
@@ -286,8 +287,9 @@ class JalurLoweringController extends Controller
 
                     $lineNumber = $lowering->lineNumber->line_number;
                     $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+                    $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
                     $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
-                    $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
+                    $customDrivePath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$tanggalFolder}";
 
                     $result = $googleDriveService->copyFromDriveLink(
                         $cassingDriveLink,
@@ -533,8 +535,9 @@ class JalurLoweringController extends Controller
                         // Use same path structure as direct upload
                         $lineNumber = $lowering->lineNumber->line_number;
                         $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+                        $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
                         $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
-                        $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
+                        $customDrivePath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$tanggalFolder}";
                         
                         $result = $googleDriveService->copyFromDriveLink(
                             $driveLink, 
@@ -724,7 +727,7 @@ class JalurLoweringController extends Controller
             $photoApprovalService = app(PhotoApprovalService::class);
             $photoApprovalService->processAIValidation(
                 $lowering->lineNumber->line_number, // Using line_number as reffId
-                'JALUR_LOWERING',
+                'jalur_lowering',
                 $validated['photo_field_name'],
                 Storage::url($path),
                 Auth::id()
@@ -773,12 +776,13 @@ class JalurLoweringController extends Controller
                 $customFileName = "LOWERING_{$lineNumber}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
                 
                 try {
-                    // Custom upload untuk struktur: JALUR_LOWERING/Cluster/LineNumber/Date/
+                    // Custom upload untuk struktur: jalur_lowering/cluster_slug/LineNumber/Date/
                     $googleDriveService = app(GoogleDriveService::class);
-                    
-                    // Buat path custom: JALUR_LOWERING/Karanggayam/63-KRG-LN001/2025-09-06/
+
+                    // Buat path custom: jalur_lowering/karanggayam/63-KRG-LN001/2025-09-06/
                     $clusterName = $lowering->lineNumber->cluster->nama_cluster; // Karanggayam
-                    $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
+                    $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
+                    $customDrivePath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$tanggalFolder}";
                     
                     // Upload dengan custom path
                     $uploadResult = $this->uploadToCustomDrivePath(
@@ -800,6 +804,8 @@ class JalurLoweringController extends Controller
                         'module_record_id' => $lowering->id,
                         'photo_field_name' => $fieldName,
                         'photo_url' => $uploadResult['url'] ?? $uploadResult['path'],
+                        'storage_path' => $uploadResult['path'] ?? null,
+                        'drive_file_id' => $uploadResult['drive_file_id'] ?? null,
                         'photo_status' => 'tracer_pending', // Reset to pending when replaced
                         'uploaded_by' => Auth::id(),
                         'uploaded_at' => now(),
@@ -854,6 +860,8 @@ class JalurLoweringController extends Controller
                         'module_record_id' => $lowering->id,
                         'photo_field_name' => $fieldName,
                         'photo_url' => Storage::url($fullPath),
+                        'storage_path' => $fullPath,
+                        'drive_file_id' => null, // Local storage fallback doesn't use Drive
                         'photo_status' => 'tracer_pending', // Reset to pending when replaced
                         'uploaded_by' => Auth::id(),
                         'uploaded_at' => now(),

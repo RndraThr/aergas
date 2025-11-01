@@ -133,11 +133,6 @@
                         <p class="text-sm text-gray-600">{{ $line->cluster->nama_cluster }}</p>
                     </div>
                 </div>
-                @if($lineStats['pending_photos'] > 0)
-                    <button onclick="approveEntireLine()" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition shadow-lg font-bold">
-                        ✓ Approve All ({{ $lineStats['pending_photos'] }})
-                    </button>
-                @endif
             </div>
 
             {{-- Line Info Grid --}}
@@ -240,62 +235,47 @@
                     {{-- Date Section --}}
                     <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
                         {{-- Status & Metadata Card --}}
-                        <div class="bg-white p-4 border-b border-gray-200">
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div>
-                                    <div class="text-xs text-gray-500">Status Laporan</div>
-                                    <div class="mt-1">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            @if($lowering->status_laporan === 'draft') bg-gray-100 text-gray-800
-                                            @elseif($lowering->status_laporan === 'acc_tracer') bg-yellow-100 text-yellow-800
-                                            @elseif($lowering->status_laporan === 'acc_cgp') bg-green-100 text-green-800
-                                            @elseif(in_array($lowering->status_laporan, ['revisi_tracer', 'revisi_cgp'])) bg-red-100 text-red-800
-                                            @endif">
-                                            {{ $lowering->status_label }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Created By</div>
-                                    @if($lowering->createdBy)
-                                        <div class="flex items-center mt-1">
-                                            <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                                                <span class="text-xs font-medium text-green-600">
-                                                    {{ strtoupper(substr($lowering->createdBy->name, 0, 1)) }}
-                                                </span>
-                                            </div>
-                                            <span class="font-medium text-sm">{{ $lowering->createdBy->name }}</span>
-                                        </div>
-                                    @else
-                                        <div class="text-gray-400 text-sm">-</div>
-                                    @endif
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Tanggal Jalur</div>
-                                    <div class="font-medium text-sm">{{ \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('d/m/Y') }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Dibuat</div>
-                                    <div class="font-medium text-sm">{{ $lowering->created_at->format('d/m/Y H:i') }}</div>
-                                </div>
-                            </div>
-                        </div>
-
                         {{-- Date Header with Lowering Details --}}
                         <div class="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4">
                             <div class="flex items-center justify-between mb-3">
                                 <div>
                                     <h2 class="text-xl font-bold">
-                                        {{ \Carbon\Carbon::parse($lowering->tanggal_lowering)->format('d M Y') }}
+                                        {{ \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('d M Y') }}
                                     </h2>
                                     <p class="text-sm text-purple-100">
-                                        {{ \Carbon\Carbon::parse($lowering->tanggal_lowering)->isoFormat('dddd') }}
+                                        {{ \Carbon\Carbon::parse($lowering->tanggal_jalur)->isoFormat('dddd') }}
                                     </p>
                                 </div>
                                 <div class="text-right">
                                     <div class="text-sm text-purple-100">Photos</div>
                                     <div class="text-2xl font-bold">{{ $photos->count() }}</div>
                                 </div>
+                            </div>
+
+                            {{-- Report Info --}}
+                            <div class="mb-3 flex flex-wrap gap-2 items-center">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+                                    @if($lowering->status_laporan === 'draft') bg-white/20 text-white border border-white/30
+                                    @elseif($lowering->status_laporan === 'acc_tracer') bg-yellow-400/30 text-yellow-100 border border-yellow-300/50
+                                    @elseif($lowering->status_laporan === 'acc_cgp') bg-green-400/30 text-green-100 border border-green-300/50
+                                    @elseif(in_array($lowering->status_laporan, ['revisi_tracer', 'revisi_cgp'])) bg-red-400/30 text-red-100 border border-red-300/50
+                                    @endif">
+                                    {{ $lowering->status_label }}
+                                </span>
+                                @if($lowering->createdBy)
+                                    <span class="inline-flex items-center px-2.5 py-1 bg-white/20 rounded-full text-xs font-medium border border-white/30">
+                                        <span class="w-5 h-5 bg-white/30 rounded-full flex items-center justify-center mr-1.5">
+                                            <span class="text-[10px] font-bold">{{ strtoupper(substr($lowering->createdBy->name, 0, 1)) }}</span>
+                                        </span>
+                                        {{ $lowering->createdBy->name }}
+                                    </span>
+                                @endif
+                                <span class="inline-flex items-center px-2.5 py-1 bg-white/20 rounded-full text-xs font-medium border border-white/30">
+                                    <svg class="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Dibuat: {{ $lowering->created_at->format('d/m/Y H:i') }}
+                                </span>
                             </div>
 
                             {{-- Lowering Details --}}
@@ -318,7 +298,7 @@
                                 </div>
                                 <div class="text-center">
                                     <div class="text-xs text-purple-100">Material</div>
-                                    <div class="text-sm font-semibold">{{ $lowering->tipe_material }}</div>
+                                    <div class="text-sm font-semibold">{{ $lowering->tipe_material ?? '-' }}</div>
                                 </div>
                             </div>
 
@@ -520,6 +500,38 @@
                                                         </div>
                                                     @endif
 
+                                                    {{-- Tracer Approved (shown when CGP rejected) --}}
+                                                    @if($isCgpRejected && $photo->tracer_approved_at)
+                                                        <div>
+                                                            <button type="button"
+                                                                    onclick="toggleStatusDetails({{ $photo->id }}, 'tracer-approved-history')"
+                                                                    class="w-full inline-flex items-center justify-between px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 transition-colors cursor-pointer text-left">
+                                                                <span>✅ Approved by Tracer</span>
+                                                                <i id="tracer-approved-history-chevron-{{ $photo->id }}" class="fas fa-chevron-down transition-transform"></i>
+                                                            </button>
+                                                            <div id="tracer-approved-history-details-{{ $photo->id }}" class="hidden mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                                                <div class="flex items-center justify-between mb-2">
+                                                                    <span class="text-xs text-gray-600">Approved at:</span>
+                                                                    <span class="text-xs font-medium text-green-600">{{ \Carbon\Carbon::parse($photo->tracer_approved_at)->format('d/m/Y H:i') }}</span>
+                                                                </div>
+                                                                @if($photo->tracerUser)
+                                                                    <div class="flex items-center gap-1 mb-2">
+                                                                        <i class="fas fa-user text-green-600 text-xs"></i>
+                                                                        <span class="text-xs text-green-700">{{ $photo->tracerUser->name }}</span>
+                                                                    </div>
+                                                                @endif
+                                                                @if($photo->tracer_notes)
+                                                                    <div class="mt-2 pt-2 border-t border-green-200">
+                                                                        <p class="text-xs text-gray-600 mb-1 font-medium">Notes:</p>
+                                                                        <p class="text-xs text-green-700 bg-white p-2 rounded">{{ $photo->tracer_notes }}</p>
+                                                                    </div>
+                                                                @else
+                                                                    <p class="text-xs text-gray-500 italic">No notes</p>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    @endif
+
                                                     {{-- CGP Rejected Status --}}
                                                     @if($isCgpRejected)
                                                         <div>
@@ -533,10 +545,6 @@
                                                                 <i id="cgp-rejected-chevron-{{ $photo->id }}" class="fas fa-chevron-down transition-transform"></i>
                                                             </button>
                                                             <div id="cgp-rejected-details-{{ $photo->id }}" class="hidden mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                                                                <div class="mb-2 p-2 bg-orange-100 border border-orange-300 rounded">
-                                                                    <p class="text-xs font-semibold text-orange-900">⚠️ Perlu Perbaikan - Rejected by CGP</p>
-                                                                    <p class="text-xs text-orange-700 mt-1">Photo perlu di-replace oleh Admin/Super Admin</p>
-                                                                </div>
                                                                 <div class="flex items-center justify-between mb-2">
                                                                     <span class="text-xs text-gray-600">Rejected at:</span>
                                                                     <span class="text-xs font-medium text-orange-600">{{ \Carbon\Carbon::parse($photo->cgp_rejected_at)->format('d/m/Y H:i') }}</span>
@@ -613,8 +621,8 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
                 </div>
-                <h3 class="text-xl font-bold text-gray-700 mb-2">Belum Ada Data</h3>
-                <p class="text-gray-500">Belum ada evidence photo untuk line ini</p>
+                <h3 class="text-xl font-bold text-gray-700 mb-2">Belum Ada Data Lowering</h3>
+                <p class="text-gray-500">Belum ada evidence photo lowering untuk line ini</p>
             </div>
         @endif
 
@@ -622,36 +630,55 @@
         <div class="sticky bottom-4 mt-6 z-40">
             <div class="bg-white rounded-xl shadow-2xl border-2 border-purple-300 p-6">
                 <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div class="flex flex-wrap gap-6 justify-center md:justify-start">
-                        <div class="text-center">
-                            <div class="text-xs text-gray-600 mb-1">Total Photos</div>
-                            <div class="text-2xl font-bold text-gray-900">{{ $lineStats['total_photos'] }}</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-xs text-green-600 mb-1">Approved</div>
-                            <div class="text-2xl font-bold text-green-700">{{ $lineStats['approved_photos'] }}</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-xs text-orange-600 mb-1">Pending</div>
-                            <div class="text-2xl font-bold text-orange-700">{{ $lineStats['pending_photos'] }}</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-xs text-red-600 mb-1">Rejected</div>
-                            <div class="text-2xl font-bold text-red-700">{{ $lineStats['rejected_photos'] }}</div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-4">
-                        <div class="text-center md:text-right">
-                            <div class="text-xs text-gray-600 mb-1">Approval Progress</div>
-                            <div class="text-2xl font-bold text-purple-600">{{ number_format($lineStats['percentage'], 0) }}%</div>
-                        </div>
-                        <div class="w-48 bg-gray-200 rounded-full h-4 shadow-inner">
-                            <div class="h-4 rounded-full transition-all shadow-sm {{ $lineStats['percentage'] === 100 ? 'bg-gradient-to-r from-green-400 to-green-600' : 'bg-gradient-to-r from-purple-400 to-purple-600' }}"
-                                 style="width: {{ $lineStats['percentage'] }}%">
+                    {{-- Detail Approval (Left) --}}
+                    <div class="flex flex-col gap-2">
+                        <div class="text-sm font-semibold text-gray-700">Detail Approval</div>
+                        <div class="flex flex-wrap gap-4">
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-gray-800">{{ $lineStats['total_photos'] }}</div>
+                                <div class="text-xs text-gray-600">Total</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-green-600">{{ $lineStats['approved_photos'] }}</div>
+                                <div class="text-xs text-gray-600">Approved</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-orange-600">{{ $lineStats['pending_photos'] }}</div>
+                                <div class="text-xs text-gray-600">Pending</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-red-600">{{ $lineStats['rejected_photos'] }}</div>
+                                <div class="text-xs text-gray-600">Rejected</div>
                             </div>
                         </div>
                     </div>
+
+                    {{-- Approval Progress (Center) --}}
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="text-sm font-semibold text-gray-700">Approval Progress</div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-48 bg-gray-200 rounded-full h-3 overflow-hidden">
+                                <div class="bg-gradient-to-r from-purple-500 to-pink-600 h-3 rounded-full transition-all duration-500"
+                                     style="width: {{ $lineStats['percentage'] }}%">
+                                </div>
+                            </div>
+                            <span class="text-sm font-bold text-gray-700 min-w-[3rem]">
+                                {{ number_format($lineStats['percentage'], 0) }}%
+                            </span>
+                        </div>
+                    </div>
+
+                    {{-- Approve All Button (Right) --}}
+                    @if($lineStats['pending_photos'] > 0)
+                        <button
+                            onclick="approveEntireLine()"
+                            class="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Approve All
+                        </button>
+                    @endif
                 </div>
             </div>
         </div>
@@ -857,31 +884,36 @@ function closeApproveModal() {
 function confirmApprove() {
     if (!currentPhotoId) return;
 
+    const photoId = currentPhotoId;  // Save before modal close
+
     const notes = document.getElementById('approveNotes').value.trim();
 
-    fetch('{{ route("approvals.tracer.jalur.approve-photo") }}', {
+    closeApproveModal();
+    showLoading('Memproses approval...');
+
+    safeFetchJSON('{{ route("approvals.tracer.jalur.approve-photo") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
         body: JSON.stringify({
-            photo_id: currentPhotoId,
+            photo_id: photoId,
             notes: notes || 'Approved by tracer'
         })
     })
-    .then(response => response.json())
     .then(data => {
+        closeLoading();
         if (data.success) {
-            alert('Photo berhasil di-approve!');
-            location.reload();
+            showSuccessToast('Berhasil disetujui');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + data.message);
+            showErrorToast('Gagal memproses, silakan coba lagi');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat approve photo');
+        closeLoading();
+        showErrorToast('Gagal memproses, silakan coba lagi');
     });
 }
 
@@ -905,36 +937,41 @@ function closeRejectModal() {
 function confirmReject() {
     if (!currentPhotoId) return;
 
+    const photoId = currentPhotoId;  // Save before modal close
+
     const notes = document.getElementById('rejectNotes').value.trim();
 
     if (!notes || notes.length < 10) {
-        alert('Alasan reject harus minimal 10 karakter');
+        showWarningToast('Alasan reject harus minimal 10 karakter');
         return;
     }
 
-    fetch('{{ route("approvals.tracer.jalur.reject-photo") }}', {
+    closeRejectModal();
+    showLoading('Memproses rejection...');
+
+    safeFetchJSON('{{ route("approvals.tracer.jalur.reject-photo") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
         body: JSON.stringify({
-            photo_id: currentPhotoId,
+            photo_id: photoId,
             notes: notes
         })
     })
-    .then(response => response.json())
     .then(data => {
+        closeLoading();
         if (data.success) {
-            alert('Photo berhasil di-reject!');
-            location.reload();
+            showSuccessToast('Berhasil ditolak');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + data.message);
+            showErrorToast('Gagal memproses, silakan coba lagi');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat reject photo');
+        closeLoading();
+        showErrorToast('Gagal memproses, silakan coba lagi');
     });
 }
 
@@ -961,10 +998,19 @@ function toggleStatusDetails(photoId, type) {
     }
 }
 
-function approveEntireLine() {
-    if (!confirm('Approve semua photo di line ini?')) return;
+async function approveEntireLine() {
+    const confirmed = await showConfirm({
+        title: 'Konfirmasi Bulk Approval',
+        text: 'Approve semua photo di line ini?',
+        confirmText: 'Ya, Approve Semua',
+        cancelText: 'Batal'
+    });
 
-    fetch('{{ route("approvals.tracer.jalur.approve-line") }}', {
+    if (!confirmed) return;
+
+    showLoading('Memproses bulk approval...');
+
+    safeFetchJSON('{{ route("approvals.tracer.jalur.approve-line") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -975,18 +1021,19 @@ function approveEntireLine() {
             notes: 'Bulk approved by tracer'
         })
     })
-    .then(response => response.json())
+    
     .then(data => {
+        closeLoading();
         if (data.success) {
-            alert('Semua photo berhasil di-approve!');
-            location.reload();
+            showSuccessToast('Semua foto berhasil disetujui');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + data.message);
+            showErrorToast('Gagal memproses, silakan coba lagi');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat approve line');
+        closeLoading();
+        showErrorToast('Gagal memproses, silakan coba lagi');
     });
 }
 
@@ -1000,44 +1047,30 @@ function openReplacePhotoModal(photoId, photoName, photoStatus) {
     const modal = document.getElementById('replacePhotoModal');
     const photoNameSpan = document.getElementById('replacePhotoName');
     const fileInput = document.getElementById('replacePhotoFile');
-    const preview = document.getElementById('replacePhotoPreview');
-    const warningBox = document.getElementById('replacePhotoWarning');
+    const uploadArea = document.getElementById('uploadArea');
+    const previewArea = document.getElementById('previewArea');
+    const warningMessage = document.getElementById('replaceWarningMessage');
+    const warningText = document.getElementById('replaceWarningText');
+    const confirmBtn = document.getElementById('confirmReplaceBtn');
 
     photoNameSpan.textContent = photoName;
     fileInput.value = '';
-    preview.innerHTML = '';
 
-    // Show warning if photo is already approved
-    const approvedStatuses = ['tracer_approved', 'cgp_pending', 'cgp_approved'];
-    if (approvedStatuses.includes(photoStatus)) {
-        warningBox.classList.remove('hidden');
-        warningBox.innerHTML = `
-            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-yellow-800">Warning: Photo Already Approved</h3>
-                        <div class="mt-2 text-sm text-yellow-700">
-                            <p>Status saat ini: <strong>${photoStatus.replace('_', ' ').toUpperCase()}</strong></p>
-                            <p class="mt-1">Mengganti foto ini akan:</p>
-                            <ul class="list-disc list-inside mt-1">
-                                <li>Reset status ke <strong>TRACER_PENDING</strong></li>
-                                <li>Memerlukan re-approval dari Tracer</li>
-                                ${photoStatus === 'cgp_approved' || photoStatus === 'cgp_pending' ? '<li class="text-red-600 font-semibold">Menghilangkan approval CGP (harus review ulang)</li>' : ''}
-                                <li>Mempengaruhi progress approval</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+    // Reset to upload view
+    uploadArea.classList.remove('hidden');
+    previewArea.classList.add('hidden');
+    confirmBtn.disabled = true;
+
+    // Show warning for approved photos
+    if (photoStatus === 'tracer_approved' || photoStatus === 'cgp_approved') {
+        warningMessage.classList.remove('hidden');
+        if (photoStatus === 'cgp_approved') {
+            warningText.textContent = 'Photo ini sudah di-approve oleh CGP. Replace akan reset status ke pending dan perlu approval ulang dari Tracer dan CGP.';
+        } else {
+            warningText.textContent = 'Photo ini sudah di-approve oleh Tracer. Replace akan reset status ke pending dan perlu approval ulang.';
+        }
     } else {
-        warningBox.classList.add('hidden');
-        warningBox.innerHTML = '';
+        warningMessage.classList.add('hidden');
     }
 
     modal.classList.remove('hidden');
@@ -1046,35 +1079,90 @@ function openReplacePhotoModal(photoId, photoName, photoStatus) {
 
 function closeReplacePhotoModal() {
     const modal = document.getElementById('replacePhotoModal');
+    const fileInput = document.getElementById('replacePhotoFile');
+    const uploadArea = document.getElementById('uploadArea');
+    const previewArea = document.getElementById('previewArea');
+    const confirmBtn = document.getElementById('confirmReplaceBtn');
+
+    // Hide modal
     modal.classList.add('hidden');
     document.body.style.overflow = 'auto';
+
+    // Reset state
+    fileInput.value = '';
+    uploadArea.classList.remove('hidden');
+    previewArea.classList.add('hidden');
+    confirmBtn.disabled = true;
+
+    // Clear current photo tracking
     currentReplacePhotoId = null;
     currentReplacePhotoName = '';
 }
 
 function previewReplacePhoto(event) {
     const file = event.target.files[0];
-    const preview = document.getElementById('replacePhotoPreview');
+    const uploadArea = document.getElementById('uploadArea');
+    const previewArea = document.getElementById('previewArea');
+    const previewImage = document.getElementById('replacePhotoPreviewImage');
+    const fileInfo = document.getElementById('fileInfo');
+    const confirmBtn = document.getElementById('confirmReplaceBtn');
 
     if (file) {
-        if (file.size > 10 * 1024 * 1024) { // 10MB
-            alert('File terlalu besar! Maximum 10MB');
+        // Validate file size (10MB max)
+        if (file.size > 10 * 1024 * 1024) {
+            showErrorToast('Ukuran file maksimal 10MB');
             event.target.value = '';
-            preview.innerHTML = '';
+            return;
+        }
+
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+        if (!validTypes.includes(file.type)) {
+            showErrorToast('Format file harus JPG, JPEG, atau PNG');
+            event.target.value = '';
             return;
         }
 
         const reader = new FileReader();
         reader.onload = function(e) {
-            preview.innerHTML = `
-                <img src="${e.target.result}" class="max-w-full max-h-64 rounded-lg shadow-md" alt="Preview">
-                <p class="text-sm text-gray-600 mt-2">File: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</p>
-            `;
+            // Update preview image
+            previewImage.src = e.target.result;
+
+            // Update file info
+            const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+            fileInfo.textContent = `${file.name} (${fileSizeMB} MB)`;
+
+            // Toggle visibility
+            uploadArea.classList.add('hidden');
+            previewArea.classList.remove('hidden');
+
+            // Enable confirm button
+            confirmBtn.disabled = false;
         };
         reader.readAsDataURL(file);
     } else {
-        preview.innerHTML = '';
+        // No file selected - show upload area
+        uploadArea.classList.remove('hidden');
+        previewArea.classList.add('hidden');
+        confirmBtn.disabled = true;
     }
+}
+
+function clearPreview() {
+    const fileInput = document.getElementById('replacePhotoFile');
+    const uploadArea = document.getElementById('uploadArea');
+    const previewArea = document.getElementById('previewArea');
+    const confirmBtn = document.getElementById('confirmReplaceBtn');
+
+    // Clear file input
+    fileInput.value = '';
+
+    // Toggle visibility back to upload area
+    uploadArea.classList.remove('hidden');
+    previewArea.classList.add('hidden');
+
+    // Disable confirm button
+    confirmBtn.disabled = true;
 }
 
 function confirmReplacePhoto() {
@@ -1084,7 +1172,7 @@ function confirmReplacePhoto() {
     const file = fileInput.files[0];
 
     if (!file) {
-        alert('Silakan pilih foto terlebih dahulu');
+        showWarningToast('Silakan pilih foto terlebih dahulu');
         return;
     }
 
@@ -1093,45 +1181,50 @@ function confirmReplacePhoto() {
     formData.append('photo', file);
     formData.append('_token', '{{ csrf_token() }}');
 
-    // Show loading
-    const btn = event.target;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    closeReplacePhotoModal();
+    showLoading('Mengupload foto baru...');
 
-    fetch('{{ route("approvals.tracer.jalur.replace-photo") }}', {
+    safeFetchJSON('{{ route("approvals.tracer.jalur.replace-photo") }}', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    
     .then(data => {
+        closeLoading();
         if (data.success) {
-            alert('Photo berhasil diganti! Status direset ke pending.');
-            location.reload();
+            showSuccessToast('Foto berhasil diganti');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + (data.message || 'Terjadi kesalahan'));
-            btn.disabled = false;
-            btn.innerHTML = 'Upload & Replace';
+            showErrorToast('Error: ' + (data.message || 'Terjadi kesalahan'));
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat replace photo');
-        btn.disabled = false;
-        btn.innerHTML = 'Upload & Replace';
+        closeLoading();
+        showErrorToast('Gagal memproses, silakan coba lagi');
     });
 }
 </script>
 
-{{-- Replace Photo Modal --}}
-<div id="replacePhotoModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div class="p-6 border-b border-gray-200">
+{{-- Replace Photo Modal - Modern Design --}}
+<div id="replacePhotoModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+        {{-- Header --}}
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-5">
             <div class="flex items-center justify-between">
-                <div>
-                    <h3 class="text-xl font-bold text-gray-900">Replace Photo</h3>
-                    <p class="text-sm text-gray-600 mt-1">Upload foto baru untuk: <span id="replacePhotoName" class="font-semibold text-blue-600"></span></p>
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold">Replace Photo</h3>
+                        <p class="text-sm text-blue-100 mt-0.5">
+                            <span id="replacePhotoName" class="font-semibold"></span>
+                        </p>
+                    </div>
                 </div>
-                <button onclick="closeReplacePhotoModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <button onclick="closeReplacePhotoModal()" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1139,55 +1232,121 @@ function confirmReplacePhoto() {
             </div>
         </div>
 
-        <div class="p-6">
-            {{-- Warning Box (will be populated by JS if needed) --}}
-            <div id="replacePhotoWarning" class="hidden"></div>
-
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Select New Photo
-                </label>
-                <input type="file"
-                       id="replacePhotoFile"
-                       accept="image/jpeg,image/jpg,image/png"
-                       onchange="previewReplacePhoto(event)"
-                       class="block w-full text-sm text-gray-500
-                              file:mr-4 file:py-2 file:px-4
-                              file:rounded-lg file:border-0
-                              file:text-sm file:font-semibold
-                              file:bg-blue-50 file:text-blue-700
-                              hover:file:bg-blue-100
-                              cursor-pointer">
-                <p class="text-xs text-gray-500 mt-1">Format: JPEG, JPG, PNG. Max 10MB</p>
+        {{-- Content --}}
+        <div class="p-6 max-h-[calc(90vh-200px)] overflow-y-auto">
+            {{-- Warning Message --}}
+            <div id="replaceWarningMessage" class="hidden mb-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl">
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-yellow-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-bold text-yellow-900 mb-1">⚠️ Perhatian!</p>
+                        <p id="replaceWarningText" class="text-sm text-yellow-800"></p>
+                    </div>
+                </div>
             </div>
 
-            <div id="replacePhotoPreview" class="mb-4 text-center"></div>
+            {{-- Upload & Preview Combined Section --}}
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-3">
+                    Upload Foto Baru <span class="text-red-500">*</span>
+                </label>
 
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <div class="flex items-start gap-3">
-                    <svg class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                    </svg>
-                    <div class="text-sm text-yellow-800">
-                        <p class="font-semibold mb-1">Perhatian:</p>
-                        <ul class="list-disc list-inside space-y-1">
-                            <li>Foto lama akan dihapus dan diganti dengan foto baru</li>
-                            <li>Status approval akan direset ke <strong>Pending</strong></li>
-                            <li>Photo perlu di-approve ulang oleh Tracer</li>
-                        </ul>
+                <div class="relative">
+                    <input type="file" id="replacePhotoFile" accept="image/jpeg,image/jpg,image/png"
+                           class="hidden" onchange="previewReplacePhoto(event)">
+
+                    {{-- Upload Area (shown when no file selected) --}}
+                    <label id="uploadArea" for="replacePhotoFile"
+                           class="flex flex-col items-center justify-center w-full min-h-[20rem] border-3 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gradient-to-br from-gray-50 to-blue-50 hover:from-blue-50 hover:to-indigo-50 transition-all group">
+                        <div class="flex flex-col items-center justify-center py-8">
+                            <div class="w-20 h-20 mb-4 bg-blue-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                            </div>
+                            <p class="mb-2 text-base font-semibold text-gray-700">
+                                <span class="text-blue-600">Click to upload</span> or drag and drop
+                            </p>
+                            <p class="text-sm text-gray-500">PNG, JPG, JPEG (Max: 10MB)</p>
+                        </div>
+                    </label>
+
+                    {{-- Preview Area (shown when file selected) --}}
+                    <div id="previewArea" class="hidden">
+                        <div class="relative group">
+                            <div class="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition"></div>
+                            <div class="relative bg-white rounded-xl p-3 border-2 border-blue-300">
+                                <img id="replacePhotoPreviewImage" src="" alt="Preview"
+                                     class="w-full h-96 object-contain bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg">
+
+                                {{-- Action Buttons Overlay --}}
+                                <div class="absolute top-6 right-6 flex gap-2">
+                                    <button type="button" onclick="clearPreview()"
+                                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg transition-all flex items-center gap-2 font-medium">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                        Hapus
+                                    </button>
+                                    <label for="replacePhotoFile"
+                                           class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg transition-all flex items-center gap-2 font-medium cursor-pointer">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                        </svg>
+                                        Ganti
+                                    </label>
+                                </div>
+
+                                {{-- File Info --}}
+                                <div class="absolute bottom-6 left-6 right-6">
+                                    <div class="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg p-3 shadow-lg">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <p class="text-sm font-semibold text-gray-900">Foto siap di-upload</p>
+                                                    <p id="fileInfo" class="text-xs text-gray-600"></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="p-6 border-t border-gray-200 bg-gray-50 flex gap-3">
+        {{-- Footer --}}
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex gap-3">
             <button onclick="closeReplacePhotoModal()"
-                    class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition font-medium">
-                Cancel
+                    class="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition font-semibold">
+                <span class="flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Cancel
+                </span>
             </button>
             <button onclick="confirmReplacePhoto()"
-                    class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
-                Upload & Replace
+                    id="confirmReplaceBtn"
+                    class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+                    disabled>
+                <span class="flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    </svg>
+                    Upload & Replace
+                </span>
             </button>
         </div>
     </div>

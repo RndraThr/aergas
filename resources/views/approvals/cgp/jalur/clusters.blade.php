@@ -137,8 +137,8 @@
         {{-- Clusters Grid --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <template x-for="cluster in clusters" :key="cluster.id">
-                <div class="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 border border-gray-100 overflow-hidden transform hover:-translate-y-1">
-                    <a :href="`{{ route('approvals.cgp.jalur.clusters') }}/${cluster.id}/lines`" class="block">
+                <div class="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 border border-gray-100 overflow-hidden transform hover:-translate-y-1 flex flex-col">
+                    <a :href="`{{ route('approvals.cgp.jalur.clusters') }}/${cluster.id}/lines`" class="flex flex-col flex-1">
                         {{-- Card Header --}}
                         <div class="bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-5 border-b border-gray-200">
                             <div class="flex items-start justify-between">
@@ -158,39 +158,49 @@
 
                                 {{-- Status Badge --}}
                                 <div class="ml-4">
+                                    {{-- PRIORITAS 1: Pending (ada yang perlu direview) --}}
                                     <span x-show="cluster.approval_stats.pending_photos > 0" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-full bg-orange-100 text-orange-800 border border-orange-200">
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
                                         </svg>
                                         Pending
                                     </span>
-                                    <span x-show="cluster.approval_stats.pending_photos === 0 && cluster.approval_stats.total_photos > 0" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-full bg-green-100 text-green-800 border border-green-200">
+                                    {{-- PRIORITAS 2: Rejected (tidak ada pending tapi ada rejected) --}}
+                                    <span x-show="cluster.approval_stats.pending_photos === 0 && cluster.approval_stats.rejected_photos > 0" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-full bg-red-100 text-red-800 border border-red-200">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                        </svg>
+                                        Rejected
+                                    </span>
+                                    {{-- PRIORITAS 3: No Evidence (belum ada photos) --}}
+                                    <span x-show="cluster.approval_stats.total_photos === 0" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 000-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
+                                        </svg>
+                                        No Evidence
+                                    </span>
+                                    {{-- PRIORITAS 4: Approved (tidak ada pending, rejected, atau no evidence) --}}
+                                    <span x-show="cluster.approval_stats.pending_photos === 0 && cluster.approval_stats.rejected_photos === 0 && cluster.approval_stats.total_photos > 0" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-full bg-green-100 text-green-800 border border-green-200">
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                                         </svg>
                                         Approved
-                                    </span>
-                                    <span x-show="cluster.approval_stats.total_photos === 0" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-full bg-gray-100 text-gray-600 border border-gray-200">
-                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
-                                        </svg>
-                                        No Evidence
                                     </span>
                                 </div>
                             </div>
                         </div>
 
                         {{-- Card Body --}}
-                        <div class="p-6">
+                        <div class="p-6 flex-1 flex flex-col">
                             {{-- Stats Grid --}}
                             <div class="grid grid-cols-2 gap-4 mb-4">
                                 <div class="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                                    <div class="text-xs font-medium text-blue-600 mb-1">Total Lines</div>
-                                    <div class="text-2xl font-bold text-blue-900" x-text="cluster.approval_stats.total_lines"></div>
+                                    <div class="text-xs font-medium text-blue-600 mb-1">Total Items</div>
+                                    <div class="text-2xl font-bold text-blue-900" x-text="cluster.approval_stats.total_items || (cluster.approval_stats.total_lines + (cluster.approval_stats.total_joints || 0))"></div>
                                 </div>
                                 <div class="bg-orange-50 rounded-lg p-4 border border-orange-100">
-                                    <div class="text-xs font-medium text-orange-600 mb-1">Lines Pending</div>
-                                    <div class="text-2xl font-bold text-orange-900" x-text="cluster.approval_stats.lines_with_pending"></div>
+                                    <div class="text-xs font-medium text-orange-600 mb-1">Items Pending</div>
+                                    <div class="text-2xl font-bold text-orange-900" x-text="cluster.approval_stats.items_with_pending || (cluster.approval_stats.lines_with_pending + (cluster.approval_stats.joints_with_pending || 0))"></div>
                                 </div>
                                 <div class="bg-red-50 rounded-lg p-4 border border-red-100">
                                     <div class="text-xs font-medium text-red-600 mb-1">Pending Photos</div>
@@ -201,22 +211,12 @@
                                     <div class="text-2xl font-bold text-green-900" x-text="cluster.approval_stats.approved_photos"></div>
                                 </div>
                             </div>
-
-                            <div x-show="cluster.approval_stats.rejected_photos > 0" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                <div class="flex items-center gap-2 text-sm text-red-700">
-                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                                    </svg>
-                                    <span class="font-semibold" x-text="cluster.approval_stats.rejected_photos + ' foto ditolak'"></span>
-                                    <span class="text-red-600">(perlu re-upload)</span>
-                                </div>
-                            </div>
                         </div>
 
                         {{-- Card Footer --}}
-                        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 mt-auto">
                             <div class="flex items-center justify-between text-sm">
-                                <span class="text-gray-600 font-medium">Klik untuk melihat lines</span>
+                                <span class="text-gray-600 font-medium">Klik untuk melihat items</span>
                                 <svg class="w-5 h-5 text-blue-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                                 </svg>

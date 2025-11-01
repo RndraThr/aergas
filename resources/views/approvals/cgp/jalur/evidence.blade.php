@@ -133,11 +133,6 @@
                         <p class="text-sm text-gray-600">{{ $line->cluster->nama_cluster }}</p>
                     </div>
                 </div>
-                @if($lineStats['pending_photos'] > 0)
-                    <button onclick="approveEntireLine()" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition shadow-lg font-bold">
-                        ✓ Approve All ({{ $lineStats['pending_photos'] }})
-                    </button>
-                @endif
             </div>
 
             {{-- Line Info Grid --}}
@@ -240,62 +235,47 @@
                     {{-- Date Section --}}
                     <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
                         {{-- Status & Metadata Card --}}
-                        <div class="bg-white p-4 border-b border-gray-200">
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div>
-                                    <div class="text-xs text-gray-500">Status Laporan</div>
-                                    <div class="mt-1">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            @if($lowering->status_laporan === 'draft') bg-gray-100 text-gray-800
-                                            @elseif($lowering->status_laporan === 'acc_tracer') bg-yellow-100 text-yellow-800
-                                            @elseif($lowering->status_laporan === 'acc_cgp') bg-green-100 text-green-800
-                                            @elseif(in_array($lowering->status_laporan, ['revisi_tracer', 'revisi_cgp'])) bg-red-100 text-red-800
-                                            @endif">
-                                            {{ $lowering->status_label }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Created By</div>
-                                    @if($lowering->createdBy)
-                                        <div class="flex items-center mt-1">
-                                            <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                                                <span class="text-xs font-medium text-green-600">
-                                                    {{ strtoupper(substr($lowering->createdBy->name, 0, 1)) }}
-                                                </span>
-                                            </div>
-                                            <span class="font-medium text-sm">{{ $lowering->createdBy->name }}</span>
-                                        </div>
-                                    @else
-                                        <div class="text-gray-400 text-sm">-</div>
-                                    @endif
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Tanggal Jalur</div>
-                                    <div class="font-medium text-sm">{{ \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('d/m/Y') }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Dibuat</div>
-                                    <div class="font-medium text-sm">{{ $lowering->created_at->format('d/m/Y H:i') }}</div>
-                                </div>
-                            </div>
-                        </div>
-
                         {{-- Date Header with Lowering Details --}}
                         <div class="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4">
                             <div class="flex items-center justify-between mb-3">
                                 <div>
                                     <h2 class="text-xl font-bold">
-                                        {{ \Carbon\Carbon::parse($lowering->tanggal_lowering)->format('d M Y') }}
+                                        {{ \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('d M Y') }}
                                     </h2>
                                     <p class="text-sm text-purple-100">
-                                        {{ \Carbon\Carbon::parse($lowering->tanggal_lowering)->isoFormat('dddd') }}
+                                        {{ \Carbon\Carbon::parse($lowering->tanggal_jalur)->isoFormat('dddd') }}
                                     </p>
                                 </div>
                                 <div class="text-right">
                                     <div class="text-sm text-purple-100">Photos</div>
                                     <div class="text-2xl font-bold">{{ $photos->count() }}</div>
                                 </div>
+                            </div>
+
+                            {{-- Report Info --}}
+                            <div class="mb-3 flex flex-wrap gap-2 items-center">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+                                    @if($lowering->status_laporan === 'draft') bg-white/20 text-white border border-white/30
+                                    @elseif($lowering->status_laporan === 'acc_tracer') bg-yellow-400/30 text-yellow-100 border border-yellow-300/50
+                                    @elseif($lowering->status_laporan === 'acc_cgp') bg-green-400/30 text-green-100 border border-green-300/50
+                                    @elseif(in_array($lowering->status_laporan, ['revisi_tracer', 'revisi_cgp'])) bg-red-400/30 text-red-100 border border-red-300/50
+                                    @endif">
+                                    {{ $lowering->status_label }}
+                                </span>
+                                @if($lowering->createdBy)
+                                    <span class="inline-flex items-center px-2.5 py-1 bg-white/20 rounded-full text-xs font-medium border border-white/30">
+                                        <span class="w-5 h-5 bg-white/30 rounded-full flex items-center justify-center mr-1.5">
+                                            <span class="text-[10px] font-bold">{{ strtoupper(substr($lowering->createdBy->name, 0, 1)) }}</span>
+                                        </span>
+                                        {{ $lowering->createdBy->name }}
+                                    </span>
+                                @endif
+                                <span class="inline-flex items-center px-2.5 py-1 bg-white/20 rounded-full text-xs font-medium border border-white/30">
+                                    <svg class="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Dibuat: {{ $lowering->created_at->format('d/m/Y H:i') }}
+                                </span>
                             </div>
 
                             {{-- Lowering Details --}}
@@ -318,7 +298,7 @@
                                 </div>
                                 <div class="text-center">
                                     <div class="text-xs text-purple-100">Material</div>
-                                    <div class="text-sm font-semibold">{{ $lowering->tipe_material }}</div>
+                                    <div class="text-sm font-semibold">{{ $lowering->tipe_material ?? '-' }}</div>
                                 </div>
                             </div>
 
@@ -468,12 +448,6 @@
                                                                         <p class="text-xs text-green-700 bg-white p-2 rounded">{{ $photo->cgp_notes }}</p>
                                                                     </div>
                                                                 @endif
-                                                                @if($photo->organized_at)
-                                                                    <div class="mt-2 pt-2 border-t border-green-200">
-                                                                        <p class="text-xs text-gray-600 mb-1">📁 Organized to:</p>
-                                                                        <p class="text-xs text-green-700 font-mono bg-white p-2 rounded">{{ $photo->organized_folder }}</p>
-                                                                    </div>
-                                                                @endif
                                                             </div>
                                                         </div>
                                                     @endif
@@ -568,8 +542,8 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
                 </div>
-                <h3 class="text-xl font-bold text-gray-700 mb-2">Belum Ada Data</h3>
-                <p class="text-gray-500">Belum ada evidence photo untuk line ini</p>
+                <h3 class="text-xl font-bold text-gray-700 mb-2">Belum Ada Data Lowering</h3>
+                <p class="text-gray-500">Belum ada evidence photo lowering untuk line ini</p>
             </div>
         @endif
 
@@ -606,6 +580,11 @@
                                  style="width: {{ $lineStats['percentage'] }}%">
                             </div>
                         </div>
+                        @if($lineStats['pending_photos'] > 0)
+                            <button onclick="approveEntireLine()" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition shadow-lg font-bold whitespace-nowrap">
+                                ✓ Approve All ({{ $lineStats['pending_photos'] }})
+                            </button>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -810,33 +789,49 @@ function closeApproveModal() {
 }
 
 function confirmApprove() {
-    if (!currentPhotoId) return;
+    if (!currentPhotoId) {
+        return;
+    }
 
+    // Save ID to local variable BEFORE closing modal (which resets currentPhotoId)
+    const photoId = currentPhotoId;
     const notes = document.getElementById('approveNotes').value.trim();
 
-    fetch('{{ route("approvals.cgp.jalur.approve-photo") }}', {
+
+    // Close modal first
+    closeApproveModal();
+
+    // Show loading
+    showLoading('Memproses approval...');
+
+    const requestBody = {
+        photo_id: photoId,
+        notes: notes || 'Approved by CGP'
+    };
+
+
+    safeFetchJSON('{{ route("approvals.cgp.jalur.approve-photo") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
-        body: JSON.stringify({
-            photo_id: currentPhotoId,
-            notes: notes || 'Approved by tracer'
-        })
+        body: JSON.stringify(requestBody)
     })
-    .then(response => response.json())
+
     .then(data => {
+        closeLoading();
         if (data.success) {
-            alert('Photo berhasil di-approve!');
-            location.reload();
+            showSuccessToast('Berhasil disetujui');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + data.message);
+            showErrorToast('Gagal memproses, silakan coba lagi');
         }
     })
+
     .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat approve photo');
+        closeLoading();
+        showErrorToast('Gagal memproses, silakan coba lagi');
     });
 }
 
@@ -860,36 +855,47 @@ function closeRejectModal() {
 function confirmReject() {
     if (!currentPhotoId) return;
 
+    const photoId = currentPhotoId;  // Save before modal close
     const notes = document.getElementById('rejectNotes').value.trim();
 
     if (!notes || notes.length < 10) {
-        alert('Alasan reject harus minimal 10 karakter');
+        showWarningToast('Alasan reject harus minimal 10 karakter');
         return;
     }
 
-    fetch('{{ route("approvals.cgp.jalur.reject-photo") }}', {
+    // Close modal first
+    closeRejectModal();
+
+    // Show loading
+    showLoading('Memproses rejection...');
+
+    safeFetchJSON('{{ route("approvals.cgp.jalur.reject-photo") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
         body: JSON.stringify({
-            photo_id: currentPhotoId,
+            photo_id: photoId,
             notes: notes
         })
+
     })
-    .then(response => response.json())
+
+    
     .then(data => {
+        closeLoading();
         if (data.success) {
-            alert('Photo berhasil di-reject!');
-            location.reload();
+            showSuccessToast('Berhasil ditolak');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + data.message);
+            showErrorToast('Error: ' + data.message);
         }
     })
+
     .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat reject photo');
+        closeLoading();
+        showErrorToast('Terjadi kesalahan saat reject photo');
     });
 }
 
@@ -916,10 +922,20 @@ function toggleStatusDetails(photoId, type) {
     }
 }
 
-function approveEntireLine() {
-    if (!confirm('Approve semua photo di line ini?')) return;
+async function approveEntireLine() {
+    const confirmed = await showConfirm({
+        title: 'Konfirmasi Bulk Approval',
+        text: 'Approve semua photo di line ini?',
+        confirmText: 'Ya, Approve Semua',
+        cancelText: 'Batal'
+    });
 
-    fetch('{{ route("approvals.cgp.jalur.approve-line") }}', {
+    if (!confirmed) return;
+
+    // Show loading
+    showLoading('Memproses bulk approval...');
+
+    safeFetchJSON('{{ route("approvals.cgp.jalur.approve-line") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -929,19 +945,23 @@ function approveEntireLine() {
             line_id: {{ $line->id }},
             notes: 'Bulk approved by tracer'
         })
+
     })
-    .then(response => response.json())
+
+    
     .then(data => {
+        closeLoading();
         if (data.success) {
-            alert('Semua photo berhasil di-approve!');
-            location.reload();
+            showSuccessToast('Semua foto berhasil disetujui');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + data.message);
+            showErrorToast('Error: ' + data.message);
         }
     })
+
     .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat approve line');
+        closeLoading();
+        showErrorToast('Terjadi kesalahan saat approve line');
     });
 }
 
@@ -974,45 +994,48 @@ function closeRevertModal() {
 function confirmRevert() {
     if (!currentRevertPhotoId) return;
 
+    const photoId = currentRevertPhotoId;  // Save before modal close
+
     const reason = document.getElementById('revertReason').value.trim();
 
     if (!reason || reason.length < 10) {
-        alert('Silakan berikan alasan minimal 10 karakter');
+        showWarningToast('Silakan berikan alasan minimal 10 karakter');
         return;
     }
 
-    // Show loading
-    const btn = event.target;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    // Close modal first
+    closeRevertModal();
 
-    fetch('{{ route("approvals.cgp.revert-approval") }}', {
+    // Show loading
+    showLoading('Memproses revert approval...');
+
+    safeFetchJSON('{{ route("approvals.cgp.revert-approval") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
         body: JSON.stringify({
-            photo_id: currentRevertPhotoId,
+            photo_id: photoId,
             reason: reason
         })
+
     })
-    .then(response => response.json())
+
+    
     .then(data => {
+        closeLoading();
         if (data.success) {
-            alert('Approval berhasil di-revert! File dikembalikan ke folder upload dan status direset.');
-            location.reload();
+            showSuccessToast('Approval berhasil dibatalkan');
+            setTimeout(() => location.reload(), 1500);
         } else {
-            alert('Error: ' + (data.message || 'Terjadi kesalahan'));
-            btn.disabled = false;
-            btn.innerHTML = 'Confirm Revert';
+            showErrorToast('Error: ' + (data.message || 'Terjadi kesalahan'));
         }
     })
+
     .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat revert approval');
-        btn.disabled = false;
-        btn.innerHTML = 'Confirm Revert';
+        closeLoading();
+        showErrorToast('Terjadi kesalahan saat revert approval');
     });
 }
 </script>

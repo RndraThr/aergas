@@ -84,6 +84,156 @@
             0%, 100% { opacity: 1; }
             50% { opacity: .5; }
         }
+
+        /* Custom Loading Screen */
+        .custom-loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .custom-loading-overlay.active {
+            display: flex;
+        }
+        .custom-loading-content {
+            background: white;
+            padding: 2rem 3rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            animation: slideUp 0.3s ease-out;
+        }
+        .custom-loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #f3f4f6;
+            border-top-color: #ff6b35;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        /* Custom Toast */
+        .custom-toast-container {
+            position: fixed;
+            top: 5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+        .custom-toast {
+            background: white;
+            padding: 1rem 1.25rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 300px;
+            max-width: 400px;
+            pointer-events: auto;
+            animation: slideInRight 0.3s ease-out;
+            border-left: 4px solid;
+        }
+        .custom-toast.success {
+            border-left-color: #10b981;
+        }
+        .custom-toast.error {
+            border-left-color: #ef4444;
+        }
+        .custom-toast.warning {
+            border-left-color: #f59e0b;
+        }
+        .custom-toast.info {
+            border-left-color: #3b82f6;
+        }
+        .custom-toast.hiding {
+            animation: slideOutRight 0.3s ease-in forwards;
+        }
+        .custom-toast-icon {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 14px;
+        }
+        .custom-toast.success .custom-toast-icon {
+            background: #d1fae5;
+            color: #059669;
+        }
+        .custom-toast.error .custom-toast-icon {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .custom-toast.warning .custom-toast-icon {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        .custom-toast.info .custom-toast-icon {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        .custom-toast-message {
+            flex: 1;
+            color: #374151;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+        .custom-toast-close {
+            flex-shrink: 0;
+            color: #9ca3af;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .custom-toast-close:hover {
+            color: #4b5563;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        @keyframes slideOutRight {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
     </style>
 
     @stack('styles')
@@ -298,126 +448,191 @@
         <x-smart-fab />
     </div>
 
-    <!-- Toast Notifications -->
-    <div x-data="toastManager()"
-         x-init="init()"
-         class="fixed top-4 right-4 z-50 space-y-2"
-         @toast.window="addToast($event.detail)">
-        <template x-for="toast in toasts" :key="toast.id">
-            <div x-show="toast.show"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 transform translate-x-full"
-                 x-transition:enter-end="opacity-100 transform translate-x-0"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100 transform translate-x-0"
-                 x-transition:leave-end="opacity-0 transform translate-x-full"
-                 :class="{
-                     'bg-green-500': toast.type === 'success',
-                     'bg-red-500': toast.type === 'error',
-                     'bg-yellow-500': toast.type === 'warning',
-                     'bg-blue-500': toast.type === 'info'
-                 }"
-                 class="text-white px-6 py-4 rounded-lg shadow-lg max-w-sm">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <i :class="{
-                            'fas fa-check-circle': toast.type === 'success',
-                            'fas fa-exclamation-circle': toast.type === 'error',
-                            'fas fa-exclamation-triangle': toast.type === 'warning',
-                            'fas fa-info-circle': toast.type === 'info'
-                        }" class="mr-2"></i>
-                        <span x-text="toast.message"></span>
-                    </div>
-                    <button @click="removeToast(toast.id)" class="ml-4 text-white hover:text-gray-200">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </template>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div x-data="{ loading: false }"
-         x-show="loading"
-         x-cloak
-         @loading.window="loading = $event.detail.show"
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl">
-            <div class="flex items-center space-x-3">
-                <i class="fas fa-spinner loading-spinner text-aergas-orange text-xl"></i>
-                <span class="text-gray-700">Loading...</span>
-            </div>
+    <!-- Custom Loading Overlay -->
+    <div id="customLoadingOverlay" class="custom-loading-overlay">
+        <div class="custom-loading-content">
+            <div class="custom-loading-spinner"></div>
+            <div id="loadingMessage" class="text-gray-700 font-medium text-base">Memproses...</div>
         </div>
     </div>
 
+    <!-- Custom Toast Container -->
+    <div id="customToastContainer" class="custom-toast-container"></div>
+
     <script>
-        // Toast Manager
-        function toastManager() {
-            return {
-                toasts: [],
-                nextId: 1,
-
-                init() {
-                    // Auto-show Laravel flash messages as toasts
-                    @if(session('success'))
-                        this.addToast({ type: 'success', message: @json(session('success')) });
-                    @endif
-                    @if(session('error'))
-                        this.addToast({ type: 'error', message: @json(session('error')) });
-                    @endif
-                    @if(session('warning'))
-                        this.addToast({ type: 'warning', message: @json(session('warning')) });
-                    @endif
-                },
-
-                addToast(toast) {
-                    const newToast = {
-                        id: this.nextId++,
-                        type: toast.type || 'info',
-                        message: toast.message,
-                        show: false
-                    };
-
-                    this.toasts.push(newToast);
-
-                    // Show with slight delay for transition
-                    setTimeout(() => {
-                        newToast.show = true;
-                    }, 100);
-
-                    // Auto remove after 5 seconds
-                    setTimeout(() => {
-                        this.removeToast(newToast.id);
-                    }, 5000);
-                },
-
-                removeToast(id) {
-                    const index = this.toasts.findIndex(toast => toast.id === id);
-                    if (index > -1) {
-                        this.toasts[index].show = false;
-                        setTimeout(() => {
-                            this.toasts.splice(index, 1);
-                        }, 200);
-                    }
-                }
-            }
-        }
-
-        // Global helper functions
-        window.showToast = function(type, message) {
-            window.dispatchEvent(new CustomEvent('toast', {
-                detail: { type, message }
-            }));
-        };
-
-        window.showLoading = function(show = true) {
-            window.dispatchEvent(new CustomEvent('loading', {
-                detail: { show }
-            }));
-        };
-
         // CSRF Token setup for AJAX requests
         window.csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // Custom Toast System
+        let toastIdCounter = 0;
+
+        window.closeToast = function(toastId) {
+            const toast = document.getElementById(toastId);
+            if (toast) {
+                toast.classList.add('hiding');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }
+        };
+
+        function showToast(type, message) {
+            const container = document.getElementById('customToastContainer');
+            const toastId = `toast-${toastIdCounter++}`;
+
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-times-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+
+            const toast = document.createElement('div');
+            toast.id = toastId;
+            toast.className = `custom-toast ${type}`;
+            toast.innerHTML = `
+                <div class="custom-toast-icon">
+                    <i class="fas ${icons[type]}"></i>
+                </div>
+                <div class="custom-toast-message">${message}</div>
+                <div class="custom-toast-close" onclick="window.closeToast('${toastId}')">
+                    <i class="fas fa-times"></i>
+                </div>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after 4 seconds
+            setTimeout(() => {
+                window.closeToast(toastId);
+            }, 4000);
+        }
+
+        // Helper functions
+        window.showSuccessToast = function(message) {
+            showToast('success', message);
+        };
+
+        window.showErrorToast = function(message) {
+            showToast('error', message);
+        };
+
+        window.showWarningToast = function(message) {
+            showToast('warning', message);
+        };
+
+        window.showInfoToast = function(message) {
+            showToast('info', message);
+        };
+
+        // Custom Loading Screen
+        window.showLoading = function(message = 'Memproses...') {
+            const overlay = document.getElementById('customLoadingOverlay');
+            const messageEl = document.getElementById('loadingMessage');
+            messageEl.textContent = message;
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeLoading = function() {
+            const overlay = document.getElementById('customLoadingOverlay');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        };
+
+        // Show confirm dialog
+        window.showConfirm = function(options) {
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'custom-loading-overlay active';
+                overlay.style.zIndex = '10000';
+
+                const content = document.createElement('div');
+                content.className = 'custom-loading-content';
+                content.style.maxWidth = '400px';
+                content.innerHTML = `
+                    <div class="text-center mb-6">
+                        <div class="mx-auto w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
+                            <i class="fas fa-question text-aergas-orange text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-2">${options.title || 'Konfirmasi'}</h3>
+                        <p class="text-gray-600">${options.text || 'Apakah Anda yakin?'}</p>
+                    </div>
+                    <div class="flex gap-3 justify-center">
+                        <button id="confirmCancel" class="px-6 py-2.5 bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium rounded-lg transition-colors">
+                            ${options.cancelText || 'Batal'}
+                        </button>
+                        <button id="confirmOk" class="px-6 py-2.5 bg-aergas-orange hover:bg-orange-600 text-white font-medium rounded-lg transition-colors">
+                            ${options.confirmText || 'Ya'}
+                        </button>
+                    </div>
+                `;
+
+                overlay.appendChild(content);
+                document.body.appendChild(overlay);
+                document.body.style.overflow = 'hidden';
+
+                document.getElementById('confirmOk').onclick = () => {
+                    overlay.remove();
+                    document.body.style.overflow = '';
+                    resolve(true);
+                };
+
+                document.getElementById('confirmCancel').onclick = () => {
+                    overlay.remove();
+                    document.body.style.overflow = '';
+                    resolve(false);
+                };
+            });
+        };
+
+        // Helper for safe JSON fetch
+        window.safeFetchJSON = async function(url, options = {}) {
+            try {
+                // Merge Accept header with existing headers
+                const mergedOptions = {
+                    ...options,
+                    headers: {
+                        ...options.headers,
+                        'Accept': 'application/json'
+                    }
+                };
+
+                const response = await fetch(url, mergedOptions);
+                const contentType = response.headers.get('content-type');
+
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Terjadi kesalahan pada server');
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Terjadi kesalahan');
+                }
+
+                return data;
+            } catch (error) {
+                throw error;
+            }
+        };
+
+        // Auto-show Laravel flash messages as toasts
+        @if(session('success'))
+            window.addEventListener('DOMContentLoaded', () => {
+                showSuccessToast(@json(session('success')));
+            });
+        @endif
+        @if(session('error'))
+            window.addEventListener('DOMContentLoaded', () => {
+                showErrorToast(@json(session('error')));
+            });
+        @endif
+        @if(session('warning'))
+            window.addEventListener('DOMContentLoaded', () => {
+                showWarningToast(@json(session('warning')));
+            });
+        @endif
     </script>
     <script>
         function appLogout() {

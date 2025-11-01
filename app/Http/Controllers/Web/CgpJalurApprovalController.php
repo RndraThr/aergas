@@ -100,50 +100,247 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
 
         $search = $request->input('search');
         $filter = $request->input('filter', 'all');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
         $perPage = $request->input('per_page', 20);
 
         // Only show lines that have photos ready for CGP review (tracer-approved and above)
-        $lines = $cluster->lineNumbers()
+        // Note: We check joints separately since they use string-based relationships
+        $linesQuery = $cluster->lineNumbers()
             ->with(['loweringData.photoApprovals.cgpUser', 'cluster'])
-            ->whereHas('loweringData.photoApprovals', function($q) {
-                // Only show lines with tracer-approved photos or higher
-                $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
+            ->whereHas('loweringData.photoApprovals', function($query) {
+                $query->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
             })
             ->when($search, function ($q) use ($search) {
                 $q->search($search);
-            })
-            ->paginate($perPage)
-            ->through(function ($line) {
-                $stats = $this->getLineCgpApprovalStats($line);
-                $line->approval_stats = $stats;
-                return $line;
             });
 
-        // Apply filters
+        // Get all lines first
+        $allLines = $linesQuery->get();
+
+        // Load joint data for lines in cluster (string-based relationship)
+        // Get ALL line numbers in cluster (not just filtered ones) for joint lookup
+        $allLineNumbersInCluster = $cluster->lineNumbers()->pluck('line_number')->toArray();
+
+        $jointsForCluster = \App\Models\JalurJointData::with(['photoApprovals.cgpUser', 'fittingType'])
+            ->where(function($q) use ($allLineNumbersInCluster) {
+                $q->whereIn('joint_line_from', $allLineNumbersInCluster)
+                  ->orWhereIn('joint_line_to', $allLineNumbersInCluster)
+                  ->orWhereIn('joint_line_optional', $allLineNumbersInCluster);
+            })
+            // Only include joints that have photos ready for CGP
+            ->whereHas('photoApprovals', function($query) {
+                $query->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
+            })
+            ->when($search, function($q) use ($search) {
+                // Allow search by joint number (nomor_joint or joint_code)
+                $q->where(function($query) use ($search) {
+                    $query->where('nomor_joint', 'like', "%{$search}%")
+                          ->orWhere('joint_code', 'like', "%{$search}%");
+                });
+            })
+            ->get();
+
+        // Group joints by line number (use ALL line numbers in cluster)
+        $jointsByLine = [];
+        foreach ($jointsForCluster as $joint) {
+            foreach ($allLineNumbersInCluster as $lineNum) {
+                if ($joint->joint_line_from === $lineNum ||
+                    $joint->joint_line_to === $lineNum ||
+                    $joint->joint_line_optional === $lineNum) {
+                    if (!isset($jointsByLine[$lineNum])) {
+                        $jointsByLine[$lineNum] = collect();
+                    }
+                    $jointsByLine[$lineNum]->push($joint);
+                }
+            }
+        }
+
+        // Also check for lines that ONLY have joint photos (no lowering data ready)
+        // Find line numbers that have joints ready for CGP but weren't included
+        // IMPORTANT: Only add these lines if there's NO search term, or if search matches the line number
+        $linesWithJointsOnly = [];
+        foreach ($jointsByLine as $lineNum => $joints) {
+            $lineExists = $allLines->contains('line_number', $lineNum);
+            if (!$lineExists) {
+                // This line has joints ready for CGP but no lowering data
+                // Only include if:
+                // 1. No search term (show all), OR
+                // 2. Line number matches search term
+                if (!$search || stripos($lineNum, $search) !== false) {
+                    $linesWithJointsOnly[] = $lineNum;
+                }
+            }
+        }
+
+        // Add lines that only have joint data (respecting search filter)
+        if (!empty($linesWithJointsOnly)) {
+            $additionalLines = $cluster->lineNumbers()
+                ->with(['loweringData.photoApprovals.cgpUser', 'cluster'])
+                ->whereIn('line_number', $linesWithJointsOnly)
+                ->get();
+            $allLines = $allLines->merge($additionalLines);
+            // No need to update $lineNumbers here anymore, we use $allLineNumbersInCluster everywhere
+        }
+
+        // Calculate stats for each line (lowering data only)
+        $allLines = $allLines->map(function ($line) use ($dateFrom, $dateTo, $jointsByLine) {
+            // Assign preloaded joints to avoid N+1 (for stats calculation only)
+            $line->_jointDataCache = $jointsByLine[$line->line_number] ?? collect();
+
+            // Calculate approval statistics for lowering data only
+            $stats = $this->calculateLineLoweringOnlyStats($line, $dateFrom, $dateTo);
+
+            // Get earliest installation date from lowering data (considering date filter if active)
+            if ($dateFrom || $dateTo) {
+                // If date filter is active, get earliest date within the filtered range
+                $query = $line->loweringData();
+                if ($dateFrom) {
+                    $query = $query->where('tanggal_jalur', '>=', $dateFrom);
+                }
+                if ($dateTo) {
+                    $query = $query->where('tanggal_jalur', '<=', $dateTo);
+                }
+                $earliestDate = $query->min('tanggal_jalur');
+            } else {
+                // No date filter, get overall earliest date
+                $earliestDate = $line->loweringData()->min('tanggal_jalur');
+            }
+
+            // Add all necessary fields
+            $line->approval_stats = $stats;
+            $line->item_type = 'line';
+            $line->approval_status_label = $stats['status_label'];  // Use different name to avoid conflict with accessor
+            $line->approval_progress = $stats['progress_percentage'];
+            $line->earliest_installation_date = $earliestDate;
+
+            // Append to visible array for JSON serialization
+            $line->makeVisible(['approval_stats', 'item_type', 'approval_status_label', 'approval_progress', 'earliest_installation_date']);
+
+            return $line;
+        })->filter(function ($line) use ($dateFrom, $dateTo) {
+            // Filter out lines that have no data in the date range (if date filter is active)
+            if (($dateFrom || $dateTo) && $line->approval_stats['total_photos'] === 0) {
+                return false;
+            }
+            return true;
+        });
+
+        // Process joints as separate items
+        $jointItems = $jointsForCluster->map(function ($joint) use ($dateFrom, $dateTo) {
+            // Calculate stats for this joint
+            $stats = $this->calculateJointStats($joint, $dateFrom, $dateTo);
+
+            // Add all necessary fields
+            $joint->approval_stats = $stats;
+            $joint->item_type = 'joint';
+            $joint->approval_status_label = $stats['status_label'];  // Use different name to avoid conflict
+            $joint->approval_progress = $stats['progress_percentage'];
+            $joint->earliest_installation_date = $joint->tanggal_joint;
+
+            // Append to visible array for JSON serialization
+            $joint->makeVisible(['approval_stats', 'item_type', 'approval_status_label', 'approval_progress', 'earliest_installation_date']);
+
+            return $joint;
+        })->filter(function ($joint) use ($dateFrom, $dateTo) {
+            // Filter out joints that have no data in the date range (if date filter is active)
+            if (($dateFrom || $dateTo) && $joint->approval_stats['total_photos'] === 0) {
+                return false;
+            }
+            return true;
+        });
+
+        // Combine lines and joints into one collection
+        $allItems = $allLines->concat($jointItems);
+
+        // Apply status filter BEFORE sorting
         if ($filter !== 'all') {
-            $lines = $lines->filter(function ($line) use ($filter) {
+            $allItems = $allItems->filter(function ($item) use ($filter) {
                 return match($filter) {
-                    'pending' => $line->approval_stats['status'] === 'pending',
-                    'approved' => $line->approval_stats['status'] === 'approved',
-                    'rejected' => $line->approval_stats['status'] === 'rejected',
-                    'no_evidence' => $line->approval_stats['total_photos'] === 0,
+                    'pending' => $item->approval_stats['status'] === 'pending',
+                    'approved' => $item->approval_stats['status'] === 'approved',
+                    'rejected' => $item->approval_stats['status'] === 'rejected',
+                    'no_evidence' => $item->approval_stats['total_photos'] === 0,
                     default => true
                 };
             });
         }
 
+        // Sort by status priority (pending > rejected > no_evidence > approved) then by installation date (oldest first)
+        $sortedItems = $allItems->sort(function ($a, $b) {
+            // Define status priority: pending first, then rejected, then no_evidence, then approved last
+            $statusPriority = [
+                'pending' => 1,
+                'rejected' => 2,
+                'no_evidence' => 3,
+                'approved' => 4
+            ];
+
+            $aPriority = $statusPriority[$a->approval_stats['status']] ?? 99;
+            $bPriority = $statusPriority[$b->approval_stats['status']] ?? 99;
+
+            // First sort by status priority
+            if ($aPriority !== $bPriority) {
+                return $aPriority <=> $bPriority;
+            }
+
+            // Then sort by installation date (oldest first) within the same status
+            return strcmp($a->earliest_installation_date ?? '', $b->earliest_installation_date ?? '');
+        })->values(); // Reset array keys after sorting
+
+        // Manual pagination
+        $currentPage = $request->input('page', 1);
+
+        // Convert to array to ensure all dynamic properties are included
+        $itemsForPage = $sortedItems->forPage($currentPage, $perPage)->map(function($item) {
+            // Get array representation
+            $itemArray = $item->toArray();
+
+            // Ensure custom properties are included (use different names to avoid accessor conflicts)
+            $itemArray['approval_stats'] = $item->approval_stats;
+            $itemArray['item_type'] = $item->item_type;
+            $itemArray['approval_status_label'] = $item->approval_status_label;  // Approval status, not line status
+            $itemArray['approval_progress'] = $item->approval_progress;
+            $itemArray['earliest_installation_date'] = $item->earliest_installation_date;
+
+            return $itemArray;
+        });
+
+        $items = new \Illuminate\Pagination\LengthAwarePaginator(
+            $itemsForPage,
+            $sortedItems->count(),
+            $perPage,
+            $currentPage,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        // Calculate overall stats (lines and joints combined)
+        $stats = [
+            'total_items' => $sortedItems->count(),
+            'total_lines' => $sortedItems->where('item_type', 'line')->count(),
+            'total_joints' => $sortedItems->where('item_type', 'joint')->count(),
+            'pending_items' => $sortedItems->filter(fn($l) => $l->approval_stats['status'] === 'pending')->count(),
+            'approved_items' => $sortedItems->filter(fn($l) => $l->approval_stats['status'] === 'approved')->count(),
+            'rejected_items' => $sortedItems->filter(fn($l) => $l->approval_stats['status'] === 'rejected')->count(),
+            'no_evidence_items' => $sortedItems->filter(fn($l) => $l->approval_stats['total_photos'] === 0)->count()
+        ];
+
         if ($request->ajax() || $request->input('ajax')) {
             return response()->json([
                 'success' => true,
-                'data' => $lines
+                'data' => $items,
+                'stats' => $stats
             ]);
         }
 
         return view('approvals.cgp.jalur.lines', [
             'cluster' => $cluster,
-            'lines' => $lines,
+            'items' => $items, // Changed from 'lines' to 'items' (contains both lines and joints)
             'search' => $search,
             'filter' => $filter,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'stats' => $stats,
         ]);
     }
 
@@ -196,12 +393,41 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
                     return $lowering;
                 });
 
-            // Calculate line statistics for CGP approval
+            // Get all joint data with photos ready for CGP review
+            $jointDates = $line->jointDataQuery()
+                ->with(['photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'createdBy', 'fittingType'])
+                ->whereHas('photoApprovals', function($q) {
+                    // Only show dates that have photos ready for CGP review
+                    $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
+                })
+                ->when($filterDate !== 'all', function ($q) use ($filterDate) {
+                    $q->whereDate('tanggal_joint', $filterDate);
+                })
+                ->orderBy('tanggal_joint', $sortBy === 'date_desc' ? 'desc' : 'asc')
+                ->get()
+                ->map(function ($joint) {
+                    // Calculate stats per date for CGP approval
+                    // Only count photos that are ready for CGP review
+                    $photos = $joint->photoApprovals()
+                        ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
+                        ->get();
+
+                    $joint->date_stats = [
+                        'total' => $photos->count(),
+                        'approved' => $photos->where('photo_status', 'cgp_approved')->count(),
+                        'pending' => $photos->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])->count(),
+                        'rejected' => $photos->where('photo_status', 'cgp_rejected')->count(),
+                    ];
+                    return $joint;
+                });
+
+            // Calculate line statistics for CGP approval (including both lowering and joint)
             $lineStats = $this->getLineCgpApprovalStats($line);
 
             return view('approvals.cgp.jalur.evidence', [
                 'line' => $line,
                 'workDates' => $workDates,
+                'jointDates' => $jointDates,
                 'lineStats' => $lineStats,
                 'filterDate' => $filterDate,
                 'sortBy' => $sortBy,
@@ -210,6 +436,67 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         } catch (Exception $e) {
             Log::error('CGP jalur evidence error: ' . $e->getMessage());
             return back()->with('error', 'Data tidak ditemukan');
+        }
+    }
+
+    /**
+     * LEVEL 3: Joint Evidence Review Page
+     * Show evidence photos for a specific joint
+     */
+    public function jointEvidence(Request $request, int $jointId)
+    {
+        try {
+            $joint = JalurJointData::with([
+                'photoApprovals' => function($q) {
+                    // Only show photos ready for CGP review
+                    $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
+                      ->orderBy('photo_field_name', 'asc');
+                },
+                'photoApprovals.tracerUser',
+                'photoApprovals.cgpUser',
+                'fittingType',
+                'createdBy'
+            ])->findOrFail($jointId);
+
+            // Get the lines connected by this joint
+            $lineFrom = null;
+            $lineTo = null;
+            $lineOptional = null;
+
+            if ($joint->joint_line_from) {
+                $lineFrom = JalurLineNumber::with('cluster')->where('line_number', $joint->joint_line_from)->first();
+            }
+            if ($joint->joint_line_to) {
+                $lineTo = JalurLineNumber::with('cluster')->where('line_number', $joint->joint_line_to)->first();
+            }
+            if ($joint->joint_line_optional) {
+                $lineOptional = JalurLineNumber::with('cluster')->where('line_number', $joint->joint_line_optional)->first();
+            }
+
+            // Calculate stats for joint photos (CGP approval context)
+            $photos = $joint->photoApprovals;
+            $jointStats = [
+                'total' => $photos->count(),
+                'approved' => $photos->where('photo_status', 'cgp_approved')->count(),
+                'pending' => $photos->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])->count(),
+                'rejected' => $photos->where('photo_status', 'cgp_rejected')->count(),
+                'percentage' => $photos->count() > 0 ? round(($photos->where('photo_status', 'cgp_approved')->count() / $photos->count()) * 100, 2) : 0,
+            ];
+
+            $cluster = $lineFrom ? $lineFrom->cluster : ($lineTo ? $lineTo->cluster : null);
+
+            return view('approvals.cgp.jalur.joint-evidence', [
+                'joint' => $joint,
+                'lineFrom' => $lineFrom,
+                'lineTo' => $lineTo,
+                'lineOptional' => $lineOptional,
+                'cluster' => $cluster,
+                'jointStats' => $jointStats,
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('CGP joint evidence error: ' . $e->getMessage());
+            return back()->with('error', 'Data joint tidak ditemukan');
         }
     }
 
@@ -235,25 +522,18 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             );
 
             // Auto-organize jalur photo after approval
+            // Use single photo organization for individual approval
             try {
-                if ($photoApproval->module_name === 'jalur_lowering') {
-                    $moduleData = JalurLoweringData::with('lineNumber')->find($photoApproval->module_record_id);
-                    if ($moduleData) {
-                        $this->folderOrganizationService->organizeJalurPhotosAfterCgpApproval(
-                            $moduleData->line_number_id,
-                            $moduleData->tanggal_jalur->format('Y-m-d'),
-                            'jalur_lowering'
-                        );
-                    }
-                } else {
-                    $moduleData = JalurJointData::with('lineNumber')->find($photoApproval->module_record_id);
-                    if ($moduleData) {
-                        $this->folderOrganizationService->organizeJalurPhotosAfterCgpApproval(
-                            $moduleData->lineNumber->id,
-                            $moduleData->tanggal_joint->format('Y-m-d'),
-                            'jalur_joint'
-                        );
-                    }
+                // Refresh photo to ensure we have the latest status
+                $photoApproval->refresh();
+
+                $organizationResult = $this->folderOrganizationService->organizeSingleJalurPhoto($photoApproval);
+
+                if (!$organizationResult['success']) {
+                    Log::warning('Photo organization failed but approval succeeded', [
+                        'photo_id' => $photoApproval->id,
+                        'error' => $organizationResult['error'] ?? 'Unknown error'
+                    ]);
                 }
             } catch (Exception $e) {
                 Log::warning('Photo organization failed but approval succeeded', [
@@ -511,9 +791,12 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
 
         $totalLines = $linesWithCgpReadyPhotos->count();
         $linesWithPending = 0;
+        $totalJoints = 0;
+        $jointsWithPending = 0;
+        $countedJoints = []; // Track joints already counted to avoid duplicates
 
-        // Get all photos for this cluster (only tracer-approved and above)
-        $photos = PhotoApproval::whereIn('module_record_id', function($query) use ($cluster) {
+        // Get all lowering photos for this cluster (only tracer-approved and above)
+        $loweringPhotos = PhotoApproval::whereIn('module_record_id', function($query) use ($cluster) {
             $query->select('id')
                 ->from('jalur_lowering_data')
                 ->whereIn('line_number_id', function($subQuery) use ($cluster) {
@@ -526,11 +809,35 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
         ->get();
 
-        $totalPhotos = $photos->count();
+        // Get all joint photos for this cluster
+        $jointPhotos = PhotoApproval::whereIn('module_record_id', function($query) use ($cluster) {
+            $query->select('id')
+                ->from('jalur_joint_data')
+                ->where(function($q) use ($cluster) {
+                    $q->whereIn('joint_line_from', function($subQ) use ($cluster) {
+                        $subQ->select('line_number')
+                            ->from('jalur_line_numbers')
+                            ->where('cluster_id', $cluster->id);
+                    })
+                    ->orWhereIn('joint_line_to', function($subQ) use ($cluster) {
+                        $subQ->select('line_number')
+                            ->from('jalur_line_numbers')
+                            ->where('cluster_id', $cluster->id);
+                    });
+                });
+        })
+        ->where('module_name', 'jalur_joint')
+        ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
+        ->get();
+
+        // Combine photos
+        $allPhotos = $loweringPhotos->concat($jointPhotos);
+
+        $totalPhotos = $allPhotos->count();
         // Count pending: both tracer_approved (ready for CGP) and cgp_pending
-        $pendingPhotos = $photos->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])->count();
-        $approvedPhotos = $photos->where('photo_status', 'cgp_approved')->count();
-        $rejectedPhotos = $photos->where('photo_status', 'cgp_rejected')->count();
+        $pendingPhotos = $allPhotos->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])->count();
+        $approvedPhotos = $allPhotos->where('photo_status', 'cgp_approved')->count();
+        $rejectedPhotos = $allPhotos->where('photo_status', 'cgp_rejected')->count();
 
         // Count lines with pending photos (ready for CGP review)
         foreach ($linesWithCgpReadyPhotos as $line) {
@@ -546,11 +853,45 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             if ($lineHasPending) {
                 $linesWithPending++;
             }
+
+            // Count joints for this line (avoid duplicates)
+            $lineJoints = \App\Models\JalurJointData::where(function($q) use ($line) {
+                $q->where('joint_line_from', $line->line_number)
+                  ->orWhere('joint_line_to', $line->line_number);
+            })
+            ->whereHas('photoApprovals', function($q) {
+                $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
+            })
+            ->get();
+
+            foreach ($lineJoints as $joint) {
+                // Skip if this joint was already counted
+                if (in_array($joint->id, $countedJoints)) {
+                    continue;
+                }
+
+                $countedJoints[] = $joint->id;
+                $totalJoints++;
+                $jointHasPending = $joint->photoApprovals()
+                    ->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])
+                    ->exists();
+
+                if ($jointHasPending) {
+                    $jointsWithPending++;
+                }
+            }
         }
+
+        $totalItems = $totalLines + $totalJoints;
+        $itemsWithPending = $linesWithPending + $jointsWithPending;
 
         return [
             'total_lines' => $totalLines,  // Only lines with tracer-approved photos
+            'total_joints' => $totalJoints,
+            'total_items' => $totalItems,
             'lines_with_pending' => $linesWithPending,
+            'joints_with_pending' => $jointsWithPending,
+            'items_with_pending' => $itemsWithPending,
             'total_photos' => $totalPhotos,
             'pending_photos' => $pendingPhotos,
             'approved_photos' => $approvedPhotos,
@@ -559,7 +900,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         ];
     }
 
-    private function getLineCgpApprovalStats(JalurLineNumber $line): array
+    private function getLineCgpApprovalStats(JalurLineNumber $line, $dateFrom = null, $dateTo = null): array
     {
         $totalPhotos = 0;
         $approvedPhotos = 0;
@@ -573,7 +914,27 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         $workDatesDetail = [];
         $rejections = []; // Collect rejection details
 
-        foreach ($line->loweringData as $lowering) {
+        $loweringData = $line->loweringData;
+
+        // Apply date range filter if provided
+        if ($dateFrom || $dateTo) {
+            $loweringData = $loweringData->filter(function ($lowering) use ($dateFrom, $dateTo) {
+                if (!$lowering->tanggal_jalur) {
+                    return false;
+                }
+                $dateStr = $lowering->tanggal_jalur->format('Y-m-d');
+
+                if ($dateFrom && $dateStr < $dateFrom) {
+                    return false;
+                }
+                if ($dateTo && $dateStr > $dateTo) {
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        foreach ($loweringData as $lowering) {
             $hasTracerApprovedPhotos = false;
             $dateAllApproved = true;
 
@@ -633,6 +994,88 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             }
         }
 
+        // Process Joint Data
+        $jointData = $line->jointData;
+        $jointDatesCount = $jointData->count();
+        $jointDatesWithPhotos = 0;
+        $jointDatesFullyApproved = 0;
+        $jointDates = [];
+        $jointDatesDetail = [];
+
+        // Apply date range filter to joint data if provided
+        if ($dateFrom || $dateTo) {
+            $jointData = $jointData->filter(function ($joint) use ($dateFrom, $dateTo) {
+                if (!$joint->tanggal_joint) {
+                    return false;
+                }
+                $dateStr = $joint->tanggal_joint->format('Y-m-d');
+
+                if ($dateFrom && $dateStr < $dateFrom) {
+                    return false;
+                }
+                if ($dateTo && $dateStr > $dateTo) {
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        foreach ($jointData as $joint) {
+            $hasTracerApprovedPhotos = false;
+            $dateAllApproved = true;
+
+            // Only count photos that are tracer-approved or higher
+            $cgpReadyPhotos = $joint->photoApprovals->whereIn('photo_status', [
+                'tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'
+            ]);
+
+            foreach ($cgpReadyPhotos as $photo) {
+                $hasTracerApprovedPhotos = true;
+                $totalPhotos++;
+
+                if ($photo->photo_status === 'cgp_approved') {
+                    $cgpApprovedPhotos++;
+                    $approvedPhotos++;
+                } elseif ($photo->photo_status === 'tracer_approved') {
+                    $pendingPhotos++;
+                    $dateAllApproved = false;
+                } elseif ($photo->photo_status === 'cgp_pending') {
+                    $pendingPhotos++;
+                    $dateAllApproved = false;
+                } elseif ($photo->photo_status === 'cgp_rejected') {
+                    $rejectedPhotos++;
+                    $dateAllApproved = false;
+
+                    // Collect rejection details
+                    $rejections[] = [
+                        'field_name' => $photo->photo_field_name,
+                        'label' => ucwords(str_replace('_', ' ', $photo->photo_field_name)),
+                        'user_name' => $photo->cgpUser->name ?? 'Unknown',
+                        'user_id' => $photo->cgp_rejected_by,
+                        'rejected_at' => $photo->cgp_rejected_at ? $photo->cgp_rejected_at->format('d/m/Y H:i') : '-',
+                        'notes' => $photo->cgp_notes ?? '-',
+                    ];
+                }
+            }
+
+            if ($hasTracerApprovedPhotos) {
+                $jointDatesWithPhotos++;
+
+                if ($dateAllApproved && $cgpReadyPhotos->count() > 0) {
+                    $jointDatesFullyApproved++;
+                }
+
+                if ($joint->tanggal_joint) {
+                    $jointDates[] = $joint->tanggal_joint;
+                    $jointDatesDetail[] = [
+                        'date' => $joint->tanggal_joint->format('Y-m-d'),
+                        'fitting_type' => $joint->fittingType->nama_fitting ?? '-',
+                        'photos_count' => $cgpReadyPhotos->count(),
+                    ];
+                }
+            }
+        }
+
         $percentage = $totalPhotos > 0 ? ($approvedPhotos / $totalPhotos) * 100 : 0;
 
         // Group rejections by user for better display
@@ -662,6 +1105,11 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             'work_dates_fully_approved' => $workDatesFullyApproved,
             'work_dates' => $workDates,
             'work_dates_detail' => $workDatesDetail,
+            'joint_dates_count' => $jointDatesCount,
+            'joint_dates_with_photos' => $jointDatesWithPhotos,
+            'joint_dates_fully_approved' => $jointDatesFullyApproved,
+            'joint_dates' => $jointDates,
+            'joint_dates_detail' => $jointDatesDetail,
             'percentage' => round($percentage, 2),
             'status' => $this->determineLineStatus($totalPhotos, $approvedPhotos, $pendingPhotos, $rejectedPhotos),
             'rejections' => [
@@ -671,6 +1119,471 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
                 'by_user' => array_values($rejectionsByUser),
             ],
         ];
+    }
+
+    /**
+     * Calculate stats for line lowering data ONLY (without joints)
+     * Used when displaying lines and joints as separate cards
+     */
+    private function calculateLineLoweringOnlyStats(JalurLineNumber $line, $dateFrom = null, $dateTo = null): array
+    {
+        $totalPhotos = 0;
+        $approvedPhotos = 0;
+        $pendingPhotos = 0;
+        $rejectedPhotos = 0;
+        $workDatesCount = 0;
+        $workDatesDetail = [];
+        $rejections = [];
+
+        $loweringData = $line->loweringData;
+
+        // Apply date range filter if provided
+        if ($dateFrom || $dateTo) {
+            $loweringData = $loweringData->filter(function ($lowering) use ($dateFrom, $dateTo) {
+                if (!$lowering->tanggal_jalur) return false;
+                $dateStr = $lowering->tanggal_jalur->format('Y-m-d');
+                if ($dateFrom && $dateStr < $dateFrom) return false;
+                if ($dateTo && $dateStr > $dateTo) return false;
+                return true;
+            });
+        }
+
+        foreach ($loweringData as $lowering) {
+            $hasTracerApprovedPhotos = false;
+
+            $cgpReadyPhotos = $lowering->photoApprovals->whereIn('photo_status', [
+                'tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'
+            ]);
+
+            foreach ($cgpReadyPhotos as $photo) {
+                $hasTracerApprovedPhotos = true;
+                $totalPhotos++;
+
+                if ($photo->photo_status === 'cgp_approved') {
+                    $approvedPhotos++;
+                } elseif (in_array($photo->photo_status, ['tracer_approved', 'cgp_pending'])) {
+                    $pendingPhotos++;
+                } elseif ($photo->photo_status === 'cgp_rejected') {
+                    $rejectedPhotos++;
+                    $rejections[] = [
+                        'field_name' => $photo->photo_field_name,
+                        'label' => ucwords(str_replace('_', ' ', $photo->photo_field_name)),
+                        'user_name' => $photo->cgpUser->name ?? 'Unknown',
+                        'rejected_at' => $photo->cgp_rejected_at ? $photo->cgp_rejected_at->format('d/m/Y H:i') : '-',
+                        'notes' => $photo->cgp_notes ?? '-',
+                    ];
+                }
+            }
+
+            if ($hasTracerApprovedPhotos && $lowering->tanggal_jalur) {
+                $workDatesCount++;
+                $workDatesDetail[] = [
+                    'date' => $lowering->tanggal_jalur->format('Y-m-d'),
+                    'penggelaran' => $lowering->penggelaran ?? 0,
+                    'photos_count' => $cgpReadyPhotos->count(),
+                ];
+            }
+        }
+
+        $percentage = $totalPhotos > 0 ? ($approvedPhotos / $totalPhotos) * 100 : 0;
+        $status = $this->determineLineStatus($totalPhotos, $approvedPhotos, $pendingPhotos, $rejectedPhotos);
+
+        // Determine status label (clarify approval level - CGP for CGP controller)
+        $statusLabel = match($status) {
+            'pending' => 'Pending CGP Review',
+            'approved' => 'Approved by CGP',
+            'rejected' => 'Rejected by CGP',
+            'no_evidence' => 'No Evidence',
+            default => 'Partial'
+        };
+
+        return [
+            'total_photos' => $totalPhotos,
+            'approved_photos' => $approvedPhotos,
+            'pending_photos' => $pendingPhotos,
+            'rejected_photos' => $rejectedPhotos,
+            'work_dates_count' => $workDatesCount,
+            'work_dates_detail' => $workDatesDetail,
+            'percentage' => round($percentage, 2),
+            'status' => $status,
+            'status_label' => $statusLabel,
+            'progress_percentage' => round($percentage, 2),
+            'rejections' => [
+                'has_rejections' => count($rejections) > 0,
+                'count' => count($rejections),
+                'all' => $rejections,
+            ],
+        ];
+    }
+
+    /**
+     * Calculate stats for a single joint
+     */
+    private function calculateJointStats(JalurJointData $joint, $dateFrom = null, $dateTo = null): array
+    {
+        $totalPhotos = 0;
+        $approvedPhotos = 0;
+        $pendingPhotos = 0;
+        $rejectedPhotos = 0;
+        $rejections = [];
+
+        // Apply date filter if provided
+        if ($dateFrom || $dateTo) {
+            if (!$joint->tanggal_joint) {
+                return [
+                    'total_photos' => 0,
+                    'approved_photos' => 0,
+                    'pending_photos' => 0,
+                    'rejected_photos' => 0,
+                    'percentage' => 0,
+                    'status' => 'no_evidence',
+                    'rejections' => ['has_rejections' => false, 'count' => 0, 'all' => []],
+                ];
+            }
+
+            $dateStr = $joint->tanggal_joint->format('Y-m-d');
+            if (($dateFrom && $dateStr < $dateFrom) || ($dateTo && $dateStr > $dateTo)) {
+                return [
+                    'total_photos' => 0,
+                    'approved_photos' => 0,
+                    'pending_photos' => 0,
+                    'rejected_photos' => 0,
+                    'percentage' => 0,
+                    'status' => 'no_evidence',
+                    'rejections' => ['has_rejections' => false, 'count' => 0, 'all' => []],
+                ];
+            }
+        }
+
+        $cgpReadyPhotos = $joint->photoApprovals->whereIn('photo_status', [
+            'tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'
+        ]);
+
+        foreach ($cgpReadyPhotos as $photo) {
+            $totalPhotos++;
+
+            if ($photo->photo_status === 'cgp_approved') {
+                $approvedPhotos++;
+            } elseif (in_array($photo->photo_status, ['tracer_approved', 'cgp_pending'])) {
+                $pendingPhotos++;
+            } elseif ($photo->photo_status === 'cgp_rejected') {
+                $rejectedPhotos++;
+                $rejections[] = [
+                    'field_name' => $photo->photo_field_name,
+                    'label' => ucwords(str_replace('_', ' ', $photo->photo_field_name)),
+                    'user_name' => $photo->cgpUser->name ?? 'Unknown',
+                    'rejected_at' => $photo->cgp_rejected_at ? $photo->cgp_rejected_at->format('d/m/Y H:i') : '-',
+                    'notes' => $photo->cgp_notes ?? '-',
+                ];
+            }
+        }
+
+        $percentage = $totalPhotos > 0 ? ($approvedPhotos / $totalPhotos) * 100 : 0;
+        $status = $this->determineLineStatus($totalPhotos, $approvedPhotos, $pendingPhotos, $rejectedPhotos);
+
+        // Calculate work dates detail
+        $workDates = [];
+        if ($joint->tanggal_joint) {
+            $dateStr = $joint->tanggal_joint->format('Y-m-d');
+            $photoCount = $cgpReadyPhotos->count();
+
+            if ($photoCount > 0) {
+                $workDates[] = [
+                    'date' => $dateStr,
+                    'photo_count' => $photoCount
+                ];
+            }
+        }
+
+        // Determine status label (clarify approval level - CGP for CGP controller)
+        $statusLabel = match($status) {
+            'pending' => 'Pending CGP Review',
+            'approved' => 'Approved by CGP',
+            'rejected' => 'Rejected by CGP',
+            'no_evidence' => 'No Evidence',
+            default => 'Partial'
+        };
+
+        return [
+            'total_photos' => $totalPhotos,
+            'approved_photos' => $approvedPhotos,
+            'pending_photos' => $pendingPhotos,
+            'rejected_photos' => $rejectedPhotos,
+            'percentage' => round($percentage, 2),
+            'status' => $status,
+            'status_label' => $statusLabel,
+            'progress_percentage' => round($percentage, 2),
+            'work_dates_count' => count($workDates),
+            'work_dates_detail' => $workDates,
+            'rejections' => [
+                'has_rejections' => count($rejections) > 0,
+                'count' => count($rejections),
+                'all' => $rejections,
+            ],
+        ];
+    }
+
+    /**
+     * Revert photo from cgp_approved back to tracer_approved
+     */
+    public function revertPhoto(Request $request)
+    {
+        $request->validate([
+            'photo_id' => 'required|integer|exists:photo_approvals,id',
+            'notes' => 'nullable|string|max:500'
+        ]);
+
+        try {
+            $photo = PhotoApproval::findOrFail($request->photo_id);
+
+            // Only allow revert for cgp_approved photos
+            if ($photo->photo_status !== 'cgp_approved') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only CGP approved photos can be reverted'
+                ], 400);
+            }
+
+            // Step 1: Revert file organization (move file back to original upload folder)
+            if ($photo->organized_at && $photo->organized_folder) {
+                try {
+                    $revertResult = $this->folderOrganizationService->revertJalurPhotoOrganization($photo);
+
+                    if (!$revertResult['success']) {
+                        Log::warning('Failed to revert file organization, but continuing with status revert', [
+                            'photo_id' => $photo->id,
+                            'error' => $revertResult['error'] ?? 'Unknown error'
+                        ]);
+                    } else {
+                        Log::info('File organization reverted successfully', [
+                            'photo_id' => $photo->id,
+                            'old_folder' => $photo->organized_folder,
+                            'new_folder' => $revertResult['new_folder'] ?? 'original'
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    Log::warning('Exception during file organization revert, continuing with status revert', [
+                        'photo_id' => $photo->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Step 2: Revert photo status to tracer_approved
+            // Note: photo record might be already updated by revertJalurPhotoOrganization
+            // so we need to refresh it first
+            $photo->refresh();
+
+            $photo->update([
+                'photo_status' => 'tracer_approved',
+                'cgp_user_id' => null,
+                'cgp_approved_at' => null,
+                'cgp_notes' => $request->notes ?: 'Reverted by CGP',
+            ]);
+
+            Log::info('CGP photo reverted', [
+                'photo_id' => $photo->id,
+                'reverted_by' => Auth::id(),
+                'notes' => $request->notes
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Photo berhasil di-revert ke Tracer Approved'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('CGP revert photo error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
+     * Replace photo (Admin/Super Admin only) - Available for ALL statuses
+     */
+    public function replacePhoto(Request $request)
+    {
+        // Only allow admin/super_admin to replace photos
+        if (!Auth::user()->hasAnyRole(['admin', 'super_admin'])) {
+            return back()->with('error', 'Unauthorized. Only Admin can replace photos.');
+        }
+
+        $request->validate([
+            'photo_id' => 'required|integer|exists:photo_approvals,id',
+            'photo' => 'required|image|mimes:jpeg,jpg,png|max:10240', // max 10MB
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $photoApproval = PhotoApproval::findOrFail($request->get('photo_id'));
+            $oldStatus = $photoApproval->photo_status;
+
+            // Get module data
+            if ($photoApproval->module_name === 'jalur_lowering') {
+                $moduleData = JalurLoweringData::with('lineNumber.cluster')->find($photoApproval->module_record_id);
+            } else {
+                $moduleData = JalurJointData::with('cluster')->find($photoApproval->module_record_id);
+            }
+
+            if (!$moduleData) {
+                throw new Exception('Module data not found');
+            }
+
+            // Upload new photo to Google Drive
+            $uploadedFile = $request->file('photo');
+            $googleDriveService = app(\App\Services\GoogleDriveService::class);
+
+            if (!$googleDriveService->isAvailable()) {
+                throw new Exception('Google Drive service tidak tersedia: ' . $googleDriveService->getError());
+            }
+
+            // Generate filename
+            $timestamp = now()->format('Ymd_His');
+            $filename = "{$photoApproval->photo_field_name}_{$timestamp}";
+
+            // Save old photo data to audit_logs for history (DO NOT DELETE)
+            if ($photoApproval->photo_url) {
+                DB::table('audit_logs')->insert([
+                    'user_id' => Auth::id(),
+                    'action' => 'photo_replaced',
+                    'model_type' => 'App\\Models\\PhotoApproval',
+                    'model_id' => $photoApproval->id,
+                    'reff_id_pelanggan' => $photoApproval->reff_id_pelanggan,
+                    'old_values' => json_encode([
+                        'photo_url' => $photoApproval->photo_url,
+                        'drive_file_id' => $photoApproval->drive_file_id,
+                        'drive_link' => $photoApproval->drive_link,
+                        'stored_filename' => $photoApproval->stored_filename,
+                        'photo_status' => $oldStatus,
+                        'tracer_user_id' => $photoApproval->tracer_user_id,
+                        'tracer_approved_at' => $photoApproval->tracer_approved_at,
+                        'cgp_user_id' => $photoApproval->cgp_user_id,
+                        'cgp_approved_at' => $photoApproval->cgp_approved_at,
+                    ]),
+                    'new_values' => json_encode([
+                        'action' => 'replacing_with_new_photo',
+                        'timestamp' => $timestamp,
+                    ]),
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'description' => "Photo replaced for {$photoApproval->photo_field_name}. Old photo preserved in Google Drive for audit purposes.",
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                Log::info('Old photo data saved to audit_logs for history', [
+                    'photo_id' => $photoApproval->id,
+                    'old_drive_file_id' => $photoApproval->drive_file_id,
+                    'old_photo_url' => $photoApproval->photo_url,
+                    'note' => 'Old photo NOT deleted - preserved for audit trail'
+                ]);
+            }
+
+            // Build folder path for Google Drive
+            if ($photoApproval->module_name === 'jalur_lowering') {
+                $clusterSlug = strtolower(preg_replace('/[^A-Za-z0-9]+/', '_', $moduleData->lineNumber->cluster->nama_cluster));
+                $lineNumber = $moduleData->lineNumber->line_number;
+                $date = $moduleData->tanggal_jalur->format('Y-m-d');
+                $customPath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$date}";
+            } else {
+                $clusterSlug = strtolower(preg_replace('/[^A-Za-z0-9]+/', '_', $moduleData->cluster->nama_cluster));
+                $jointNumber = $moduleData->nomor_joint;
+                $date = $moduleData->tanggal_joint->format('Y-m-d');
+                $customPath = "jalur_joint/{$clusterSlug}/{$jointNumber}/{$date}";
+            }
+
+            // Ensure folder structure exists in Google Drive
+            $folderId = $googleDriveService->ensureNestedFolders($customPath);
+
+            // Upload new photo to Google Drive with extension
+            $ext = strtolower($uploadedFile->getClientOriginalExtension() ?: 'jpg');
+            $fullFileName = $filename . '.' . $ext;
+
+            $uploadResult = $googleDriveService->uploadFile(
+                $uploadedFile,
+                $folderId,
+                $fullFileName
+            );
+
+            // Prepare update data
+            $updateData = [
+                'photo_url' => $uploadResult['webViewLink'] ?? $uploadResult['webContentLink'] ?? null,
+                'drive_file_id' => $uploadResult['id'] ?? null,
+                'drive_link' => $uploadResult['webViewLink'] ?? $uploadResult['webContentLink'] ?? null,
+                'photo_status' => 'tracer_pending', // Always reset to pending for re-approval
+                'stored_filename' => $fullFileName,
+                'storage_disk' => 'google_drive',
+                'storage_path' => "{$customPath}/{$fullFileName}",
+            ];
+
+            // Reset approval data based on old status
+            if (in_array($oldStatus, ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])) {
+                // Reset tracer approval
+                $updateData['tracer_approved_at'] = null;
+                $updateData['tracer_user_id'] = null;
+                $updateData['tracer_notes'] = null;
+            }
+
+            if (in_array($oldStatus, ['cgp_pending', 'cgp_approved', 'cgp_rejected'])) {
+                // Reset CGP approval if photo was already in CGP stage
+                $updateData['cgp_approved_at'] = null;
+                $updateData['cgp_user_id'] = null;
+                $updateData['cgp_notes'] = null;
+                $updateData['cgp_rejected_at'] = null;
+            }
+
+            if ($oldStatus === 'tracer_rejected') {
+                // Clear tracer rejection data
+                $updateData['tracer_rejected_at'] = null;
+                $updateData['tracer_notes'] = null;
+            }
+
+            // Update photo record
+            $photoApproval->update($updateData);
+
+            // Log replacement with audit trail
+            Log::info('Photo replaced from CGP interface', [
+                'photo_id' => $photoApproval->id,
+                'old_status' => $oldStatus,
+                'new_status' => 'tracer_pending',
+                'replaced_by' => Auth::id(),
+                'module' => $photoApproval->module_name,
+            ]);
+
+            DB::commit();
+
+            // Build appropriate success message based on old status
+            $message = 'Photo berhasil diganti. ';
+            if (in_array($oldStatus, ['cgp_approved', 'cgp_pending'])) {
+                $message .= 'Status direset ke TRACER_PENDING. Approval CGP telah dihapus, memerlukan re-approval dari Tracer dan CGP.';
+            } elseif ($oldStatus === 'tracer_approved') {
+                $message .= 'Status direset ke TRACER_PENDING. Approval Tracer telah dihapus, memerlukan re-approval.';
+            } elseif ($oldStatus === 'cgp_rejected') {
+                $message .= 'Status direset ke TRACER_PENDING. Rejection CGP telah dihapus, memerlukan review ulang dari Tracer.';
+            } else {
+                $message .= 'Status direset ke TRACER_PENDING untuk review ulang.';
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'old_status' => $oldStatus,
+                'new_status' => 'tracer_pending'
+            ]);
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Replace jalur photo error from CGP interface: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 
     private function determineLineStatus(int $total, int $approved, int $pending, int $rejected): string

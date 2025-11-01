@@ -1042,19 +1042,21 @@ class CgpApprovalController extends Controller implements HasMiddleware
             
             // Determine module path and identifiers
             if ($photoApproval->module_name === 'jalur_lowering') {
-                $moduleType = 'JALUR_LOWERING';
+                $moduleType = 'jalur_lowering';
                 $identifier = $moduleData->lineNumber->line_number;
                 $clusterName = $moduleData->lineNumber->cluster->nama_cluster;
+                $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
                 $tanggalFolder = \Carbon\Carbon::parse($moduleData->tanggal_jalur)->format('Y-m-d');
             } else { // jalur_joint
-                $moduleType = 'JALUR_JOINT';
+                $moduleType = 'jalur_joint';
                 $identifier = $moduleData->nomor_joint;
                 $clusterName = $moduleData->cluster->nama_cluster;
+                $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
                 $tanggalFolder = \Carbon\Carbon::parse($moduleData->tanggal_joint)->format('Y-m-d');
             }
 
-            // Create ACC_CGP folder path: JALUR_LOWERING_ACC_CGP/Cluster/LineNumber/Date/
-            $accFolderPath = "{$moduleType}_ACC_CGP/{$clusterName}/{$identifier}/{$tanggalFolder}";
+            // Create ACC_CGP folder path: jalur_lowering_acc_cgp/cluster_slug/LineNumber/Date/
+            $accFolderPath = "{$moduleType}_acc_cgp/{$clusterSlug}/{$identifier}/{$tanggalFolder}";
             
             // Extract file ID from Google Drive URL
             $fileId = null;

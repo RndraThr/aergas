@@ -707,6 +707,9 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 // Level 3: Evidence Review (per Line)
                 Route::get('/lines/{lineId}/evidence', [TracerJalurApprovalController::class, 'evidence'])->name('evidence');
 
+                // Level 3: Evidence Review (per Joint)
+                Route::get('/joints/{jointId}/evidence', [TracerJalurApprovalController::class, 'jointEvidence'])->name('joint-evidence');
+
                 // Approval Actions
                 Route::post('/approve-photo', [TracerJalurApprovalController::class, 'approvePhoto'])->name('approve-photo');
                 Route::post('/reject-photo', [TracerJalurApprovalController::class, 'rejectPhoto'])->name('reject-photo');
@@ -755,11 +758,16 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 // Level 3: Evidence Review (per Line)
                 Route::get('/lines/{lineId}/evidence', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'evidence'])->name('evidence');
 
+                // Level 3: Joint Evidence Review (per Joint)
+                Route::get('/joints/{jointId}/evidence', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'jointEvidence'])->name('joint-evidence');
+
                 // Approval Actions
                 Route::post('/approve-photo', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'approvePhoto'])->name('approve-photo');
                 Route::post('/reject-photo', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'rejectPhoto'])->name('reject-photo');
+                Route::post('/revert-photo', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'revertPhoto'])->name('revert-photo');
                 Route::post('/approve-date', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'approveDatePhotos'])->name('approve-date');
                 Route::post('/approve-line', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'approveLine'])->name('approve-line');
+                Route::post('/replace-photo', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'replacePhoto'])->name('replace-photo');
             });
         });
 

@@ -35,10 +35,34 @@ class JalurLineNumber extends Model
         return $this->hasMany(\App\Models\JalurLoweringData::class, 'line_number_id');
     }
 
-    public function jointData(): HasMany
+    /**
+     * Get joint data connected to this line (as query builder for chaining)
+     * Uses string-based matching (joint_line_from, joint_line_to, joint_line_optional)
+     */
+    public function jointDataQuery()
     {
-        return $this->hasMany(\App\Models\JalurJointData::class, 'line_number_id');
+        return \App\Models\JalurJointData::where(function($query) {
+            $query->where('joint_line_from', $this->line_number)
+                  ->orWhere('joint_line_to', $this->line_number)
+                  ->orWhere('joint_line_optional', $this->line_number);
+        });
     }
+
+    /**
+     * Get joint data as collection (accessor for property access)
+     * This allows $line->jointData to work like a relationship
+     */
+    public function getJointDataAttribute()
+    {
+        // Check if already loaded to avoid N+1
+        if (!isset($this->_jointDataCache)) {
+            $this->_jointDataCache = $this->jointDataQuery()->get();
+        }
+        return $this->_jointDataCache;
+    }
+
+    // Cache for jointData to avoid multiple queries
+    protected $_jointDataCache = null;
 
     public function createdBy(): BelongsTo
     {

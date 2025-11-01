@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Database Clone Protection
+    |--------------------------------------------------------------------------
+    |
+    | This value determines if the database is cloned from production.
+    | When true, file operations will COPY files instead of MOVE to protect
+    | production data from being accidentally deleted or moved.
+    |
+    */
+
+    'db_is_clone' => (bool) env('DB_IS_CLONE', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
