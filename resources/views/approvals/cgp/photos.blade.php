@@ -529,13 +529,17 @@
             $sr = $customer->srData;
 
             $labels = $sr->getMaterialLabels();
-            $totalItems = 0; $totalLengths = 0;
+            $totalItems = 0;
+
+            // Only count panjang_pipa_pe_20mm_m for total lengths
+            $totalLengths = (float)($sr->panjang_pipa_pe_20mm_m ?? 0);
 
             foreach ($sr->getRequiredMaterialItems() as $field => $val) {
                 $v = (float)($val ?? 0);
                 if ($v > 0) {
                     $materialData[] = ['label' => ($labels[$field] ?? $field), 'value' => $v, 'field' => $field];
-                    if (str_contains($field, 'panjang_')) $totalLengths += $v; else $totalItems += $v;
+                    // Count items (not panjang fields)
+                    if (!str_contains($field, 'panjang_')) $totalItems += $v;
                 }
             }
             foreach ($sr->getOptionalMaterialItems() as $field => $val) {
@@ -962,11 +966,11 @@
                         @endif
 
                         {{-- Total Panjang Pipa untuk SR --}}
-                        @if($module === 'sr' && !empty($materialTotals['total_lengths']) && $materialTotals['total_lengths'] > 0)
+                        @if($module === 'sr' && isset($materialTotals['total_lengths']))
                             <div class="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
                                 <div class="flex justify-between items-center">
-                                    <span class="font-medium text-yellow-800">Total Panjang Pipa:</span>
-                                    <span class="font-bold text-yellow-900 text-lg">{{ $materialTotals['total_lengths'] }} meter</span>
+                                    <span class="font-medium text-yellow-800">Total Panjang Pipa PE:</span>
+                                    <span class="font-bold text-yellow-900 text-lg">{{ number_format($materialTotals['total_lengths'], 2) }} meter</span>
                                 </div>
                             </div>
                         @endif

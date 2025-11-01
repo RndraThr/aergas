@@ -72,11 +72,13 @@ class JalurLoweringController extends Controller
 
     public function store(Request $request)
     {
+        // Increase execution time for Google Drive uploads (multiple photos can take time)
+        set_time_limit(120); // 2 minutes
+
         // DEBUG: Log all incoming request data
         Log::info('=== LOWERING STORE REQUEST DEBUG ===');
         Log::info('Tipe Bongkaran: ' . $request->input('tipe_bongkaran'));
         Log::info('aksesoris_cassing: ' . ($request->has('aksesoris_cassing') ? 'YES - Value: ' . $request->input('aksesoris_cassing') : 'NO'));
-        Log::info('aksesoris_cassing_open_cut: ' . ($request->has('aksesoris_cassing_open_cut') ? 'YES - Value: ' . $request->input('aksesoris_cassing_open_cut') : 'NO'));
         Log::info('cassing_quantity: ' . ($request->has('cassing_quantity') ? $request->input('cassing_quantity') : 'NOT SENT'));
         Log::info('cassing_type: ' . ($request->has('cassing_type') ? $request->input('cassing_type') : 'NOT SENT'));
         Log::info('All request data: ' . json_encode($request->all()));
@@ -95,13 +97,12 @@ class JalurLoweringController extends Controller
             'bongkaran' => 'required|numeric|min:0.01',
             'kedalaman_lowering' => 'required|numeric|min:1',
             'aksesoris_cassing' => 'boolean',
-            'aksesoris_cassing_open_cut' => 'boolean',
             'aksesoris_marker_tape' => 'boolean',
             'aksesoris_concrete_slab' => 'boolean',
             'marker_tape_quantity' => 'required_if:aksesoris_marker_tape,1|nullable|numeric|min:0.1',
             'concrete_slab_quantity' => 'required_if:aksesoris_concrete_slab,1|nullable|integer|min:1',
-            'cassing_quantity' => 'required_if:aksesoris_cassing,1|required_if:aksesoris_cassing_open_cut,1|nullable|numeric|min:0.1',
-            'cassing_type' => 'required_if:aksesoris_cassing,1|required_if:aksesoris_cassing_open_cut,1|nullable|in:4_inch,8_inch',
+            'cassing_quantity' => 'required_if:aksesoris_cassing,1|nullable|numeric|min:0.1',
+            'cassing_type' => 'required_if:aksesoris_cassing,1|nullable|in:4_inch,8_inch',
             'keterangan' => 'nullable|string|max:1000',
         ];
 
@@ -112,14 +113,36 @@ class JalurLoweringController extends Controller
             $validationRules['foto_evidence_penggelaran_bongkaran_link'] = 'required|url';
         }
 
-        // Add conditional validation for cassing photo (if any cassing checkbox is checked)
-        if ($request->has('aksesoris_cassing') || $request->has('aksesoris_cassing_open_cut')) {
+        // Add conditional validation for cassing photo (if cassing checkbox is checked)
+        if ($request->has('aksesoris_cassing')) {
             $uploadMethodCassing = $request->input('upload_method_cassing', 'file');
 
             if ($uploadMethodCassing === 'file') {
                 $validationRules['foto_evidence_cassing'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
             } else {
                 $validationRules['foto_evidence_cassing_link'] = 'required|url';
+            }
+        }
+
+        // Add conditional validation for marker tape photo
+        if ($request->has('aksesoris_marker_tape')) {
+            $uploadMethodMarkerTape = $request->input('upload_method_marker_tape', 'file');
+
+            if ($uploadMethodMarkerTape === 'file') {
+                $validationRules['foto_evidence_marker_tape'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
+            } else {
+                $validationRules['foto_evidence_marker_tape_link'] = 'required|url';
+            }
+        }
+
+        // Add conditional validation for concrete slab photo
+        if ($request->has('aksesoris_concrete_slab')) {
+            $uploadMethodConcreteSlab = $request->input('upload_method_concrete_slab', 'file');
+
+            if ($uploadMethodConcreteSlab === 'file') {
+                $validationRules['foto_evidence_concrete_slab'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
+            } else {
+                $validationRules['foto_evidence_concrete_slab_link'] = 'required|url';
             }
         }
 
@@ -194,24 +217,18 @@ class JalurLoweringController extends Controller
             if ($uploadMethod === 'file') {
                 // Handle photo uploads - multiple photos based on accessories
                 $photoFields = ['foto_evidence_penggelaran_bongkaran']; // Always required
-                
-                // Add accessory photos based on tipe_bongkaran and checkboxes
-                if ($validated['tipe_bongkaran'] === 'Open Cut') {
-                    if ($request->hasFile('foto_evidence_marker_tape')) {
-                        $photoFields[] = 'foto_evidence_marker_tape';
-                    }
-                    if ($request->hasFile('foto_evidence_concrete_slab')) {
-                        $photoFields[] = 'foto_evidence_concrete_slab';
-                    }
-                    if ($request->has('aksesoris_cassing') && $request->hasFile('foto_evidence_cassing')) {
-                        $photoFields[] = 'foto_evidence_cassing';
-                    }
-                } elseif (in_array($validated['tipe_bongkaran'], ['Crossing', 'Zinker'])) {
-                    if (($request->has('aksesoris_cassing') || $request->has('aksesoris_cassing_open_cut')) && $request->hasFile('foto_evidence_cassing')) {
-                        $photoFields[] = 'foto_evidence_cassing';
-                    }
+
+                // Add accessory photos based on what checkboxes are checked (flexible for all tipe bongkaran)
+                if ($request->has('aksesoris_marker_tape') && $request->hasFile('foto_evidence_marker_tape')) {
+                    $photoFields[] = 'foto_evidence_marker_tape';
                 }
-                
+                if ($request->has('aksesoris_concrete_slab') && $request->hasFile('foto_evidence_concrete_slab')) {
+                    $photoFields[] = 'foto_evidence_concrete_slab';
+                }
+                if ($request->has('aksesoris_cassing') && $request->hasFile('foto_evidence_cassing')) {
+                    $photoFields[] = 'foto_evidence_cassing';
+                }
+
                 $this->handlePhotoUploads($request, $lowering, $photoFields);
             } else {
                 // Handle Google Drive link for main photo
@@ -261,7 +278,7 @@ class JalurLoweringController extends Controller
             }
 
             // Handle cassing photo from Google Drive link (if provided)
-            if ($request->filled('foto_evidence_cassing_link') && ($request->has('aksesoris_cassing') || $request->has('aksesoris_cassing_open_cut'))) {
+            if ($request->filled('foto_evidence_cassing_link') && $request->has('aksesoris_cassing')) {
                 $cassingDriveLink = $request->input('foto_evidence_cassing_link');
 
                 try {
@@ -302,6 +319,94 @@ class JalurLoweringController extends Controller
                         'error' => $e->getMessage()
                     ]);
                     // Don't throw, just log - cassing photo is optional
+                }
+            }
+
+            // Handle marker tape photo from Google Drive link (if provided)
+            if ($request->filled('foto_evidence_marker_tape_link') && $request->has('aksesoris_marker_tape')) {
+                $markerTapeDriveLink = $request->input('foto_evidence_marker_tape_link');
+
+                try {
+                    $googleDriveService = app(GoogleDriveService::class);
+
+                    $lineNumber = $lowering->lineNumber->line_number;
+                    $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+                    $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
+                    $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
+
+                    $result = $googleDriveService->copyFromDriveLink(
+                        $markerTapeDriveLink,
+                        $customDrivePath,
+                        'foto_evidence_marker_tape_' . time()
+                    );
+
+                    PhotoApproval::create([
+                        'reff_id_pelanggan' => null,
+                        'module_name' => 'jalur_lowering',
+                        'module_record_id' => $lowering->id,
+                        'photo_field_name' => 'foto_evidence_marker_tape',
+                        'photo_url' => $result['url'],
+                        'photo_status' => 'tracer_pending',
+                        'uploaded_by' => Auth::id(),
+                        'uploaded_at' => now(),
+                    ]);
+
+                    Log::info('Google Drive marker tape photo copied successfully', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $markerTapeDriveLink,
+                        'result' => $result
+                    ]);
+
+                } catch (\Exception $e) {
+                    Log::error('Failed to copy marker tape photo from Google Drive link', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $markerTapeDriveLink,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Handle concrete slab photo from Google Drive link (if provided)
+            if ($request->filled('foto_evidence_concrete_slab_link') && $request->has('aksesoris_concrete_slab')) {
+                $concreteSlabDriveLink = $request->input('foto_evidence_concrete_slab_link');
+
+                try {
+                    $googleDriveService = app(GoogleDriveService::class);
+
+                    $lineNumber = $lowering->lineNumber->line_number;
+                    $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+                    $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
+                    $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
+
+                    $result = $googleDriveService->copyFromDriveLink(
+                        $concreteSlabDriveLink,
+                        $customDrivePath,
+                        'foto_evidence_concrete_slab_' . time()
+                    );
+
+                    PhotoApproval::create([
+                        'reff_id_pelanggan' => null,
+                        'module_name' => 'jalur_lowering',
+                        'module_record_id' => $lowering->id,
+                        'photo_field_name' => 'foto_evidence_concrete_slab',
+                        'photo_url' => $result['url'],
+                        'photo_status' => 'tracer_pending',
+                        'uploaded_by' => Auth::id(),
+                        'uploaded_at' => now(),
+                    ]);
+
+                    Log::info('Google Drive concrete slab photo copied successfully', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $concreteSlabDriveLink,
+                        'result' => $result
+                    ]);
+
+                } catch (\Exception $e) {
+                    Log::error('Failed to copy concrete slab photo from Google Drive link', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $concreteSlabDriveLink,
+                        'error' => $e->getMessage()
+                    ]);
                 }
             }
 

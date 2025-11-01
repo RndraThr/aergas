@@ -177,29 +177,113 @@
                     <p class="text-xs text-gray-500 mt-1">Pilih jenis perkerasan pada jalur lowering</p>
                 </div>
 
-                <!-- Aksesoris (conditional) -->
+                <!-- Aksesoris (flexible for all tipe bongkaran) -->
                 <div id="aksesoris-section" class="mb-6 hidden">
-                    <label class="block text-sm font-medium text-gray-700 mb-3">Aksesoris</label>
-                    <div class="space-y-2">
-                        <!-- Cassing for Crossing/Zinker -->
-                        <div id="aksesoris-cassing" class="space-y-3 hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">
+                        Aksesoris <span class="text-xs text-gray-500">(Pilih yang diperlukan)</span>
+                    </label>
+                    <div class="space-y-4 bg-gray-50 p-4 rounded-lg">
+
+                        <!-- Marker Tape -->
+                        <div class="space-y-2">
+                            <div class="flex items-center">
+                                <input type="checkbox"
+                                       id="aksesoris_marker_tape"
+                                       name="aksesoris_marker_tape"
+                                       value="1"
+                                       onchange="toggleQuantityField('marker_tape')"
+                                       {{ old('aksesoris_marker_tape') ? 'checked' : '' }}
+                                       class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500">
+                                <label for="aksesoris_marker_tape" class="ml-2 text-sm font-medium text-gray-700">
+                                    Marker Tape
+                                </label>
+                            </div>
+                            <div id="marker_tape_quantity_field" class="ml-6 hidden">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label for="marker_tape_quantity" class="block text-xs text-gray-600">
+                                        Panjang (meter)
+                                    </label>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-xs text-gray-500" id="marker_tape_mode_label">Auto-fill</span>
+                                        <button type="button"
+                                                id="marker_tape_toggle_btn"
+                                                onclick="toggleMarkerTapeMode()"
+                                                class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            Manual
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="number"
+                                       id="marker_tape_quantity"
+                                       name="marker_tape_quantity"
+                                       value="{{ old('marker_tape_quantity') }}"
+                                       step="0.1"
+                                       min="0.1"
+                                       placeholder="0.0"
+                                       class="w-48 px-3 py-2 text-sm border border-gray-300 bg-gray-100 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                                       readonly>
+                            </div>
+                        </div>
+
+                        <!-- Concrete Slab -->
+                        <div class="space-y-2">
+                            <div class="flex items-center">
+                                <input type="checkbox"
+                                       id="aksesoris_concrete_slab"
+                                       name="aksesoris_concrete_slab"
+                                       value="1"
+                                       onchange="toggleQuantityField('concrete_slab')"
+                                       {{ old('aksesoris_concrete_slab') ? 'checked' : '' }}
+                                       class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500">
+                                <label for="aksesoris_concrete_slab" class="ml-2 text-sm font-medium text-gray-700">
+                                    Concrete Slab
+                                </label>
+                            </div>
+                            <div id="concrete_slab_quantity_field" class="ml-6 hidden">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label for="concrete_slab_quantity" class="block text-xs text-gray-600">
+                                        Jumlah (pcs)
+                                    </label>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-xs text-gray-500" id="concrete_slab_mode_label">Auto-calculate (x2)</span>
+                                        <button type="button"
+                                                id="concrete_slab_toggle_btn"
+                                                onclick="toggleConcreteSlabMode()"
+                                                class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            Manual
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="number"
+                                       id="concrete_slab_quantity"
+                                       name="concrete_slab_quantity"
+                                       value="{{ old('concrete_slab_quantity') }}"
+                                       min="1"
+                                       placeholder="0"
+                                       class="w-48 px-3 py-2 text-sm border border-gray-300 bg-gray-100 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                                       readonly>
+                            </div>
+                        </div>
+
+                        <!-- Cassing -->
+                        <div class="space-y-2">
                             <div class="flex items-center">
                                 <input type="checkbox"
                                        id="aksesoris_cassing"
                                        name="aksesoris_cassing"
                                        value="1"
-                                       onchange="toggleCassingQuantityField(this)"
+                                       onchange="toggleQuantityField('cassing')"
                                        {{ old('aksesoris_cassing') ? 'checked' : '' }}
                                        class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500">
-                                <label for="aksesoris_cassing" class="ml-2 text-sm text-gray-700">
-                                    Cassing (Crossing/Zinker)
+                                <label for="aksesoris_cassing" class="ml-2 text-sm font-medium text-gray-700">
+                                    Cassing
                                 </label>
                             </div>
-                            <div id="cassing_crossing_quantity_field" class="ml-6 space-y-2 {{ old('aksesoris_cassing') ? '' : 'hidden' }}">
+                            <div id="cassing_quantity_field" class="ml-6 space-y-2 hidden">
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label for="cassing_quantity" class="block text-xs text-gray-600 mb-1">
-                                            Panjang Cassing (meter) <span class="text-red-500">*</span>
+                                            Panjang (meter)
                                         </label>
                                         <input type="number"
                                                id="cassing_quantity"
@@ -208,117 +292,15 @@
                                                step="0.1"
                                                min="0.1"
                                                placeholder="0.0"
-                                               {{ old('aksesoris_cassing') ? 'required' : '' }}
-                                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500">
+                                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500">
                                     </div>
                                     <div>
                                         <label for="cassing_type" class="block text-xs text-gray-600 mb-1">
-                                            Diameter Cassing <span class="text-red-500">*</span>
+                                            Diameter
                                         </label>
                                         <select id="cassing_type"
                                                 name="cassing_type"
-                                                {{ old('aksesoris_cassing') ? 'required' : '' }}
-                                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500">
-                                            <option value="">Pilih Diameter</option>
-                                            <option value="4_inch" {{ old('cassing_type') === '4_inch' ? 'selected' : '' }}>4 inch</option>
-                                            <option value="8_inch" {{ old('cassing_type') === '8_inch' ? 'selected' : '' }}>8 inch</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="aksesoris-marker-tape" class="space-y-2 hidden">
-                            <div class="flex items-center">
-                                <input type="checkbox" 
-                                       id="aksesoris_marker_tape" 
-                                       name="aksesoris_marker_tape" 
-                                       value="1"
-                                       onchange="toggleQuantityField('marker_tape')"
-                                       {{ old('aksesoris_marker_tape') ? 'checked' : '' }}
-                                       class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500">
-                                <label for="aksesoris_marker_tape" class="ml-2 text-sm text-gray-700">
-                                    Marker Tape
-                                </label>
-                            </div>
-                            <div id="marker_tape_quantity_field" class="ml-6 hidden">
-                                <label for="marker_tape_quantity" class="block text-xs text-gray-600 mb-1">
-                                    Jumlah (meter) - Auto-fill dari Panjang Lowering
-                                </label>
-                                <input type="number" 
-                                       id="marker_tape_quantity" 
-                                       name="marker_tape_quantity" 
-                                       value="{{ old('marker_tape_quantity') }}"
-                                       step="0.1"
-                                       min="0.1"
-                                       placeholder="0.0"
-                                       class="w-32 px-2 py-1 text-sm border border-gray-300 bg-gray-100 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-                                       readonly>
-                            </div>
-                        </div>
-                        <div id="aksesoris-concrete-slab" class="space-y-2 hidden">
-                            <div class="flex items-center">
-                                <input type="checkbox" 
-                                       id="aksesoris_concrete_slab" 
-                                       name="aksesoris_concrete_slab" 
-                                       value="1"
-                                       onchange="toggleQuantityField('concrete_slab')"
-                                       {{ old('aksesoris_concrete_slab') ? 'checked' : '' }}
-                                       class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500">
-                                <label for="aksesoris_concrete_slab" class="ml-2 text-sm text-gray-700">
-                                    Concrete Slab
-                                </label>
-                            </div>
-                            <div id="concrete_slab_quantity_field" class="ml-6 hidden">
-                                <label for="concrete_slab_quantity" class="block text-xs text-gray-600 mb-1">
-                                    Jumlah (pcs) - Auto-calculate (Panjang Lowering x2)
-                                </label>
-                                <input type="number" 
-                                       id="concrete_slab_quantity" 
-                                       name="concrete_slab_quantity" 
-                                       value="{{ old('concrete_slab_quantity') }}"
-                                       min="1"
-                                       placeholder="0"
-                                       class="w-32 px-2 py-1 text-sm border border-gray-300 bg-gray-100 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-                                       readonly>
-                            </div>
-                        </div>
-                        
-                        <!-- Cassing for Open Cut (New) -->
-                        <div id="aksesoris-cassing-open-cut" class="space-y-3 hidden">
-                            <div class="flex items-center">
-                                <input type="checkbox"
-                                       id="aksesoris_cassing_open_cut"
-                                       name="aksesoris_cassing_open_cut"
-                                       value="1"
-                                       onchange="toggleQuantityField('cassing')"
-                                       {{ old('aksesoris_cassing_open_cut') ? 'checked' : '' }}
-                                       class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500">
-                                <label for="aksesoris_cassing_open_cut" class="ml-2 text-sm text-gray-700">
-                                    Cassing
-                                </label>
-                            </div>
-                            <div id="cassing_quantity_field" class="ml-6 space-y-2 hidden">
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label for="cassing_quantity_open_cut" class="block text-xs text-gray-600 mb-1">
-                                            Jumlah (meter)
-                                        </label>
-                                        <input type="number"
-                                               id="cassing_quantity_open_cut"
-                                               name="cassing_quantity"
-                                               value="{{ old('cassing_quantity') }}"
-                                               step="0.1"
-                                               min="0.1"
-                                               placeholder="0.0"
-                                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500">
-                                    </div>
-                                    <div>
-                                        <label for="cassing_type_open_cut" class="block text-xs text-gray-600 mb-1">
-                                            Diameter Cassing
-                                        </label>
-                                        <select id="cassing_type_open_cut"
-                                                name="cassing_type"
-                                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500">
+                                                class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500">
                                             <option value="">Pilih Diameter</option>
                                             <option value="4_inch" {{ old('cassing_type') === '4_inch' ? 'selected' : '' }}>4 inch</option>
                                             <option value="8_inch" {{ old('cassing_type') === '8_inch' ? 'selected' : '' }}>8 inch</option>
@@ -510,12 +492,37 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 Foto Evidence Marker Tape <span class="text-red-500">*</span>
                             </label>
-                            <input type="file" 
-                                   id="foto_evidence_marker_tape" 
-                                   name="foto_evidence_marker_tape" 
-                                   accept="image/*"
-                                   class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100">
-                            <p class="text-xs text-gray-500 mt-1">Foto pemasangan marker tape pada jalur lowering.</p>
+
+                            <div class="mb-3 flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="upload_method_marker_tape" value="file" checked
+                                           onchange="toggleUploadMethodMarkerTape('file')">
+                                    <span class="ml-2 text-sm">Upload File</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="upload_method_marker_tape" value="link"
+                                           onchange="toggleUploadMethodMarkerTape('link')">
+                                    <span class="ml-2 text-sm">Google Drive Link</span>
+                                </label>
+                            </div>
+
+                            <div id="marker_tape_file_upload">
+                                <input type="file"
+                                       id="foto_evidence_marker_tape"
+                                       name="foto_evidence_marker_tape"
+                                       accept="image/*"
+                                       class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100">
+                                <p class="text-xs text-gray-500 mt-1">Foto pemasangan marker tape pada jalur lowering.</p>
+                            </div>
+
+                            <div id="marker_tape_link_upload" class="hidden">
+                                <input type="url"
+                                       id="foto_evidence_marker_tape_link"
+                                       name="foto_evidence_marker_tape_link"
+                                       placeholder="https://drive.google.com/file/d/..."
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <p class="text-xs text-gray-500 mt-1">Paste link Google Drive untuk foto marker tape.</p>
+                            </div>
                         </div>
 
                         <!-- Concrete Slab Photo -->
@@ -523,12 +530,37 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 Foto Evidence Concrete Slab <span class="text-red-500">*</span>
                             </label>
-                            <input type="file" 
-                                   id="foto_evidence_concrete_slab" 
-                                   name="foto_evidence_concrete_slab" 
-                                   accept="image/*"
-                                   class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100">
-                            <p class="text-xs text-gray-500 mt-1">Foto pemasangan concrete slab di jalur lowering.</p>
+
+                            <div class="mb-3 flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="upload_method_concrete_slab" value="file" checked
+                                           onchange="toggleUploadMethodConcreteSlab('file')">
+                                    <span class="ml-2 text-sm">Upload File</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="upload_method_concrete_slab" value="link"
+                                           onchange="toggleUploadMethodConcreteSlab('link')">
+                                    <span class="ml-2 text-sm">Google Drive Link</span>
+                                </label>
+                            </div>
+
+                            <div id="concrete_slab_file_upload">
+                                <input type="file"
+                                       id="foto_evidence_concrete_slab"
+                                       name="foto_evidence_concrete_slab"
+                                       accept="image/*"
+                                       class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100">
+                                <p class="text-xs text-gray-500 mt-1">Foto pemasangan concrete slab di jalur lowering.</p>
+                            </div>
+
+                            <div id="concrete_slab_link_upload" class="hidden">
+                                <input type="url"
+                                       id="foto_evidence_concrete_slab_link"
+                                       name="foto_evidence_concrete_slab_link"
+                                       placeholder="https://drive.google.com/file/d/..."
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500">
+                                <p class="text-xs text-gray-500 mt-1">Paste link Google Drive untuk foto concrete slab.</p>
+                            </div>
                         </div>
 
                         <!-- Cassing Photo -->
@@ -600,6 +632,10 @@
 
 <script>
 let availabilityCheckTimeout = null;
+
+// Mode tracking for auto/manual input
+let markerTapeAutoMode = true;
+let concreteSlabAutoMode = true;
 
 function updateLineNumberPreview() {
     const diameter = document.getElementById('diameter').value;
@@ -797,206 +833,65 @@ function hideLineNumberStatus() {
 function updateAksesoris() {
     const tipeBongkaran = document.getElementById('tipe_bongkaran').value;
     const aksesorisSection = document.getElementById('aksesoris-section');
-    const cassing = document.getElementById('aksesoris-cassing');
-    const markerTape = document.getElementById('aksesoris-marker-tape');
-    const concreteSlab = document.getElementById('aksesoris-concrete-slab');
-    const cassingOpenCut = document.getElementById('aksesoris-cassing-open-cut');
-    
+
     // Update label field Bongkaran berdasarkan tipe bongkaran
     updateBongkaranLabel(tipeBongkaran);
-    
-    // Hide all first
-    cassing.classList.add('hidden');
-    markerTape.classList.add('hidden');
-    concreteSlab.classList.add('hidden');
-    cassingOpenCut.classList.add('hidden');
-    aksesorisSection.classList.add('hidden');
 
-    // Uncheck and disable all aksesoris first
+    // Show aksesoris section for all tipe bongkaran (flexible & dynamic)
+    if (tipeBongkaran) {
+        aksesorisSection.classList.remove('hidden');
+    } else {
+        aksesorisSection.classList.add('hidden');
+        return;
+    }
+
+    // Get all checkboxes
     const markerTapeCheckbox = document.getElementById('aksesoris_marker_tape');
     const concreteSlabCheckbox = document.getElementById('aksesoris_concrete_slab');
     const cassingCheckbox = document.getElementById('aksesoris_cassing');
-    const cassingOpenCutCheckbox = document.getElementById('aksesoris_cassing_open_cut');
 
-    // Disable all first (will be re-enabled based on tipe bongkaran)
-    if (markerTapeCheckbox) markerTapeCheckbox.disabled = true;
-    if (concreteSlabCheckbox) concreteSlabCheckbox.disabled = true;
-    if (cassingCheckbox) cassingCheckbox.disabled = true;
-    if (cassingOpenCutCheckbox) cassingOpenCutCheckbox.disabled = true;
+    // Enable all checkboxes (user can choose freely)
+    if (markerTapeCheckbox) markerTapeCheckbox.disabled = false;
+    if (concreteSlabCheckbox) concreteSlabCheckbox.disabled = false;
+    if (cassingCheckbox) cassingCheckbox.disabled = false;
 
-    // Hide all photo sections first
-    updateAccessoryPhotoSections('hide');
-
-    // Show relevant aksesoris based on tipe bongkaran
+    // Auto-check based on tipe bongkaran for convenience (but user can still uncheck/change)
     if (tipeBongkaran === 'Open Cut') {
-        markerTape.classList.remove('hidden');
-        concreteSlab.classList.remove('hidden');
-        cassingOpenCut.classList.remove('hidden');
-        aksesorisSection.classList.remove('hidden');
-
-        // Clear and disable Crossing/Zinker cassing
-        if (cassingCheckbox) {
-            cassingCheckbox.checked = false;
-            cassingCheckbox.disabled = true;
-            // Clear cassing crossing fields
-            const cassingQty = document.getElementById('cassing_quantity');
-            const cassingType = document.getElementById('cassing_type');
-            if (cassingQty) {
-                cassingQty.value = '';
-                cassingQty.required = false;
-                cassingQty.disabled = true;
-            }
-            if (cassingType) {
-                cassingType.value = '';
-                cassingType.required = false;
-                cassingType.disabled = true;
-            }
-        }
-
-        // Enable and auto-check marker tape and concrete slab for Open Cut
-        if (markerTapeCheckbox) {
-            markerTapeCheckbox.disabled = false;
+        // Auto-check marker tape and concrete slab for Open Cut
+        if (markerTapeCheckbox && !markerTapeCheckbox.checked) {
             markerTapeCheckbox.checked = true;
+            toggleQuantityField('marker_tape');
         }
-        if (concreteSlabCheckbox) {
-            concreteSlabCheckbox.disabled = false;
+        if (concreteSlabCheckbox && !concreteSlabCheckbox.checked) {
             concreteSlabCheckbox.checked = true;
+            toggleQuantityField('concrete_slab');
         }
-        if (cassingOpenCutCheckbox) {
-            cassingOpenCutCheckbox.disabled = false;
-        }
-
-        toggleQuantityField('marker_tape');
-        toggleQuantityField('concrete_slab');
-
-        // Show accessory photo sections for Open Cut
-        updateAccessoryPhotoSections('open_cut');
-
         // Update auto-calculations
         updateAccessoryCalculations();
-
-    } else if (tipeBongkaran === 'Crossing' || tipeBongkaran === 'Zinker') {
-        cassing.classList.remove('hidden');
-        aksesorisSection.classList.remove('hidden');
-
-        // Clear and disable Open Cut aksesoris
-        if (markerTapeCheckbox) {
-            markerTapeCheckbox.checked = false;
-            markerTapeCheckbox.disabled = true;
-        }
-        if (concreteSlabCheckbox) {
-            concreteSlabCheckbox.checked = false;
-            concreteSlabCheckbox.disabled = true;
-        }
-        if (cassingOpenCutCheckbox) {
-            cassingOpenCutCheckbox.checked = false;
-            cassingOpenCutCheckbox.disabled = true;
-        }
-
-        // Clear Open Cut quantity fields
-        const markerTapeQty = document.getElementById('marker_tape_quantity');
-        const concreteSlabQty = document.getElementById('concrete_slab_quantity');
-        const cassingQtyOpenCut = document.getElementById('cassing_quantity_open_cut');
-        const cassingTypeOpenCut = document.getElementById('cassing_type_open_cut');
-
-        if (markerTapeQty) {
-            markerTapeQty.value = '';
-            markerTapeQty.required = false;
-            markerTapeQty.disabled = true;
-        }
-        if (concreteSlabQty) {
-            concreteSlabQty.value = '';
-            concreteSlabQty.required = false;
-            concreteSlabQty.disabled = true;
-        }
-        // CRITICAL: Disable Open Cut cassing fields to prevent them from submitting
-        if (cassingQtyOpenCut) {
-            cassingQtyOpenCut.value = '';
-            cassingQtyOpenCut.required = false;
-            cassingQtyOpenCut.disabled = true;
-        }
-        if (cassingTypeOpenCut) {
-            cassingTypeOpenCut.value = '';
-            cassingTypeOpenCut.required = false;
-            cassingTypeOpenCut.disabled = true;
-        }
-
-        // Enable cassing checkbox for Crossing/Zinker
-        if (cassingCheckbox) {
-            cassingCheckbox.disabled = false;
-
-            // If checkbox is already checked, re-enable the quantity fields
-            if (cassingCheckbox.checked) {
-                const cassingQty = document.getElementById('cassing_quantity');
-                const cassingType = document.getElementById('cassing_type');
-                const quantityField = document.getElementById('cassing_crossing_quantity_field');
-
-                if (quantityField) {
-                    quantityField.classList.remove('hidden');
-                }
-                if (cassingQty) {
-                    cassingQty.disabled = false;
-                    cassingQty.required = true;
-                }
-                if (cassingType) {
-                    cassingType.disabled = false;
-                    cassingType.required = true;
-                }
-            }
-        }
-
-        // Show cassing photo for Crossing/Zinker
-        updateAccessoryPhotoSections('crossing_zinker');
     }
+
+    // Hide/Show photo sections based on what's checked
+    updateAccessoryPhotoSections();
 }
+
 
 function toggleQuantityField(type) {
     let checkbox, quantityField;
 
-    if (type === 'cassing') {
-        // Handle both cassing types (open cut and crossing/zinker)
-        const cassingOpenCutCheckbox = document.getElementById('aksesoris_cassing_open_cut');
-        const cassingCrossingCheckbox = document.getElementById('aksesoris_cassing');
-        const cassingOpenCutParent = document.getElementById('aksesoris-cassing-open-cut');
-        const cassingCrossingParent = document.getElementById('aksesoris-cassing');
-
-        // Check which cassing type is visible
-        if (cassingOpenCutParent && !cassingOpenCutParent.classList.contains('hidden')) {
-            // For Open Cut
-            checkbox = cassingOpenCutCheckbox;
-            quantityField = document.getElementById('cassing_quantity_field');
-        } else if (cassingCrossingParent && !cassingCrossingParent.classList.contains('hidden')) {
-            // For Crossing/Zinker
-            checkbox = cassingCrossingCheckbox;
-            quantityField = document.getElementById('cassing_crossing_quantity_field');
-        }
-    } else {
-        checkbox = document.getElementById(`aksesoris_${type}`);
-        quantityField = document.getElementById(`${type}_quantity_field`);
-    }
+    // Simplified: unified handling for all types including cassing
+    checkbox = document.getElementById(`aksesoris_${type}`);
+    quantityField = document.getElementById(`${type}_quantity_field`);
 
     if (checkbox && checkbox.checked) {
         if (quantityField) {
             quantityField.classList.remove('hidden');
         }
+
         // Make quantity field required when checkbox is checked
         if (type === 'cassing') {
-            // Determine which cassing fields to use based on which parent is visible
-            const cassingCrossingParent = document.getElementById('aksesoris-cassing');
-            const cassingOpenCutParent = document.getElementById('aksesoris-cassing-open-cut');
-
-            let cassingQtyInput, cassingTypeSelect;
-
-            if (cassingCrossingParent && !cassingCrossingParent.classList.contains('hidden')) {
-                // Crossing/Zinker fields
-                cassingQtyInput = document.getElementById('cassing_quantity');
-                cassingTypeSelect = document.getElementById('cassing_type');
-            } else if (cassingOpenCutParent && !cassingOpenCutParent.classList.contains('hidden')) {
-                // Open Cut fields
-                cassingQtyInput = document.getElementById('cassing_quantity_open_cut');
-                cassingTypeSelect = document.getElementById('cassing_type_open_cut');
-            }
-
+            // Unified cassing fields (same for all tipe bongkaran)
+            const cassingQtyInput = document.getElementById('cassing_quantity');
+            const cassingTypeSelect = document.getElementById('cassing_type');
             const cassingPhotoInput = document.getElementById('foto_evidence_cassing');
 
             if (cassingQtyInput) {
@@ -1010,7 +905,14 @@ function toggleQuantityField(type) {
             if (cassingPhotoInput) cassingPhotoInput.setAttribute('required', 'required');
         } else {
             const qtyInput = document.getElementById(`${type}_quantity`);
-            if (qtyInput) qtyInput.setAttribute('required', 'required');
+            if (qtyInput) {
+                qtyInput.setAttribute('required', 'required');
+
+                // Auto-fill marker tape and concrete slab when checkbox is checked
+                if (type === 'marker_tape' || type === 'concrete_slab') {
+                    updateAccessoryCalculations();
+                }
+            }
         }
     } else {
         if (quantityField) {
@@ -1018,32 +920,20 @@ function toggleQuantityField(type) {
         }
         // Remove required when checkbox is unchecked
         if (type === 'cassing') {
-            // Clear both Crossing/Zinker and Open Cut fields
-            const cassingQtyInputCrossing = document.getElementById('cassing_quantity');
-            const cassingTypeSelectCrossing = document.getElementById('cassing_type');
-            const cassingQtyInputOpenCut = document.getElementById('cassing_quantity_open_cut');
-            const cassingTypeSelectOpenCut = document.getElementById('cassing_type_open_cut');
+            // Unified cassing fields
+            const cassingQtyInput = document.getElementById('cassing_quantity');
+            const cassingTypeSelect = document.getElementById('cassing_type');
             const cassingPhotoInput = document.getElementById('foto_evidence_cassing');
 
-            if (cassingQtyInputCrossing) {
-                cassingQtyInputCrossing.disabled = true;
-                cassingQtyInputCrossing.removeAttribute('required');
-                cassingQtyInputCrossing.value = '';
+            if (cassingQtyInput) {
+                cassingQtyInput.disabled = true;
+                cassingQtyInput.removeAttribute('required');
+                cassingQtyInput.value = '';
             }
-            if (cassingTypeSelectCrossing) {
-                cassingTypeSelectCrossing.disabled = true;
-                cassingTypeSelectCrossing.removeAttribute('required');
-                cassingTypeSelectCrossing.value = '';
-            }
-            if (cassingQtyInputOpenCut) {
-                cassingQtyInputOpenCut.disabled = true;
-                cassingQtyInputOpenCut.removeAttribute('required');
-                cassingQtyInputOpenCut.value = '';
-            }
-            if (cassingTypeSelectOpenCut) {
-                cassingTypeSelectOpenCut.disabled = true;
-                cassingTypeSelectOpenCut.removeAttribute('required');
-                cassingTypeSelectOpenCut.value = '';
+            if (cassingTypeSelect) {
+                cassingTypeSelect.disabled = true;
+                cassingTypeSelect.removeAttribute('required');
+                cassingTypeSelect.value = '';
             }
             if (cassingPhotoInput) cassingPhotoInput.removeAttribute('required');
         } else {
@@ -1051,31 +941,31 @@ function toggleQuantityField(type) {
             if (qtyInput) qtyInput.removeAttribute('required');
         }
     }
+
+    // Update photo sections based on checkbox changes
+    updateAccessoryPhotoSections();
 }
 
 function updateBongkaran() {
     const penggelaran = document.getElementById('penggelaran').value;
     document.getElementById('bongkaran').value = penggelaran;
-    
-    // Update accessory calculations if Open Cut is selected
-    const tipeBongkaran = document.getElementById('tipe_bongkaran').value;
-    if (tipeBongkaran === 'Open Cut') {
-        updateAccessoryCalculations();
-    }
+
+    // Update accessory calculations (flexible for all tipe bongkaran)
+    updateAccessoryCalculations();
 }
 
 function updateAccessoryCalculations() {
     const penggelaran = parseFloat(document.getElementById('penggelaran').value) || 0;
-    
-    // Update Marker Tape (same as Panjang Lowering)
+
+    // Update Marker Tape (same as Panjang Lowering) - only if in auto mode
     const markerTapeField = document.getElementById('marker_tape_quantity');
-    if (markerTapeField) {
+    if (markerTapeField && markerTapeAutoMode) {
         markerTapeField.value = penggelaran.toFixed(1);
     }
-    
-    // Update Concrete Slab (Panjang Lowering x 2)
+
+    // Update Concrete Slab (Panjang Lowering x 2) - only if in auto mode
     const concreteSlabField = document.getElementById('concrete_slab_quantity');
-    if (concreteSlabField) {
+    if (concreteSlabField && concreteSlabAutoMode) {
         concreteSlabField.value = Math.round(penggelaran * 2);
     }
 }
@@ -1093,39 +983,46 @@ function updateBongkaranLabel(tipeBongkaran) {
     }
 }
 
-function updateAccessoryPhotoSections(mode) {
+function updateAccessoryPhotoSections() {
     const accessoryPhotosSection = document.getElementById('accessory-photos-section');
     const markerTapePhoto = document.getElementById('marker-tape-photo');
     const concreteSlabPhoto = document.getElementById('concrete-slab-photo');
     const cassingPhoto = document.getElementById('cassing-photo');
-    
-    // Hide all first
-    accessoryPhotosSection.classList.add('hidden');
-    markerTapePhoto.classList.add('hidden');
-    concreteSlabPhoto.classList.add('hidden');
-    cassingPhoto.classList.add('hidden');
-    
-    // Remove required attributes
-    document.getElementById('foto_evidence_marker_tape').removeAttribute('required');
-    document.getElementById('foto_evidence_concrete_slab').removeAttribute('required');
-    document.getElementById('foto_evidence_cassing').removeAttribute('required');
-    
-    if (mode === 'open_cut') {
+
+    // Get checkbox states
+    const markerTapeChecked = document.getElementById('aksesoris_marker_tape')?.checked;
+    const concreteSlabChecked = document.getElementById('aksesoris_concrete_slab')?.checked;
+    const cassingChecked = document.getElementById('aksesoris_cassing')?.checked;
+
+    // Show/hide photo sections based on what's checked
+    let anyChecked = markerTapeChecked || concreteSlabChecked || cassingChecked;
+
+    if (anyChecked) {
         accessoryPhotosSection.classList.remove('hidden');
-        markerTapePhoto.classList.remove('hidden');
-        concreteSlabPhoto.classList.remove('hidden');
-        cassingPhoto.classList.remove('hidden');
-        
-        // Make photos required for Open Cut
-        document.getElementById('foto_evidence_marker_tape').setAttribute('required', 'required');
-        document.getElementById('foto_evidence_concrete_slab').setAttribute('required', 'required');
-        
-    } else if (mode === 'crossing_zinker') {
-        accessoryPhotosSection.classList.remove('hidden');
-        cassingPhoto.classList.remove('hidden');
-        
-        // Cassing photo is only required when checkbox is checked
-        // This will be handled by toggleQuantityField function
+
+        // Show/hide individual photo sections
+        if (markerTapeChecked) {
+            markerTapePhoto.classList.remove('hidden');
+        } else {
+            markerTapePhoto.classList.add('hidden');
+        }
+
+        if (concreteSlabChecked) {
+            concreteSlabPhoto.classList.remove('hidden');
+        } else {
+            concreteSlabPhoto.classList.add('hidden');
+        }
+
+        if (cassingChecked) {
+            cassingPhoto.classList.remove('hidden');
+        } else {
+            cassingPhoto.classList.add('hidden');
+        }
+    } else {
+        accessoryPhotosSection.classList.add('hidden');
+        markerTapePhoto.classList.add('hidden');
+        concreteSlabPhoto.classList.add('hidden');
+        cassingPhoto.classList.add('hidden');
     }
 }
 
@@ -1159,15 +1056,29 @@ document.getElementById('loweringForm').addEventListener('submit', function(e) {
         document.getElementById('bongkaran').value = penggelaran;
     }
 
-    // CRITICAL FIX: Ensure cassing fields are enabled before submit
+    // CRITICAL FIX: Ensure accessory fields are enabled before submit
     const cassingCheckbox = document.getElementById('aksesoris_cassing');
     const cassingQty = document.getElementById('cassing_quantity');
     const cassingType = document.getElementById('cassing_type');
+    const markerTapeCheckbox = document.getElementById('aksesoris_marker_tape');
+    const markerTapeQty = document.getElementById('marker_tape_quantity');
+    const concreteSlabCheckbox = document.getElementById('aksesoris_concrete_slab');
+    const concreteSlabQty = document.getElementById('concrete_slab_quantity');
 
-    // Force enable fields if checkbox is checked (prevent disabled fields from blocking submission)
+    // Force enable cassing fields if checkbox is checked (prevent disabled fields from blocking submission)
     if (cassingCheckbox && cassingCheckbox.checked && !cassingCheckbox.disabled) {
         if (cassingQty) cassingQty.disabled = false;
         if (cassingType) cassingType.disabled = false;
+    }
+
+    // Force enable marker tape fields if checkbox is checked
+    if (markerTapeCheckbox && markerTapeCheckbox.checked && !markerTapeCheckbox.disabled) {
+        if (markerTapeQty) markerTapeQty.disabled = false;
+    }
+
+    // Force enable concrete slab fields if checkbox is checked
+    if (concreteSlabCheckbox && concreteSlabCheckbox.checked && !concreteSlabCheckbox.disabled) {
+        if (concreteSlabQty) concreteSlabQty.disabled = false;
     }
 });
 
@@ -1194,59 +1105,6 @@ function toggleUploadMethod() {
     }
 }
 
-function toggleCassingQuantityField(checkbox) {
-    const quantityField = document.getElementById('cassing_crossing_quantity_field');
-    const cassingQtyInput = document.getElementById('cassing_quantity');
-    const cassingTypeSelect = document.getElementById('cassing_type');
-    const cassingPhotoInput = document.getElementById('foto_evidence_cassing');
-    const cassingPhotoLinkInput = document.getElementById('foto_evidence_cassing_link');
-
-    if (checkbox.checked) {
-        // Show quantity fields
-        quantityField.classList.remove('hidden');
-
-        // Enable and set required
-        if (cassingQtyInput) {
-            cassingQtyInput.disabled = false;
-            cassingQtyInput.required = true;
-        }
-        if (cassingTypeSelect) {
-            cassingTypeSelect.disabled = false;
-            cassingTypeSelect.required = true;
-        }
-
-        // Set photo required based on upload method
-        const uploadMethod = document.querySelector('input[name="upload_method_cassing"]:checked')?.value || 'file';
-        if (uploadMethod === 'file' && cassingPhotoInput) {
-            cassingPhotoInput.required = true;
-        } else if (uploadMethod === 'link' && cassingPhotoLinkInput) {
-            cassingPhotoLinkInput.required = true;
-        }
-    } else {
-        // Hide quantity fields
-        quantityField.classList.add('hidden');
-
-        // Disable and remove required
-        if (cassingQtyInput) {
-            cassingQtyInput.disabled = true;
-            cassingQtyInput.required = false;
-            cassingQtyInput.value = '';
-        }
-        if (cassingTypeSelect) {
-            cassingTypeSelect.disabled = true;
-            cassingTypeSelect.required = false;
-            cassingTypeSelect.value = '';
-        }
-        if (cassingPhotoInput) {
-            cassingPhotoInput.required = false;
-            cassingPhotoInput.value = '';
-        }
-        if (cassingPhotoLinkInput) {
-            cassingPhotoLinkInput.required = false;
-            cassingPhotoLinkInput.value = '';
-        }
-    }
-}
 
 function toggleUploadMethodCassing(method) {
     const fileSection = document.getElementById('cassing_file_upload');
@@ -1267,6 +1125,56 @@ function toggleUploadMethodCassing(method) {
         linkSection.classList.remove('hidden');
         fileInput.required = false;
         if (document.getElementById('aksesoris_cassing')?.checked) {
+            linkInput.required = true;
+        }
+        fileInput.value = '';
+    }
+}
+
+function toggleUploadMethodMarkerTape(method) {
+    const fileSection = document.getElementById('marker_tape_file_upload');
+    const linkSection = document.getElementById('marker_tape_link_upload');
+    const fileInput = document.getElementById('foto_evidence_marker_tape');
+    const linkInput = document.getElementById('foto_evidence_marker_tape_link');
+
+    if (method === 'file') {
+        fileSection.classList.remove('hidden');
+        linkSection.classList.add('hidden');
+        if (document.getElementById('aksesoris_marker_tape')?.checked) {
+            fileInput.required = true;
+        }
+        linkInput.required = false;
+        linkInput.value = '';
+    } else {
+        fileSection.classList.add('hidden');
+        linkSection.classList.remove('hidden');
+        fileInput.required = false;
+        if (document.getElementById('aksesoris_marker_tape')?.checked) {
+            linkInput.required = true;
+        }
+        fileInput.value = '';
+    }
+}
+
+function toggleUploadMethodConcreteSlab(method) {
+    const fileSection = document.getElementById('concrete_slab_file_upload');
+    const linkSection = document.getElementById('concrete_slab_link_upload');
+    const fileInput = document.getElementById('foto_evidence_concrete_slab');
+    const linkInput = document.getElementById('foto_evidence_concrete_slab_link');
+
+    if (method === 'file') {
+        fileSection.classList.remove('hidden');
+        linkSection.classList.add('hidden');
+        if (document.getElementById('aksesoris_concrete_slab')?.checked) {
+            fileInput.required = true;
+        }
+        linkInput.required = false;
+        linkInput.value = '';
+    } else {
+        fileSection.classList.add('hidden');
+        linkSection.classList.remove('hidden');
+        fileInput.required = false;
+        if (document.getElementById('aksesoris_concrete_slab')?.checked) {
             linkInput.required = true;
         }
         fileInput.value = '';
@@ -1306,5 +1214,75 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('bongkaran').value = penggelaran;
     }
 });
+
+// Toggle between auto-fill and manual mode for Marker Tape
+function toggleMarkerTapeMode() {
+    const field = document.getElementById('marker_tape_quantity');
+    const label = document.getElementById('marker_tape_mode_label');
+    const button = document.getElementById('marker_tape_toggle_btn');
+
+    markerTapeAutoMode = !markerTapeAutoMode;
+
+    if (markerTapeAutoMode) {
+        // Switch to Auto mode
+        field.classList.add('bg-gray-100');
+        field.classList.remove('bg-white');
+        field.readOnly = true;
+        label.textContent = 'Auto-fill';
+        button.textContent = 'Manual';
+        button.classList.remove('bg-green-500', 'hover:bg-green-600');
+        button.classList.add('bg-blue-500', 'hover:bg-blue-600');
+
+        // Trigger auto-fill
+        updateAccessoryCalculations();
+    } else {
+        // Switch to Manual mode
+        field.classList.remove('bg-gray-100');
+        field.classList.add('bg-white');
+        field.readOnly = false;
+        label.textContent = 'Manual';
+        button.textContent = 'Auto';
+        button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+        button.classList.add('bg-green-500', 'hover:bg-green-600');
+
+        // Focus on field for manual input
+        field.focus();
+    }
+}
+
+// Toggle between auto-calculate and manual mode for Concrete Slab
+function toggleConcreteSlabMode() {
+    const field = document.getElementById('concrete_slab_quantity');
+    const label = document.getElementById('concrete_slab_mode_label');
+    const button = document.getElementById('concrete_slab_toggle_btn');
+
+    concreteSlabAutoMode = !concreteSlabAutoMode;
+
+    if (concreteSlabAutoMode) {
+        // Switch to Auto mode
+        field.classList.add('bg-gray-100');
+        field.classList.remove('bg-white');
+        field.readOnly = true;
+        label.textContent = 'Auto-calculate (x2)';
+        button.textContent = 'Manual';
+        button.classList.remove('bg-green-500', 'hover:bg-green-600');
+        button.classList.add('bg-blue-500', 'hover:bg-blue-600');
+
+        // Trigger auto-calculate
+        updateAccessoryCalculations();
+    } else {
+        // Switch to Manual mode
+        field.classList.remove('bg-gray-100');
+        field.classList.add('bg-white');
+        field.readOnly = false;
+        label.textContent = 'Manual';
+        button.textContent = 'Auto';
+        button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+        button.classList.add('bg-green-500', 'hover:bg-green-600');
+
+        // Focus on field for manual input
+        field.focus();
+    }
+}
 </script>
 @endsection
