@@ -204,23 +204,41 @@ class ImportController extends Controller
             'file'               => ['required', 'file', 'mimes:xlsx,xls,csv'],
             'drive_folder_link'  => ['required', 'string'],
             'mode'               => ['required', 'in:dry-run,commit'],
+            'evidence_type'      => ['required', 'in:berita_acara,isometrik_scan,pneumatic_start,pneumatic_finish,valve'],
+            'force_update'       => ['nullable', 'boolean'],
             'heading_row'        => ['nullable', 'integer', 'min:1'],
             'save_report'        => ['nullable', 'boolean'],
         ]);
 
-        // Get Drive folder link
+        // Get Drive folder link and store user ID BEFORE closing session
         $driveFolderLink = $request->input('drive_folder_link');
+        $dryRun = $request->input('mode') === 'dry-run';
+        $headingRow = (int) $request->input('heading_row', 1);
+        $evidenceType = $request->input('evidence_type', 'berita_acara');
+        $forceUpdate = $request->boolean('force_update');
+        $userId = auth()->id() ?? 1; // ⚠️ Get user ID BEFORE closing session
+
+        // ✨ Attempt to release session lock (may not work on all environments)
+        session()->save();
+        if (function_exists('session_write_close')) {
+            session_write_close();
+        }
+        ignore_user_abort(true);
 
         // Anti-timeout & memory optimization
         @ini_set('max_execution_time', '0');
         @set_time_limit(0);
         DB::connection()->disableQueryLog();
 
-        $dryRun = $request->input('mode') === 'dry-run';
-        $headingRow = (int) $request->input('heading_row', 1);
-
         try {
-            $import = new SkBeritaAcaraImport($driveFolderLink, $dryRun, $headingRow);
+            $import = new SkBeritaAcaraImport(
+                driveFolderLink: $driveFolderLink,
+                dryRun: $dryRun,
+                headingRow: $headingRow,
+                evidenceType: $evidenceType,
+                forceUpdate: $forceUpdate,
+                userId: $userId // ✨ Pass user ID (session already closed!)
+            );
             Excel::import($import, $request->file('file'));
 
             $results = $import->getResults();
@@ -231,6 +249,15 @@ class ImportController extends Controller
                 $results['report_path'] = $path;
             }
 
+            // Return JSON for AJAX requests
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'results' => $results,
+                    'message' => 'Import berhasil diproses'
+                ]);
+            }
+
             return back()->with('ba_import_results', $results);
 
         } catch (\Throwable $e) {
@@ -238,6 +265,15 @@ class ImportController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+
+            // Return JSON for AJAX requests
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Import gagal: ' . $e->getMessage(),
+                    'error' => $e->getMessage()
+                ], 500);
+            }
 
             return back()->withErrors([
                 'import' => 'Import gagal: ' . $e->getMessage()
