@@ -439,6 +439,108 @@ class GoogleDriveService
     }
 
     /**
+     * Copy file directly within Google Drive using native copy API
+     * This is MUCH faster than download + upload (no data transfer)
+     *
+     * @param string $sourceFileId Source file ID in Google Drive
+     * @param string $targetFolderId Target folder ID in Google Drive
+     * @param string $newFileName New filename for the copied file
+     * @return array ['id' => file_id, 'name' => filename, 'webViewLink' => link, 'webContentLink' => link]
+     * @throws Exception
+     */
+    public function copyFileDirect(string $sourceFileId, string $targetFolderId, string $newFileName): array
+    {
+        if (!$this->initialize()) {
+            throw new Exception('Google Drive service not available: ' . $this->getError());
+        }
+
+        try {
+            Log::info('Starting DIRECT file copy (native Drive API)', [
+                'source_file_id' => $sourceFileId,
+                'target_folder_id' => $targetFolderId,
+                'new_filename' => $newFileName
+            ]);
+
+            $startTime = microtime(true);
+
+            // Step 1: Use Google Drive's native copy API
+            // This happens server-side within Google's infrastructure (NO download/upload!)
+            $copiedFile = new DriveFile([
+                'name' => $newFileName,
+                'parents' => [$targetFolderId]
+            ]);
+
+            $newFile = $this->drive->files->copy($sourceFileId, $copiedFile, [
+                'fields' => 'id,name,webViewLink,webContentLink,mimeType,size',
+                'supportsAllDrives' => true
+            ]);
+
+            $copyTime = microtime(true) - $startTime;
+
+            Log::info('Native copy completed', [
+                'source_id' => $sourceFileId,
+                'new_id' => $newFile->getId(),
+                'new_name' => $newFile->getName(),
+                'copy_time' => round($copyTime, 2) . 's'
+            ]);
+
+            // Step 2: Set permissions (anyone can read)
+            try {
+                $permission = new \Google_Service_Drive_Permission([
+                    'type' => 'anyone',
+                    'role' => 'reader'
+                ]);
+                $this->drive->permissions->create($newFile->getId(), $permission, [
+                    'supportsAllDrives' => true
+                ]);
+
+                Log::info('Permissions set on copied file', [
+                    'file_id' => $newFile->getId()
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to set permission on copied file (non-fatal)', [
+                    'file_id' => $newFile->getId(),
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            $totalTime = microtime(true) - $startTime;
+
+            Log::info('Direct copy completed successfully', [
+                'source_id' => $sourceFileId,
+                'new_id' => $newFile->getId(),
+                'new_name' => $newFile->getName(),
+                'total_time' => round($totalTime, 2) . 's',
+                'file_size' => $newFile->getSize() ? round($newFile->getSize() / 1024, 2) . ' KB' : 'unknown'
+            ]);
+
+            return [
+                'id' => $newFile->getId(),
+                'name' => $newFile->getName(),
+                'webViewLink' => $newFile->getWebViewLink(),
+                'webContentLink' => $newFile->getWebContentLink(),
+                'mimeType' => $newFile->getMimeType(),
+                'size' => $newFile->getSize()
+            ];
+
+        } catch (\Google\Service\Exception $e) {
+            Log::error('Google Drive API error during direct copy', [
+                'source_file_id' => $sourceFileId,
+                'target_folder_id' => $targetFolderId,
+                'error' => $e->getMessage(),
+                'errors' => $e->getErrors()
+            ]);
+            throw new Exception('Failed to copy file directly in Google Drive: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Log::error('Unexpected error during direct copy', [
+                'source_file_id' => $sourceFileId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
      * Get file information from Google Drive
      *
      * @param string $fileId The Google Drive file ID

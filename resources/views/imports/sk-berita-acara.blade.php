@@ -55,7 +55,8 @@
   </div>
 
   <!-- Import Form -->
-  <form method="POST"
+  <form id="importForm"
+        method="POST"
         action="{{ route('imports.sk-berita-acara.import') }}"
         enctype="multipart/form-data"
         class="bg-white shadow rounded-lg p-6 space-y-4">
@@ -96,6 +97,23 @@
       @enderror
     </div>
 
+    <!-- Evidence Type Selection -->
+    <div>
+      <label class="block text-sm font-medium mb-2">
+        <i class="fas fa-camera text-purple-600 mr-2"></i>Tipe Evidence
+      </label>
+      <select name="evidence_type" class="border rounded px-3 py-2 w-full">
+        <option value="berita_acara" selected>📋 Berita Acara</option>
+        <option value="isometrik_scan">📐 Isometrik Scan</option>
+        <option value="pneumatic_start">🔧 Pneumatic Start</option>
+        <option value="pneumatic_finish">✅ Pneumatic Finish</option>
+        <option value="valve">🚰 Valve</option>
+      </select>
+      <p class="text-xs text-gray-500 mt-1">
+        Pilih jenis evidence yang akan di-upload
+      </p>
+    </div>
+
     <!-- Mode Selection -->
     <div>
       <label class="block text-sm font-medium mb-2">
@@ -109,6 +127,29 @@
         <strong>Dry-run:</strong> Validasi file tanpa upload.
         <strong>Commit:</strong> Upload foto ke sistem.
       </p>
+    </div>
+
+    <!-- Force Update Checkbox -->
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <div class="flex items-start gap-2">
+        <input type="checkbox"
+               id="force_update"
+               name="force_update"
+               value="1"
+               class="mt-1 rounded">
+        <label for="force_update" class="text-sm">
+          <div class="font-semibold text-yellow-900 mb-1">
+            <i class="fas fa-exclamation-triangle mr-1"></i>Force Update (Timpa Evidence yang Sudah Ada)
+          </div>
+          <div class="text-yellow-800">
+            Jika dicentang, evidence yang sudah ada akan <strong>diganti dengan data baru</strong> dan
+            status approval akan <strong>di-reset ke "Tracer Pending"</strong> untuk di-review ulang.
+          </div>
+          <div class="text-yellow-700 mt-2 text-xs">
+            ⚠️ <strong>Perhatian:</strong> Approval yang sudah ada akan dibatalkan dan harus disetujui ulang.
+          </div>
+        </label>
+      </div>
     </div>
 
     <!-- Heading Row -->
@@ -137,6 +178,7 @@
     <!-- Submit Button -->
     <div class="flex gap-3 pt-2">
       <button type="submit"
+              id="submitBtn"
               class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
         <i class="fas fa-upload mr-2"></i>Proses Import
       </button>
@@ -146,6 +188,83 @@
       </a>
     </div>
   </form>
+
+  <!-- Results Container (will be populated by JavaScript) -->
+  <div id="resultsContainer" class="hidden"></div>
+
+  <!-- Progress Modal -->
+  <div id="progressModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4" style="z-index: 9999999 !important;">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6" style="position: relative; z-index: 10000000 !important;">
+      <!-- Header -->
+      <div class="flex items-center gap-3 mb-4">
+        <div class="flex-shrink-0" id="spinnerIcon">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+        <div class="flex-shrink-0 hidden" id="successIcon">
+          <div class="rounded-full h-8 w-8 bg-green-500 flex items-center justify-center">
+            <i class="fas fa-check text-white"></i>
+          </div>
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900" id="modalTitle">Memproses Import...</h3>
+          <p class="text-sm text-gray-500" id="progressStatus">Sedang memvalidasi data</p>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="mb-4">
+        <div class="flex justify-between text-sm text-gray-600 mb-2">
+          <span id="progressText">Memulai...</span>
+          <span id="progressPercent">0%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div id="progressBar"
+               class="bg-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
+               style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-2 text-center text-xs mb-4">
+        <div class="bg-green-50 rounded p-2">
+          <div class="font-semibold text-green-700" id="statsSuccess">0</div>
+          <div class="text-green-600">Berhasil</div>
+        </div>
+        <div class="bg-yellow-50 rounded p-2">
+          <div class="font-semibold text-yellow-700" id="statsSkipped">0</div>
+          <div class="text-yellow-600">Diskip</div>
+        </div>
+        <div class="bg-red-50 rounded p-2">
+          <div class="font-semibold text-red-700" id="statsFailed">0</div>
+          <div class="text-red-600">Gagal</div>
+        </div>
+      </div>
+
+      <!-- Info -->
+      <div class="bg-blue-50 rounded-lg p-3">
+        <p class="text-xs text-blue-800">
+          <i class="fas fa-info-circle mr-1"></i>
+          <span id="progressInfo">Mohon tunggu hingga proses selesai...</span>
+        </p>
+      </div>
+
+      <!-- Action Button (hidden initially) -->
+      <div id="actionButton" class="mt-4 hidden">
+        <button id="closeModalBtn"
+                class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold">
+          <i class="fas fa-times mr-2"></i>Tutup
+        </button>
+      </div>
+
+      <!-- Info -->
+      <div class="mt-3 text-center" id="processingInfo">
+        <p class="text-xs text-gray-500">
+          <i class="fas fa-clock mr-1"></i>
+          Proses akan selesai otomatis
+        </p>
+      </div>
+    </div>
+  </div>
 
   <!-- Display Errors -->
   @if ($errors->any())
@@ -196,19 +315,37 @@
                   <th class="px-4 py-2 text-left">Row</th>
                   <th class="px-4 py-2 text-left">Reff ID</th>
                   <th class="px-4 py-2 text-left">Nama BA</th>
+                  <th class="px-4 py-2 text-left">File di Drive</th>
                   <th class="px-4 py-2 text-left">Status</th>
                   <th class="px-4 py-2 text-left">Pesan</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
                 @foreach ($r['details'] as $detail)
-                  <tr class="{{ $detail['status'] === 'uploaded' ? 'bg-green-50' : ($detail['status'] === 'skipped' ? 'bg-yellow-50' : 'bg-gray-50') }}">
-                    <td class="px-4 py-2">{{ $detail['row'] }}</td>
+                  <tr class="{{ $detail['status'] === 'uploaded' || $detail['status'] === 'force_updated' ? 'bg-green-50' : ($detail['status'] === 'skipped' ? 'bg-yellow-50' : 'bg-blue-50') }}">
+                    <td class="px-4 py-2 font-bold">{{ $detail['row'] }}</td>
                     <td class="px-4 py-2 font-mono text-xs">{{ $detail['reff_id'] }}</td>
                     <td class="px-4 py-2">{{ $detail['nama_ba'] ?? '-' }}</td>
                     <td class="px-4 py-2">
+                      @if (isset($detail['file_found']) && $detail['file_found'])
+                        <span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                          <i class="fas fa-check-circle mr-1"></i>
+                          {{ $detail['drive_filename'] ?? 'Found' }}
+                        </span>
+                      @elseif (isset($detail['file_found']) && !$detail['file_found'])
+                        <span class="inline-flex items-center px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">
+                          <i class="fas fa-times-circle mr-1"></i>
+                          Not Found
+                        </span>
+                      @else
+                        <span class="text-gray-400 text-xs">-</span>
+                      @endif
+                    </td>
+                    <td class="px-4 py-2">
                       @if ($detail['status'] === 'uploaded')
                         <span class="px-2 py-1 bg-green-200 text-green-800 rounded text-xs">Uploaded</span>
+                      @elseif ($detail['status'] === 'force_updated')
+                        <span class="px-2 py-1 bg-orange-200 text-orange-800 rounded text-xs">Force Updated</span>
                       @elseif ($detail['status'] === 'validated')
                         <span class="px-2 py-1 bg-blue-200 text-blue-800 rounded text-xs">Validated</span>
                       @else
@@ -220,6 +357,11 @@
                       @if (isset($detail['sk_data_created']) && $detail['sk_data_created'])
                         <span class="inline-block ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
                           <i class="fas fa-info-circle"></i> SK Data Auto-Created
+                        </span>
+                      @endif
+                      @if (isset($detail['will_replace']) && $detail['will_replace'])
+                        <span class="inline-block ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">
+                          <i class="fas fa-exclamation-triangle"></i> Will Replace Existing
                         </span>
                       @endif
                     </td>
@@ -280,4 +422,434 @@
     </div>
   @endif
 </div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('importForm');
+  const modal = document.getElementById('progressModal');
+  const progressBar = document.getElementById('progressBar');
+  const progressPercent = document.getElementById('progressPercent');
+  const progressText = document.getElementById('progressText');
+  const progressStatus = document.getElementById('progressStatus');
+  const progressInfo = document.getElementById('progressInfo');
+  const statsSuccess = document.getElementById('statsSuccess');
+  const statsSkipped = document.getElementById('statsSkipped');
+  const statsFailed = document.getElementById('statsFailed');
+  const submitBtn = document.getElementById('submitBtn');
+
+  // ✨ CRITICAL FIX: Move modal to document.body (escape from container padding/margin)
+  // This ensures modal is at root level, not affected by parent container styles
+  if (modal && modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+    console.log('Modal moved to body - gap issue should be fixed');
+  }
+
+  let currentProgress = 0;
+  let isProcessing = false;
+  let intervals = [];
+  let serverResults = null;
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault(); // Prevent default form submission
+
+    // Set flag processing
+    isProcessing = true;
+
+    // Show modal immediately (remove 'hidden' class - flexbox already in HTML)
+    modal.classList.remove('hidden');
+    // Prevent body scroll when modal open
+    document.body.style.overflow = 'hidden';
+    submitBtn.disabled = true;
+
+    // Get mode
+    const mode = form.querySelector('select[name="mode"]').value;
+
+    // Reset progress
+    currentProgress = 0;
+    updateProgress(0);
+
+    // Reset stats
+    statsSuccess.textContent = '0';
+    statsSkipped.textContent = '0';
+    statsFailed.textContent = '0';
+
+    console.log('Starting import...');
+
+    // Start basic progress animation (just visual feedback)
+    startBasicProgress();
+
+    // Update status
+    progressStatus.textContent = mode === 'dry-run'
+      ? 'Mode: Validasi (Dry-run)'
+      : 'Mode: Upload (Commit)';
+
+    // Submit via AJAX
+    submitFormViaAjax();
+  });
+
+  // Close modal button handler
+  document.addEventListener('click', function(e) {
+    if (e.target && e.target.id === 'closeModalBtn') {
+      closeModalAndShowResults();
+    }
+  });
+
+  function startBasicProgress() {
+    // Clear previous intervals
+    intervals.forEach(id => clearInterval(id));
+    intervals = [];
+    currentProgress = 0;
+
+    // Simple progress animation - slowly increase to show activity
+    progressText.textContent = 'Memulai proses import...';
+
+    const basicInterval = setInterval(() => {
+      if (currentProgress < 90 && isProcessing) {
+        currentProgress += 0.5;
+        updateProgress(currentProgress);
+
+        if (currentProgress < 20) {
+          progressText.textContent = 'Membaca file Excel...';
+        } else if (currentProgress < 40) {
+          progressText.textContent = 'Mengakses Google Drive...';
+        } else if (currentProgress < 60) {
+          progressText.textContent = 'Memproses data...';
+        } else {
+          progressText.textContent = 'Menyelesaikan...';
+        }
+      }
+    }, 100);
+
+    intervals.push(basicInterval);
+  }
+
+  function closeModalAndShowResults() {
+    // Hide modal (add 'hidden' class back)
+    modal.classList.add('hidden');
+    // Re-enable body scroll
+    document.body.style.overflow = '';
+
+    // Re-enable submit button
+    submitBtn.disabled = false;
+
+    // Reset modal state for next use
+    document.getElementById('spinnerIcon').classList.remove('hidden');
+    document.getElementById('successIcon').classList.add('hidden');
+    document.getElementById('actionButton').classList.add('hidden');
+    document.getElementById('processingInfo').classList.remove('hidden');
+    document.getElementById('modalTitle').textContent = 'Memproses Import...';
+
+    // If we have server results, display them on the page
+    if (serverResults) {
+      displayResultsOnPage(serverResults);
+    }
+  }
+
+  function displayResultsOnPage(results) {
+    // Create results HTML
+    const resultsHtml = createResultsHTML(results);
+
+    // Find the form and insert results after it
+    const resultsContainer = document.getElementById('resultsContainer');
+    if (resultsContainer) {
+      resultsContainer.innerHTML = resultsHtml;
+      resultsContainer.classList.remove('hidden');
+
+      // Scroll to results
+      resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  function showCompletionUI(results) {
+    // Stop all intervals
+    intervals.forEach(id => clearInterval(id));
+    isProcessing = false;
+
+    // Store results for later display
+    serverResults = results;
+
+    // Update to 100%
+    updateProgress(100);
+    progressText.textContent = 'Import selesai!';
+
+    // Hide spinner, show success icon
+    document.getElementById('spinnerIcon').classList.add('hidden');
+    document.getElementById('successIcon').classList.remove('hidden');
+
+    // Update title
+    document.getElementById('modalTitle').textContent = 'Import Berhasil!';
+    progressStatus.textContent = 'Proses import telah selesai';
+
+    // Update REAL stats from server
+    if (results) {
+      statsSuccess.textContent = results.success || 0;
+      statsSkipped.textContent = results.skipped || 0;
+      statsFailed.textContent = results.failed ? results.failed.length : 0;
+    }
+
+    // Update info with real total
+    const totalProcessed = (results.success || 0) + (results.skipped || 0) + (results.failed ? results.failed.length : 0);
+    progressInfo.innerHTML = `<i class="fas fa-check-circle text-green-600 mr-1"></i> Total ${totalProcessed} rows berhasil diproses`;
+
+    // Hide processing info, show action button (Close)
+    document.getElementById('processingInfo').classList.add('hidden');
+    document.getElementById('actionButton').classList.remove('hidden');
+
+    console.log('Import completed!', results);
+  }
+
+  function createResultsHTML(results) {
+    const r = results;
+    const failedCount = r.failed ? r.failed.length : 0;
+
+    let html = `
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">
+          <i class="fas fa-chart-bar text-blue-600 mr-2"></i>Hasil Import Berita Acara
+        </h2>
+
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="bg-green-50 border border-green-200 rounded p-4">
+            <div class="text-sm text-green-600 font-medium">Berhasil</div>
+            <div class="text-2xl font-bold text-green-700">${r.success || 0}</div>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded p-4">
+            <div class="text-sm text-yellow-600 font-medium">Diskip</div>
+            <div class="text-2xl font-bold text-yellow-700">${r.skipped || 0}</div>
+          </div>
+          <div class="bg-red-50 border border-red-200 rounded p-4">
+            <div class="text-sm text-red-600 font-medium">Gagal</div>
+            <div class="text-2xl font-bold text-red-700">${failedCount}</div>
+          </div>
+        </div>`;
+
+    // Success Details
+    if (r.details && r.details.length > 0) {
+      html += `
+        <div class="mb-4">
+          <h3 class="font-medium mb-2">Detail Upload:</h3>
+          <div class="max-h-64 overflow-y-auto border rounded">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="px-4 py-2 text-left">Row</th>
+                  <th class="px-4 py-2 text-left">Reff ID</th>
+                  <th class="px-4 py-2 text-left">Nama BA</th>
+                  <th class="px-4 py-2 text-left">File di Drive</th>
+                  <th class="px-4 py-2 text-left">Status</th>
+                  <th class="px-4 py-2 text-left">Pesan</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">`;
+
+      r.details.forEach(detail => {
+        const bgClass = detail.status === 'uploaded' || detail.status === 'force_updated' ? 'bg-green-50' :
+                       detail.status === 'skipped' ? 'bg-yellow-50' : 'bg-blue-50';
+
+        const statusBadge = detail.status === 'uploaded' ?
+          '<span class="px-2 py-1 bg-green-200 text-green-800 rounded text-xs">Uploaded</span>' :
+          detail.status === 'force_updated' ?
+          '<span class="px-2 py-1 bg-orange-200 text-orange-800 rounded text-xs">Force Updated</span>' :
+          detail.status === 'validated' ?
+          '<span class="px-2 py-1 bg-blue-200 text-blue-800 rounded text-xs">Validated</span>' :
+          '<span class="px-2 py-1 bg-yellow-200 text-yellow-800 rounded text-xs">Skipped</span>';
+
+        const fileFoundBadge = detail.file_found ?
+          `<span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+            <i class="fas fa-check-circle mr-1"></i>${detail.drive_filename || 'Found'}
+          </span>` :
+          detail.file_found === false ?
+          '<span class="inline-flex items-center px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium"><i class="fas fa-times-circle mr-1"></i>Not Found</span>' :
+          '<span class="text-gray-400 text-xs">-</span>';
+
+        const autoCreated = detail.sk_data_created ?
+          '<span class="inline-block ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs"><i class="fas fa-info-circle"></i> SK Data Auto-Created</span>' : '';
+
+        const willReplace = detail.will_replace ?
+          '<span class="inline-block ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs"><i class="fas fa-exclamation-triangle"></i> Will Replace Existing</span>' : '';
+
+        html += `
+          <tr class="${bgClass}">
+            <td class="px-4 py-2 font-bold">${detail.row}</td>
+            <td class="px-4 py-2 font-mono text-xs">${detail.reff_id}</td>
+            <td class="px-4 py-2">${detail.nama_ba || '-'}</td>
+            <td class="px-4 py-2">${fileFoundBadge}</td>
+            <td class="px-4 py-2">${statusBadge}</td>
+            <td class="px-4 py-2 text-xs">${detail.message}${autoCreated}${willReplace}</td>
+          </tr>`;
+      });
+
+      html += `
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    }
+
+    // Failed Details
+    if (r.failed && r.failed.length > 0) {
+      // Separate file not found errors from other errors
+      const fileNotFoundErrors = r.failed.filter(f =>
+        f.errors.some(e => e.includes('tidak ditemukan'))
+      );
+      const otherErrors = r.failed.filter(f =>
+        !f.errors.some(e => e.includes('tidak ditemukan'))
+      );
+
+      html += `
+        <div class="mb-4">
+          <h3 class="font-medium mb-2 text-red-700">
+            <i class="fas fa-exclamation-triangle mr-2"></i>Data Gagal (${r.failed.length} rows)
+          </h3>`;
+
+      // Show file not found section
+      if (fileNotFoundErrors.length > 0) {
+        html += `
+          <div class="mb-3 bg-orange-50 border border-orange-200 rounded p-3">
+            <div class="font-medium text-orange-900 mb-2">
+              <i class="fas fa-file-image mr-1"></i> File Tidak Ditemukan di Drive (${fileNotFoundErrors.length} files)
+            </div>
+            <div class="text-sm text-orange-800 mb-2">
+              File-file berikut tidak ada di folder Google Drive. Pastikan nama file sesuai dengan kolom "nama_ba":
+            </div>
+            <ul class="list-disc ml-6 text-sm text-orange-700">
+              ${fileNotFoundErrors.map(f => `<li><strong>${f.data.nama_ba}</strong> (Row ${f.row})</li>`).join('')}
+            </ul>
+          </div>`;
+      }
+
+      // Show other errors section
+      if (otherErrors.length > 0 || r.failed.length > 0) {
+        html += `
+          <div class="max-h-64 overflow-y-auto border border-red-200 rounded">
+            <table class="min-w-full divide-y divide-red-200 text-sm">
+              <thead class="bg-red-50 sticky top-0">
+                <tr>
+                  <th class="px-4 py-2 text-left">Row</th>
+                  <th class="px-4 py-2 text-left">Reff ID</th>
+                  <th class="px-4 py-2 text-left">Nama File</th>
+                  <th class="px-4 py-2 text-left">Error</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-red-100">`;
+
+        r.failed.forEach(failed => {
+          const isFileNotFound = failed.errors.some(e => e.includes('tidak ditemukan'));
+          const bgClass = isFileNotFound ? 'bg-orange-50' : 'bg-red-50';
+
+          html += `
+            <tr class="${bgClass}">
+              <td class="px-4 py-2 font-bold">${failed.row}</td>
+              <td class="px-4 py-2 font-mono text-xs">${failed.data.reff_id || '-'}</td>
+              <td class="px-4 py-2 font-medium">${failed.data.nama_ba || '-'}</td>
+              <td class="px-4 py-2 text-red-700">
+                <ul class="list-disc ml-4">
+                  ${failed.errors.map(err => `<li>${err}</li>`).join('')}
+                </ul>
+              </td>
+            </tr>`;
+        });
+
+        html += `
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+    return html;
+  }
+
+  function showErrorUI(errorMessage) {
+    // Stop all intervals
+    intervals.forEach(id => clearInterval(id));
+    isProcessing = false;
+
+    // Hide spinner
+    document.getElementById('spinnerIcon').classList.add('hidden');
+
+    // Update title and status
+    document.getElementById('modalTitle').textContent = 'Import Gagal';
+    progressStatus.textContent = 'Terjadi kesalahan';
+    progressText.textContent = 'Proses dihentikan';
+
+    // Change progress bar to red
+    progressBar.className = 'bg-red-600 h-3 rounded-full transition-all duration-300 ease-out';
+
+    // Update info with error message
+    progressInfo.innerHTML = `<i class="fas fa-times-circle text-red-600 mr-1"></i> ${errorMessage}`;
+    progressInfo.className = 'bg-red-50 rounded-lg p-3';
+
+    // Hide processing info, show action button
+    document.getElementById('processingInfo').classList.add('hidden');
+    document.getElementById('actionButton').classList.remove('hidden');
+
+    console.error('Import failed:', errorMessage);
+  }
+
+  function submitFormViaAjax() {
+    const formData = new FormData(form);
+
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(err => Promise.reject(err));
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Server response:', data);
+
+      if (data.success) {
+        // Server responded successfully, show completion immediately
+        showCompletionUI(data.results || data);
+      } else {
+        // Handle server-side error
+        showErrorUI(data.message || 'Import gagal');
+      }
+    })
+    .catch(error => {
+      console.error('Import error:', error);
+      const errorMessage = error.message || error.error || 'Terjadi kesalahan pada server';
+      showErrorUI(errorMessage);
+    });
+  }
+
+  function updateProgress(percent) {
+    percent = Math.min(100, Math.max(0, percent)); // Clamp 0-100
+
+    progressBar.style.width = percent + '%';
+    progressPercent.textContent = Math.floor(percent) + '%';
+
+    // Change color based on progress
+    if (percent < 30) {
+      progressBar.className = 'bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out';
+    } else if (percent < 70) {
+      progressBar.className = 'bg-indigo-600 h-3 rounded-full transition-all duration-300 ease-out';
+    } else if (percent < 100) {
+      progressBar.className = 'bg-green-600 h-3 rounded-full transition-all duration-300 ease-out';
+    } else {
+      progressBar.className = 'bg-green-700 h-3 rounded-full transition-all duration-300 ease-out';
+    }
+  }
+
+  // Clean up intervals when page unloads
+  window.addEventListener('unload', function() {
+    intervals.forEach(id => clearInterval(id));
+  });
+});
+</script>
+@endpush
+
 @endsection
