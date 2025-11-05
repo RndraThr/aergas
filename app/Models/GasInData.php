@@ -121,6 +121,14 @@ class GasInData extends BaseModuleModel
        return $this->belongsTo(User::class, 'cgp_approved_by');
    }
 
+   /**
+    * Get SR data for this customer (to display MGRT info)
+    */
+   public function srData(): BelongsTo
+   {
+       return $this->belongsTo(SrData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
+   }
+
    public function auditLogs()
    {
        return $this->morphMany(AuditLog::class, 'auditable');
@@ -206,11 +214,16 @@ class GasInData extends BaseModuleModel
 
    /**
     * Check if this Gas In data can be edited by current user
+    *
+    * @return bool
     */
    public function canEdit(): bool
    {
-       $user = auth()->user();
-       if (!$user) return false;
+       $user = \Illuminate\Support\Facades\Auth::user();
+
+       if (!$user instanceof \App\Models\User) {
+           return false;
+       }
 
        // Super admin dan admin selalu bisa edit (kecuali yang sudah completed)
        if ($user->hasAnyRole(['super_admin', 'admin'])) {

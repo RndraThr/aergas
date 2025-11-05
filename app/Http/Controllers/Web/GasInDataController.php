@@ -22,7 +22,7 @@ class GasInDataController extends Controller
 
    public function index(Request $r)
    {
-       $q = GasInData::with('calonPelanggan')
+       $q = GasInData::with(['calonPelanggan', 'srData:reff_id_pelanggan,no_seri_mgrt,merk_brand_mgrt'])
            ->withCount([
                'photoApprovals as rejected_photos_count' => function($query) {
                    $query->where(function($q) {
@@ -577,6 +577,273 @@ class GasInDataController extends Controller
        return response()->json(['success'=>true,'data'=>$gasIn]);
    }
 
+   /**
+    * Preview data foto regulator sebelum download
+    * Return JSON dengan list customer yang akan didownload
+    */
+   public function previewFotoRegulator(Request $r)
+   {
+       $v = Validator::make($r->all(), [
+           'tanggal_dari' => ['nullable', 'date'],
+           'tanggal_sampai' => ['nullable', 'date'],
+       ]);
+
+       if ($v->fails()) {
+           return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+       }
+
+       // Query Gas In dengan filter tanggal
+       $query = GasInData::with(['calonPelanggan:reff_id_pelanggan,nama_pelanggan']);
+
+       if ($r->filled('tanggal_dari')) {
+           $query->whereDate('tanggal_gas_in', '>=', $r->tanggal_dari);
+       }
+
+       if ($r->filled('tanggal_sampai')) {
+           $query->whereDate('tanggal_gas_in', '<=', $r->tanggal_sampai);
+       }
+
+       $gasInRecords = $query->get();
+
+       if ($gasInRecords->isEmpty()) {
+           return response()->json([
+               'success' => false,
+               'message' => 'Tidak ada data Gas In pada rentang tanggal yang dipilih.'
+           ], 404);
+       }
+
+       // Ambil semua foto regulator
+       $photoApprovals = \App\Models\PhotoApproval::whereIn('reff_id_pelanggan', $gasInRecords->pluck('reff_id_pelanggan'))
+           ->where('module_name', 'gas_in')
+           ->where('photo_field_name', 'foto_regulator')
+           ->whereNotNull('photo_url')
+           ->get();
+
+       if ($photoApprovals->isEmpty()) {
+           return response()->json([
+               'success' => false,
+               'message' => 'Tidak ada foto regulator yang ditemukan untuk rentang tanggal yang dipilih.'
+           ], 404);
+       }
+
+       // Build preview data
+       $previewData = [];
+       foreach ($photoApprovals as $photo) {
+           $customer = $gasInRecords->firstWhere('reff_id_pelanggan', $photo->reff_id_pelanggan);
+           if ($customer && $customer->calonPelanggan) {
+               $ext = pathinfo(parse_url($photo->photo_url, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
+               $namaPelangganSlug = \Illuminate\Support\Str::slug($customer->calonPelanggan->nama_pelanggan, '_');
+               $tanggalGasIn = $customer->tanggal_gas_in ? \Carbon\Carbon::parse($customer->tanggal_gas_in)->format('Ymd') : 'NoDate';
+
+               $previewData[] = [
+                   'reff_id' => $photo->reff_id_pelanggan,
+                   'nama_pelanggan' => $customer->calonPelanggan->nama_pelanggan,
+                   'tanggal_gas_in' => $customer->tanggal_gas_in ? $customer->tanggal_gas_in->format('d-m-Y') : '-',
+                   'filename' => "{$photo->reff_id_pelanggan}_{$namaPelangganSlug}_{$tanggalGasIn}_MGRT.{$ext}",
+                   'photo_status' => $photo->photo_status ?? '-',
+               ];
+           }
+       }
+
+       return response()->json([
+           'success' => true,
+           'total_files' => count($previewData),
+           'data' => $previewData,
+           'filters' => [
+               'tanggal_dari' => $r->tanggal_dari ?? null,
+               'tanggal_sampai' => $r->tanggal_sampai ?? null,
+           ]
+       ]);
+   }
+
+   /**
+    * Download foto regulator (MGRT) dari Gas In dengan filter rentang waktu
+    * Format penamaan: {reff_id}_{nama_pelanggan}_MGRT.{ext}
+    */
+   public function downloadFotoRegulator(Request $r)
+   {
+       // Set execution time dan memory limit untuk handling batch download
+       set_time_limit(300); // 5 minutes
+       ini_set('memory_limit', '512M');
+
+       $v = Validator::make($r->all(), [
+           'tanggal_dari' => ['nullable', 'date'],
+           'tanggal_sampai' => ['nullable', 'date'],
+       ]);
+
+       if ($v->fails()) {
+           return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+       }
+
+       // Query Gas In dengan filter tanggal
+       $query = GasInData::with(['calonPelanggan:reff_id_pelanggan,nama_pelanggan']);
+
+       if ($r->filled('tanggal_dari')) {
+           $query->whereDate('tanggal_gas_in', '>=', $r->tanggal_dari);
+       }
+
+       if ($r->filled('tanggal_sampai')) {
+           $query->whereDate('tanggal_gas_in', '<=', $r->tanggal_sampai);
+       }
+
+       $gasInRecords = $query->get();
+
+       Log::info('Download Foto MGRT - Starting', [
+           'total_gas_in_records' => $gasInRecords->count(),
+           'tanggal_dari' => $r->tanggal_dari,
+           'tanggal_sampai' => $r->tanggal_sampai
+       ]);
+
+       if ($gasInRecords->isEmpty()) {
+           return response()->json([
+               'success' => false,
+               'message' => 'Tidak ada data Gas In pada rentang tanggal yang dipilih.'
+           ], 404);
+       }
+
+       // Ambil semua foto regulator
+       $photoApprovals = \App\Models\PhotoApproval::whereIn('reff_id_pelanggan', $gasInRecords->pluck('reff_id_pelanggan'))
+           ->where('module_name', 'gas_in')
+           ->where('photo_field_name', 'foto_regulator')
+           ->whereNotNull('photo_url')
+           ->get();
+
+       if ($photoApprovals->isEmpty()) {
+           return response()->json([
+               'success' => false,
+               'message' => 'Tidak ada foto regulator yang ditemukan untuk rentang tanggal yang dipilih.'
+           ], 404);
+       }
+
+       // Buat ZIP file
+       $zipFileName = 'Foto_MGRT_' . now()->format('Ymd_His') . '.zip';
+       $zipPath = storage_path('app/temp/' . $zipFileName);
+
+       // Pastikan folder temp ada
+       if (!file_exists(storage_path('app/temp'))) {
+           mkdir(storage_path('app/temp'), 0755, true);
+       }
+
+       $zip = new \ZipArchive();
+       if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+           return response()->json([
+               'success' => false,
+               'message' => 'Gagal membuat file ZIP.'
+           ], 500);
+       }
+
+       $addedCount = 0;
+       $skippedCount = 0;
+       $googleDriveService = app(\App\Services\GoogleDriveService::class);
+
+       Log::info('Download Foto MGRT - Processing photos', [
+           'total_photos' => $photoApprovals->count()
+       ]);
+
+       foreach ($photoApprovals as $index => $photo) {
+           try {
+               // Progress log setiap 10 files
+               if (($index + 1) % 10 === 0) {
+                   Log::info("Processing photo {$index}/{$photoApprovals->count()}");
+               }
+
+               // Cari customer data
+               $customer = $gasInRecords->firstWhere('reff_id_pelanggan', $photo->reff_id_pelanggan);
+               if (!$customer || !$customer->calonPelanggan) {
+                   $skippedCount++;
+                   continue;
+               }
+
+               $namaCustomer = $customer->calonPelanggan->nama_pelanggan;
+               $reffId = $photo->reff_id_pelanggan;
+               $tanggalGasIn = $customer->tanggal_gas_in ? \Carbon\Carbon::parse($customer->tanggal_gas_in)->format('Ymd') : 'NoDate';
+
+               // Deteksi ekstensi file
+               $ext = pathinfo(parse_url($photo->photo_url, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
+
+               // Format: {reff_id}_{nama_pelanggan}_{tanggal_gas_in}_MGRT.{ext}
+               $namaPelangganSlug = \Illuminate\Support\Str::slug($namaCustomer, '_');
+               $newFileName = "{$reffId}_{$namaPelangganSlug}_{$tanggalGasIn}_MGRT.{$ext}";
+
+               // Download file content
+               $fileContent = null;
+
+               // Cek apakah dari Google Drive
+               if ($photo->drive_file_id) {
+                   try {
+                       $fileContent = $googleDriveService->downloadFileContent($photo->drive_file_id);
+                   } catch (\Exception $e) {
+                       Log::warning('Failed to download from Google Drive', [
+                           'drive_file_id' => $photo->drive_file_id,
+                           'error' => $e->getMessage()
+                       ]);
+                   }
+               }
+
+               // Fallback ke storage lokal
+               if (!$fileContent && $photo->organization_path) {
+                   $localPath = storage_path('app/public/' . $photo->organization_path);
+                   if (file_exists($localPath)) {
+                       $fileContent = file_get_contents($localPath);
+                   }
+               }
+
+               // Fallback ke photo_url jika HTTP/HTTPS
+               if (!$fileContent && filter_var($photo->photo_url, FILTER_VALIDATE_URL)) {
+                   try {
+                       $fileContent = file_get_contents($photo->photo_url);
+                   } catch (\Exception $e) {
+                       Log::warning('Failed to download from URL', [
+                           'url' => $photo->photo_url,
+                           'error' => $e->getMessage()
+                       ]);
+                   }
+               }
+
+               if ($fileContent) {
+                   $zip->addFromString($newFileName, $fileContent);
+                   $addedCount++;
+
+                   // Free memory
+                   unset($fileContent);
+               } else {
+                   $skippedCount++;
+                   Log::warning('No file content for photo', [
+                       'photo_id' => $photo->id,
+                       'reff_id' => $photo->reff_id_pelanggan
+                   ]);
+               }
+
+           } catch (\Exception $e) {
+               $skippedCount++;
+               Log::error('Error adding photo to ZIP: ' . $e->getMessage(), [
+                   'photo_id' => $photo->id,
+                   'reff_id' => $photo->reff_id_pelanggan,
+                   'trace' => $e->getTraceAsString()
+               ]);
+           }
+       }
+
+       Log::info('Download Foto MGRT - Completed processing', [
+           'added' => $addedCount,
+           'skipped' => $skippedCount,
+           'total' => $photoApprovals->count()
+       ]);
+
+       $zip->close();
+
+       if ($addedCount === 0) {
+           @unlink($zipPath);
+           return response()->json([
+               'success' => false,
+               'message' => 'Tidak ada foto yang berhasil didownload.'
+           ], 404);
+       }
+
+       // Return ZIP file sebagai download
+       return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
+   }
+
    private function buildPhotoDefs(string $module): array
    {
        $cfgAll    = config('aergas_photos') ?: [];
@@ -861,6 +1128,204 @@ class GasInDataController extends Controller
        ];
 
        return $labels[$fieldName] ?? ucwords(str_replace('_', ' ', $fieldName));
+   }
+
+   /**
+    * Preview data sebelum export Excel
+    */
+   public function previewExportExcel(Request $r)
+   {
+       $v = Validator::make($r->all(), [
+           'tanggal_dari' => ['nullable', 'date'],
+           'tanggal_sampai' => ['nullable', 'date'],
+           'module_status' => ['nullable', 'string'],
+           'search' => ['nullable', 'string'],
+       ]);
+
+       if ($v->fails()) {
+           return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+       }
+
+       // Query Gas In
+       $query = GasInData::with([
+           'calonPelanggan:reff_id_pelanggan,nama_pelanggan,alamat,kelurahan',
+           'srData:reff_id_pelanggan,no_seri_mgrt,merk_brand_mgrt'
+       ]);
+
+       // Apply filters
+       if ($r->filled('tanggal_dari')) {
+           $query->whereDate('tanggal_gas_in', '>=', $r->tanggal_dari);
+       }
+
+       if ($r->filled('tanggal_sampai')) {
+           $query->whereDate('tanggal_gas_in', '<=', $r->tanggal_sampai);
+       }
+
+       if ($r->filled('module_status')) {
+           $query->where('module_status', $r->module_status);
+       }
+
+       if ($r->filled('search')) {
+           $search = $r->search;
+           $query->whereHas('calonPelanggan', function($q) use ($search) {
+               $q->where('nama_pelanggan', 'like', "%{$search}%")
+                 ->orWhere('reff_id_pelanggan', 'like', "%{$search}%")
+                 ->orWhere('alamat', 'like', "%{$search}%")
+                 ->orWhere('no_telepon', 'like', "%{$search}%");
+           });
+       }
+
+       $gasInRecords = $query->orderBy('tanggal_gas_in', 'desc')->get();
+
+       if ($gasInRecords->isEmpty()) {
+           return response()->json([
+               'success' => false,
+               'message' => 'Tidak ada data Gas In yang ditemukan untuk filter yang dipilih.'
+           ], 404);
+       }
+
+       // Build preview data
+       $previewData = $gasInRecords->map(function($gasIn) {
+           return [
+               'reff_id' => $gasIn->reff_id_pelanggan,
+               'nama_pelanggan' => $gasIn->calonPelanggan->nama_pelanggan ?? '-',
+               'alamat' => $gasIn->calonPelanggan->alamat ?? '-',
+               'kelurahan' => $gasIn->calonPelanggan->kelurahan ?? '-',
+               'tanggal_gas_in' => $gasIn->tanggal_gas_in ? $gasIn->tanggal_gas_in->format('d-m-Y') : '-',
+               'no_seri_mgrt' => $gasIn->srData->no_seri_mgrt ?? '-',
+               'module_status' => $gasIn->module_status,
+           ];
+       });
+
+       return response()->json([
+           'success' => true,
+           'total_records' => $previewData->count(),
+           'data' => $previewData,
+           'filters' => [
+               'tanggal_dari' => $r->tanggal_dari ?? null,
+               'tanggal_sampai' => $r->tanggal_sampai ?? null,
+               'module_status' => $r->module_status ?? null,
+           ]
+       ]);
+   }
+
+   /**
+    * Export Gas In data to Excel
+    */
+   public function exportExcel(Request $r)
+   {
+       $v = Validator::make($r->all(), [
+           'tanggal_dari' => ['nullable', 'date'],
+           'tanggal_sampai' => ['nullable', 'date'],
+           'module_status' => ['nullable', 'string'],
+           'search' => ['nullable', 'string'],
+       ]);
+
+       if ($v->fails()) {
+           return redirect()->back()->withErrors($v)->withInput();
+       }
+
+       $filters = [
+           'tanggal_dari' => $r->tanggal_dari,
+           'tanggal_sampai' => $r->tanggal_sampai,
+           'module_status' => $r->module_status,
+           'search' => $r->search,
+       ];
+
+       $fileName = 'Gas_In_Export_' . now()->format('Ymd_His') . '.xlsx';
+
+       return \Maatwebsite\Excel\Facades\Excel::download(
+           new \App\Exports\GasInExport($filters),
+           $fileName
+       );
+   }
+
+   /**
+    * Download single foto MGRT (foto regulator) berdasarkan reff_id
+    */
+   public function downloadSingleFotoMGRT(Request $r)
+   {
+       $v = Validator::make($r->all(), [
+           'reff_id' => ['required', 'string'],
+       ]);
+
+       if ($v->fails()) {
+           return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+       }
+
+       // Cari foto regulator berdasarkan reff_id
+       $photo = \App\Models\PhotoApproval::where('reff_id_pelanggan', $r->reff_id)
+           ->where('module_name', 'gas_in')
+           ->where('photo_field_name', 'foto_regulator')
+           ->whereNotNull('photo_url')
+           ->first();
+
+       if (!$photo) {
+           return response()->json([
+               'success' => false,
+               'message' => 'Foto MGRT tidak ditemukan untuk Reff ID: ' . $r->reff_id
+           ], 404);
+       }
+
+       // Get customer name dan tanggal untuk nama file
+       $gasIn = GasInData::with('calonPelanggan')->where('reff_id_pelanggan', $r->reff_id)->first();
+       $namaCustomer = $gasIn && $gasIn->calonPelanggan ? $gasIn->calonPelanggan->nama_pelanggan : 'Customer';
+       $tanggalGasIn = $gasIn && $gasIn->tanggal_gas_in ? \Carbon\Carbon::parse($gasIn->tanggal_gas_in)->format('Ymd') : 'NoDate';
+
+       // Download file content
+       $fileContent = null;
+       $googleDriveService = app(\App\Services\GoogleDriveService::class);
+
+       // Try Google Drive
+       if ($photo->drive_file_id) {
+           try {
+               $fileContent = $googleDriveService->downloadFileContent($photo->drive_file_id);
+           } catch (\Exception $e) {
+               Log::warning('Failed to download from Google Drive', [
+                   'drive_file_id' => $photo->drive_file_id,
+                   'error' => $e->getMessage()
+               ]);
+           }
+       }
+
+       // Fallback to local storage
+       if (!$fileContent && $photo->organization_path) {
+           $localPath = storage_path('app/public/' . $photo->organization_path);
+           if (file_exists($localPath)) {
+               $fileContent = file_get_contents($localPath);
+           }
+       }
+
+       // Fallback to photo_url if HTTP/HTTPS
+       if (!$fileContent && filter_var($photo->photo_url, FILTER_VALIDATE_URL)) {
+           try {
+               $fileContent = file_get_contents($photo->photo_url);
+           } catch (\Exception $e) {
+               Log::warning('Failed to download from URL', [
+                   'url' => $photo->photo_url,
+                   'error' => $e->getMessage()
+               ]);
+           }
+       }
+
+       if (!$fileContent) {
+           return response()->json([
+               'success' => false,
+               'message' => 'Gagal mengunduh file foto MGRT.'
+           ], 500);
+       }
+
+       // Deteksi ekstensi file
+       $ext = pathinfo(parse_url($photo->photo_url, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
+
+       // Format nama file: {reff_id}_{nama_pelanggan}_{tanggal}_MGRT.{ext}
+       $namaPelangganSlug = \Illuminate\Support\Str::slug($namaCustomer, '_');
+       $fileName = "{$r->reff_id}_{$namaPelangganSlug}_{$tanggalGasIn}_MGRT.{$ext}";
+
+       // Return file download
+       return response($fileContent)
+           ->header('Content-Type', 'image/' . $ext)
+           ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"');
    }
 
 }

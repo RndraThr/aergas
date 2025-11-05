@@ -437,6 +437,22 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 ->whereNumber('gasIn')
                 ->name('berita-acara');
 
+            // Download Foto Regulator (MGRT) - Batch dengan filter tanggal
+            Route::get('/preview-foto-regulator', [GasInDataController::class, 'previewFotoRegulator'])
+                ->name('preview-foto-regulator');
+            Route::get('/download-foto-regulator', [GasInDataController::class, 'downloadFotoRegulator'])
+                ->name('download-foto-regulator');
+
+            // Download Single Foto MGRT - Direct download by clicking MGRT number
+            Route::get('/download-single-foto-mgrt', [GasInDataController::class, 'downloadSingleFotoMGRT'])
+                ->name('download-single-foto-mgrt');
+
+            // Export to Excel
+            Route::get('/preview-export-excel', [GasInDataController::class, 'previewExportExcel'])
+                ->name('preview-export-excel');
+            Route::get('/export-excel', [GasInDataController::class, 'exportExcel'])
+                ->name('export-excel');
+
             // Find by Reference ID
             Route::get('/by-reff/{reffId}', [GasInDataController::class, 'redirectByReff'])
                 ->where('reffId', '[A-Za-z0-9\-]+')

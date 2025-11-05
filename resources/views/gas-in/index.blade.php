@@ -6,17 +6,35 @@
 @section('content')
 <div class="space-y-6" x-data="gasInIndexData()" x-init="initPaginationState()">
 
-  <div class="flex items-center justify-between">
+  {{-- Header Section with Responsive Layout --}}
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
     <div>
-      <h1 class="text-3xl font-bold text-gray-800">Data Gas In</h1>
-      <p class="text-gray-600 mt-1">Daftar Gas Installation</p>
+      <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Data Gas In</h1>
+      <p class="text-gray-600 mt-1 text-sm md:text-base">Daftar Gas Installation</p>
     </div>
-    <div class="flex gap-2">
-      <button @click="fetchData()" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200">
-        <i class="fas fa-sync-alt mr-1"></i>Refresh
+    <div class="grid grid-cols-2 md:flex gap-2">
+      {{-- Export Excel Button --}}
+      <button @click="showExportModal = true" class="px-3 md:px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 text-sm md:text-base whitespace-nowrap">
+        <i class="fas fa-file-excel mr-1 md:mr-2"></i>
+        <span class="hidden sm:inline">Export Excel</span>
+        <span class="sm:hidden">Export</span>
       </button>
-      <a href="{{ route('gas-in.create') }}" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-        <i class="fas fa-plus mr-2"></i>Buat Gas In
+      {{-- Download Foto MGRT Button --}}
+      <button @click="showDownloadModal = true" class="px-3 md:px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm md:text-base whitespace-nowrap">
+        <i class="fas fa-download mr-1 md:mr-2"></i>
+        <span class="hidden sm:inline">Download Foto</span>
+        <span class="sm:hidden">Download</span>
+      </button>
+      {{-- Refresh Button --}}
+      <button @click="fetchData()" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm md:text-base">
+        <i class="fas fa-sync-alt mr-1"></i>
+        <span class="hidden md:inline">Refresh</span>
+      </button>
+      {{-- Create Button --}}
+      <a href="{{ route('gas-in.create') }}" class="px-3 md:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm md:text-base whitespace-nowrap text-center">
+        <i class="fas fa-plus mr-1 md:mr-2"></i>
+        <span class="hidden sm:inline">Buat Gas In</span>
+        <span class="sm:hidden">Buat</span>
       </a>
     </div>
   </div>
@@ -101,6 +119,7 @@
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reff ID</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No Seri MGRT</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -116,6 +135,25 @@
               <a :href="`/gas-in/${row.id}`" class="hover:text-blue-800" x-text="row.reff_id_pelanggan"></a>
             </td>
             <td class="px-4 py-3 text-sm text-gray-700" x-text="row.calon_pelanggan?.nama_pelanggan || '-'"></td>
+            <td class="px-4 py-3 text-sm">
+              <template x-if="row.sr_data && row.sr_data.no_seri_mgrt">
+                <div class="flex items-center gap-2">
+                  <i class="fas fa-tachometer-alt text-blue-500 text-xs"></i>
+                  <div>
+                    <button @click="downloadFotoMGRT(row.reff_id_pelanggan, row.calon_pelanggan?.nama_pelanggan, row.tanggal_gas_in)"
+                            class="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                            :title="'Klik untuk download foto MGRT: ' + row.sr_data.no_seri_mgrt">
+                      <span x-text="row.sr_data.no_seri_mgrt"></span>
+                      <i class="fas fa-download ml-1 text-xs"></i>
+                    </button>
+                    <div class="text-xs text-gray-500" x-text="row.sr_data.merk_brand_mgrt || ''"></div>
+                  </div>
+                </div>
+              </template>
+              <template x-if="!row.sr_data || !row.sr_data.no_seri_mgrt">
+                <span class="text-gray-400 text-xs italic">Belum ada SR</span>
+              </template>
+            </td>
             <td class="px-4 py-3 text-sm text-gray-700">
               <template x-if="row.created_by">
                 <div class="flex items-center">
@@ -199,7 +237,7 @@
 
         {{-- Empty State --}}
         <tr x-show="items.length === 0">
-          <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+          <td colspan="9" class="px-4 py-8 text-center text-gray-500">
             <div class="flex flex-col items-center">
               <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
               <p class="text-lg font-medium mb-1">Belum ada data Gas In</p>
@@ -217,6 +255,339 @@
   {{-- Pagination --}}
   <div x-show="!loading && pagination.total > 0">
     <x-pagination />
+  </div>
+
+  {{-- Download Modal --}}
+  <div x-show="showDownloadModal"
+       x-cloak
+       @click.self="closeDownloadModal()"
+       class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+       style="display: none;">
+    <div @click.stop class="bg-white rounded-xl p-6 w-full mx-4 shadow-2xl" :class="downloadStep === 'preview' ? 'max-w-3xl' : 'max-w-md'">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center">
+          <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-3">
+            <i class="fas fa-download text-green-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">Download Foto MGRT</h3>
+            <p class="text-sm text-gray-600" x-text="downloadStep === 'filter' ? 'Pilih Rentang Tanggal' : 'Preview Data'"></p>
+          </div>
+        </div>
+        <button @click="closeDownloadModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+
+      {{-- Step 1: Filter --}}
+      <div x-show="downloadStep === 'filter'" class="mb-6">
+        <p class="text-sm text-gray-600 mb-4">
+          Download semua foto regulator (MGRT) dari data Gas In dengan format penamaan:
+          <code class="bg-gray-100 px-2 py-1 rounded text-xs">ReffID_NamaCustomer_TanggalGasIn_MGRT.jpg</code>
+        </p>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Gas In (Dari)</label>
+            <input type="date"
+                   x-model="downloadFilters.tanggal_dari"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-green-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Gas In (Sampai)</label>
+            <input type="date"
+                   x-model="downloadFilters.tanggal_sampai"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-green-500">
+          </div>
+        </div>
+
+        <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+          <p class="text-xs text-blue-700">
+            <i class="fas fa-info-circle mr-1"></i>
+            Filter berdasarkan <strong>Tanggal Gas In</strong>. Kosongkan untuk download semua foto MGRT.
+          </p>
+        </div>
+      </div>
+
+      {{-- Step 2: Preview --}}
+      <div x-show="downloadStep === 'preview'" class="mb-6">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <p class="font-semibold text-gray-800">
+              Total File:
+              <span :class="previewData.length > 100 ? 'text-orange-600' : 'text-green-600'" x-text="previewData.length"></span>
+            </p>
+            <p class="text-xs text-gray-500" x-show="downloadFilters.tanggal_dari || downloadFilters.tanggal_sampai">
+              Periode:
+              <span x-text="downloadFilters.tanggal_dari || '...'"></span> s/d
+              <span x-text="downloadFilters.tanggal_sampai || '...'"></span>
+            </p>
+          </div>
+          <button @click="downloadStep = 'filter'" class="text-sm text-blue-600 hover:text-blue-800">
+            <i class="fas fa-edit mr-1"></i>Ubah Filter
+          </button>
+        </div>
+
+        {{-- Warning untuk file count besar --}}
+        <div x-show="previewData.length > 100" class="mb-3 p-3 bg-orange-50 border border-orange-200 rounded">
+          <p class="text-xs text-orange-700">
+            <i class="fas fa-exclamation-triangle mr-1"></i>
+            <strong>Perhatian:</strong> Download dalam jumlah besar (<span x-text="previewData.length"></span> file) dapat memakan waktu lama (3-5 menit) dan berisiko timeout. Mohon tunggu hingga proses selesai.
+          </p>
+        </div>
+
+        <div class="max-h-96 overflow-y-auto border rounded">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reff ID</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama Customer</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama File</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <template x-for="(item, index) in previewData" :key="index">
+                <tr class="hover:bg-gray-50">
+                  <td class="px-3 py-2 text-sm text-gray-700" x-text="index + 1"></td>
+                  <td class="px-3 py-2 text-sm font-medium text-blue-600" x-text="item.reff_id"></td>
+                  <td class="px-3 py-2 text-sm text-gray-700" x-text="item.nama_pelanggan"></td>
+                  <td class="px-3 py-2 text-sm text-gray-500" x-text="item.tanggal_gas_in"></td>
+                  <td class="px-3 py-2 text-xs text-gray-600 font-mono" x-text="item.filename"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {{-- Action Buttons --}}
+      <div class="flex gap-3">
+        <button @click="closeDownloadModal()"
+                :disabled="downloadLoading"
+                class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="fas fa-times mr-2"></i>Batal
+        </button>
+        <button x-show="downloadStep === 'filter'"
+                @click="loadPreview()"
+                :disabled="previewLoading"
+                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+          <span x-show="!previewLoading"><i class="fas fa-eye mr-2"></i>Preview</span>
+          <span x-show="previewLoading"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</span>
+        </button>
+        <button x-show="downloadStep === 'preview'"
+                @click="executeDownload()"
+                :disabled="downloadLoading"
+                class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50">
+          <span x-show="!downloadLoading"><i class="fas fa-download mr-2"></i>Download ZIP</span>
+          <span x-show="downloadLoading"><i class="fas fa-spinner fa-spin mr-2"></i>Downloading...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {{-- Loading Overlay saat Download --}}
+  <div x-show="downloadLoading"
+       x-cloak
+       class="fixed inset-0 bg-black bg-opacity-75 z-[60] flex items-center justify-center"
+       style="display: none;">
+    <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl text-center relative">
+      {{-- Close button (only after 5 seconds) --}}
+      <button @click="downloadLoading = false; closeDownloadModal();"
+              class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Tutup (jika download sudah selesai)">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+
+      <div class="mb-6">
+        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i class="fas fa-download text-green-600 text-3xl animate-bounce"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 mb-2">Sedang Mengunduh...</h3>
+        <p class="text-gray-600 text-sm mb-4">
+          Proses download sedang berlangsung. Harap tunggu dan <strong>jangan tutup halaman ini</strong>.
+        </p>
+
+        {{-- Progress info --}}
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div class="flex items-start text-left text-xs text-blue-700 space-y-2">
+            <div class="flex-shrink-0 mr-2">
+              <i class="fas fa-info-circle"></i>
+            </div>
+            <div>
+              <p class="mb-2">
+                <i class="fas fa-check text-green-600 mr-1"></i> Mengunduh <span class="font-semibold" x-text="previewData.length"></span> foto dari Google Drive
+              </p>
+              <p class="mb-2">
+                <i class="fas fa-check text-green-600 mr-1"></i> Membuat file ZIP dengan penamaan custom
+              </p>
+              <p>
+                <i class="fas fa-clock text-orange-600 mr-1"></i> Estimasi waktu:
+                <span x-text="previewData.length > 100 ? '3-5 menit' : previewData.length > 50 ? '1-3 menit' : '< 1 menit'"></span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {{-- Loading spinner --}}
+        <div class="flex items-center justify-center space-x-2 mb-4">
+          <div class="w-3 h-3 bg-green-600 rounded-full animate-pulse"></div>
+          <div class="w-3 h-3 bg-green-600 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+          <div class="w-3 h-3 bg-green-600 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+        </div>
+
+        <p class="text-xs text-gray-500 italic mb-2">
+          Download akan dimulai otomatis setelah proses selesai
+        </p>
+        <p class="text-xs text-gray-400">
+          Klik tombol [X] di pojok kanan atas untuk menutup jika download sudah selesai
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {{-- Export Excel Modal --}}
+  <div x-show="showExportModal"
+       x-cloak
+       @click.self="closeExportModal()"
+       class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+       style="display: none;">
+    <div @click.stop class="bg-white rounded-xl p-6 w-full mx-4 shadow-2xl" :class="exportStep === 'preview' ? 'max-w-4xl' : 'max-w-md'">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center">
+          <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mr-3">
+            <i class="fas fa-file-excel text-emerald-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">Export ke Excel</h3>
+            <p class="text-sm text-gray-600" x-text="exportStep === 'filter' ? 'Pilih Filter Data' : 'Preview Data Export'"></p>
+          </div>
+        </div>
+        <button @click="closeExportModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+
+      {{-- Step 1: Filter --}}
+      <div x-show="exportStep === 'filter'" class="mb-6">
+        <p class="text-sm text-gray-600 mb-4">
+          Export data Gas In dengan kolom lengkap termasuk informasi pelanggan, MGRT, dan link foto.
+        </p>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Gas In (Dari)</label>
+            <input type="date"
+                   x-model="exportFilters.tanggal_dari"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Gas In (Sampai)</label>
+            <input type="date"
+                   x-model="exportFilters.tanggal_sampai"
+                   class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Status (Opsional)</label>
+            <select x-model="exportFilters.module_status"
+                    class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-emerald-500">
+              <option value="">Semua Status</option>
+              <option value="draft">Draft</option>
+              <option value="ai_validation">AI Validation</option>
+              <option value="tracer_review">Tracer Review</option>
+              <option value="cgp_review">CGP Review</option>
+              <option value="completed">Completed</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+          <p class="text-xs text-blue-700">
+            <i class="fas fa-info-circle mr-1"></i>
+            Filter berdasarkan <strong>Tanggal Gas In</strong>. Kosongkan untuk export semua data.
+          </p>
+        </div>
+      </div>
+
+      {{-- Step 2: Preview --}}
+      <div x-show="exportStep === 'preview'" class="mb-6">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <p class="font-semibold text-gray-800">
+              Total Data: <span class="text-emerald-600" x-text="exportPreviewData.length"></span> records
+            </p>
+            <p class="text-xs text-gray-500" x-show="exportFilters.tanggal_dari || exportFilters.tanggal_sampai">
+              Periode:
+              <span x-text="exportFilters.tanggal_dari || '...'"></span> s/d
+              <span x-text="exportFilters.tanggal_sampai || '...'"></span>
+            </p>
+          </div>
+          <button @click="exportStep = 'filter'" class="text-sm text-blue-600 hover:text-blue-800">
+            <i class="fas fa-edit mr-1"></i>Ubah Filter
+          </button>
+        </div>
+
+        <div class="max-h-96 overflow-y-auto border rounded">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reff ID</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama Customer</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kelurahan</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal Gas In</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">No Seri MGRT</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <template x-for="(item, index) in exportPreviewData" :key="index">
+                <tr class="hover:bg-gray-50">
+                  <td class="px-3 py-2 text-sm text-gray-700" x-text="index + 1"></td>
+                  <td class="px-3 py-2 text-sm font-medium text-blue-600" x-text="item.reff_id"></td>
+                  <td class="px-3 py-2 text-sm text-gray-700" x-text="item.nama_pelanggan"></td>
+                  <td class="px-3 py-2 text-sm text-gray-500" x-text="item.kelurahan"></td>
+                  <td class="px-3 py-2 text-sm text-gray-500" x-text="item.tanggal_gas_in"></td>
+                  <td class="px-3 py-2 text-sm text-gray-600" x-text="item.no_seri_mgrt"></td>
+                  <td class="px-3 py-2 text-xs">
+                    <span class="px-2 py-1 rounded-full text-xs"
+                          :class="{
+                            'bg-green-100 text-green-800': item.module_status === 'completed',
+                            'bg-blue-100 text-blue-800': item.module_status === 'tracer_review' || item.module_status === 'cgp_review',
+                            'bg-gray-100 text-gray-800': item.module_status === 'draft',
+                            'bg-red-100 text-red-800': item.module_status === 'rejected'
+                          }"
+                          x-text="item.module_status"></span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {{-- Action Buttons --}}
+      <div class="flex gap-3">
+        <button @click="closeExportModal()"
+                class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+          <i class="fas fa-times mr-2"></i>Batal
+        </button>
+        <button x-show="exportStep === 'filter'"
+                @click="loadExportPreview()"
+                :disabled="exportPreviewLoading"
+                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+          <span x-show="!exportPreviewLoading"><i class="fas fa-eye mr-2"></i>Preview</span>
+          <span x-show="exportPreviewLoading"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</span>
+        </button>
+        <button x-show="exportStep === 'preview'"
+                @click="executeExport()"
+                class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+          <i class="fas fa-file-excel mr-2"></i>Export Excel
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -294,6 +665,24 @@ function gasInIndexData() {
             completed: {{ $gasIn->where('module_status', 'completed')->count() ?? 0 }}
         },
         loading: false,
+        showDownloadModal: false,
+        downloadStep: 'filter', // 'filter' | 'preview'
+        downloadLoading: false,
+        previewLoading: false,
+        downloadFilters: {
+            tanggal_dari: '',
+            tanggal_sampai: ''
+        },
+        previewData: [],
+        showExportModal: false,
+        exportStep: 'filter', // 'filter' | 'preview'
+        exportPreviewLoading: false,
+        exportFilters: {
+            tanggal_dari: '',
+            tanggal_sampai: '',
+            module_status: ''
+        },
+        exportPreviewData: [],
 
         async fetchData(resetPage = false) {
             // Reset pagination when filters change
@@ -477,6 +866,206 @@ function gasInIndexData() {
         initPaginationState() {
             // Check if we're returning from detail page
             this.restorePageState();
+        },
+
+        async loadPreview() {
+            this.previewLoading = true;
+            this.previewData = [];
+
+            try {
+                const params = new URLSearchParams();
+                if (this.downloadFilters.tanggal_dari) {
+                    params.append('tanggal_dari', this.downloadFilters.tanggal_dari);
+                }
+                if (this.downloadFilters.tanggal_sampai) {
+                    params.append('tanggal_sampai', this.downloadFilters.tanggal_sampai);
+                }
+
+                const url = '{{ route("gas-in.preview-foto-regulator") }}' + (params.toString() ? '?' + params.toString() : '');
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.previewData = data.data;
+                    this.downloadStep = 'preview';
+                } else {
+                    alert(data.message || 'Tidak ada data yang ditemukan.');
+                }
+
+            } catch (error) {
+                console.error('Preview error:', error);
+                alert('Gagal memuat preview data. Silakan coba lagi.');
+            } finally {
+                this.previewLoading = false;
+            }
+        },
+
+        async executeDownload() {
+            this.downloadLoading = true;
+
+            try {
+                const params = new URLSearchParams();
+                if (this.downloadFilters.tanggal_dari) {
+                    params.append('tanggal_dari', this.downloadFilters.tanggal_dari);
+                }
+                if (this.downloadFilters.tanggal_sampai) {
+                    params.append('tanggal_sampai', this.downloadFilters.tanggal_sampai);
+                }
+
+                const url = '{{ route("gas-in.download-foto-regulator") }}' + (params.toString() ? '?' + params.toString() : '');
+
+                // Create a temporary link and trigger download
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'Foto_MGRT_' + new Date().toISOString().slice(0, 10) + '.zip';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Estimasi waktu tunggu berdasarkan jumlah file
+                const estimatedTime = this.previewData.length > 100 ? 180000 : // 3 menit
+                                     this.previewData.length > 50 ? 90000 :   // 1.5 menit
+                                     30000; // 30 detik
+
+                // Close modal & loading setelah estimasi waktu
+                // User bisa close manual jika download sudah selesai lebih cepat
+                setTimeout(() => {
+                    this.downloadLoading = false;
+                    this.closeDownloadModal();
+                }, estimatedTime);
+
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Terjadi kesalahan saat mengunduh file. Silakan coba lagi.');
+                this.downloadLoading = false;
+            }
+        },
+
+        closeDownloadModal() {
+            this.showDownloadModal = false;
+            this.downloadStep = 'filter';
+            this.previewData = [];
+            this.downloadFilters.tanggal_dari = '';
+            this.downloadFilters.tanggal_sampai = '';
+        },
+
+        async loadExportPreview() {
+            this.exportPreviewLoading = true;
+            this.exportPreviewData = [];
+
+            try {
+                const params = new URLSearchParams();
+                if (this.exportFilters.tanggal_dari) {
+                    params.append('tanggal_dari', this.exportFilters.tanggal_dari);
+                }
+                if (this.exportFilters.tanggal_sampai) {
+                    params.append('tanggal_sampai', this.exportFilters.tanggal_sampai);
+                }
+                if (this.exportFilters.module_status) {
+                    params.append('module_status', this.exportFilters.module_status);
+                }
+                if (this.filters.q) {
+                    params.append('search', this.filters.q);
+                }
+
+                const url = '{{ route("gas-in.preview-export-excel") }}' + (params.toString() ? '?' + params.toString() : '');
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.exportPreviewData = data.data;
+                    this.exportStep = 'preview';
+                } else {
+                    alert(data.message || 'Tidak ada data yang ditemukan.');
+                }
+
+            } catch (error) {
+                console.error('Export preview error:', error);
+                alert('Gagal memuat preview data. Silakan coba lagi.');
+            } finally {
+                this.exportPreviewLoading = false;
+            }
+        },
+
+        executeExport() {
+            // Build URL dengan query params
+            const params = new URLSearchParams();
+
+            if (this.exportFilters.tanggal_dari) {
+                params.append('tanggal_dari', this.exportFilters.tanggal_dari);
+            }
+            if (this.exportFilters.tanggal_sampai) {
+                params.append('tanggal_sampai', this.exportFilters.tanggal_sampai);
+            }
+            if (this.exportFilters.module_status) {
+                params.append('module_status', this.exportFilters.module_status);
+            }
+            if (this.filters.q) {
+                params.append('search', this.filters.q);
+            }
+
+            const url = '{{ route("gas-in.export-excel") }}' + (params.toString() ? '?' + params.toString() : '');
+
+            // Trigger download
+            window.location.href = url;
+
+            // Close modal after short delay
+            setTimeout(() => {
+                this.closeExportModal();
+            }, 500);
+        },
+
+        closeExportModal() {
+            this.showExportModal = false;
+            this.exportStep = 'filter';
+            this.exportPreviewData = [];
+            this.exportFilters.tanggal_dari = '';
+            this.exportFilters.tanggal_sampai = '';
+            this.exportFilters.module_status = '';
+        },
+
+        async downloadFotoMGRT(reffId, namaCustomer, tanggalGasIn) {
+            try {
+                // Build query params
+                const params = new URLSearchParams();
+                params.append('reff_id', reffId);
+
+                const url = '{{ route("gas-in.download-single-foto-mgrt") }}?' + params.toString();
+
+                // Show loading indicator (optional)
+                console.log('Downloading foto MGRT for:', reffId);
+
+                // Create temporary link and trigger download
+                const link = document.createElement('a');
+                link.href = url;
+
+                // Format nama file: {reff_id}_{nama_customer}_{tanggal}_MGRT.jpg
+                const customerSlug = namaCustomer ? namaCustomer.replace(/[^a-z0-9]/gi, '_') : 'Customer';
+                const tanggal = tanggalGasIn ? tanggalGasIn.replace(/[^0-9]/g, '') : '';
+                link.download = `${reffId}_${customerSlug}_${tanggal}_MGRT.jpg`;
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+            } catch (error) {
+                console.error('Error downloading foto MGRT:', error);
+                alert('Gagal mendownload foto MGRT. Silakan coba lagi.');
+            }
         }
     }
 }
