@@ -393,7 +393,6 @@ function tryAlternativeUrls(imgElement) {
     if (fileId) {
         // Try alternative Google Drive URLs
         const alternatives = [
-            `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`,
             `https://lh3.googleusercontent.com/d/${fileId}`,
             `https://drive.google.com/uc?id=${fileId}`,
         ];

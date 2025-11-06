@@ -264,9 +264,9 @@
                                                     $fileId = $matches[1];
                                                 }
 
-                                                // Use Google's direct thumbnail URL (more reliable)
+                                                // Use Google's high-quality image URL (lh3.googleusercontent.com)
                                                 if ($fileId) {
-                                                    $imageUrl = "https://drive.google.com/thumbnail?id={$fileId}&sz=w800";
+                                                    $imageUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
                                                 }
                                             }
                                         @endphp
