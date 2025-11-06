@@ -826,6 +826,12 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/coordinates/template', [ImportController::class, 'downloadTemplateCoordinates'])->name('coordinates.template');
             Route::post('/coordinates', [ImportController::class, 'importCoordinates'])->name('coordinates.import');
 
+            // Evidence Import (SK/SR) - New unified import
+            Route::get('/evidence', [ImportController::class, 'formEvidence'])->name('evidence.form');
+            Route::get('/evidence/template', [ImportController::class, 'downloadTemplateEvidence'])->name('evidence.template');
+            Route::post('/evidence', [ImportController::class, 'importEvidence'])->name('evidence.import');
+
+            // Old SK Berita Acara routes (keep for backward compatibility)
             Route::get('/sk-berita-acara', [ImportController::class, 'formSkBeritaAcara'])->name('sk-berita-acara.form');
             Route::get('/sk-berita-acara/template', [ImportController::class, 'downloadTemplateSkBeritaAcara'])->name('sk-berita-acara.template');
             Route::post('/sk-berita-acara', [ImportController::class, 'importSkBeritaAcara'])->name('sk-berita-acara.import');

@@ -16,20 +16,20 @@
          x-cloak>
 
         <!-- Logo -->
-        <div 
+        <div
             x-data="{ logos: [
                 '{{ asset('assets/CGP5.png') }}',
                 '{{ asset('assets/AERGAS_PNG.png') }}',
             ], current: 0 }"
-            x-init="setInterval(() => { current = (current + 1) % logos.length }, 3000)" 
+            x-init="setInterval(() => { current = (current + 1) % logos.length }, 3000)"
             class="flex items-center justify-between h-[4.8rem] px-6 bg-white border-b border-gray-200 flex-shrink-0"
         >
             <!-- Carousel Logo -->
             <div class="flex items-center justify-center flex-1">
                 <template x-for="(logo, index) in logos" :key="index">
-                    <img 
-                        :src="logo" 
-                        alt="Logo Carousel" 
+                    <img
+                        :src="logo"
+                        alt="Logo Carousel"
                         class="h-12 w-auto transition-opacity duration-700"
                         :class="{ 'opacity-100': index === current, 'opacity-0 absolute': index !== current }"
                     >
@@ -526,11 +526,11 @@
                             Koordinat Calon Pelanggan
                         </a>
 
-                        <!-- SK Berita Acara Import -->
-                        <a href="{{ route('imports.sk-berita-acara.form') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.sk-berita-acara.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-file-pdf w-5 mr-3 text-sm"></i>
-                            SK Berita Acara
+                        <!-- Evidence Import (SK/SR/GASIN) -->
+                        <a href="{{ route('imports.evidence.form') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.evidence.*') || request()->routeIs('imports.sk-berita-acara.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-camera w-5 mr-3 text-sm"></i>
+                            Evidence (SK/SR/GASIN)
                         </a>
 
                     </div>

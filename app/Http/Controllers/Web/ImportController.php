@@ -191,11 +191,106 @@ class ImportController extends Controller
         }, 'template_import_coordinates.xlsx');
     }
 
-    // =============== SK BERITA ACARA IMPORT METHODS ===============
+    // =============== SK BERITA ACARA IMPORT METHODS (OLD - Keep for backward compatibility) ===============
 
     public function formSkBeritaAcara()
     {
-        return view('imports.sk-berita-acara');
+        // Redirect to new evidence import form
+        return redirect()->route('imports.evidence.form');
+    }
+
+    // =============== EVIDENCE IMPORT METHODS (SK/SR) ===============
+
+    public function formEvidence()
+    {
+        return view('imports.evidence-import');
+    }
+
+    public function importEvidence(Request $request)
+    {
+        $request->validate([
+            'file'               => ['required', 'file', 'mimes:xlsx,xls,csv'],
+            'drive_folder_link'  => ['required', 'string'],
+            'module'             => ['required', 'in:SK,SR,GAS_IN'],
+            'mode'               => ['required', 'in:dry-run,commit'],
+            'evidence_type'      => ['required', 'string'],
+            'force_update'       => ['nullable', 'boolean'],
+            'heading_row'        => ['nullable', 'integer', 'min:1'],
+            'save_report'        => ['nullable', 'boolean'],
+        ]);
+
+        // Get parameters
+        $driveFolderLink = $request->input('drive_folder_link');
+        $module = strtoupper($request->input('module')); // SK or SR
+        $dryRun = $request->input('mode') === 'dry-run';
+        $headingRow = (int) $request->input('heading_row', 1);
+        $evidenceType = $request->input('evidence_type');
+        $forceUpdate = $request->boolean('force_update');
+        $userId = auth()->id() ?? 1;
+
+        // Release session lock
+        session()->save();
+        if (function_exists('session_write_close')) {
+            session_write_close();
+        }
+        ignore_user_abort(true);
+
+        // Anti-timeout & memory optimization
+        @ini_set('max_execution_time', '0');
+        @set_time_limit(0);
+        DB::connection()->disableQueryLog();
+
+        try {
+            $import = new \App\Imports\EvidenceImport(
+                driveFolderLink: $driveFolderLink,
+                module: $module,
+                dryRun: $dryRun,
+                headingRow: $headingRow,
+                evidenceType: $evidenceType,
+                forceUpdate: $forceUpdate,
+                userId: $userId
+            );
+            Excel::import($import, $request->file('file'));
+
+            $results = $import->getResults();
+
+            if ($request->boolean('save_report')) {
+                $path = 'import-reports/evidence-' . strtolower($module) . '-' . now()->format('Ymd_His') . '.json';
+                Storage::disk('local')->put($path, json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                $results['report_path'] = $path;
+            }
+
+            // Return JSON for AJAX requests
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'results' => $results,
+                    'message' => 'Import berhasil diproses'
+                ]);
+            }
+
+            return back()->with('evidence_import_results', $results);
+
+        } catch (\Throwable $e) {
+            Log::error('Evidence import failed', [
+                'module' => $module,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Return JSON for AJAX requests
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Import gagal: ' . $e->getMessage(),
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+
+            return back()->withErrors([
+                'import' => 'Import gagal: ' . $e->getMessage()
+            ])->withInput();
+        }
     }
 
     public function importSkBeritaAcara(Request $request)
@@ -281,12 +376,12 @@ class ImportController extends Controller
         }
     }
 
-    public function downloadTemplateSkBeritaAcara()
+    public function downloadTemplateEvidence()
     {
         $templateData = [
             [
                 'reff_id',
-                'nama_ba'
+                'nama_file'
             ],
             [
                 '442439',
@@ -322,7 +417,13 @@ class ImportController extends Controller
             {
                 return $this->data[0];
             }
-        }, 'template_import_sk_berita_acara.xlsx');
+        }, 'template_import_evidence.xlsx');
+    }
+
+    public function downloadTemplateSkBeritaAcara()
+    {
+        // Redirect to new template download
+        return $this->downloadTemplateEvidence();
     }
 
 }
