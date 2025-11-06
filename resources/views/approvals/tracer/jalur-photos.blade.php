@@ -196,9 +196,9 @@
                                     $fileId = $matches[1];
                                 }
 
-                                // Use Google's direct thumbnail URL (more reliable)
+                                // Use Google's high-quality image URL (lh3.googleusercontent.com)
                                 if ($fileId) {
-                                    $photoUrl = "https://drive.google.com/thumbnail?id={$fileId}&sz=w800";
+                                    $photoUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
                                 }
                             } elseif (strpos($photoUrl, 'http') !== 0) {
                                 $photoUrl = asset('storage/' . ltrim($photoUrl, '/'));
@@ -595,9 +595,7 @@ function tryAlternativeUrls(imgElement) {
     const alternatives = [
         `https://drive.google.com/uc?export=view&id=${fileId}`,
         `https://drive.google.com/uc?id=${fileId}`,
-        `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
-        `https://docs.google.com/uc?id=${fileId}`,
-        `https://lh3.googleusercontent.com/d/${fileId}=w800`
+        `https://docs.google.com/uc?id=${fileId}`
     ];
 
     let currentIndex = imgElement.dataset.attemptIndex || 0;

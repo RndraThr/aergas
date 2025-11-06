@@ -172,7 +172,7 @@
                                 <!-- Informasi Pelanggan -->
                                 <td class="px-3 py-2 text-sm text-gray-900 font-medium" x-text="customer.reff_id_pelanggan"></td>
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="customer.nama_pelanggan"></td>
-                                <td class="px-3 py-2 text-sm text-gray-900 max-w-xs truncate" :title="customer.alamat" x-text="customer.alamat"></td>
+                                <td class="px-3 py-2 text-sm text-gray-900 max-w-xs" :title="customer.alamat" x-text="customer.alamat"></td>
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="customer.no_telepon"></td>
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="customer.kelurahan || '-'"></td>
                                 <td class="px-3 py-2 text-sm text-gray-900" x-text="customer.padukuhan || '-'"></td>

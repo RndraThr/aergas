@@ -1347,6 +1347,8 @@ class PhotoApprovalService
             $photos = PhotoApproval::where('module_name', strtolower($module))
                 ->where('reff_id_pelanggan', $moduleData->reff_id_pelanggan)
                 ->whereNull('tracer_approved_at')
+                ->whereNull('tracer_rejected_at')
+                ->whereIn('photo_status', ['draft', 'tracer_pending'])
                 ->get();
 
             if ($photos->count() === 0) {

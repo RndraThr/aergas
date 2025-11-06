@@ -1601,7 +1601,6 @@ function revertApproval(photoId, photoUrl) {
         `https://lh3.googleusercontent.com/d/${fileId}`,
         `https://drive.google.com/uc?export=view&id=${fileId}`,
         `https://drive.google.com/uc?id=${fileId}`,
-        `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`,
     ] : [imageUrl];
 
     // Show confirmation dialog with photo preview using SweetAlert2
@@ -2012,7 +2011,6 @@ function tryAlternativeUrls(imgElement) {
     const alternatives = [
         `https://drive.google.com/uc?export=view&id=${fileId}`,
         `https://drive.google.com/uc?id=${fileId}`,
-        `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
         `https://docs.google.com/uc?id=${fileId}`
     ];
 
