@@ -911,6 +911,34 @@ class GasInDataController extends Controller
        }
    }
 
+   public function previewBeritaAcara(GasInData $gasIn, BeritaAcaraService $beritaAcaraService)
+   {
+       try {
+           $result = $beritaAcaraService->generateGasInBeritaAcara($gasIn);
+
+           if (!$result['success']) {
+               return response()->json([
+                   'success' => false,
+                   'message' => $result['message']
+               ], 422);
+           }
+
+           // Stream PDF to browser instead of download
+           return $result['pdf']->stream($result['filename']);
+
+       } catch (\Exception $e) {
+           Log::error('Preview Gas In Berita Acara failed', [
+               'gas_in_id' => $gasIn->id,
+               'error' => $e->getMessage()
+           ]);
+
+           return response()->json([
+               'success' => false,
+               'message' => 'Gagal preview Berita Acara: ' . $e->getMessage()
+           ], 500);
+       }
+   }
+
    public function generateBeritaAcara(GasInData $gasIn, BeritaAcaraService $beritaAcaraService)
    {
        try {

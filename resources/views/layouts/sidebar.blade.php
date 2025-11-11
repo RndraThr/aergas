@@ -171,6 +171,20 @@
                 </a>
                 @endif
 
+                @if(auth()->user()->hasAnyRole(['hse', 'admin', 'super_admin']))
+                <!-- HSE Daily Reports -->
+                <a href="{{ route('hse.daily-reports.index') }}"
+                   class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ request()->routeIs('hse.*') ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                    <i class="fas fa-hard-hat w-5 mr-3 text-lg {{ request()->routeIs('hse.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
+                    HSE Daily Reports
+                    @if(request()->routeIs('hse.*'))
+                        <div class="ml-auto">
+                            <div class="w-2 h-2 bg-aergas-orange rounded-full"></div>
+                        </div>
+                    @endif
+                </a>
+                @endif
+
                 @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                 <!-- Jalur Management with Submenu -->
                 @php
@@ -517,6 +531,13 @@
                            class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('imports.calon-pelanggan.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                             <i class="fas fa-users w-5 mr-3 text-sm"></i>
                             Calon Pelanggan
+                        </a>
+
+                        <!-- RT/RW Import -->
+                        <a href="{{ route('customers.import-rt-rw.form') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('customers.import-rt-rw.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-map-signs w-5 mr-3 text-sm"></i>
+                            RT/RW Pelanggan
                         </a>
 
                         <!-- Coordinates Import -->

@@ -32,12 +32,11 @@
       @endif
       
       @if(auth()->user()->hasAnyRole(['admin', 'super_admin', 'tracer']))
-        <a href="{{ route('gas-in.berita-acara', $gasIn->id) }}" 
-           class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-           target="_blank">
+        <button onclick="openPdfPreview()"
+           class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
           <i class="fas fa-file-pdf"></i>
-          Generate Berita Acara
-        </a>
+          Preview BA Gas In
+        </button>
       @endif
       
       <a href="javascript:void(0)" onclick="goBackWithPagination('{{ route('gas-in.index') }}')" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Kembali</a>
@@ -1091,6 +1090,100 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+
+// PDF Preview Modal Functions
+function openPdfPreview() {
+  const modal = document.getElementById('pdfPreviewModal');
+  const iframe = document.getElementById('pdfPreviewIframe');
+  const previewUrl = '{{ route('gas-in.berita-acara.preview', $gasIn->id) }}';
+
+  iframe.src = previewUrl;
+  modal.style.display = 'flex';
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePdfPreview() {
+  const modal = document.getElementById('pdfPreviewModal');
+  const iframe = document.getElementById('pdfPreviewIframe');
+
+  iframe.src = '';
+  modal.style.display = 'none';
+  modal.classList.add('hidden');
+  document.body.style.overflow = 'auto';
+}
+
+function downloadPdf() {
+  const downloadUrl = '{{ route('gas-in.berita-acara', $gasIn->id) }}';
+  window.open(downloadUrl, '_blank');
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('pdfPreviewModal');
+  if (e.target === modal) {
+    closePdfPreview();
+  }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closePdfPreview();
+  }
+});
 </script>
 @endpush
+
+<!-- PDF Preview Modal -->
+<div id="pdfPreviewModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 p-4" style="display: none; align-items: center; justify-content: center;">
+  <div class="bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+          <i class="fas fa-file-pdf text-white"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-gray-800">Preview Berita Acara Gas In</h3>
+          <p class="text-sm text-gray-600">{{ $gasIn->reff_id_pelanggan }}</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="downloadPdf()"
+                class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+          <i class="fas fa-download"></i>
+          Download PDF
+        </button>
+        <button onclick="closePdfPreview()"
+                class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- PDF Viewer -->
+    <div class="flex-1 overflow-hidden bg-gray-100">
+      <iframe id="pdfPreviewIframe"
+              class="w-full h-full"
+              frameborder="0">
+      </iframe>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="px-6 py-3 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+      <button onclick="closePdfPreview()"
+              class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+        <i class="fas fa-times mr-2"></i>
+        Tutup
+      </button>
+      <button onclick="downloadPdf()"
+              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+        <i class="fas fa-download mr-2"></i>
+        Download
+      </button>
+    </div>
+  </div>
+</div>
+
 @endsection

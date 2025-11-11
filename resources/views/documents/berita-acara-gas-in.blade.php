@@ -2,344 +2,416 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Berita Acara Gas In</title>
     <style>
+        @page {
+            margin: 10mm 12mm;
+        }
         body {
             font-family: 'Arial', sans-serif;
-            font-size: 11pt;
-            line-height: 1.3;
-            margin: 15px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-size: 8.5pt;
+            line-height: 1.2;
+            color: #000;
         }
-        
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        
-        .header {
+        .header-logo {
             text-align: right;
-            margin-bottom: 20px;
+            margin-bottom: -15px;
+            margin-top: -8px;
+            padding-right: 0;
         }
-        
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .logo {
-            width: 60px;
+        .header-logo img {
+            width: 400px;
             height: auto;
+            display: block;
+            margin-left: auto;
+            margin-right: 0;
         }
-        
-        .company-name {
-            font-size: 12pt;
-            font-weight: bold;
-            color: #0066cc;
-        }
-        
         .title {
             text-align: center;
-            font-size: 16pt;
+            font-size: 14pt;
             font-weight: bold;
             color: #0099cc;
-            margin: 20px 0;
-            text-transform: uppercase;
+            margin: 8px 0 5px 0;
+            letter-spacing: 0.5px;
         }
-        
-        .date-badge {
-            background: linear-gradient(45deg, #0099cc, #00ccff);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        
-        .info-section {
-            background: linear-gradient(45deg, #0099cc, #00ccff);
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-        
-        .info-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-            font-size: 12pt;
-        }
-        
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-        
-        .info-item {
-            margin-bottom: 8px;
-        }
-        
-        .info-label {
+        .ba-number {
+            text-align: left;
             font-size: 9pt;
-            opacity: 0.9;
-        }
-        
-        .info-value {
+            margin-bottom: 5px;
+            font-style: normal;
             font-weight: bold;
-            font-size: 11pt;
+            color: #dc2626;
         }
-        
+        .date-info {
+            background-color: #0099cc;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 3px;
+            text-align: left;
+            margin-bottom: 10px;
+            font-size: 8.5pt;
+            line-height: 1.4;
+        }
+        .date-space {
+            display: inline-block;
+            width: 250px;
+            border-bottom: 1px solid white;
+            margin: 0 5px;
+        }
+        .info-section-wrapper {
+            border: 2px solid #5a8fb5;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .section-header {
+            background-color: #5a8fb5;
+            color: white;
+            padding: 5px 10px;
+            font-weight: bold;
+            font-size: 9pt;
+            margin: 0;
+            border: none;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            background-color: white;
+            border: none;
+        }
+        .info-table td {
+            padding: 8px 10px;
+            vertical-align: bottom;
+            font-size: 8.5pt;
+        }
+        .info-label {
+            color: #000;
+            font-size: 8.5pt;
+            font-weight: normal;
+            white-space: nowrap;
+            padding-right: 10px;
+        }
+        .info-value {
+            font-weight: normal;
+            border-bottom: 1px solid #333;
+            font-size: 8.5pt;
+            min-height: 20px;
+        }
+        .info-row-full {
+            display: block;
+            width: 100%;
+        }
         .checklist-section {
-            margin: 20px 0;
+            margin: 8px 0;
         }
-        
         .checklist-title {
             font-weight: bold;
-            margin-bottom: 15px;
-            color: #333;
+            color: #0099cc;
+            margin-bottom: 5px;
+            font-size: 8.5pt;
         }
-        
         .checklist-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-            padding: 5px;
+            display: table;
+            width: 100%;
+            margin-bottom: 3px;
+            padding: 3px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
-        
-        .checkmark {
-            width: 20px;
-            height: 20px;
-            background: #00cc66;
-            color: white;
-            text-align: center;
-            line-height: 20px;
-            border-radius: 3px;
-            margin-right: 10px;
+        .checklist-item .bullet {
+            display: table-cell;
+            width: 15px;
+            color: #0099cc;
             font-weight: bold;
+            vertical-align: middle;
+            font-size: 7pt;
         }
-        
-        .data-meter-section {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
+        .checklist-item .text {
+            display: table-cell;
+            padding-left: 6px;
+            vertical-align: middle;
+            font-size: 7.5pt;
         }
-        
+        .checklist-item .status {
+            display: table-cell;
+            text-align: right;
+            width: 120px;
+            vertical-align: middle;
+            font-size: 7.5pt;
+        }
+        .meter-section {
+            margin: 8px 0;
+        }
         .meter-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            display: table;
+            width: 100%;
+            border-collapse: collapse;
         }
-        
-        .meter-item {
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            border-left: 4px solid #0099cc;
+        .meter-row {
+            display: table-row;
         }
-        
+        .meter-cell {
+            display: table-cell;
+            width: 50%;
+            padding: 3px 6px;
+            vertical-align: top;
+        }
+        .meter-label {
+            font-size: 7pt;
+            color: #666;
+            margin-bottom: 2px;
+        }
+        .meter-value {
+            font-weight: bold;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 2px;
+            font-size: 7.5pt;
+        }
+        .responsibility-text {
+            margin: 10px 0;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-left: 3px solid #0099cc;
+            font-size: 7.5pt;
+            line-height: 1.3;
+            text-align: justify;
+        }
         .signature-section {
-            margin-top: 40px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
+            margin-top: 15px;
+            display: table;
+            width: 100%;
         }
-        
         .signature-box {
-            background: linear-gradient(45deg, #0099cc, #00ccff);
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
+            display: table-cell;
+            width: 50%;
             text-align: center;
-            min-height: 100px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            padding: 10px 5px;
+            vertical-align: bottom;
         }
-        
         .signature-label {
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 40px;
+            display: block;
+            font-size: 8pt;
         }
-        
         .signature-name {
-            border-top: 2px solid rgba(255,255,255,0.5);
-            padding-top: 10px;
-            margin-top: auto;
-            font-weight: bold;
+            border-top: 1px solid #000;
+            padding-top: 3px;
+            display: inline-block;
+            min-width: 180px;
+            font-size: 7.5pt;
         }
-        
-        .footer {
-            margin-top: 30px;
-            font-size: 9pt;
+        .footer-text {
             text-align: center;
-            color: #666;
+            margin-top: 15px;
+            font-size: 7.5pt;
             font-style: italic;
         }
-        
-        .code-corner {
+        .footer-company {
+            font-weight: bold;
+            font-style: normal;
+        }
+        .code-bottom-right {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
-            font-size: 8pt;
+            bottom: 15px;
+            right: 15px;
+            font-size: 7pt;
             color: #999;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo-section" style="justify-content: flex-end;">
-                @if(file_exists($logo_path))
-                    <img src="{{ $logo_path }}" alt="PGN Logo" class="logo">
-                @endif
-                <div class="company-name">
-                    PERTAMINA<br>
-                    <span style="font-size: 10pt; color: #666;">GAS NEGARA</span>
+    <div class="header-logo">
+        @if(file_exists($logo_path))
+            <img src="{{ $logo_path }}" alt="PGN Logo">
+        @endif
+    </div>
+
+    <div class="title">BERITA ACARA GAS IN</div>
+
+    <div class="ba-number">BAGI.</div>
+
+    <div class="date-info">
+        Pada hari ini <span class="date-space"></span>, telah dilakukan penyalaan Gas pertama kali ("Tanggal Dimulai") kepada
+    </div>
+
+    <div class="info-section-wrapper">
+        <div class="section-header">Informasi Pelanggan</div>
+
+        <table class="info-table">
+        <tr>
+            <td class="info-label" style="width: 140px;">No. ID Pelanggan</td>
+            <td class="info-value" style="width: 30%;">
+                @php
+                    $reffId = $gasIn->reff_id_pelanggan;
+                    // Add 00 prefix if not already 8 digits
+                    if (is_numeric($reffId) && strlen($reffId) < 8) {
+                        $reffId = str_pad($reffId, 8, '00', STR_PAD_LEFT);
+                    }
+                @endphp
+                {{ $reffId }}
+            </td>
+            <td class="info-label" style="width: 130px;">Nama Lengkap</td>
+            <td class="info-value">{{ $customer->nama_pelanggan ?? '-' }}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Alamat</td>
+            <td class="info-value" colspan="3">{{ $customer->alamat ?? '-' }}</td>
+        </tr>
+        <tr>
+            <td class="info-label"></td>
+            <td class="info-value"></td>
+            <td class="info-label" style="width: 50px;">RT</td>
+            <td class="info-value" style="width: 80px;">{{ $customer->rt ?? '-' }}</td>
+            <td class="info-label" style="width: 50px; padding-left: 15px;">RW</td>
+            <td class="info-value">{{ $customer->rw ?? '-' }}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Kelurahan</td>
+            <td class="info-value">{{ $customer->kelurahan ?? '-' }}</td>
+            <td class="info-label">Kecamatan</td>
+            <td class="info-value" colspan="3">DEPOK</td>
+        </tr>
+        <tr>
+            <td class="info-label">Kota / Kabupaten</td>
+            <td class="info-value">SLEMAN</td>
+            <td class="info-label">Provinsi</td>
+            <td class="info-value" colspan="3">D.I. YOGYAKARTA</td>
+        </tr>
+        <tr>
+            <td class="info-label">Latitude/Latitude</td>
+            <td class="info-value">{{ $customer->latitude ?? '-' }}, {{ $customer->longitude ?? '-' }}</td>
+            <td class="info-label">Kode Pos</td>
+            <td class="info-value" colspan="3">
+                @php
+                    $kodePosSleman = [
+                        'CATUR TUNGGAL' => ['KARANGGAYAM' => '52107', 'KARANGWUNI' => '52107', 'MANGGUNG' => '52107', 'MRICAN' => '52107', 'SANTREN' => '52107', 'SLEMAN 1 KAB SLEMAN' => '52106'],
+                        'CATURTUNGGAL' => ['KARANGGAYAM' => '52101', 'KARANGWUNI' => '52107', 'KOCORAN' => '52107', 'MANGGUNG' => '25090', 'MRICAN' => '52107', 'SAMIRONO' => '52118', 'SANTREN' => '52107', 'SLEMAN 1 KAB SLEMAN' => '44709'],
+                        'CONDONG CATUR' => ['DABAG' => '52107', 'KALIWARU' => '52109', 'PRINGWULUNG' => '52107', 'SOROPADAN' => '00446', 'SOROPADAN (PRINGWULUNG)' => '45111'],
+                        'CONDONGCATUR' => ['GANDOK' => '25090', 'KALIWARU' => '25090', 'PRINGWULUNG' => '25090']
+                    ];
+
+                    $kelurahan = strtoupper($customer->kelurahan ?? '');
+                    $dusun = strtoupper($customer->dusun ?? '');
+                    $kodePos = '-';
+
+                    if (isset($kodePosSleman[$kelurahan])) {
+                        if ($dusun && isset($kodePosSleman[$kelurahan][$dusun])) {
+                            $kodePos = $kodePosSleman[$kelurahan][$dusun];
+                        } else {
+                            $kodePos = reset($kodePosSleman[$kelurahan]);
+                        }
+                    }
+                @endphp
+                {{ $kodePos }}
+            </td>
+        </tr>
+    </table>
+    </div>
+
+    <div class="checklist-section">
+        <div class="checklist-title">Bersama ini telah dilakukan hal-hal sbb:</div>
+
+        <div class="checklist-item">
+            <div class="bullet">●</div>
+            <div class="text">Berita Acara Hasil Pengujian pipa instalasi</div>
+            <div class="status"><strong>OK</strong> &nbsp;&nbsp; Tersedia</div>
+        </div>
+
+        <div class="checklist-item">
+            <div class="bullet">●</div>
+            <div class="text">Tersedia prosedur Gas In ke peralatan gas milik pelanggan</div>
+            <div class="status"><strong>OK</strong> &nbsp;&nbsp; Terlaksana</div>
+        </div>
+
+        <div class="checklist-item">
+            <div class="bullet">●</div>
+            <div class="text">Tersedia perlengkapan K3PL yang memadai</div>
+            <div class="status"><strong>OK</strong> &nbsp;&nbsp; Tersedia</div>
+        </div>
+
+        <div class="checklist-item">
+            <div class="bullet">●</div>
+            <div class="text">Sosialisasi pengoperasian & pemeliharaan kepada pelanggan</div>
+            <div class="status"><strong>OK</strong> &nbsp;&nbsp; Terlaksana</div>
+        </div>
+
+        <div class="checklist-item">
+            <div class="bullet">●</div>
+            <div class="text">Meter terkalibrasi</div>
+            <div class="status"><strong>OK</strong> &nbsp;&nbsp; Tersedia</div>
+        </div>
+    </div>
+
+    <div class="section-header">Data Meter Gas terpasang:</div>
+
+    <div class="meter-section">
+        <div class="meter-grid">
+            <div class="meter-row">
+                <div class="meter-cell">
+                    <div class="meter-label">Jenis Meter:</div>
+                    <div class="meter-value">{{ $gasIn->jenis_meter ?? 'Meter konvensional / Smart Meter' }}</div>
+                </div>
+                <div class="meter-cell">
+                    <div class="meter-label">SN Meter</div>
+                    <div class="meter-value">{{ $gasIn->sn_meter ?? '-' }}</div>
+                </div>
+            </div>
+            <div class="meter-row">
+                <div class="meter-cell">
+                    <div class="meter-label">Qmin/Qmax:</div>
+                    <div class="meter-value">{{ $gasIn->qmin_qmax ?? '-' }} m3/jam</div>
+                </div>
+                <div class="meter-cell">
+                    <div class="meter-label">Stand meter awal</div>
+                    <div class="meter-value">{{ $gasIn->stand_meter_awal ?? '-' }}</div>
+                </div>
+            </div>
+            <div class="meter-row">
+                <div class="meter-cell">
+                    <div class="meter-label">Awal Kalibrasi:</div>
+                    <div class="meter-value">{{ $gasIn->awal_kalibrasi ?? '(MM YYYY)' }}</div>
+                </div>
+                <div class="meter-cell">
+                    <div class="meter-label">Suhu:</div>
+                    <div class="meter-value">{{ $gasIn->suhu ?? '-' }}°C {{ $gasIn->tekanan ? '(jika ada)' : '' }}</div>
+                </div>
+            </div>
+            <div class="meter-row">
+                <div class="meter-cell" colspan="2">
+                    <div class="meter-label">Tekanan:</div>
+                    <div class="meter-value">{{ $gasIn->tekanan ?? '-' }} Bar</div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="title">BERITA ACARA GAS IN</div>
+    <div class="responsibility-text">
+        Dengan dilakukannya Gas In ini, maka Pelanggan menyetujui untuk bertanggung jawab atas pengoperasian dan perawatan
+    </div>
 
-        <div class="date-badge">
-            <strong>{{ app(App\Services\BeritaAcaraService::class)->formatDateIndonesian($date)['full'] }}</strong><br>
-            <small>telah dilakukan penyalaan Gas pertama kali Tanggal Dimulai :</small>
-        </div>
-
-        <div class="info-section">
-            <div class="info-title">Informasi Pelanggan</div>
-            <div class="info-grid">
-                <div>
-                    <div class="info-item">
-                        <div class="info-label">No. ID Pelanggan</div>
-                        <div class="info-value">{{ $gasIn->reff_id_pelanggan }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Alamat</div>
-                        <div class="info-value">{{ $customer->alamat ?? '-' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Kelurahan</div>
-                        <div class="info-value">{{ $customer->kelurahan ?? '-' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Kota/Kabupaten</div>
-                        <div class="info-value">{{ $customer->kota ?? 'Depok' }}</div>
-                    </div>
-                </div>
-                <div>
-                    <div class="info-item">
-                        <div class="info-label">Nama Lengkap</div>
-                        <div class="info-value">{{ $customer->nama_pelanggan ?? '-' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">RT</div>
-                        <div class="info-value">{{ $customer->rt ?? '1' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">RW</div>
-                        <div class="info-value">{{ $customer->rw ?? '5' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Kecamatan</div>
-                        <div class="info-value">{{ $customer->kecamatan ?? 'Sukmajaya' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Provinsi</div>
-                        <div class="info-value">{{ $customer->provinsi ?? 'Jawa Barat' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Kode Pos</div>
-                        <div class="info-value">{{ $customer->kode_pos ?? '-' }}</div>
-                    </div>
-                </div>
+    <div class="signature-section">
+        <div class="signature-box">
+            <span class="signature-label">Pelanggan</span>
+            <div class="signature-name">
+                ( {{ $customer->nama_pelanggan ?? '.............................' }} )
             </div>
         </div>
-
-        <div class="checklist-section">
-            <div class="checklist-title">Bersama ini telah dilakukan hal-hal sbb:</div>
-            <div class="checklist-item">
-                <div class="checkmark">✓</div>
-                <div><strong>Berita Acara Hasil Pengujian pipa Instalasi</strong> <span style="float: right;"><strong>OK</strong> &nbsp; Tersedia &nbsp; <span class="checkmark">✓</span></span></div>
-            </div>
-            <div class="checklist-item">
-                <div class="checkmark">✓</div>
-                <div><strong>Tersedia prosedur Gas In ke peralatan gas milik pelanggan</strong> <span style="float: right;"><strong>OK</strong> &nbsp; Terlaksana &nbsp; <span class="checkmark">✓</span></span></div>
-            </div>
-            <div class="checklist-item">
-                <div class="checkmark">✓</div>
-                <div><strong>Tersedia perlengkapan KSKR yang memadai</strong> <span style="float: right;"><strong>OK</strong> &nbsp; Tersedia &nbsp; <span class="checkmark">✓</span></span></div>
-            </div>
-            <div class="checklist-item">
-                <div class="checkmark">✓</div>
-                <div><strong>Sosialisasi pengoperasian & pemeliharaan kepada pelanggan</strong> <span style="float: right;"><strong>OK</strong> &nbsp; Terlaksana &nbsp; <span class="checkmark">✓</span></span></div>
-            </div>
-            <div class="checklist-item">
-                <div class="checkmark">✓</div>
-                <div><strong>Meter terkalibrasi</strong> <span style="float: right;"><strong>OK</strong> &nbsp; Terlaksana &nbsp; <span class="checkmark">✓</span></span></div>
+        <div class="signature-box">
+            <span class="signature-label">Instalatur</span>
+            <div class="signature-name">
+                ( {{ $gasIn->instalatur_name ?? '.............................' }} )
             </div>
         </div>
+    </div>
 
-        <div class="data-meter-section">
-            <div class="checklist-title" style="margin-bottom: 15px;">Data Meter Pemasangan:</div>
-            <div class="meter-grid">
-                <div class="meter-item">
-                    <div class="info-label">Jenis Meter</div>
-                    <div class="info-value">{{ $gasIn->jenis_meter ?? 'Meter konvensional / Smart Meter' }}</div>
-                </div>
-                <div class="meter-item">
-                    <div class="info-label">SN Meter</div>
-                    <div class="info-value">{{ $gasIn->sn_meter ?? '0156203' }}</div>
-                </div>
-                <div class="meter-item">
-                    <div class="info-label">Stand meter awal</div>
-                    <div class="info-value">{{ $gasIn->stand_meter_awal ?? '00103' }}</div>
-                </div>
-                <div class="meter-item">
-                    <div class="info-label">Terkalibrasi</div>
-                    <div class="info-value">{{ $gasIn->terkalibrasi ?? 'Bar' }}</div>
-                </div>
-                <div class="meter-item">
-                    <div class="info-label">Suhu</div>
-                    <div class="info-value">{{ $gasIn->suhu ?? '°C' }}</div>
-                </div>
-                <div class="meter-item">
-                    <div class="info-label">Awal Kalibrasi</div>
-                    <div class="info-value">{{ $gasIn->awal_kalibrasi ?? '(MM-YYYY)' }}</div>
-                </div>
-            </div>
-        </div>
+    <div class="footer-text">
+        Terima kasih atas kepercayaan Saudara kepada kami,<br>
+        <span class="footer-company">PT Perusahaan Gas Negara Tbk.</span>
+    </div>
 
-        <div style="margin: 20px 0; font-size: 10pt; text-align: justify;">
-            <strong>Dengan dilakukannya Gas In ini, maka Pelanggan menyatakan untuk bertanggung jawab atas pengoperasian dan perawatan instalasi internal, barang/komponen instalasi/peralatan yang telah dipasang dan bersedia melakukan pembayaran/tagihan.</strong>
-        </div>
-
-        <div class="signature-section">
-            <div class="signature-box">
-                <div class="signature-label">Pelanggan</div>
-                <div class="signature-name">{{ $customer->nama_pelanggan ?? '.....................' }}</div>
-            </div>
-            <div class="signature-box">
-                <div class="signature-label">Petugas</div>
-                <div class="signature-name">{{ $gasIn->createdBy->name ?? '.....................' }}</div>
-            </div>
-        </div>
-
-        <div class="footer">
-            Terima kasih atas kepercayaan Standart kepada kami,<br>
-            <strong>PT Perusahaan Gas Negara Tbk.</strong>
-        </div>
-
-        <div class="code-corner">
-            Q-001/06.02F/F05
-        </div>
+    <div class="code-bottom-right">
+        O-001/06.02F/F05
     </div>
 </body>
 </html>

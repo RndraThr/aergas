@@ -698,4 +698,84 @@ class CalonPelangganController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Show form Import RT/RW
+     */
+    public function importRtRwForm()
+    {
+        return view('imports.rt-rw');
+    }
+
+    /**
+     * Import RT dan RW dari Excel
+     */
+    public function importRtRw(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|mimes:xlsx,xls,csv|max:5120', // Max 5MB
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        try {
+            $file = $request->file('file');
+
+            // Create import instance
+            $import = new \App\Imports\RtRwImport();
+
+            // Import the file
+            \Maatwebsite\Excel\Facades\Excel::import($import, $file);
+
+            // Get statistics
+            $updated = $import->getUpdated();
+            $skipped = $import->getSkipped();
+            $errors = $import->getErrors();
+
+            Log::info('RT/RW import completed', [
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'user_id' => Auth::id()
+            ]);
+
+            return redirect()->back()->with('import_results', [
+                'success' => true,
+                'message' => "Import berhasil! {$updated} data diupdate, {$skipped} data dilewati.",
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'errors' => $errors
+            ]);
+
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            $errorMessages = [];
+
+            foreach ($failures as $failure) {
+                $errorMessages[] = "Baris {$failure->row()}: " . implode(', ', $failure->errors());
+            }
+
+            return redirect()->back()->with('import_results', [
+                'success' => false,
+                'message' => 'Validasi gagal pada beberapa baris',
+                'errors' => $errorMessages
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('RT/RW import failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id()
+            ]);
+
+            return redirect()->back()->with('import_results', [
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat import: ' . $e->getMessage(),
+                'errors' => []
+            ]);
+        }
+    }
 }

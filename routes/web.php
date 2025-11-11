@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController};
+use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController, HseDailyReportController};
 
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -226,6 +226,10 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 ->where('reffId', '[A-Z0-9\-]+')->name('validate');
             Route::post('/{reffId}/reject', [CalonPelangganController::class, 'rejectCustomer'])
                 ->where('reffId', '[A-Z0-9\-]+')->name('reject');
+
+            // Import RT/RW
+            Route::get('/import-rt-rw', [CalonPelangganController::class, 'importRtRwForm'])->name('import-rt-rw.form');
+            Route::post('/import-rt-rw', [CalonPelangganController::class, 'importRtRw'])->name('import-rt-rw');
         });
     });
 
@@ -433,6 +437,9 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 ->name('complete');
 
             // Generate Berita Acara
+            Route::get('/{gasIn}/berita-acara/preview', [GasInDataController::class, 'previewBeritaAcara'])
+                ->whereNumber('gasIn')
+                ->name('berita-acara.preview');
             Route::get('/{gasIn}/berita-acara', [GasInDataController::class, 'generateBeritaAcara'])
                 ->whereNumber('gasIn')
                 ->name('berita-acara');
@@ -457,6 +464,58 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/by-reff/{reffId}', [GasInDataController::class, 'redirectByReff'])
                 ->where('reffId', '[A-Za-z0-9\-]+')
                 ->name('by-reff');
+        });
+
+    // HSE Module Routes
+    Route::prefix('hse')
+        ->name('hse.')
+        ->middleware('role:admin,super_admin,hse')
+        ->group(function () {
+            // Daily Report CRUD
+            Route::get('/daily-reports', [HseDailyReportController::class, 'index'])->name('daily-reports.index');
+            Route::get('/daily-reports/create', [HseDailyReportController::class, 'create'])->name('daily-reports.create');
+            Route::post('/daily-reports', [HseDailyReportController::class, 'store'])->name('daily-reports.store');
+            Route::get('/daily-reports/{id}', [HseDailyReportController::class, 'show'])
+                ->whereNumber('id')
+                ->name('daily-reports.show');
+            Route::get('/daily-reports/{id}/edit', [HseDailyReportController::class, 'edit'])
+                ->whereNumber('id')
+                ->name('daily-reports.edit');
+            Route::put('/daily-reports/{id}', [HseDailyReportController::class, 'update'])
+                ->whereNumber('id')
+                ->name('daily-reports.update');
+            Route::delete('/daily-reports/{id}', [HseDailyReportController::class, 'destroy'])
+                ->whereNumber('id')
+                ->name('daily-reports.destroy');
+
+            // Workflow Actions
+            Route::post('/daily-reports/{id}/submit', [HseDailyReportController::class, 'submit'])
+                ->whereNumber('id')
+                ->name('daily-reports.submit');
+            Route::post('/daily-reports/{id}/approve', [HseDailyReportController::class, 'approve'])
+                ->whereNumber('id')
+                ->name('daily-reports.approve');
+            Route::post('/daily-reports/{id}/reject', [HseDailyReportController::class, 'reject'])
+                ->whereNumber('id')
+                ->name('daily-reports.reject');
+
+            // Photo Management
+            Route::post('/daily-reports/{id}/photos', [HseDailyReportController::class, 'uploadPhoto'])
+                ->whereNumber('id')
+                ->name('daily-reports.photos.upload');
+            Route::delete('/daily-reports/{id}/photos/{photoId}', [HseDailyReportController::class, 'deletePhoto'])
+                ->whereNumber('id')
+                ->whereNumber('photoId')
+                ->name('daily-reports.photos.delete');
+
+            // PDF Export
+            Route::get('/daily-reports/{id}/pdf', [HseDailyReportController::class, 'exportDailyPdf'])
+                ->whereNumber('id')
+                ->name('daily-reports.pdf');
+            Route::get('/reports/weekly-pdf', [HseDailyReportController::class, 'exportWeeklyPdf'])
+                ->name('reports.weekly-pdf');
+            Route::get('/reports/monthly-pdf', [HseDailyReportController::class, 'exportMonthlyPdf'])
+                ->name('reports.monthly-pdf');
         });
 
     // Jalur Module Routes
