@@ -967,6 +967,151 @@ class GasInDataController extends Controller
    }
 
    /**
+    * Download multiple Berita Acara as ZIP
+    */
+   public function downloadBulkBeritaAcara(Request $r, BeritaAcaraService $beritaAcaraService)
+   {
+       try {
+           // Validate request
+           $ids = $r->input('ids', []);
+
+           if (empty($ids) || !is_array($ids)) {
+               return response()->json([
+                   'success' => false,
+                   'message' => 'Tidak ada ID yang dipilih'
+               ], 422);
+           }
+
+           // Limit to prevent timeout (max 100 files)
+           if (count($ids) > 100) {
+               return response()->json([
+                   'success' => false,
+                   'message' => 'Maksimal 100 BA dapat di-download sekaligus'
+               ], 422);
+           }
+
+           // Fetch Gas In data
+           $gasInItems = GasInData::with('calonPelanggan')
+               ->whereIn('id', $ids)
+               ->get();
+
+           if ($gasInItems->isEmpty()) {
+               return response()->json([
+                   'success' => false,
+                   'message' => 'Data tidak ditemukan'
+               ], 404);
+           }
+
+           // Create temporary directory for PDFs
+           $tempDir = storage_path('app/temp/ba_bulk_' . uniqid());
+           if (!file_exists($tempDir)) {
+               mkdir($tempDir, 0755, true);
+           }
+
+           $generatedFiles = [];
+           $errors = [];
+
+           // Generate each PDF
+           foreach ($gasInItems as $gasIn) {
+               try {
+                   $result = $beritaAcaraService->generateGasInBeritaAcara($gasIn);
+
+                   if ($result['success']) {
+                       $filename = $result['filename'];
+                       $filePath = $tempDir . '/' . $filename;
+
+                       // Save PDF to temp directory
+                       $result['pdf']->save($filePath);
+                       $generatedFiles[] = $filePath;
+                   } else {
+                       $errors[] = "BA untuk {$gasIn->reff_id_pelanggan}: {$result['message']}";
+                   }
+               } catch (\Exception $e) {
+                   $errors[] = "BA untuk {$gasIn->reff_id_pelanggan}: {$e->getMessage()}";
+                   Log::error('Failed to generate BA in bulk', [
+                       'gas_in_id' => $gasIn->id,
+                       'error' => $e->getMessage()
+                   ]);
+               }
+           }
+
+           if (empty($generatedFiles)) {
+               // Clean up temp directory
+               $this->deleteDirectory($tempDir);
+
+               return response()->json([
+                   'success' => false,
+                   'message' => 'Tidak ada BA yang berhasil di-generate',
+                   'errors' => $errors
+               ], 500);
+           }
+
+           // Create ZIP file
+           $zipFilename = 'Berita_Acara_Gas_In_' . date('Ymd_His') . '.zip';
+           $zipPath = storage_path('app/temp/' . $zipFilename);
+
+           $zip = new \ZipArchive();
+           if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+               $this->deleteDirectory($tempDir);
+               return response()->json([
+                   'success' => false,
+                   'message' => 'Gagal membuat file ZIP'
+               ], 500);
+           }
+
+           // Add files to ZIP
+           foreach ($generatedFiles as $file) {
+               $zip->addFile($file, basename($file));
+           }
+
+           $zip->close();
+
+           // Clean up temp directory with PDFs
+           $this->deleteDirectory($tempDir);
+
+           // Return ZIP file for download
+           return response()->download($zipPath, $zipFilename)->deleteFileAfterSend(true);
+
+       } catch (\Exception $e) {
+           Log::error('Bulk BA Download failed', [
+               'error' => $e->getMessage(),
+               'trace' => $e->getTraceAsString()
+           ]);
+
+           return response()->json([
+               'success' => false,
+               'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+           ], 500);
+       }
+   }
+
+   /**
+    * Helper function to delete directory recursively
+    */
+   private function deleteDirectory($dir)
+   {
+       if (!file_exists($dir)) {
+           return true;
+       }
+
+       if (!is_dir($dir)) {
+           return unlink($dir);
+       }
+
+       foreach (scandir($dir) as $item) {
+           if ($item == '.' || $item == '..') {
+               continue;
+           }
+
+           if (!$this->deleteDirectory($dir . DIRECTORY_SEPARATOR . $item)) {
+               return false;
+           }
+       }
+
+       return rmdir($dir);
+   }
+
+   /**
     * Delete folders from Google Drive
     */
    private function deleteFoldersFromDrive(array $folderPaths): int

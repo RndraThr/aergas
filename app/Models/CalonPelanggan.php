@@ -14,9 +14,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $nama_pelanggan
  * @property string $alamat
  * @property string $no_telepon
+ * @property string|null $no_bagi
  * @property string|null $email
  * @property string|null $kelurahan
  * @property string|null $padukuhan
+ * @property string|null $rt
+ * @property string|null $rw
  * @property string $status
  * @property string $progress_status
  * @property string|null $jenis_pelanggan
@@ -197,8 +200,8 @@ class CalonPelanggan extends Model
     }
 
     protected $fillable = [
-        'reff_id_pelanggan','nama_pelanggan','alamat','no_telepon','email',
-        'kelurahan','padukuhan','status','progress_status','jenis_pelanggan','keterangan',
+        'reff_id_pelanggan','nama_pelanggan','alamat','no_telepon','no_bagi','email',
+        'kelurahan','padukuhan','rt','rw','status','progress_status','jenis_pelanggan','keterangan',
         'tanggal_registrasi','validated_at','validated_by','validation_notes',
         'latitude','longitude','coordinate_source','coordinate_updated_at',
     ];

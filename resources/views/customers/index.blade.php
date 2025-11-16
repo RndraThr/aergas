@@ -4,7 +4,7 @@
 @section('page-title', 'Data Calon Pelanggan')
 
 @section('content')
-<div class="space-y-6" x-data="customersData()" x-init="initPaginationState()">
+<div class="space-y-6" x-data="customersData()" x-init="initPaginationState(); window.customersData = $data" :class="baSelectionMode ? 'pb-20' : ''">
 
     <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-4 lg:space-y-0">
         <div>
@@ -14,6 +14,13 @@
 
         <div class="flex items-center space-x-3">
             @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
+                <button @click="toggleBaSelectionMode()"
+                        :class="baSelectionMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-purple-600 hover:bg-purple-700'"
+                        class="flex items-center space-x-2 px-4 py-2 text-white rounded-lg transition-colors">
+                    <i class="fas" :class="baSelectionMode ? 'fa-times' : 'fa-file-pdf'"></i>
+                    <span x-text="baSelectionMode ? 'Batal' : 'Download BA'"></span>
+                </button>
+
                 <button @click="exportData()"
                         class="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
                     <i class="fas fa-download"></i>
@@ -21,7 +28,7 @@
                 </button>
 
                 <a href="{{ route('imports.calon-pelanggan.form') }}"
-                   class="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                   class="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
                     <i class="fas fa-file-excel"></i>
                     <span>Import Excel</span>
                 </a>
@@ -33,6 +40,54 @@
                     <span>Tambah Calon Pelanggan</span>
                 </a>
             @endif
+        </div>
+    </div>
+
+    {{-- BA Selection Bar - Floating at Bottom --}}
+    <div x-show="baSelectionMode"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform translate-y-full"
+         x-transition:enter-end="opacity-100 transform translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform translate-y-0"
+         x-transition:leave-end="opacity-0 transform translate-y-full"
+         class="fixed bottom-6 left-0 right-0 lg:left-64 z-40 px-6">
+        <div class="max-w-full">
+            <div class="bg-white rounded-xl border-2 border-purple-500 shadow-2xl p-4">
+                <div class="flex items-center justify-between flex-wrap gap-3">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-check-square text-purple-600 text-xl"></i>
+                            <span class="font-semibold text-purple-900">Mode Pilih BA Gas In</span>
+                        </div>
+                        <div class="text-sm font-medium text-purple-700 bg-purple-100 px-3 py-1.5 rounded-full">
+                            <span x-text="selectedBaIds.length"></span> BA dipilih
+                            <span x-show="allPagesSelected" class="ml-1 text-xs">(Semua Halaman)</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button @click="selectAllBa()"
+                                class="px-3 py-1.5 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors">
+                            <i class="fas fa-check-double mr-1"></i>Pilih Halaman Ini
+                        </button>
+                        <button @click="selectAllPages()"
+                                :disabled="loadingAllPages"
+                                class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            <i :class="loadingAllPages ? 'fas fa-spinner fa-spin' : 'fas fa-check-circle'" class="mr-1"></i>
+                            <span x-text="loadingAllPages ? 'Memuat...' : 'Pilih Semua Halaman'"></span>
+                        </button>
+                        <button @click="clearBaSelection()"
+                                class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                            <i class="fas fa-times mr-1"></i>Bersihkan
+                        </button>
+                        <button @click="openBaDownloadModal()"
+                                :disabled="selectedBaIds.length === 0"
+                                class="px-4 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
+                            <i class="fas fa-download mr-1"></i>Download <span x-text="selectedBaIds.length"></span> BA
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -189,6 +244,13 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        {{-- Checkbox Column (only in BA selection mode) --}}
+                        <th x-show="baSelectionMode" class="px-4 py-3 w-12">
+                            <input type="checkbox"
+                                   @change="toggleAllBa($event.target.checked)"
+                                   :checked="customers.length > 0 && selectedBaIds.length === customers.length"
+                                   class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500">
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <button @click="sortBy('reff_id_pelanggan')" class="flex items-center space-x-1 hover:text-gray-700">
                                 <span>Reff ID</span>
@@ -217,7 +279,16 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     <template x-for="customer in customers" :key="customer.reff_id_pelanggan">
-                        <tr class="hover:bg-gray-50 transition-colors">
+                        <tr class="hover:bg-gray-50 transition-colors"
+                            :class="baSelectionMode && selectedBaIds.includes(customer.reff_id_pelanggan) ? 'bg-purple-50' : ''">
+                            {{-- Checkbox Column - Now available for ALL customers --}}
+                            <td x-show="baSelectionMode" class="px-4 py-3">
+                                <input type="checkbox"
+                                       :value="customer.reff_id_pelanggan"
+                                       @change="toggleBaSelection(customer.reff_id_pelanggan)"
+                                       :checked="selectedBaIds.includes(customer.reff_id_pelanggan)"
+                                       class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500">
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="font-medium text-gray-900" x-text="formatReffId(customer.reff_id_pelanggan)"></div>
                                 <div x-show="formatReffId(customer.reff_id_pelanggan) !== customer.reff_id_pelanggan" class="text-xs text-gray-500">
@@ -227,7 +298,7 @@
 
                             <td class="px-6 py-4">
                                 <div class="flex items-center">
-                                    <div class="w-10 h-10 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-full flex items-center justify-center text-white font-medium mr-3">
+                                    <div class="w-10 h-10 min-w-[2.5rem] min-h-[2.5rem] bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-full flex items-center justify-center text-white font-semibold text-base mr-3 flex-shrink-0">
                                         <span x-text="customer.nama_pelanggan ? customer.nama_pelanggan.charAt(0).toUpperCase() : 'U'"></span>
                                     </div>
                                     <div>
@@ -656,6 +727,233 @@ function customersData() {
             window.showToast('info', 'Export feature coming soon');
         },
 
+        // BA Download states
+        baSelectionMode: false,
+        selectedBaIds: [],
+        selectedBaCustomersCache: {}, // Cache customer data across pages
+        showBaDownloadModal: false,
+        baDownloadLoading: false,
+        loadingAllPages: false, // Loading state for select all pages
+        allPagesSelected: false, // Flag to indicate all pages are selected
+
+        // BA Selection Methods
+        toggleBaSelectionMode() {
+            this.baSelectionMode = !this.baSelectionMode;
+            if (!this.baSelectionMode) {
+                this.selectedBaIds = [];
+                this.selectedBaCustomersCache = {};
+                this.allPagesSelected = false;
+            }
+        },
+
+        toggleBaSelection(reffId) {
+            const index = this.selectedBaIds.indexOf(reffId);
+            if (index > -1) {
+                // Remove from selection
+                this.selectedBaIds.splice(index, 1);
+                delete this.selectedBaCustomersCache[reffId];
+            } else {
+                // Add to selection
+                this.selectedBaIds.push(reffId);
+                // Cache the customer data
+                const customer = this.customers.find(c => c.reff_id_pelanggan === reffId);
+                if (customer) {
+                    this.selectedBaCustomersCache[reffId] = {
+                        reff_id_pelanggan: customer.reff_id_pelanggan,
+                        nama_pelanggan: customer.nama_pelanggan,
+                        gas_in_data: customer.gas_in_data
+                    };
+                }
+            }
+        },
+
+        toggleAllBa(checked) {
+            if (checked) {
+                // Select ALL customers on current page
+                this.customers.forEach(customer => {
+                    if (!this.selectedBaIds.includes(customer.reff_id_pelanggan)) {
+                        this.selectedBaIds.push(customer.reff_id_pelanggan);
+                        // Cache customer data
+                        this.selectedBaCustomersCache[customer.reff_id_pelanggan] = {
+                            reff_id_pelanggan: customer.reff_id_pelanggan,
+                            nama_pelanggan: customer.nama_pelanggan,
+                            gas_in_data: customer.gas_in_data
+                        };
+                    }
+                });
+            } else {
+                // Unselect customers on current page only
+                this.customers.forEach(customer => {
+                    const index = this.selectedBaIds.indexOf(customer.reff_id_pelanggan);
+                    if (index > -1) {
+                        this.selectedBaIds.splice(index, 1);
+                        delete this.selectedBaCustomersCache[customer.reff_id_pelanggan];
+                    }
+                });
+            }
+        },
+
+        selectAllBa() {
+            // Select ALL customers on current page
+            this.customers.forEach(customer => {
+                if (!this.selectedBaIds.includes(customer.reff_id_pelanggan)) {
+                    this.selectedBaIds.push(customer.reff_id_pelanggan);
+                    // Cache customer data
+                    this.selectedBaCustomersCache[customer.reff_id_pelanggan] = {
+                        reff_id_pelanggan: customer.reff_id_pelanggan,
+                        nama_pelanggan: customer.nama_pelanggan,
+                        gas_in_data: customer.gas_in_data
+                    };
+                }
+            });
+        },
+
+        clearBaSelection() {
+            this.selectedBaIds = [];
+            this.selectedBaCustomersCache = {};
+            this.allPagesSelected = false;
+        },
+
+        async selectAllPages() {
+            this.loadingAllPages = true;
+            try {
+                // Build query params from current filters
+                const params = new URLSearchParams({
+                    search: this.search || '',
+                    status: this.selectedStatus || '',
+                    progress: this.selectedProgress || '',
+                    all_pages: 'true' // Signal to backend to return all
+                });
+
+                const response = await fetch(`/customers/get-all-ids?${params.toString()}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': window.csrfToken
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch all customers');
+                }
+
+                const data = await response.json();
+
+                // Cache all customer data
+                data.customers.forEach(customer => {
+                    if (!this.selectedBaIds.includes(customer.reff_id_pelanggan)) {
+                        this.selectedBaIds.push(customer.reff_id_pelanggan);
+                    }
+                    this.selectedBaCustomersCache[customer.reff_id_pelanggan] = {
+                        reff_id_pelanggan: customer.reff_id_pelanggan,
+                        nama_pelanggan: customer.nama_pelanggan,
+                        gas_in_data: customer.gas_in_data
+                    };
+                });
+
+                this.allPagesSelected = true;
+                window.showToast('success', `${data.customers.length} customer dipilih dari semua halaman`);
+            } catch (error) {
+                console.error('Error selecting all pages:', error);
+                window.showToast('error', 'Gagal memilih semua customer');
+            } finally {
+                this.loadingAllPages = false;
+            }
+        },
+
+        getSelectedBaItems() {
+            // Return ALL selected customers from cache (works across pagination)
+            return this.selectedBaIds.map(reffId => {
+                const cachedCustomer = this.selectedBaCustomersCache[reffId];
+                if (cachedCustomer) {
+                    return {
+                        reff_id_pelanggan: cachedCustomer.reff_id_pelanggan,
+                        tanggal_gas_in: cachedCustomer.gas_in_data?.tanggal_gas_in || null,
+                        calon_pelanggan: {
+                            nama_pelanggan: cachedCustomer.nama_pelanggan,
+                            reff_id_pelanggan: cachedCustomer.reff_id_pelanggan
+                        }
+                    };
+                }
+                return null;
+            }).filter(item => item !== null);
+        },
+
+        getBaFilename(row) {
+            const reffId = row.calon_pelanggan?.reff_id_pelanggan || row.reff_id_pelanggan || 'Unknown';
+            const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            return `BA_GasIn_${reffId}_${timestamp}.pdf`;
+        },
+
+        formatDate(date) {
+            if (!date) return '-';
+            return new Date(date).toLocaleDateString('id-ID');
+        },
+
+        openBaDownloadModal() {
+            if (this.selectedBaIds.length === 0) {
+                alert('Silakan pilih minimal 1 BA untuk di-download');
+                return;
+            }
+
+            // Debug: Log selected items
+            console.log('Selected IDs:', this.selectedBaIds);
+            console.log('Cached Customers:', this.selectedBaCustomersCache);
+            console.log('Selected Items:', this.getSelectedBaItems());
+            console.log('Current Page Customers:', this.customers);
+
+            this.showBaDownloadModal = true;
+        },
+
+        closeBaDownloadModal() {
+            this.showBaDownloadModal = false;
+        },
+
+        async executeBaDownload() {
+            if (this.selectedBaIds.length === 0) {
+                alert('Tidak ada BA yang dipilih');
+                return;
+            }
+
+            this.baDownloadLoading = true;
+
+            try {
+                const params = new URLSearchParams();
+                this.selectedBaIds.forEach(id => {
+                    params.append('ids[]', id);
+                });
+
+                const url = '/customers/download-bulk-ba?' + params.toString();
+
+                // Create temporary link and trigger download
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'Berita_Acara_Gas_In_' + new Date().toISOString().slice(0, 10) + '.zip';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Estimasi waktu tunggu berdasarkan jumlah file
+                const estimatedTime = this.selectedBaIds.length > 50 ? 120000 : // 2 menit
+                                     this.selectedBaIds.length > 20 ? 60000 :   // 1 menit
+                                     30000; // 30 detik
+
+                // Close modal & loading setelah estimasi waktu
+                setTimeout(() => {
+                    this.baDownloadLoading = false;
+                    this.closeBaDownloadModal();
+                    this.selectedBaIds = [];
+                    this.baSelectionMode = false;
+                }, estimatedTime);
+
+            } catch (error) {
+                console.error('BA Download error:', error);
+                alert('Terjadi kesalahan saat mengunduh BA. Silakan coba lagi.');
+                this.baDownloadLoading = false;
+            }
+        },
+
         get paginationPages() {
             const pages = [];
             const current = this.pagination.current_page;
@@ -724,4 +1022,160 @@ function customersData() {
 }
 </script>
 @endpush
+
+{{-- BA MODALS OUTSIDE x-data FOR PROPER Z-INDEX --}}
+
+{{-- Download BA Modal --}}
+<div x-data="{
+  get showModal() { return window.customersData?.showBaDownloadModal || false },
+  get loading() { return window.customersData?.baDownloadLoading || false },
+  get selectedIds() { return window.customersData?.selectedBaIds || [] },
+  closeModal() { if(window.customersData) window.customersData.showBaDownloadModal = false },
+  executeDownload() { window.customersData?.executeBaDownload() },
+  getSelectedItems() { return window.customersData?.getSelectedBaItems() || [] },
+  getFilename(row) { return window.customersData?.getBaFilename(row) || '' },
+  formatDate(date) { return window.customersData?.formatDate(date) || '-' }
+}"
+     x-show="showModal"
+     x-cloak
+     @click.self="closeModal()"
+     class="fixed bg-black bg-opacity-50 flex items-center justify-center p-4"
+     style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 999999999 !important;">
+    <div @click.stop class="bg-white rounded-xl p-6 w-full mx-4 shadow-2xl max-w-3xl" style="position: relative; z-index: 1000000000 !important;">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                    <i class="fas fa-file-pdf text-purple-600 text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Download Multiple Berita Acara Gas In</h3>
+                    <p class="text-sm text-gray-600">Preview data yang akan di-download</p>
+                </div>
+            </div>
+            <button @click="closeModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <div class="mb-6">
+            <div class="mb-4 flex items-center justify-between">
+                <div>
+                    <p class="font-semibold text-gray-800">
+                        Total BA: <span class="text-purple-600" x-text="selectedIds.length"></span> file
+                    </p>
+                    <p class="text-xs text-gray-500">File akan di-download dalam format ZIP</p>
+                </div>
+            </div>
+
+            <div x-show="selectedIds.length > 50" class="mb-3 p-3 bg-orange-50 border border-orange-200 rounded">
+                <p class="text-xs text-orange-700">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    <strong>Perhatian:</strong> Download BA dalam jumlah besar (<span x-text="selectedIds.length"></span> file) dapat memakan waktu lama.
+                </p>
+            </div>
+
+            <div class="max-h-96 overflow-y-auto border rounded">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reff ID</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama Customer</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal Gas In</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama File</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <template x-for="(row, index) in getSelectedItems()" :key="row.reff_id_pelanggan || index">
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-3 py-2 text-sm text-gray-700" x-text="index + 1"></td>
+                                <td class="px-3 py-2 text-sm font-medium text-purple-600" x-text="row.reff_id_pelanggan"></td>
+                                <td class="px-3 py-2 text-sm text-gray-700" x-text="row.calon_pelanggan?.nama_pelanggan || '-'"></td>
+                                <td class="px-3 py-2 text-sm text-gray-500" x-text="formatDate(row.tanggal_gas_in)"></td>
+                                <td class="px-3 py-2 text-xs text-gray-600 font-mono" x-text="getFilename(row)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="flex gap-3">
+            <button @click="closeModal()"
+                    :disabled="loading"
+                    class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50">
+                <i class="fas fa-times mr-2"></i>Batal
+            </button>
+            <button @click="executeDownload()"
+                    :disabled="loading"
+                    class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
+                <span x-show="!loading"><i class="fas fa-download mr-2"></i>Download ZIP</span>
+                <span x-show="loading"><i class="fas fa-spinner fa-spin mr-2"></i>Downloading...</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- Loading Overlay saat Download BA --}}
+<div x-data="{
+  get loading() { return window.customersData?.baDownloadLoading || false },
+  get selectedIds() { return window.customersData?.selectedBaIds || [] },
+  closeModal() { if(window.customersData) { window.customersData.baDownloadLoading = false; window.customersData.showBaDownloadModal = false; } }
+}"
+     x-show="loading"
+     x-cloak
+     class="fixed bg-black bg-opacity-75 flex items-center justify-center p-4"
+     style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 999999999 !important;">
+    <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl text-center" style="position: relative; z-index: 1000000000 !important;">
+        <button @click="closeModal()"
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                title="Tutup (jika download sudah selesai)">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+
+        <div class="mb-6">
+            <div class="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-file-pdf text-purple-600 text-3xl animate-bounce"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Sedang Mengunduh BA...</h3>
+            <p class="text-gray-600 text-sm mb-4">
+                Proses download sedang berlangsung. Harap tunggu dan <strong>jangan tutup halaman ini</strong>.
+            </p>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div class="flex items-start text-left text-xs text-blue-700 space-y-2">
+                    <div class="flex-shrink-0 mr-2">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div>
+                        <p class="mb-2">
+                            <i class="fas fa-check text-green-600 mr-1"></i> Membuat <span class="font-semibold" x-text="selectedIds.length"></span> Berita Acara PDF
+                        </p>
+                        <p class="mb-2">
+                            <i class="fas fa-check text-green-600 mr-1"></i> Mengkompres menjadi file ZIP
+                        </p>
+                        <p>
+                            <i class="fas fa-clock text-orange-600 mr-1"></i> Estimasi waktu:
+                            <span x-text="selectedIds.length > 50 ? '2-3 menit' : selectedIds.length > 20 ? '1-2 menit' : '< 1 menit'"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-center space-x-2 mb-4">
+                <div class="w-3 h-3 bg-purple-600 rounded-full animate-pulse"></div>
+                <div class="w-3 h-3 bg-purple-600 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                <div class="w-3 h-3 bg-purple-600 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+            </div>
+
+            <p class="text-xs text-gray-500 italic mb-2">
+                Download akan dimulai otomatis setelah proses selesai
+            </p>
+            <p class="text-xs text-gray-400">
+                Klik tombol [X] di pojok kanan atas untuk menutup jika download sudah selesai
+            </p>
+        </div>
+    </div>
+</div>
+
 @endsection

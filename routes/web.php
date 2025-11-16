@@ -148,6 +148,20 @@ Route::middleware(['auth', 'user.active'])->group(function () {
     Route::get('/reports/comprehensive', [ComprehensiveReportController::class, 'index'])->name('reports.comprehensive');
     Route::get('/reports/comprehensive/export', [ComprehensiveReportController::class, 'export'])->name('reports.comprehensive.export');
 
+    // PILOT Comparison Routes
+    Route::middleware('role:admin,super_admin,cgp')->prefix('pilot-comparison')->name('pilot-comparison.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PilotComparisonController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\PilotComparisonController::class, 'create'])->name('create');
+        Route::post('/preview', [\App\Http\Controllers\PilotComparisonController::class, 'preview'])->name('preview');
+        Route::post('/import-sheets', [\App\Http\Controllers\PilotComparisonController::class, 'importFromGoogleSheets'])->name('import-sheets');
+        Route::get('/preview/view', [\App\Http\Controllers\PilotComparisonController::class, 'previewView'])->name('preview-view');
+        Route::get('/debug', [\App\Http\Controllers\PilotComparisonController::class, 'debugView'])->name('debug-view');
+        Route::post('/', [\App\Http\Controllers\PilotComparisonController::class, 'store'])->name('store');
+        Route::get('/{batch}', [\App\Http\Controllers\PilotComparisonController::class, 'show'])->name('show');
+        Route::delete('/{batch}', [\App\Http\Controllers\PilotComparisonController::class, 'destroy'])->name('destroy');
+        Route::get('/{batch}/export', [\App\Http\Controllers\PilotComparisonController::class, 'export'])->name('export');
+    });
+
     // Admin Routes
     Route::middleware(['role:super_admin,admin'])
         ->prefix('admin')
@@ -212,6 +226,17 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/stats/json', [CalonPelangganController::class, 'getStats'])->name('stats');
             Route::get('/validate-reff/{reffId}', [CalonPelangganController::class, 'validateReff'])
                 ->where('reffId', '[A-Z0-9\-]+')->name('validate-reff');
+
+            // BA Gas In Routes
+            Route::get('/get-all-ids', [CalonPelangganController::class, 'getAllIds'])
+                ->name('get-all-ids');
+            Route::get('/download-bulk-ba', [CalonPelangganController::class, 'downloadBulkBeritaAcara'])
+                ->name('download-bulk-ba');
+            Route::get('/{customer}/berita-acara/preview', [CalonPelangganController::class, 'previewBeritaAcara'])
+                ->name('berita-acara.preview');
+            Route::get('/{customer}/berita-acara', [CalonPelangganController::class, 'downloadBeritaAcara'])
+                ->name('berita-acara');
+
             Route::get('/{reffId}', [CalonPelangganController::class, 'show'])
                 ->where('reffId', '[A-Z0-9\-]+')->name('show');
         });
@@ -227,9 +252,9 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::post('/{reffId}/reject', [CalonPelangganController::class, 'rejectCustomer'])
                 ->where('reffId', '[A-Z0-9\-]+')->name('reject');
 
-            // Import RT/RW
-            Route::get('/import-rt-rw', [CalonPelangganController::class, 'importRtRwForm'])->name('import-rt-rw.form');
-            Route::post('/import-rt-rw', [CalonPelangganController::class, 'importRtRw'])->name('import-rt-rw');
+            // Import Data Calon Pelanggan (Bulk Update)
+            Route::get('/import-bulk-data', [CalonPelangganController::class, 'importBulkDataForm'])->name('import-bulk-data.form');
+            Route::post('/import-bulk-data', [CalonPelangganController::class, 'importBulkData'])->name('import-bulk-data');
         });
     });
 
@@ -443,6 +468,8 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/{gasIn}/berita-acara', [GasInDataController::class, 'generateBeritaAcara'])
                 ->whereNumber('gasIn')
                 ->name('berita-acara');
+            Route::get('/download-bulk-ba', [GasInDataController::class, 'downloadBulkBeritaAcara'])
+                ->name('download-bulk-ba');
 
             // Download Foto Regulator (MGRT) - Batch dengan filter tanggal
             Route::get('/preview-foto-regulator', [GasInDataController::class, 'previewFotoRegulator'])

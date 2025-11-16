@@ -52,6 +52,222 @@
             @apply bg-gradient-to-r from-aergas-orange/10 to-aergas-orange/5 border-r-2 border-aergas-orange text-aergas-orange font-medium;
         }
 
+        /* Modern Dropdown - Simple & Clean Design */
+        select {
+            padding: 0.5rem 0.875rem !important;
+            padding-right: 2.25rem !important;
+            font-size: 0.875rem !important;
+            font-weight: 400 !important;
+            line-height: 1.5 !important;
+            color: #1f2937 !important;
+            background-color: #ffffff !important;
+            border: 1.5px solid #d1d5db !important;
+            border-radius: 0.5rem !important;
+            transition: all 0.15s ease !important;
+            cursor: pointer !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 0.625rem center !important;
+            background-size: 1rem !important;
+        }
+        select:hover {
+            border-color: #9ca3af !important;
+            background-color: #fafafa !important;
+        }
+        select:focus {
+            outline: none !important;
+            border-color: #ff6b35 !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.08) !important;
+        }
+        select:disabled {
+            opacity: 0.5 !important;
+            cursor: not-allowed !important;
+            background-color: #f3f4f6 !important;
+            border-color: #e5e7eb !important;
+        }
+        select::-ms-expand {
+            display: none;
+        }
+
+        /* Styling untuk option items - rounded & smooth */
+        select option {
+            padding: 0.625rem 0.875rem !important;
+            margin: 0.125rem 0.375rem !important;
+            font-size: 0.875rem !important;
+            line-height: 1.5 !important;
+            color: #1f2937 !important;
+            background-color: transparent !important;
+            border-radius: 0.375rem !important;
+        }
+        select option:hover {
+            background-color: #fff7ed !important;
+            color: #c2410c !important;
+            border-radius: 0.375rem !important;
+        }
+        select option:checked {
+            background-color: #ff6b35 !important;
+            color: #ffffff !important;
+            font-weight: 500 !important;
+            border-radius: 0.375rem !important;
+        }
+        select option:disabled {
+            color: #d1d5db !important;
+            background-color: transparent !important;
+            cursor: not-allowed !important;
+            opacity: 0.5 !important;
+        }
+
+        /* Smooth scrollbar untuk dropdown */
+        select {
+            scrollbar-width: thin !important;
+            scrollbar-color: #d1d5db transparent !important;
+        }
+        select::-webkit-scrollbar {
+            width: 6px !important;
+        }
+        select::-webkit-scrollbar-track {
+            background: transparent !important;
+        }
+        select::-webkit-scrollbar-thumb {
+            background: #d1d5db !important;
+            border-radius: 3px !important;
+        }
+        select::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af !important;
+        }
+
+        /* Alpine Custom Dropdown dengan Animasi */
+        .custom-dropdown {
+            position: relative;
+        }
+        .custom-dropdown-button {
+            width: 100%;
+            padding: 0.5rem 0.875rem;
+            padding-right: 2.25rem;
+            font-size: 0.875rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: #1f2937;
+            background-color: #ffffff;
+            border: 1.5px solid #d1d5db;
+            border-radius: 0.5rem;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            text-align: left;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.625rem center;
+            background-size: 1rem;
+        }
+        .custom-dropdown-button:hover {
+            border-color: #9ca3af;
+            background-color: #fafafa;
+        }
+        .custom-dropdown-button.active {
+            border-color: #ff6b35;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.08);
+        }
+        .custom-dropdown-button svg {
+            position: absolute;
+            right: 0.625rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1rem;
+            height: 1rem;
+            color: #9ca3af;
+            transition: transform 0.2s ease;
+        }
+        .custom-dropdown-button.active svg {
+            transform: translateY(-50%) rotate(180deg);
+        }
+
+        /* Dropdown Menu dengan Rounded & Animasi */
+        .custom-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 0.375rem;
+            background: white;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            z-index: 50;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .custom-dropdown-menu::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-dropdown-menu::-webkit-scrollbar-track {
+            background: #f9fafb;
+        }
+        .custom-dropdown-menu::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+        .custom-dropdown-menu::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        /* Dropdown Option Items */
+        .custom-dropdown-option {
+            padding: 0.625rem 0.875rem;
+            font-size: 0.875rem;
+            color: #1f2937;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+        .custom-dropdown-option:hover {
+            background-color: #fff7ed;
+            color: #c2410c;
+        }
+        .custom-dropdown-option.selected {
+            background-color: #ff6b35;
+            color: #ffffff;
+            font-weight: 500;
+        }
+        .custom-dropdown-option:first-child {
+            margin-top: 0.25rem;
+        }
+        .custom-dropdown-option:last-child {
+            margin-bottom: 0.25rem;
+        }
+
+        /* Animasi Slide Down/Up */
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+        .dropdown-enter {
+            animation: slideDown 0.2s ease-out;
+        }
+        .dropdown-leave {
+            animation: slideUp 0.15s ease-in;
+        }
+
         /* Custom scrollbar */
         .custom-scrollbar::-webkit-scrollbar {
             width: 4px;
@@ -714,6 +930,102 @@
     <!-- Leaflet Draw JS (for drawing tools) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+    <!-- Auto Convert All Select to Custom Dropdown -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('select').forEach(function(select) {
+            // Skip if already converted
+            if (select.dataset.converted) return;
+
+            // Get select properties
+            const name = select.name;
+            const id = select.id;
+            const required = select.required;
+            const disabled = select.disabled;
+            const selectedIndex = select.selectedIndex;
+            const options = Array.from(select.options);
+
+            // Get current value
+            let currentValue = select.value;
+            let currentLabel = options[selectedIndex]?.text || options[0]?.text || 'Pilih opsi';
+
+            // Create wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = 'custom-dropdown';
+            wrapper.setAttribute('x-data', JSON.stringify({
+                open: false,
+                selected: currentValue,
+                label: currentLabel
+            }));
+            wrapper.setAttribute('@click.away', 'open = false');
+
+            // Create button
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'custom-dropdown-button';
+            button.setAttribute(':class', "{ 'active': open }");
+            button.setAttribute('@click', 'open = !open');
+            button.disabled = disabled;
+            button.innerHTML = '<span x-text="label"></span>';
+
+            // Create menu
+            const menu = document.createElement('div');
+            menu.className = 'custom-dropdown-menu';
+            menu.setAttribute('x-show', 'open');
+            menu.setAttribute('x-transition:enter', 'dropdown-enter');
+            menu.setAttribute('x-transition:leave', 'dropdown-leave');
+            menu.style.display = 'none';
+
+            // Add options
+            options.forEach(function(option) {
+                if (option.value === '' && option.text === '') return;
+
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'custom-dropdown-option';
+                optionDiv.textContent = option.text;
+                optionDiv.setAttribute('@click',
+                    `selected = '${option.value}'; label = '${option.text.replace(/'/g, "\\'")}'; open = false`
+                );
+                optionDiv.setAttribute(':class', `{ 'selected': selected === '${option.value}' }`);
+
+                menu.appendChild(optionDiv);
+            });
+
+            // Create hidden input
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = name;
+            if (id) hidden.id = id;
+            hidden.required = required;
+            hidden.setAttribute('x-model', 'selected');
+
+            // Copy classes from original select
+            if (select.className) {
+                const classes = select.className.split(' ').filter(c =>
+                    c.includes('error') || c.includes('invalid')
+                );
+                if (classes.length > 0) {
+                    button.className += ' ' + classes.join(' ');
+                }
+            }
+
+            // Build structure
+            wrapper.appendChild(button);
+            wrapper.appendChild(menu);
+            wrapper.appendChild(hidden);
+
+            // Replace select with wrapper
+            select.parentNode.replaceChild(wrapper, select);
+            select.dataset.converted = 'true';
+
+            // Reinitialize Alpine for this element
+            if (window.Alpine) {
+                Alpine.initTree(wrapper);
+            }
+        });
+    });
+    </script>
 
     @stack('scripts')
 </body>
