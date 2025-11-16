@@ -4,7 +4,7 @@
 @section('title', 'Data Gas In - AERGAS')
 
 @section('content')
-<div class="space-y-6" x-data="gasInIndexData()" x-init="initPaginationState()">
+<div class="space-y-6" x-data="gasInIndexData()" x-init="initPaginationState(); window.gasInData = $data">
 
   {{-- Header Section with Responsive Layout --}}
   <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -1066,7 +1066,7 @@ function gasInIndexData() {
                 console.error('Error downloading foto MGRT:', error);
                 alert('Gagal mendownload foto MGRT. Silakan coba lagi.');
             }
-        }
+        },
     }
 }
 

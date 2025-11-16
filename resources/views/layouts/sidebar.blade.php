@@ -488,6 +488,11 @@
                             <i class="fas fa-road w-5 mr-3 text-sm"></i>
                             Laporan Jalur
                         </a>
+                        <a href="{{ route('pilot-comparison.index') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('pilot-comparison.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-balance-scale w-5 mr-3 text-sm"></i>
+                            PILOT Comparison
+                        </a>
                     </div>
                 </div>
                 @endif
@@ -533,11 +538,11 @@
                             Calon Pelanggan
                         </a>
 
-                        <!-- RT/RW Import -->
-                        <a href="{{ route('customers.import-rt-rw.form') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('customers.import-rt-rw.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-map-signs w-5 mr-3 text-sm"></i>
-                            RT/RW Pelanggan
+                        <!-- Bulk Import Data Pelanggan -->
+                        <a href="{{ route('customers.import-bulk-data.form') }}"
+                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('customers.import-bulk-data.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            <i class="fas fa-file-import w-5 mr-3 text-sm"></i>
+                            Update Data Pelanggan
                         </a>
 
                         <!-- Coordinates Import -->

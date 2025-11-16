@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\CalonPelanggan;
+use App\Models\GasInData;
 use App\Models\SkData;
 use App\Services\NotificationService;
 use App\Services\ReportService;
+use App\Services\BeritaAcaraService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
@@ -39,7 +41,7 @@ class CalonPelangganController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = CalonPelanggan::with(['validatedBy:id,name']);
+            $query = CalonPelanggan::with(['validatedBy:id,name', 'gasInData']);
 
             // Filters
             if ($s = trim((string) $request->input('search', ''))) {
@@ -700,21 +702,41 @@ class CalonPelangganController extends Controller
     }
 
     /**
-     * Show form Import RT/RW
+     * Show form Import Data Calon Pelanggan
      */
-    public function importRtRwForm()
+    public function importBulkDataForm()
     {
-        return view('imports.rt-rw');
+        // Get allowed columns for display
+        $import = new \App\Imports\CalonPelangganBulkImport();
+        $allowedColumns = $import->getAllowedColumns();
+
+        return view('imports.calon-pelanggan-bulk', compact('allowedColumns'));
     }
 
     /**
-     * Import RT dan RW dari Excel
+     * Import Data Calon Pelanggan dari Excel (Bulk Update)
      */
-    public function importRtRw(Request $request)
+    public function importBulkData(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'file' => 'required|mimes:xlsx,xls,csv|max:5120', // Max 5MB
-        ]);
+        $mode = $request->input('mode');
+
+        // Validation rules berbeda untuk preview vs commit
+        $rules = [
+            'mode' => 'required|in:preview,commit',
+            'force_update' => 'nullable|boolean'
+        ];
+
+        // Untuk preview, file wajib diupload
+        if ($mode === 'preview') {
+            $rules['file'] = 'required|mimes:xlsx,xls,csv|max:5120';
+        }
+        // Untuk commit, file atau temp_file harus ada
+        else if ($mode === 'commit') {
+            $rules['file'] = 'nullable|mimes:xlsx,xls,csv|max:5120';
+            $rules['temp_file'] = 'required_without:file|string';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return redirect()->back()
@@ -722,33 +744,87 @@ class CalonPelangganController extends Controller
                 ->withInput();
         }
 
+        $forceUpdate = $request->boolean('force_update', false);
+
         try {
             $file = $request->file('file');
 
-            // Create import instance
-            $import = new \App\Imports\RtRwImport();
+            // PREVIEW MODE (Dry Run)
+            if ($mode === 'preview') {
+                // Create import instance with dry run mode and force_update flag
+                $import = new \App\Imports\CalonPelangganBulkImport(true, $forceUpdate);
 
-            // Import the file
-            \Maatwebsite\Excel\Facades\Excel::import($import, $file);
+                // Import the file (without saving to database)
+                \Maatwebsite\Excel\Facades\Excel::import($import, $file);
 
-            // Get statistics
-            $updated = $import->getUpdated();
-            $skipped = $import->getSkipped();
-            $errors = $import->getErrors();
+                // Get detailed statistics
+                $summary = $import->getSummary();
 
-            Log::info('RT/RW import completed', [
-                'updated' => $updated,
-                'skipped' => $skipped,
-                'user_id' => Auth::id()
-            ]);
+                // Store file temporarily for commit
+                $tempPath = $file->store('temp-imports');
 
-            return redirect()->back()->with('import_results', [
-                'success' => true,
-                'message' => "Import berhasil! {$updated} data diupdate, {$skipped} data dilewati.",
-                'updated' => $updated,
-                'skipped' => $skipped,
-                'errors' => $errors
-            ]);
+                Log::info('Calon Pelanggan bulk import preview', [
+                    'total_rows' => $summary['total_rows'],
+                    'would_update' => $summary['updated'],
+                    'would_skip' => $summary['skipped'],
+                    'force_update' => $forceUpdate,
+                    'user_id' => Auth::id()
+                ]);
+
+                return redirect()->back()->with('import_preview', [
+                    'success' => true,
+                    'mode' => 'preview',
+                    'message' => "Preview: {$summary['updated']} data akan diupdate, {$summary['skipped']} data akan dilewati dari total {$summary['total_rows']} baris.",
+                    'summary' => $summary,
+                    'temp_file' => $tempPath,
+                    'force_update' => $forceUpdate
+                ]);
+            }
+
+            // COMMIT MODE (Actual Update)
+            if ($mode === 'commit') {
+                // Check if there's a temp file from preview
+                $tempPath = $request->input('temp_file');
+
+                if ($tempPath && \Storage::exists($tempPath)) {
+                    // Use the temp file - Storage::path() will give correct full path
+                    $filePath = \Storage::path($tempPath);
+                } else {
+                    // Use newly uploaded file
+                    $filePath = $file->getRealPath();
+                }
+
+                // Create import instance (normal mode) with force_update flag
+                $import = new \App\Imports\CalonPelangganBulkImport(false, $forceUpdate);
+
+                // Import the file (save to database)
+                \Maatwebsite\Excel\Facades\Excel::import($import, $filePath);
+
+                // Get detailed statistics
+                $summary = $import->getSummary();
+
+                // Clean up temp file
+                if ($tempPath && \Storage::exists($tempPath)) {
+                    \Storage::delete($tempPath);
+                }
+
+                Log::info('Calon Pelanggan bulk import committed', [
+                    'total_rows' => $summary['total_rows'],
+                    'updated' => $summary['updated'],
+                    'skipped' => $summary['skipped'],
+                    'not_found_count' => $summary['not_found_count'],
+                    'missing_reff_count' => $summary['missing_reff_count'],
+                    'force_update' => $forceUpdate,
+                    'user_id' => Auth::id()
+                ]);
+
+                return redirect()->back()->with('import_results', [
+                    'success' => true,
+                    'mode' => 'commit',
+                    'message' => "Import berhasil! {$summary['updated']} data diupdate, {$summary['skipped']} data dilewati dari total {$summary['total_rows']} baris.",
+                    'summary' => $summary
+                ]);
+            }
 
         } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
             $failures = $e->failures();
@@ -765,7 +841,7 @@ class CalonPelangganController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('RT/RW import failed', [
+            Log::error('Calon Pelanggan bulk import failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id()
@@ -777,5 +853,293 @@ class CalonPelangganController extends Controller
                 'errors' => []
             ]);
         }
+    }
+
+    /**
+     * Preview Berita Acara Gas In for a customer
+     * Works even if customer doesn't have Gas In data yet
+     */
+    public function previewBeritaAcara(CalonPelanggan $customer, BeritaAcaraService $beritaAcaraService)
+    {
+        try {
+            // Check if customer has Gas In data
+            $gasIn = $customer->gasInData;
+
+            if (!$gasIn) {
+                // Create a temporary Gas In instance for preview
+                $gasIn = new \App\Models\GasInData([
+                    'reff_id_pelanggan' => $customer->reff_id_pelanggan,
+                    'tanggal_gas_in' => now(),
+                    'status' => 'draft',
+                ]);
+                $gasIn->setRelation('calonPelanggan', $customer);
+            }
+
+            $result = $beritaAcaraService->generateGasInBeritaAcara($gasIn);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            // Stream PDF to browser for preview
+            return $result['pdf']->stream($result['filename']);
+
+        } catch (\Exception $e) {
+            Log::error('Preview Customer Berita Acara failed', [
+                'customer_id' => $customer->reff_id_pelanggan,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menampilkan preview BA: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download Berita Acara Gas In for a customer
+     */
+    public function downloadBeritaAcara(CalonPelanggan $customer, BeritaAcaraService $beritaAcaraService)
+    {
+        try {
+            // Check if customer has Gas In data
+            $gasIn = $customer->gasInData;
+
+            if (!$gasIn) {
+                // Create a temporary Gas In instance for download
+                $gasIn = new \App\Models\GasInData([
+                    'reff_id_pelanggan' => $customer->reff_id_pelanggan,
+                    'tanggal_gas_in' => now(),
+                    'status' => 'draft',
+                ]);
+                $gasIn->setRelation('calonPelanggan', $customer);
+            }
+
+            $result = $beritaAcaraService->generateGasInBeritaAcara($gasIn);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            // Download PDF
+            return $result['pdf']->download($result['filename']);
+
+        } catch (\Exception $e) {
+            Log::error('Download Customer Berita Acara failed', [
+                'customer_id' => $customer->reff_id_pelanggan,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengunduh BA: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download multiple Berita Acara Gas In as ZIP
+     * Now accepts reff_id_pelanggan instead of gas_in_data.id
+     * Works for ALL customers (with or without Gas In data)
+     */
+    public function downloadBulkBeritaAcara(Request $r, BeritaAcaraService $beritaAcaraService)
+    {
+        try {
+            $ids = $r->input('ids', []);
+
+            if (empty($ids) || !is_array($ids)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada BA yang dipilih'
+                ], 400);
+            }
+
+            // Limit to 100 files
+            if (count($ids) > 100) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Maksimal 100 BA dapat di-download sekaligus'
+                ], 400);
+            }
+
+            // Fetch customers by reff_id_pelanggan
+            $customers = CalonPelanggan::with('gasInData')
+                ->whereIn('reff_id_pelanggan', $ids)
+                ->get();
+
+            if ($customers->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data pelanggan tidak ditemukan'
+                ], 404);
+            }
+
+            // Create temp directory
+            $tempDir = storage_path('app/temp/ba_bulk_' . uniqid());
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $generatedFiles = [];
+
+            // Generate PDF for each customer
+            foreach ($customers as $customer) {
+                try {
+                    $gasIn = $customer->gasInData;
+
+                    // If customer doesn't have Gas In data, create temporary instance
+                    if (!$gasIn) {
+                        $gasIn = new \App\Models\GasInData([
+                            'reff_id_pelanggan' => $customer->reff_id_pelanggan,
+                            'tanggal_gas_in' => now(),
+                            'status' => 'draft',
+                        ]);
+                        $gasIn->setRelation('calonPelanggan', $customer);
+                    }
+
+                    $result = $beritaAcaraService->generateGasInBeritaAcara($gasIn);
+
+                    if ($result['success']) {
+                        $filePath = $tempDir . '/' . $result['filename'];
+                        $result['pdf']->save($filePath);
+                        $generatedFiles[] = $filePath;
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to generate BA for customer: ' . $customer->reff_id_pelanggan, [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            if (empty($generatedFiles)) {
+                // Cleanup
+                $this->recursiveRemoveDirectory($tempDir);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menggenerate BA'
+                ], 500);
+            }
+
+            // Create ZIP
+            $zip = new \ZipArchive();
+            $zipPath = storage_path('app/temp/Berita_Acara_Gas_In_' . date('Ymd_His') . '.zip');
+
+            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+                $this->recursiveRemoveDirectory($tempDir);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal membuat file ZIP'
+                ], 500);
+            }
+
+            // Add files to ZIP
+            foreach ($generatedFiles as $file) {
+                $zip->addFile($file, basename($file));
+            }
+
+            $zip->close();
+
+            // Cleanup temp PDFs
+            $this->recursiveRemoveDirectory($tempDir);
+
+            // Download and delete ZIP after send
+            return response()->download($zipPath)->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            Log::error('Bulk BA download failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat mengunduh BA: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all customer IDs with current filters
+     * Used for "Select All Pages" functionality
+     */
+    public function getAllIds(Request $request)
+    {
+        try {
+            $query = CalonPelanggan::with(['gasInData']);
+
+            // Apply same filters as index method
+            if ($s = trim((string) $request->input('search', ''))) {
+                $query->where(function ($q) use ($s) {
+                    $q->where('nama_pelanggan', 'like', "%{$s}%")
+                      ->orWhere('alamat', 'like', "%{$s}%")
+                      ->orWhere('reff_id_pelanggan', 'like', "%{$s}%")
+                      ->orWhere('nomor_telepon', 'like', "%{$s}%");
+                });
+            }
+
+            if ($status = trim((string) $request->input('status', ''))) {
+                $query->where('status', $status);
+            }
+
+            if ($progress = trim((string) $request->input('progress', ''))) {
+                $query->where('progress_status', $progress);
+            }
+
+            // Get all customers matching filters (no pagination)
+            $customers = $query->select([
+                'reff_id_pelanggan',
+                'nama_pelanggan'
+            ])->get()->map(function ($customer) {
+                return [
+                    'reff_id_pelanggan' => $customer->reff_id_pelanggan,
+                    'nama_pelanggan' => $customer->nama_pelanggan,
+                    'gas_in_data' => $customer->gasInData ? [
+                        'id' => $customer->gasInData->id,
+                        'tanggal_gas_in' => $customer->gasInData->tanggal_gas_in
+                    ] : null
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'customers' => $customers,
+                'total' => $customers->count()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to get all customer IDs', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data customer: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Recursively remove directory
+     */
+    private function recursiveRemoveDirectory($directory)
+    {
+        if (!file_exists($directory)) {
+            return;
+        }
+
+        $files = array_diff(scandir($directory), ['.', '..']);
+        foreach ($files as $file) {
+            $path = $directory . '/' . $file;
+            is_dir($path) ? $this->recursiveRemoveDirectory($path) : unlink($path);
+        }
+        rmdir($directory);
     }
 }

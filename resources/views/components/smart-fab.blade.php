@@ -168,20 +168,20 @@
 @endphp
 
 @if(count($actions) > 0)
-<!-- Smart FAB - Role & Context Aware -->
-<div x-data="{ quickActionsOpen: false }" class="fixed bottom-6 right-6 z-[1100]">
-    <!-- Quick Actions Menu -->
+<!-- Smart FAB - Role & Context Aware (Vertical Right Side) -->
+<div x-data="{ quickActionsOpen: false, isExpanded: false }" class="fixed right-0 z-[1100]" style="top: 75vh; transform: translateY(-50%);">
+    <!-- Quick Actions Menu (starts from button position, goes up) -->
     <div x-show="quickActionsOpen"
          x-transition:enter="transition ease-out duration-300 transform"
-         x-transition:enter-start="opacity-0 translate-y-4 scale-95"
-         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:enter-start="opacity-0 translate-x-4 scale-95"
+         x-transition:enter-end="opacity-100 translate-x-0 scale-100"
          x-transition:leave="transition ease-in duration-200 transform"
-         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-         x-transition:leave-end="opacity-0 translate-y-4 scale-95"
-         class="absolute bottom-20 right-0 bg-transparent"
-         style="display: none;">
+         x-transition:leave-start="opacity-100 translate-x-0 scale-100"
+         x-transition:leave-end="opacity-0 translate-x-4 scale-95"
+         class="absolute right-14 bg-transparent"
+         style="display: none; bottom: -8rem;">
 
-        <div class="flex flex-col items-end space-y-2 p-2">
+        <div class="flex flex-col-reverse items-end space-y-reverse space-y-2 p-2">
             @foreach($actions as $action)
             <div @click="window.location.href='{{ route($action['route']) }}'"
                  class="flex items-center justify-end space-x-3 cursor-pointer transition-all duration-200 group">
@@ -196,11 +196,30 @@
         </div>
     </div>
 
-    <!-- Floating Action Button -->
-    <button @click="quickActionsOpen = !quickActionsOpen"
-            class="w-16 h-16 bg-gradient-to-br from-aergas-navy to-aergas-orange rounded-full shadow-2xl hover:shadow-3xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95">
-        <i class="fas fa-bolt text-white text-2xl" x-show="!quickActionsOpen"></i>
-        <i class="fas fa-times text-white text-2xl" x-show="quickActionsOpen" style="display: none;"></i>
-    </button>
+    <!-- Quick Action Button (Collapsed by default, expands on hover) -->
+    <div @mouseenter="isExpanded = true"
+         @mouseleave="isExpanded = false"
+         class="bg-gradient-to-br from-aergas-navy to-aergas-orange shadow-lg hover:shadow-xl transition-all duration-300 rounded-l-lg cursor-pointer overflow-hidden"
+         @click="quickActionsOpen = !quickActionsOpen"
+         :style="'width: ' + (isExpanded ? '2.5rem' : '0.5rem') + '; transition: width 0.3s ease;'">
+
+        <div class="h-full flex flex-col items-center justify-center py-2" style="width: 2.5rem;">
+            <!-- Row 1: QUICK (rotated text) -->
+            <div class="text-white text-xs font-semibold px-0.5 mb-1" style="writing-mode: vertical-lr; letter-spacing: 0.05em;">
+                QUICK
+            </div>
+
+            <!-- Row 2: ACTIONS (rotated text) -->
+            <div class="text-white text-xs font-semibold px-0.5 mb-1" style="writing-mode: vertical-lr; letter-spacing: 0.05em;">
+                ACTIONS
+            </div>
+
+            <!-- Row 3: Icon -->
+            <div class="text-white text-xs px-0.5">
+                <i class="fas fa-bolt" x-show="!quickActionsOpen"></i>
+                <i class="fas fa-times" x-show="quickActionsOpen" style="display: none;"></i>
+            </div>
+        </div>
+    </div>
 </div>
 @endif

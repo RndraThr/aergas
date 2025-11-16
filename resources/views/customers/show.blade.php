@@ -39,6 +39,12 @@
         </div>
 
         <div class="flex items-center space-x-3">
+            <button onclick="openBaPreview()"
+                    class="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                <i class="fas fa-eye"></i>
+                <span>Preview BA</span>
+            </button>
+
             @if(auth()->user()->hasAnyRole(['admin', 'tracer', 'super_admin']))
                 @if($customer->status === 'pending')
                     <button @click="validateCustomer()"
@@ -46,7 +52,7 @@
                         <i class="fas fa-check"></i>
                         <span>Validate</span>
                     </button>
-                    
+
                     <button @click="rejectCustomer()"
                             class="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
                         <i class="fas fa-times"></i>
@@ -474,6 +480,61 @@
     </div>
 </div>
 
+{{-- BA Preview Modal --}}
+<div id="baPreviewModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 p-4" style="display: none; align-items: center; justify-content: center;">
+    <div class="bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-file-pdf text-white"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">Preview Berita Acara Gas In</h3>
+                    <p class="text-sm text-gray-600">{{ $customer->display_reff_id }} - {{ $customer->nama_pelanggan }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="downloadBaPdf()"
+                        class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                    <i class="fas fa-download"></i>
+                    Download PDF
+                </button>
+                <button onclick="closeBaPreview()"
+                        class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- PDF Viewer -->
+        <div class="flex-1 overflow-hidden bg-gray-100 relative">
+            <!-- Loading Overlay -->
+            <div id="baLoadingOverlay" class="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center z-10" style="display: flex;">
+                <div class="flex flex-col items-center gap-4">
+                    <!-- Spinner -->
+                    <div class="relative">
+                        <div class="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <i class="fas fa-file-pdf text-purple-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <!-- Loading Text -->
+                    <div class="text-center">
+                        <p class="text-lg font-semibold text-gray-700">Memuat Berita Acara...</p>
+                        <p class="text-sm text-gray-500 mt-1">Mohon tunggu sebentar</p>
+                    </div>
+                </div>
+            </div>
+
+            <iframe id="baPreviewIframe"
+                    class="w-full h-full"
+                    frameborder="0">
+            </iframe>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
 function customerDetailData() {
@@ -559,9 +620,87 @@ function customerDetailData() {
 
         loadMoreActivities() {
             window.showToast('info', 'Load more feature coming soon');
+        },
+
+    }
+}
+
+// BA Preview Modal Functions (Vanilla JS - same approach as gas-in/show.blade.php)
+function openBaPreview() {
+    const modal = document.getElementById('baPreviewModal');
+    const iframe = document.getElementById('baPreviewIframe');
+    const loadingOverlay = document.getElementById('baLoadingOverlay');
+    const reffId = '{{ $customer->reff_id_pelanggan }}';
+    const previewUrl = `/customers/${reffId}/berita-acara/preview`;
+
+    // Store download URL globally
+    window.baDownloadUrl = `/customers/${reffId}/berita-acara`;
+
+    // Show loading overlay
+    loadingOverlay.style.display = 'flex';
+
+    iframe.src = previewUrl;
+    modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeBaPreview() {
+    const modal = document.getElementById('baPreviewModal');
+    const iframe = document.getElementById('baPreviewIframe');
+    const loadingOverlay = document.getElementById('baLoadingOverlay');
+
+    iframe.src = '';
+    loadingOverlay.style.display = 'flex'; // Reset to loading state for next open
+    modal.style.display = 'none';
+    modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+function downloadBaPdf() {
+    if (window.baDownloadUrl) {
+        window.open(window.baDownloadUrl, '_blank');
+    } else {
+        if (window.showToast) {
+            window.showToast('error', 'URL download tidak tersedia');
         }
     }
 }
+
+// Hide loading overlay when PDF is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    const iframe = document.getElementById('baPreviewIframe');
+    const loadingOverlay = document.getElementById('baLoadingOverlay');
+
+    if (iframe && loadingOverlay) {
+        iframe.addEventListener('load', function() {
+            if (iframe.src) {
+                setTimeout(function() {
+                    loadingOverlay.style.display = 'none';
+                }, 500); // Small delay to ensure PDF is rendered
+            }
+        });
+    }
+});
+
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('baPreviewModal');
+    if (e.target === modal) {
+        closeBaPreview();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('baPreviewModal');
+        if (modal && modal.style.display === 'flex') {
+            closeBaPreview();
+        }
+    }
+});
+
 </script>
 @endpush
 @endsection

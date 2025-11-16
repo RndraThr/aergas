@@ -436,7 +436,7 @@
    </div>
 
    <!-- Quick Actions Overlay -->
-   <div x-data="{ quickActionsOpen: false }" class="fixed bottom-6 right-6 z-[1100]">
+   {{-- <div x-data="{ quickActionsOpen: false }" class="fixed bottom-6 right-6 z-[1100]">
        <!-- Quick Actions Menu -->
        <div x-show="quickActionsOpen"
             x-transition:enter="transition ease-out duration-300 transform"
@@ -539,7 +539,7 @@
            <i class="fas fa-bolt text-white text-2xl" x-show="!quickActionsOpen"></i>
            <i class="fas fa-times text-white text-2xl" x-show="quickActionsOpen" style="display: none;"></i>
        </button>
-   </div>
+   </div> --}}
    {{-- Smart FAB akan ditampilkan otomatis oleh layout --}}
 
    @if(auth()->user()->hasAnyRole(['tracer', 'super_admin']))
