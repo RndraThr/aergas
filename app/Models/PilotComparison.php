@@ -61,6 +61,14 @@ class PilotComparison extends Model
         'comparison_status',
         'differences',
         'uploaded_by',
+        // Comparison summary fields
+        'comparison_results',
+        'total_records',
+        'without_reff_id',
+        'new_customers',
+        'incomplete_installation',
+        'ready_to_insert',
+        'compared_at',
     ];
 
     protected $casts = [
@@ -72,6 +80,8 @@ class PilotComparison extends Model
         'db_tanggal_gas_in' => 'date',
         'pilot_raw_data' => 'array',
         'differences' => 'array',
+        'comparison_results' => 'array',
+        'compared_at' => 'datetime',
     ];
 
     // Status constants

@@ -158,6 +158,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
         Route::get('/debug', [\App\Http\Controllers\PilotComparisonController::class, 'debugView'])->name('debug-view');
         Route::post('/', [\App\Http\Controllers\PilotComparisonController::class, 'store'])->name('store');
         Route::get('/{batch}', [\App\Http\Controllers\PilotComparisonController::class, 'show'])->name('show');
+        Route::post('/{batch}/compare', [\App\Http\Controllers\PilotComparisonController::class, 'compare'])->name('compare');
         Route::delete('/{batch}', [\App\Http\Controllers\PilotComparisonController::class, 'destroy'])->name('destroy');
         Route::get('/{batch}/export', [\App\Http\Controllers\PilotComparisonController::class, 'export'])->name('export');
     });

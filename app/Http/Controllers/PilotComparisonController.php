@@ -1227,27 +1227,230 @@ class PilotComparisonController extends Controller
      */
     public function show(Request $request, string $batch)
     {
-        $query = Pilot::query()
+        // Get ALL data for client-side rendering (no pagination)
+        // This allows instant search, sort, and pagination without page reload
+        $allPilots = Pilot::query()
             ->where('batch_id', $batch)
-            ->with('uploader');
-
-        // Search by id_reff or name
-        if ($request->has('search') && $request->search !== '') {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('id_reff', 'like', "%{$search}%")
-                  ->orWhere('nama', 'like', "%{$search}%");
+            ->get()
+            ->map(function ($pilot) {
+                // Create searchable string for fast filtering
+                $pilot->search_text = strtolower(implode(' ', array_filter([
+                    $pilot->id, $pilot->id_reff, $pilot->nama,
+                    $pilot->nomor_kartu_identitas, $pilot->nomor_ponsel,
+                    $pilot->alamat, $pilot->rt, $pilot->rw,
+                    $pilot->id_kota_kab, $pilot->id_kecamatan, $pilot->id_kelurahan,
+                    $pilot->padukuhan, $pilot->penetrasi_pengembangan,
+                    $pilot->keterangan, $pilot->batal, $pilot->keterangan_batal,
+                    $pilot->anomali, $pilot->tanggal_terpasang_sk,
+                    $pilot->tanggal_terpasang_sr, $pilot->tanggal_terpasang_gas_in
+                ])));
+                return $pilot;
             });
-        }
-
-        $pilots = $query->paginate(50);
 
         // Get batch summary
-        $summary = Pilot::where('batch_id', $batch)
-            ->selectRaw('COUNT(*) as total')
-            ->first();
+        $summary = (object)[
+            'total' => $allPilots->count()
+        ];
 
-        return view('pilot-comparison.show', compact('pilots', 'batch', 'summary'));
+        return view('pilot-comparison.show', compact('allPilots', 'batch', 'summary'));
+    }
+
+    /**
+     * Run comparison between pilot data and database
+     */
+    public function compare(Request $request, string $batch)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Get all pilots for this batch
+            $pilots = Pilot::where('batch_id', $batch)->get();
+
+            $results = [
+                'without_reff_id' => [],           // 1. Belum ada reff_id
+                'new_customers' => [],              // 2. Reff ID ada di pilot tapi belum di database
+                'incomplete_installation' => [],    // 3. Instalasi belum lengkap (gabungan SK, SR, Gas In)
+                'date_differences' => [],           // 4. Perbedaan tanggal antara pilot dan database
+            ];
+
+            foreach ($pilots as $pilot) {
+                // Category 1: Data yang belum ada reff_id
+                if (empty($pilot->id_reff)) {
+                    $results['without_reff_id'][] = [
+                        'pilot_id' => $pilot->id,
+                        'nama' => $pilot->nama,
+                        'alamat' => $pilot->alamat,
+                        'status' => 'Perlu generate reff_id',
+                        'action_needed' => 'Generate reff_id baru'
+                    ];
+                    continue;
+                }
+
+                // Check if exists in database
+                $existsInDb = \App\Models\CalonPelanggan::where('reff_id_pelanggan', $pilot->id_reff)->exists();
+
+                // Category 2: Reff ID ada di pilot tapi belum ada di database
+                if (!$existsInDb) {
+                    $results['new_customers'][] = [
+                        'pilot_id' => $pilot->id,
+                        'reff_id' => $pilot->id_reff,
+                        'nama' => $pilot->nama,
+                        'alamat' => $pilot->alamat,
+                        'tanggal_sk' => $pilot->tanggal_terpasang_sk,
+                        'tanggal_sr' => $pilot->tanggal_terpasang_sr,
+                        'tanggal_gas_in' => $pilot->tanggal_terpasang_gas_in,
+                        'status' => 'Pelanggan baru, belum ada di database',
+                        'action_needed' => 'Insert ke calon_pelanggan'
+                    ];
+
+                    // SKIP incomplete installation check untuk pelanggan baru
+                    // Category 3 hanya untuk reff_id yang ADA di database
+                } else {
+                    // Category 3 & 4: Exists in database - check for incomplete installation & date differences
+                    // Syarat: Reff_id ADA di database DAN minimal ada 1 tanggal di pilot
+                    $hasPilotDate = !empty($pilot->tanggal_terpasang_sk) ||
+                                    !empty($pilot->tanggal_terpasang_sr) ||
+                                    !empty($pilot->tanggal_terpasang_gas_in);
+
+                    // Skip jika tidak ada tanggal sama sekali di pilot
+                    if (!$hasPilotDate) {
+                        continue;
+                    }
+
+                    $pelanggan = \App\Models\CalonPelanggan::where('reff_id_pelanggan', $pilot->id_reff)->first();
+                    $skData = \App\Models\SkData::where('reff_id_pelanggan', $pilot->id_reff)->first();
+                    $srData = \App\Models\SrData::where('reff_id_pelanggan', $pilot->id_reff)->first();
+                    $gasInData = \App\Models\GasInData::where('reff_id_pelanggan', $pilot->id_reff)->first();
+
+                    // Build incomplete data with status for each field
+                    $incompleteData = [
+                        'reff_id' => $pilot->id_reff,
+                        'nama' => $pilot->nama,
+                        'tanggal_sk' => $pilot->tanggal_terpasang_sk,
+                        'tanggal_sr' => $pilot->tanggal_terpasang_sr,
+                        'tanggal_gas_in' => $pilot->tanggal_terpasang_gas_in,
+                        'sk_status' => null,      // 'complete', 'missing_db', 'different'
+                        'sr_status' => null,
+                        'gas_in_status' => null,
+                        'db_tanggal_sk' => null,
+                        'db_tanggal_sr' => null,
+                        'db_tanggal_gas_in' => null,
+                    ];
+
+                    $hasIssue = false;
+
+                    // Check SK
+                    if (!empty($pilot->tanggal_terpasang_sk)) {
+                        if (!$skData || empty($skData->tanggal_instalasi)) {
+                            // Ada di pilot tapi belum ada di database
+                            $incompleteData['sk_status'] = 'missing_db';
+                            $hasIssue = true;
+                        } elseif ($skData->tanggal_instalasi != $pilot->tanggal_terpasang_sk) {
+                            // Ada di kedua tempat tapi berbeda
+                            $incompleteData['sk_status'] = 'different';
+                            $incompleteData['db_tanggal_sk'] = $skData->tanggal_instalasi;
+                            $hasIssue = true;
+                        } else {
+                            // Sama persis
+                            $incompleteData['sk_status'] = 'complete';
+                            $incompleteData['db_tanggal_sk'] = $skData->tanggal_instalasi;
+                        }
+                    }
+
+                    // Check SR
+                    if (!empty($pilot->tanggal_terpasang_sr)) {
+                        if (!$srData || empty($srData->tanggal_pemasangan)) {
+                            // Ada di pilot tapi belum ada di database
+                            $incompleteData['sr_status'] = 'missing_db';
+                            $hasIssue = true;
+                        } elseif ($srData->tanggal_pemasangan != $pilot->tanggal_terpasang_sr) {
+                            // Ada di kedua tempat tapi berbeda
+                            $incompleteData['sr_status'] = 'different';
+                            $incompleteData['db_tanggal_sr'] = $srData->tanggal_pemasangan;
+                            $hasIssue = true;
+                        } else {
+                            // Sama persis
+                            $incompleteData['sr_status'] = 'complete';
+                            $incompleteData['db_tanggal_sr'] = $srData->tanggal_pemasangan;
+                        }
+                    }
+
+                    // Check Gas In
+                    if (!empty($pilot->tanggal_terpasang_gas_in)) {
+                        if (!$gasInData || empty($gasInData->tanggal_gas_in)) {
+                            // Ada di pilot tapi belum ada di database
+                            $incompleteData['gas_in_status'] = 'missing_db';
+                            $hasIssue = true;
+                        } elseif ($gasInData->tanggal_gas_in != $pilot->tanggal_terpasang_gas_in) {
+                            // Ada di kedua tempat tapi berbeda
+                            $incompleteData['gas_in_status'] = 'different';
+                            $incompleteData['db_tanggal_gas_in'] = $gasInData->tanggal_gas_in;
+                            $hasIssue = true;
+                        } else {
+                            // Sama persis
+                            $incompleteData['gas_in_status'] = 'complete';
+                            $incompleteData['db_tanggal_gas_in'] = $gasInData->tanggal_gas_in;
+                        }
+                    }
+
+                    // Tambahkan ke incomplete jika ada yang belum lengkap atau berbeda
+                    if ($hasIssue || empty($pilot->tanggal_terpasang_sk) || empty($pilot->tanggal_terpasang_sr) || empty($pilot->tanggal_terpasang_gas_in)) {
+                        $results['incomplete_installation'][] = $incompleteData;
+
+                        // Count date differences for summary
+                        if ($incompleteData['sk_status'] === 'different' ||
+                            $incompleteData['sr_status'] === 'different' ||
+                            $incompleteData['gas_in_status'] === 'different') {
+                            $results['date_differences'][] = $incompleteData;
+                        }
+                    }
+                }
+            }
+
+            // Sort incomplete by earliest date across all three fields
+            usort($results['incomplete_installation'], function($a, $b) {
+                // Get earliest date from each record
+                $aDates = array_filter([$a['tanggal_sk'], $a['tanggal_sr'], $a['tanggal_gas_in']]);
+                $bDates = array_filter([$b['tanggal_sk'], $b['tanggal_sr'], $b['tanggal_gas_in']]);
+
+                $aEarliest = !empty($aDates) ? min($aDates) : null;
+                $bEarliest = !empty($bDates) ? min($bDates) : null;
+
+                if (empty($aEarliest) && empty($bEarliest)) return 0;
+                if (empty($aEarliest)) return 1;
+                if (empty($bEarliest)) return -1;
+
+                return strcmp($aEarliest, $bEarliest);
+            });
+
+            // Save comparison results
+            PilotComparison::where('batch_id', $batch)->delete(); // Clear old comparisons
+
+            $comparisonData = [
+                'batch_id' => $batch,
+                'comparison_results' => json_encode($results),
+                'total_records' => $pilots->count(),
+                'without_reff_id' => count($results['without_reff_id']),
+                'new_customers' => count($results['new_customers']),
+                'incomplete_installation' => count($results['incomplete_installation']),
+                'ready_to_insert' => 0, // Not used anymore
+                'compared_at' => now(),
+            ];
+
+            PilotComparison::create($comparisonData);
+
+            DB::commit();
+
+            return redirect()
+                ->route('pilot-comparison.show', $batch)
+                ->with('success', 'Comparison berhasil! Ditemukan ' . count($results['new_customers']) . ' pelanggan baru, ' . count($results['date_differences']) . ' perbedaan tanggal.')
+                ->with('comparison_results', $results);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->with('error', 'Terjadi kesalahan saat comparison: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -1256,12 +1459,27 @@ class PilotComparisonController extends Controller
     public function destroy(string $batch)
     {
         try {
-            Pilot::where('batch_id', $batch)->delete();
+            DB::beginTransaction();
+
+            // Delete all pilots with this batch_id
+            $deletedPilotsCount = Pilot::where('batch_id', $batch)->delete();
+
+            // Delete all pilot comparisons with this batch_id (if any exist)
+            $deletedComparisonsCount = PilotComparison::where('batch_id', $batch)->delete();
+
+            DB::commit();
+
+            $message = "Batch PILOT berhasil dihapus! ({$deletedPilotsCount} data PILOT";
+            if ($deletedComparisonsCount > 0) {
+                $message .= ", {$deletedComparisonsCount} data comparison";
+            }
+            $message .= ")";
 
             return redirect()
                 ->route('pilot-comparison.index')
-                ->with('success', 'Batch PILOT berhasil dihapus!');
+                ->with('success', $message);
         } catch (\Exception $e) {
+            DB::rollBack();
             return redirect()->back()
                 ->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
