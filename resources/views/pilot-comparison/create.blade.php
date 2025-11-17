@@ -168,7 +168,7 @@
               URL Google Sheets <span class="text-red-500">*</span>
             </label>
             <input type="url" name="google_sheets_url" required
-                   value="{{ old('google_sheets_url', 'https://docs.google.com/spreadsheets/d/1WrAO9CmVKQk-XavFIQTTfpaaXJM7wIZw/edit?gid=1139154429#gid=1139154429') }}"
+                   value="{{ old('google_sheets_url', 'https://docs.google.com/spreadsheets/d/1WrJAAgetFXBciRyo8TyFnb3Eux88dq6r/edit?gid=1139154429#gid=1139154429') }}"
                    placeholder="https://docs.google.com/spreadsheets/d/..."
                    class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
             <p class="mt-1 text-sm text-gray-500">
@@ -198,7 +198,7 @@
                 Sheet GID (Optional)
               </label>
               <input type="text" name="sheet_gid"
-                     value="{{ old('sheet_gid', '') }}"
+                     value="{{ old('sheet_gid', '1139154429') }}"
                      placeholder="Contoh: 0, 123456789"
                      class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
               <p class="mt-1 text-sm text-gray-500">
