@@ -1,0 +1,127 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Models\{GoodsReceipt, GoodsReceiptDetail, PurchaseOrder, Warehouse, Supplier, Item};
+use App\Services\InventoryService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\{Validator, DB};
+
+class GoodsReceiptController extends Controller
+{
+    public function __construct(private InventoryService $inventoryService) {}
+
+    public function index()
+    {
+        $goodsReceipts = GoodsReceipt::with(['warehouse', 'supplier', 'purchaseOrder', 'receiver'])->latest()->paginate(15);
+        return view('inventory.goods-receipts.index', compact('goodsReceipts'));
+    }
+
+    public function create()
+    {
+        $purchaseOrders = PurchaseOrder::where('status', 'approved')->get();
+        $warehouses = Warehouse::active()->get();
+        $suppliers = Supplier::active()->get();
+        $items = Item::active()->get();
+        return view('inventory.goods-receipts.create', compact('purchaseOrders', 'warehouses', 'suppliers', 'items'));
+    }
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'purchase_order_id' => 'nullable|exists:purchase_orders,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'supplier_id' => 'required|exists:suppliers,id',
+            'receipt_date' => 'required|date',
+            'notes' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.item_id' => 'required|exists:items,id',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.unit_price' => 'nullable|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        DB::beginTransaction();
+        try {
+            $gr = GoodsReceipt::create([
+                'purchase_order_id' => $request->purchase_order_id,
+                'warehouse_id' => $request->warehouse_id,
+                'supplier_id' => $request->supplier_id,
+                'receipt_date' => $request->receipt_date,
+                'notes' => $request->notes,
+                'status' => 'draft',
+                'received_by' => auth()->id(),
+            ]);
+
+            foreach ($request->items as $item) {
+                GoodsReceiptDetail::create([
+                    'goods_receipt_id' => $gr->id,
+                    'item_id' => $item['item_id'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'] ?? null,
+                    'total_price' => ($item['unit_price'] ?? 0) * $item['quantity'],
+                    'notes' => $item['notes'] ?? null,
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->route('inventory.goods-receipts.show', $gr)->with('success', 'Goods Receipt created successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Failed to create GR: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function show(GoodsReceipt $goodsReceipt)
+    {
+        $goodsReceipt->load(['warehouse', 'supplier', 'purchaseOrder', 'details.item', 'receiver', 'approver']);
+        return view('inventory.goods-receipts.show', compact('goodsReceipt'));
+    }
+
+    public function approve(GoodsReceipt $goodsReceipt)
+    {
+        if ($goodsReceipt->status !== 'draft') {
+            return redirect()->back()->with('error', 'Only draft GR can be approved.');
+        }
+
+        DB::beginTransaction();
+        try {
+            // Record stock in for each item
+            foreach ($goodsReceipt->details as $detail) {
+                $this->inventoryService->recordStockIn(
+                    warehouseId: $goodsReceipt->warehouse_id,
+                    itemId: $detail->item_id,
+                    quantity: $detail->quantity,
+                    unitPrice: $detail->unit_price,
+                    referenceType: GoodsReceipt::class,
+                    referenceId: $goodsReceipt->id,
+                    notes: "GR: {$goodsReceipt->receipt_number}",
+                    performedBy: auth()->id()
+                );
+            }
+
+            $goodsReceipt->update([
+                'status' => 'completed',
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+            ]);
+
+            // Update PO status
+            if ($goodsReceipt->purchaseOrder) {
+                $po = $goodsReceipt->purchaseOrder;
+                $po->status = 'received';
+                $po->save();
+            }
+
+            DB::commit();
+            return redirect()->back()->with('success', 'Goods Receipt approved and stock updated.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Failed to approve GR: ' . $e->getMessage());
+        }
+    }
+}
