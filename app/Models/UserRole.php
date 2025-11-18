@@ -32,7 +32,8 @@ class UserRole extends Model
         'gas_in',
         'cgp',
         'tracer',
-        'jalur'
+        'jalur',
+        'inventory'
     ];
 
     // Relations
