@@ -101,7 +101,7 @@
                                 <div class="text-xs text-gray-500">{{ $po->supplier->code ?? '-' }}</div>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700">
-                                {{ $po->order_date ? $po->order_date->format('d M Y') : '-' }}
+                                {{ $po->po_date ? $po->po_date->format('d M Y') : '-' }}
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-700">
                                 {{ $po->expected_delivery_date ? $po->expected_delivery_date->format('d M Y') : '-' }}

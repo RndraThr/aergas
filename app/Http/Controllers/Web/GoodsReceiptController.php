@@ -20,11 +20,13 @@ class GoodsReceiptController extends Controller
 
     public function create()
     {
-        $purchaseOrders = PurchaseOrder::where('status', 'approved')->get();
+        $approvedPOs = PurchaseOrder::with(['supplier', 'warehouse'])
+                                    ->where('status', 'approved')
+                                    ->get();
         $warehouses = Warehouse::active()->get();
         $suppliers = Supplier::active()->get();
         $items = Item::active()->get();
-        return view('inventory.goods-receipts.create', compact('purchaseOrders', 'warehouses', 'suppliers', 'items'));
+        return view('inventory.goods-receipts.create', compact('approvedPOs', 'warehouses', 'suppliers', 'items'));
     }
 
     public function store(Request $request)
@@ -33,11 +35,11 @@ class GoodsReceiptController extends Controller
             'purchase_order_id' => 'nullable|exists:purchase_orders,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'supplier_id' => 'required|exists:suppliers,id',
-            'receipt_date' => 'required|date',
+            'received_date' => 'required|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.item_id' => 'required|exists:items,id',
-            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.received_quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'nullable|numeric|min:0',
         ]);
 
@@ -51,19 +53,23 @@ class GoodsReceiptController extends Controller
                 'purchase_order_id' => $request->purchase_order_id,
                 'warehouse_id' => $request->warehouse_id,
                 'supplier_id' => $request->supplier_id,
-                'receipt_date' => $request->receipt_date,
+                'receipt_date' => $request->received_date,
                 'notes' => $request->notes,
                 'status' => 'draft',
                 'received_by' => auth()->id(),
             ]);
 
             foreach ($request->items as $item) {
+                $receivedQty = $item['received_quantity'];
+                $unitPrice = $item['unit_price'] ?? 0;
+
                 GoodsReceiptDetail::create([
                     'goods_receipt_id' => $gr->id,
                     'item_id' => $item['item_id'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'] ?? null,
-                    'total_price' => ($item['unit_price'] ?? 0) * $item['quantity'],
+                    'ordered_quantity' => $item['ordered_quantity'] ?? $receivedQty,
+                    'received_quantity' => $receivedQty,
+                    'unit_price' => $unitPrice,
+                    'total_price' => $unitPrice * $receivedQty,
                     'notes' => $item['notes'] ?? null,
                 ]);
             }

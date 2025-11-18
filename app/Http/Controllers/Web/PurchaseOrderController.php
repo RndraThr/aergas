@@ -28,8 +28,8 @@ class PurchaseOrderController extends Controller
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|exists:suppliers,id',
             'warehouse_id' => 'required|exists:warehouses,id',
-            'po_date' => 'required|date',
-            'expected_delivery_date' => 'nullable|date|after_or_equal:po_date',
+            'order_date' => 'required|date',
+            'expected_delivery_date' => 'nullable|date|after_or_equal:order_date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.item_id' => 'required|exists:items,id',
@@ -48,11 +48,11 @@ class PurchaseOrderController extends Controller
             $po = PurchaseOrder::create([
                 'supplier_id' => $request->supplier_id,
                 'warehouse_id' => $request->warehouse_id,
-                'po_date' => $request->po_date,
+                'po_date' => $request->order_date,
                 'expected_delivery_date' => $request->expected_delivery_date,
                 'total_amount' => $totalAmount,
                 'notes' => $request->notes,
-                'status' => 'draft',
+                'status' => $request->status ?? 'draft',
                 'created_by' => auth()->id(),
             ]);
 
@@ -104,8 +104,8 @@ class PurchaseOrderController extends Controller
 
     public function approve(PurchaseOrder $purchaseOrder)
     {
-        if ($purchaseOrder->status !== 'draft') {
-            return redirect()->back()->with('error', 'Only draft PO can be approved.');
+        if (!in_array($purchaseOrder->status, ['draft', 'submitted'])) {
+            return redirect()->back()->with('error', 'Only draft or submitted PO can be approved.');
         }
 
         $purchaseOrder->update([

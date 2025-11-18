@@ -59,7 +59,7 @@
             </div>
             <div>
                 <div class="text-sm text-blue-600 font-medium mb-1">Order Date</div>
-                <div class="font-semibold text-gray-900">{{ $purchaseOrder->order_date ? $purchaseOrder->order_date->format('d M Y') : '-' }}</div>
+                <div class="font-semibold text-gray-900">{{ $purchaseOrder->po_date ? $purchaseOrder->po_date->format('d M Y') : '-' }}</div>
             </div>
             <div>
                 <div class="text-sm text-blue-600 font-medium mb-1">Expected Delivery</div>
@@ -85,20 +85,20 @@
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    @foreach($purchaseOrder->items as $poItem)
+                    @foreach($purchaseOrder->details as $detail)
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3">
-                            <div class="font-medium text-gray-900">{{ $poItem->item->name ?? '-' }}</div>
-                            <div class="text-xs text-gray-500">{{ $poItem->item->code ?? '-' }}</div>
+                            <div class="font-medium text-gray-900">{{ $detail->item->name ?? '-' }}</div>
+                            <div class="text-xs text-gray-500">{{ $detail->item->code ?? '-' }}</div>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-900">
-                            {{ number_format($poItem->quantity, 0, ',', '.') }} {{ $poItem->item->unit ?? '' }}
+                            {{ number_format($detail->quantity_ordered, 0, ',', '.') }} {{ $detail->item->unit ?? '' }}
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-900">
-                            Rp {{ number_format($poItem->unit_price, 2, ',', '.') }}
+                            Rp {{ number_format($detail->unit_price, 2, ',', '.') }}
                         </td>
                         <td class="px-4 py-3 text-sm font-semibold text-gray-900">
-                            Rp {{ number_format($poItem->quantity * $poItem->unit_price, 0, ',', '.') }}
+                            Rp {{ number_format($detail->total_price, 0, ',', '.') }}
                         </td>
                     </tr>
                     @endforeach
@@ -128,7 +128,7 @@
     @endif
 
     <!-- Approval Section -->
-    @if($purchaseOrder->status === 'submitted')
+    @if(in_array($purchaseOrder->status, ['draft', 'submitted']))
     <div class="bg-white rounded-xl card-shadow p-6">
         <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">
             <i class="fas fa-check-circle text-green-600 mr-2"></i>Approval Required
@@ -177,12 +177,12 @@
         <div class="space-y-3">
             <div class="flex justify-between items-center">
                 <span class="text-gray-600">Created By:</span>
-                <span class="font-semibold text-gray-900">{{ $purchaseOrder->createdBy->name ?? '-' }}</span>
+                <span class="font-semibold text-gray-900">{{ $purchaseOrder->creator->name ?? '-' }}</span>
             </div>
             @if($purchaseOrder->approved_by)
             <div class="flex justify-between items-center">
                 <span class="text-gray-600">Approved By:</span>
-                <span class="font-semibold text-gray-900">{{ $purchaseOrder->approvedBy->name ?? '-' }}</span>
+                <span class="font-semibold text-gray-900">{{ $purchaseOrder->approver->name ?? '-' }}</span>
             </div>
             <div class="flex justify-between items-center">
                 <span class="text-gray-600">Approved At:</span>

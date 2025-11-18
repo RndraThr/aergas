@@ -933,7 +933,9 @@
 
     <!-- Auto Convert All Select to Custom Dropdown -->
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('alpine:init', function() {
+        // Wait for next tick to ensure Alpine is fully initialized
+        setTimeout(function() {
         document.querySelectorAll('select').forEach(function(select) {
             // Skip if already converted
             if (select.dataset.converted) return;
@@ -958,14 +960,15 @@
                 selected: currentValue,
                 label: currentLabel
             }));
-            wrapper.setAttribute('@click.away', 'open = false');
+            // Use setAttribute with x-on:click.outside instead of @click.away
+            wrapper.setAttribute('x-on:click.outside', 'open = false');
 
             // Create button
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'custom-dropdown-button';
-            button.setAttribute(':class', "{ 'active': open }");
-            button.setAttribute('@click', 'open = !open');
+            button.setAttribute('x-bind:class', "{ 'active': open }");
+            button.setAttribute('x-on:click', 'open = !open');
             button.disabled = disabled;
             button.innerHTML = '<span x-text="label"></span>';
 
@@ -984,10 +987,10 @@
                 const optionDiv = document.createElement('div');
                 optionDiv.className = 'custom-dropdown-option';
                 optionDiv.textContent = option.text;
-                optionDiv.setAttribute('@click',
+                optionDiv.setAttribute('x-on:click',
                     `selected = '${option.value}'; label = '${option.text.replace(/'/g, "\\'")}'; open = false`
                 );
-                optionDiv.setAttribute(':class', `{ 'selected': selected === '${option.value}' }`);
+                optionDiv.setAttribute('x-bind:class', `{ 'selected': selected === '${option.value}' }`);
 
                 menu.appendChild(optionDiv);
             });
@@ -1024,6 +1027,7 @@
                 Alpine.initTree(wrapper);
             }
         });
+        }, 100); // Wait 100ms for Alpine to fully initialize
     });
     </script>
 

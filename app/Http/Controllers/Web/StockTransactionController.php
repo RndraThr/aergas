@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
-use App\Models\{StockTransaction, Warehouse, Item};
+use App\Models\{StockTransaction, Warehouse, Item, WarehouseStock};
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -54,6 +54,29 @@ class StockTransactionController extends Controller
         return view('inventory.transactions.show', compact('transaction'));
     }
 
+    /**
+     * Universal store method that routes to specific transaction methods
+     */
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'transaction_type' => 'required|in:in,out,transfer,adjustment',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        // Route to specific method based on transaction type
+        return match($request->transaction_type) {
+            'in' => $this->stockIn($request),
+            'out' => $this->stockOut($request),
+            'transfer' => $this->transfer($request),
+            'adjustment' => $this->adjustment($request),
+            default => redirect()->back()->with('error', 'Invalid transaction type')->withInput(),
+        };
+    }
+
     public function stockIn(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -74,6 +97,8 @@ class StockTransactionController extends Controller
                 itemId: $request->item_id,
                 quantity: $request->quantity,
                 unitPrice: $request->unit_price,
+                referenceType: null,
+                referenceId: null,
                 notes: $request->notes,
                 performedBy: auth()->id()
             );
@@ -105,6 +130,8 @@ class StockTransactionController extends Controller
                 warehouseId: $request->warehouse_id,
                 itemId: $request->item_id,
                 quantity: $request->quantity,
+                referenceType: null,
+                referenceId: null,
                 notes: $request->notes,
                 performedBy: auth()->id()
             );
@@ -121,8 +148,8 @@ class StockTransactionController extends Controller
     public function transfer(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'source_warehouse_id' => 'required|exists:warehouses,id',
-            'destination_warehouse_id' => 'required|exists:warehouses,id|different:source_warehouse_id',
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'destination_warehouse_id' => 'required|exists:warehouses,id|different:warehouse_id',
             'item_id' => 'required|exists:items,id',
             'quantity' => 'required|numeric|min:0.01',
             'notes' => 'nullable|string',
@@ -134,7 +161,7 @@ class StockTransactionController extends Controller
 
         try {
             $this->inventoryService->transferStock(
-                sourceWarehouseId: $request->source_warehouse_id,
+                sourceWarehouseId: $request->warehouse_id,
                 destinationWarehouseId: $request->destination_warehouse_id,
                 itemId: $request->item_id,
                 quantity: $request->quantity,
@@ -156,8 +183,9 @@ class StockTransactionController extends Controller
         $validator = Validator::make($request->all(), [
             'warehouse_id' => 'required|exists:warehouses,id',
             'item_id' => 'required|exists:items,id',
-            'new_quantity' => 'required|numeric|min:0',
-            'reason' => 'required|string',
+            'adjustment_type' => 'required|in:increase,decrease',
+            'quantity' => 'required|numeric|min:0.01',
+            'notes' => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -165,11 +193,30 @@ class StockTransactionController extends Controller
         }
 
         try {
+            // Get current stock to calculate new quantity
+            $stock = WarehouseStock::where('warehouse_id', $request->warehouse_id)
+                                   ->where('item_id', $request->item_id)
+                                   ->firstOrFail();
+
+            $currentQty = $stock->quantity_available;
+
+            // Calculate new quantity based on adjustment type
+            $newQuantity = $request->adjustment_type === 'increase'
+                         ? $currentQty + $request->quantity
+                         : $currentQty - $request->quantity;
+
+            // Ensure new quantity is not negative
+            if ($newQuantity < 0) {
+                return redirect()->back()
+                               ->with('error', 'Adjustment would result in negative stock. Current: ' . $currentQty . ', Decrease: ' . $request->quantity)
+                               ->withInput();
+            }
+
             $this->inventoryService->adjustStock(
                 warehouseId: $request->warehouse_id,
                 itemId: $request->item_id,
-                newQuantity: $request->new_quantity,
-                reason: $request->reason,
+                newQuantity: $newQuantity,
+                reason: $request->notes,
                 performedBy: auth()->id()
             );
 
