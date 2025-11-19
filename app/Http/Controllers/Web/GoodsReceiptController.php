@@ -101,13 +101,26 @@ class GoodsReceiptController extends Controller
                 $this->inventoryService->recordStockIn(
                     warehouseId: $goodsReceipt->warehouse_id,
                     itemId: $detail->item_id,
-                    quantity: $detail->quantity,
+                    quantity: $detail->received_quantity,
                     unitPrice: $detail->unit_price,
                     referenceType: GoodsReceipt::class,
                     referenceId: $goodsReceipt->id,
                     notes: "GR: {$goodsReceipt->receipt_number}",
                     performedBy: auth()->id()
                 );
+
+                // Update PO detail quantity_received if linked to PO
+                if ($goodsReceipt->purchase_order_id) {
+                    $poDetail = \App\Models\PurchaseOrderDetail::where([
+                        'purchase_order_id' => $goodsReceipt->purchase_order_id,
+                        'item_id' => $detail->item_id
+                    ])->first();
+
+                    if ($poDetail) {
+                        $poDetail->quantity_received += $detail->received_quantity;
+                        $poDetail->save();
+                    }
+                }
             }
 
             $goodsReceipt->update([
@@ -116,10 +129,24 @@ class GoodsReceiptController extends Controller
                 'approved_at' => now(),
             ]);
 
-            // Update PO status
+            // Update PO status based on received quantities
             if ($goodsReceipt->purchaseOrder) {
                 $po = $goodsReceipt->purchaseOrder;
-                $po->status = 'received';
+
+                // Check if all items are fully received
+                $fullyReceived = true;
+                foreach ($po->details as $poDetail) {
+                    if ($poDetail->quantity_received < $poDetail->quantity_ordered) {
+                        $fullyReceived = false;
+                        break;
+                    }
+                }
+
+                if ($fullyReceived) {
+                    $po->status = 'received';
+                } else {
+                    $po->status = 'partial_received';
+                }
                 $po->save();
             }
 

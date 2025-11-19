@@ -18,6 +18,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 use Exception;
 
@@ -786,9 +787,9 @@ class CalonPelangganController extends Controller
                 // Check if there's a temp file from preview
                 $tempPath = $request->input('temp_file');
 
-                if ($tempPath && \Storage::exists($tempPath)) {
+                if ($tempPath && Storage::exists($tempPath)) {
                     // Use the temp file - Storage::path() will give correct full path
-                    $filePath = \Storage::path($tempPath);
+                    $filePath = Storage::path($tempPath);
                 } else {
                     // Use newly uploaded file
                     $filePath = $file->getRealPath();
@@ -804,8 +805,8 @@ class CalonPelangganController extends Controller
                 $summary = $import->getSummary();
 
                 // Clean up temp file
-                if ($tempPath && \Storage::exists($tempPath)) {
-                    \Storage::delete($tempPath);
+                if ($tempPath && Storage::exists($tempPath)) {
+                    Storage::delete($tempPath);
                 }
 
                 Log::info('Calon Pelanggan bulk import committed', [
@@ -840,7 +841,7 @@ class CalonPelangganController extends Controller
                 'errors' => $errorMessages
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Calon Pelanggan bulk import failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -867,7 +868,7 @@ class CalonPelangganController extends Controller
 
             if (!$gasIn) {
                 // Create a temporary Gas In instance for preview
-                $gasIn = new \App\Models\GasInData([
+                $gasIn = new GasInData([
                     'reff_id_pelanggan' => $customer->reff_id_pelanggan,
                     'tanggal_gas_in' => now(),
                     'status' => 'draft',
@@ -887,7 +888,7 @@ class CalonPelangganController extends Controller
             // Stream PDF to browser for preview
             return $result['pdf']->stream($result['filename']);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Preview Customer Berita Acara failed', [
                 'customer_id' => $customer->reff_id_pelanggan,
                 'error' => $e->getMessage()
@@ -911,7 +912,7 @@ class CalonPelangganController extends Controller
 
             if (!$gasIn) {
                 // Create a temporary Gas In instance for download
-                $gasIn = new \App\Models\GasInData([
+                $gasIn = new GasInData([
                     'reff_id_pelanggan' => $customer->reff_id_pelanggan,
                     'tanggal_gas_in' => now(),
                     'status' => 'draft',
@@ -931,7 +932,7 @@ class CalonPelangganController extends Controller
             // Download PDF
             return $result['pdf']->download($result['filename']);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Download Customer Berita Acara failed', [
                 'customer_id' => $customer->reff_id_pelanggan,
                 'error' => $e->getMessage()
@@ -996,7 +997,7 @@ class CalonPelangganController extends Controller
 
                     // If customer doesn't have Gas In data, create temporary instance
                     if (!$gasIn) {
-                        $gasIn = new \App\Models\GasInData([
+                        $gasIn = new GasInData([
                             'reff_id_pelanggan' => $customer->reff_id_pelanggan,
                             'tanggal_gas_in' => now(),
                             'status' => 'draft',
@@ -1011,7 +1012,7 @@ class CalonPelangganController extends Controller
                         $result['pdf']->save($filePath);
                         $generatedFiles[] = $filePath;
                     }
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     Log::warning('Failed to generate BA for customer: ' . $customer->reff_id_pelanggan, [
                         'error' => $e->getMessage()
                     ]);
@@ -1053,7 +1054,7 @@ class CalonPelangganController extends Controller
             // Download and delete ZIP after send
             return response()->download($zipPath)->deleteFileAfterSend(true);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Bulk BA download failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -1113,7 +1114,7 @@ class CalonPelangganController extends Controller
                 'customers' => $customers,
                 'total' => $customers->count()
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to get all customer IDs', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
