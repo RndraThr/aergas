@@ -497,85 +497,11 @@
                 </div>
                 @endif
 
-                @if(auth()->user()->hasAnyRole(['admin', 'super_admin', 'inventory']))
+                @if(auth()->user()->hasAnyRole(['admin', 'super_admin']))
                 <!-- Divider -->
                 <div class="border-t border-gray-200 my-4"></div>
                 <div class="px-3 mb-2">
                     <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">MANAGEMENT</span>
-                </div>
-                @endif
-
-                @if(auth()->user()->hasAnyRole(['admin', 'super_admin', 'inventory']))
-                <!-- Inventory with Submenu -->
-                @php
-                    $isInventoryActive = request()->routeIs('inventory.*');
-                @endphp
-                <div x-data="{ inventoryOpen: {{ $isInventoryActive ? 'true' : 'false' }} }" class="space-y-1">
-                    <button @click="inventoryOpen = !inventoryOpen"
-                            class="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group {{ $isInventoryActive ? 'sidebar-active' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                        <i class="fas fa-warehouse w-5 mr-3 text-lg {{ $isInventoryActive ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
-                        <span class="flex-1 text-left">Inventory</span>
-                        <svg class="w-5 h-5 transition-transform duration-200" :class="{ 'rotate-180': inventoryOpen }"
-                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"></path>
-                        </svg>
-                    </button>
-
-                    <!-- Submenu -->
-                    <div x-show="inventoryOpen"
-                         x-transition:enter="transition ease-out duration-200"
-                         x-transition:enter-start="opacity-0 transform -translate-y-1"
-                         x-transition:enter-end="opacity-100 transform translate-y-0"
-                         x-transition:leave="transition ease-in duration-150"
-                         x-transition:leave-start="opacity-100 transform translate-y-0"
-                         x-transition:leave-end="opacity-0 transform -translate-y-1"
-                         class="space-y-1 ml-6 mt-1">
-                        <a href="{{ route('inventory.dashboard') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('inventory.dashboard') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-tachometer-alt w-5 mr-3 text-sm"></i>
-                            Dashboard
-                        </a>
-                        <a href="{{ route('inventory.warehouses.index') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('inventory.warehouses.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-warehouse w-5 mr-3 text-sm"></i>
-                            Warehouses
-                        </a>
-                        <a href="{{ route('inventory.categories.index') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('inventory.categories.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-tags w-5 mr-3 text-sm"></i>
-                            Categories
-                        </a>
-                        <a href="{{ route('inventory.items.index') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('inventory.items.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-box w-5 mr-3 text-sm"></i>
-                            Items
-                        </a>
-                        <a href="{{ route('inventory.transactions.index') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('inventory.transactions.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-exchange-alt w-5 mr-3 text-sm"></i>
-                            Stock Transactions
-                        </a>
-                        <a href="{{ route('inventory.suppliers.index') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('inventory.suppliers.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-truck w-5 mr-3 text-sm"></i>
-                            Suppliers
-                        </a>
-                        <a href="{{ route('inventory.purchase-orders.index') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('inventory.purchase-orders.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-shopping-cart w-5 mr-3 text-sm"></i>
-                            Purchase Orders
-                        </a>
-                        <a href="{{ route('inventory.goods-receipts.index') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('inventory.goods-receipts.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-dolly w-5 mr-3 text-sm"></i>
-                            Goods Receipts
-                        </a>
-                        <a href="{{ route('inventory.stock-opnames.index') }}"
-                           class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('inventory.stock-opnames.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
-                            <i class="fas fa-clipboard-check w-5 mr-3 text-sm"></i>
-                            Stock Opnames
-                        </a>
-                    </div>
                 </div>
                 @endif
 
