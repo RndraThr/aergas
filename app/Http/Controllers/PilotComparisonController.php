@@ -9,6 +9,7 @@ use App\Models\CalonPelanggan;
 use App\Models\SkData;
 use App\Models\SrData;
 use App\Models\GasInData;
+use App\Models\PhotoApproval;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -1439,6 +1440,11 @@ class PilotComparisonController extends Controller
 
             PilotComparison::create($comparisonData);
 
+            // Get evidence incomplete data untuk reff_id yang ADA di database
+            $evidenceIncompleteData = $this->getEvidenceIncompleteData($batch);
+            $results['evidence_incomplete'] = $evidenceIncompleteData['records'];
+            $results['evidence_incomplete_count'] = $evidenceIncompleteData['total_missing_evidence'];
+
             DB::commit();
 
             return redirect()
@@ -1451,6 +1457,130 @@ class PilotComparisonController extends Controller
             return redirect()->back()
                 ->with('error', 'Terjadi kesalahan saat comparison: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Get evidence incomplete data for reff_id yang sudah ada SK/SR/Gas In di database
+     * Tapi evidence-nya belum lengkap (similar to SK/SR/Gas In index status foto column)
+     */
+    private function getEvidenceIncompleteData(string $batch): array
+    {
+        $pilots = Pilot::where('batch_id', $batch)->whereNotNull('id_reff')->get();
+        $evidenceIncomplete = [];
+
+        foreach ($pilots as $pilot) {
+            $reffId = $pilot->id_reff;
+            if (empty($reffId)) continue;
+
+            // Check if exists in database
+            $pelanggan = CalonPelanggan::where('reff_id_pelanggan', $reffId)->first();
+            if (!$pelanggan) continue; // Skip pelanggan baru
+
+            // Get SK/SR/Gas In data
+            $skData = SkData::where('reff_id_pelanggan', $reffId)->first();
+            $srData = SrData::where('reff_id_pelanggan', $reffId)->first();
+            $gasInData = GasInData::where('reff_id_pelanggan', $reffId)->first();
+
+            $hasAnyModule = $skData || $srData || $gasInData;
+            if (!$hasAnyModule) continue; // Skip jika tidak ada modul sama sekali
+
+            // Prepare record data
+            $record = [
+                'reff_id' => $reffId,
+                'nama' => $pelanggan->nama_pelanggan,
+                'alamat' => $pelanggan->alamat,
+                'has_sk' => (bool) $skData,
+                'has_sr' => (bool) $srData,
+                'has_gas_in' => (bool) $gasInData,
+                'sk_missing_evidence' => [],
+                'sr_missing_evidence' => [],
+                'gas_in_missing_evidence' => [],
+            ];
+
+            // Get uploaded photos from photo_approvals (any status, yang penting sudah terupload)
+            $uploadedPhotos = PhotoApproval::where('reff_id_pelanggan', $reffId)
+                ->get()
+                ->groupBy('module_name')
+                ->map(fn($items) => $items->pluck('photo_field_name')->toArray())
+                ->toArray();
+
+            // Define required evidence fields for each module (using slot names from config/aergas_photos.php)
+            $skRequiredFields = [
+                'berita_acara' => 'BA Pasang',
+                'pneumatic_start' => 'Pneum Start',
+                'pneumatic_finish' => 'Pneum Finish',
+                'valve' => 'Valve SK',
+                'isometrik_scan' => 'Isometrik',
+            ];
+
+            $srRequiredFields = [
+                'pneumatic_start' => 'Pneum Start',
+                'pneumatic_finish' => 'Pneum Finish',
+                'jenis_tapping' => 'Jns Tapping',
+                'mgrt' => 'MGRT',
+                'pondasi' => 'Pondasi',
+                'isometrik_scan' => 'Isometrik',
+            ];
+
+            $gasInRequiredFields = [
+                'ba_gas_in' => 'BA Gas In',
+                'foto_bubble_test' => 'Bubble Test',
+                'foto_regulator' => 'Regulator',
+                'foto_kompor_menyala' => 'Kompor',
+            ];
+
+            // Check SK Evidence - compare with uploaded photos
+            if ($skData) {
+                $skUploaded = $uploadedPhotos['sk'] ?? [];
+                foreach ($skRequiredFields as $fieldName => $label) {
+                    if (!in_array($fieldName, $skUploaded)) {
+                        $record['sk_missing_evidence'][] = $label;
+                    }
+                }
+            }
+
+            // Check SR Evidence - compare with uploaded photos
+            if ($srData) {
+                $srUploaded = $uploadedPhotos['sr'] ?? [];
+                foreach ($srRequiredFields as $fieldName => $label) {
+                    if (!in_array($fieldName, $srUploaded)) {
+                        $record['sr_missing_evidence'][] = $label;
+                    }
+                }
+            }
+
+            // Check Gas In Evidence - compare with uploaded photos
+            if ($gasInData) {
+                $gasInUploaded = $uploadedPhotos['gas_in'] ?? [];
+                foreach ($gasInRequiredFields as $fieldName => $label) {
+                    if (!in_array($fieldName, $gasInUploaded)) {
+                        $record['gas_in_missing_evidence'][] = $label;
+                    }
+                }
+            }
+
+            // Only add if there's at least one missing evidence
+            $hasIncomplete = !empty($record['sk_missing_evidence']) ||
+                           !empty($record['sr_missing_evidence']) ||
+                           !empty($record['gas_in_missing_evidence']);
+
+            if ($hasIncomplete) {
+                $evidenceIncomplete[] = $record;
+            }
+        }
+
+        // Calculate total missing evidence count
+        $totalMissingEvidence = 0;
+        foreach ($evidenceIncomplete as $record) {
+            $totalMissingEvidence += count($record['sk_missing_evidence']);
+            $totalMissingEvidence += count($record['sr_missing_evidence']);
+            $totalMissingEvidence += count($record['gas_in_missing_evidence']);
+        }
+
+        return [
+            'records' => $evidenceIncomplete,
+            'total_missing_evidence' => $totalMissingEvidence,
+        ];
     }
 
     /**
