@@ -348,6 +348,51 @@
         </div>
       @endif
 
+      {{-- Evidence Incomplete Detail --}}
+      @if(isset($results['evidence_incomplete']) && count($results['evidence_incomplete']) > 0)
+        @php
+          $evidenceIncompleteData = json_encode($results['evidence_incomplete']);
+        @endphp
+        <div class="bg-white rounded-xl card-shadow" x-data="evidenceIncompleteFilter(@js($evidenceIncompleteData))">
+          <div class="p-4 border-b bg-red-50">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-semibold text-red-800">
+                  <i class="fas fa-camera mr-2"></i>Evidence Belum Lengkap (<span x-text="filteredCount"></span> Pelanggan)
+                </h3>
+                <p class="text-sm text-red-600 mt-1">
+                  Reff ID sudah ada di database dengan data SK/SR/Gas In, tapi evidencenya belum lengkap
+                  <span class="font-semibold ml-1">• Total: <span x-text="filteredMissingCount"></span> dokumen evidence yang belum lengkap</span>
+                </p>
+              </div>
+              <div>
+                <select x-model="filter" @change="updateTable()" class="px-3 py-2 border rounded text-sm focus:ring-2 focus:ring-red-500">
+                  <option value="all">Semua</option>
+                  <option value="sk">SK Kurang Evidence</option>
+                  <option value="sr">SR Kurang Evidence</option>
+                  <option value="gas_in">Gas In Kurang Evidence</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="p-4 max-h-96 overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-3 py-2 text-left">Reff ID</th>
+                  <th class="px-3 py-2 text-left">Nama</th>
+                  <th class="px-3 py-2 text-left">Evidence SK</th>
+                  <th class="px-3 py-2 text-left">Evidence SR</th>
+                  <th class="px-3 py-2 text-left">Evidence Gas In</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y" x-html="tableHtml">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      @endif
+
     </div>
   @else
     {{-- Summary Card (shown when no comparison yet) --}}
@@ -803,6 +848,106 @@ function incompleteFilter(itemsJson) {
           <td class="px-3 py-2 text-center text-xs">${this.renderCell(item, 'sk')}</td>
           <td class="px-3 py-2 text-center text-xs">${this.renderCell(item, 'sr')}</td>
           <td class="px-3 py-2 text-center text-xs">${this.renderCell(item, 'gas_in')}</td>
+        </tr>
+      `).join('');
+    }
+  };
+}
+
+// Filter for Evidence Incomplete
+function evidenceIncompleteFilter(itemsJson) {
+  return {
+    filter: 'all',
+    items: typeof itemsJson === 'string' ? JSON.parse(itemsJson) : itemsJson,
+    tableHtml: '',
+
+    init() {
+      this.updateTable();
+      // Watch for filter changes
+      this.$watch('filter', () => {
+        this.updateTable();
+      });
+    },
+
+    get filteredItems() {
+      if (this.filter === 'all') return this.items;
+
+      const filtered = this.items.filter(item => {
+        if (this.filter === 'sk') {
+          return item.has_sk && item.sk_missing_evidence.length > 0;
+        }
+        if (this.filter === 'sr') {
+          return item.has_sr && item.sr_missing_evidence.length > 0;
+        }
+        if (this.filter === 'gas_in') {
+          return item.has_gas_in && item.gas_in_missing_evidence.length > 0;
+        }
+        return false;
+      });
+
+      return filtered;
+    },
+
+    get filteredCount() {
+      return this.filteredItems.length;
+    },
+
+    get filteredMissingCount() {
+      let total = 0;
+
+      this.filteredItems.forEach(item => {
+        if (this.filter === 'all') {
+          // Count all missing evidence
+          total += item.sk_missing_evidence.length;
+          total += item.sr_missing_evidence.length;
+          total += item.gas_in_missing_evidence.length;
+        } else if (this.filter === 'sk') {
+          // Only count SK missing evidence
+          total += item.sk_missing_evidence.length;
+        } else if (this.filter === 'sr') {
+          // Only count SR missing evidence
+          total += item.sr_missing_evidence.length;
+        } else if (this.filter === 'gas_in') {
+          // Only count Gas In missing evidence
+          total += item.gas_in_missing_evidence.length;
+        }
+      });
+
+      return total;
+    },
+
+    updateTable() {
+      this.tableHtml = this.renderRows();
+    },
+
+    renderEvidenceCell(missingEvidence, hasModule) {
+      if (!hasModule) {
+        return '<span class="text-gray-400 text-xs">-</span>';
+      }
+
+      if (missingEvidence.length === 0) {
+        return '<span class="inline-flex px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">✓ Lengkap</span>';
+      }
+
+      return `<div class="flex flex-wrap gap-1">
+        ${missingEvidence.map(ev =>
+          `<span class="inline-flex px-2 py-1 bg-red-50 text-red-700 rounded text-xs border border-red-200">${ev}</span>`
+        ).join('')}
+      </div>`;
+    },
+
+    renderRows() {
+      if (this.filteredItems.length === 0) {
+        return `<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">Tidak ada data yang sesuai filter</td></tr>`;
+      }
+
+      return this.filteredItems.map(item => `
+        <tr class="hover:bg-gray-50">
+          <td class="px-3 py-2 font-mono text-xs font-semibold text-blue-600">${item.reff_id}</td>
+          <td class="px-3 py-2 text-sm">${item.nama}</td>
+          <td class="px-3 py-2">${this.renderEvidenceCell(item.sk_missing_evidence, item.has_sk)}</td>
+          <td class="px-3 py-2">${this.renderEvidenceCell(item.sr_missing_evidence, item.has_sr)}</td>
+          <td class="px-3 py-2">${this.renderEvidenceCell(item.gas_in_missing_evidence, item.has_gas_in)}</td>
         </tr>
       `).join('');
     }

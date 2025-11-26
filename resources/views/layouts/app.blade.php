@@ -628,7 +628,7 @@
             <!-- Page Content -->
             <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 custom-scrollbar">
                 <div class="p-6">
-                    @if(session('success'))
+                    {{-- @if(session('success'))
                         <div class="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg" role="alert">
                             <div class="flex items-center">
                                 <i class="fas fa-check-circle mr-2"></i>
@@ -653,7 +653,7 @@
                                 {{ session('warning') }}
                             </div>
                         </div>
-                    @endif
+                    @endif --}}
 
                     @yield('content')
                 </div>
@@ -723,6 +723,9 @@
                 window.closeToast(toastId);
             }, 4000);
         }
+
+        // Expose showToast to window scope
+        window.showToast = showToast;
 
         // Helper functions
         window.showSuccessToast = function(message) {
@@ -932,6 +935,8 @@
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
     <!-- Auto Convert All Select to Custom Dropdown -->
+    <!-- TEMPORARILY DISABLED - Uncomment to enable custom dropdowns -->
+    <!--
     <script>
     document.addEventListener('alpine:init', function() {
         // Wait for next tick to ensure Alpine is fully initialized
@@ -939,6 +944,9 @@
         document.querySelectorAll('select').forEach(function(select) {
             // Skip if already converted
             if (select.dataset.converted) return;
+
+            // Skip if explicitly marked to not convert
+            if (select.dataset.noCustomDropdown) return;
 
             // Get select properties
             const name = select.name;
@@ -1030,6 +1038,7 @@
         }, 100); // Wait 100ms for Alpine to fully initialize
     });
     </script>
+    -->
 
     @stack('scripts')
 </body>
