@@ -24,6 +24,7 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
     private array $results = [];
     private string $filePath;
     private array $hyperlinks = [];
+    private array $rowMapping = []; // Maps joint_number+date to actual Excel row
     private GoogleDriveService $googleDriveService;
 
     public function __construct(bool $dryRun = false, string $filePath = '')
@@ -40,14 +41,40 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
 
     public function collection(Collection $rows)
     {
-        $excelRowNumber = 2; // Start from 2 (row 1 is header)
-
-        foreach ($rows as $data) {
+        foreach ($rows as $index => $data) {
             try {
                 // Skip empty rows
                 if (empty($data['joint_number']) || trim($data['joint_number']) === '') {
-                    $excelRowNumber++;
                     continue;
+                }
+
+                // Get actual Excel row number from rowMapping
+                $jointNumber = $data['joint_number'] ?? null;
+                $tanggal = $data['tanggal_joint'] ?? null;
+
+                // Default to old method if mapping not available
+                $excelRowNumber = $index + 2;
+
+                if ($jointNumber && $tanggal) {
+                    // Convert tanggal to Y-m-d format if needed
+                    if (is_numeric($tanggal)) {
+                        try {
+                            $tanggal = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($tanggal)->format('Y-m-d');
+                        } catch (\Exception $e) {
+                            // Keep original if conversion fails
+                        }
+                    }
+
+                    $mappingKey = $jointNumber . '|' . $tanggal;
+                    if (isset($this->rowMapping[$mappingKey])) {
+                        $excelRowNumber = $this->rowMapping[$mappingKey];
+                        Log::info("Using mapped row number for joint", [
+                            'collection_index' => $index,
+                            'joint_number' => $jointNumber,
+                            'tanggal' => $tanggal,
+                            'actual_excel_row' => $excelRowNumber
+                        ]);
+                    }
                 }
 
                 $result = $this->processRow($data, $excelRowNumber);
@@ -55,7 +82,7 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
 
             } catch (\Exception $e) {
                 $this->results[] = [
-                    'row' => $excelRowNumber,
+                    'row' => $excelRowNumber ?? $index + 2,
                     'status' => 'error',
                     'data' => $data->toArray(),
                     'message' => $e->getMessage(),
@@ -67,8 +94,6 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
                     'error' => $e->getMessage()
                 ]);
             }
-
-            $excelRowNumber++;
         }
     }
 
@@ -381,6 +406,28 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
 
             // Start from row 2 (skip header)
             for ($row = 2; $row <= $highestRow; $row++) {
+                // Get joint_number (column A) and tanggal (column B) for mapping
+                $jointNumberCell = $worksheet->getCell('A' . $row);
+                $tanggalCell = $worksheet->getCell('B' . $row);
+
+                $jointNumber = $jointNumberCell->getValue();
+                $tanggal = $tanggalCell->getValue();
+
+                // Convert Excel date to Y-m-d format
+                if ($tanggal && is_numeric($tanggal)) {
+                    try {
+                        $tanggal = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($tanggal)->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        // Keep original value if conversion fails
+                    }
+                }
+
+                // Create mapping key: joint_number|date
+                if ($jointNumber && $tanggal) {
+                    $mappingKey = $jointNumber . '|' . $tanggal;
+                    $this->rowMapping[$mappingKey] = $row;
+                }
+
                 for ($col = 1; $col <= $highestColumnIndex; $col++) {
                     $cellCoordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
                     $cell = $worksheet->getCell($cellCoordinate);

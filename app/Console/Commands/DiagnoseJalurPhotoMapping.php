@@ -176,10 +176,26 @@ class DiagnoseJalurPhotoMapping extends Command
             $lineNumber = $lowering->lineNumber->line_number;
             $tanggal = $lowering->tanggal_jalur->format('Y-m-d');
 
+            // Extract line code from full line number (63-PRW-LN030 -> 030)
+            $lineCode = null;
+            if (preg_match('/LN(\d+)/', $lineNumber, $matches)) {
+                $lineCode = $matches[1];
+            }
+
             // Find matching Excel row
             $excelMatch = null;
             foreach ($this->hyperlinks as $row => $data) {
-                if ($data['line_number'] === $lineNumber && $data['tanggal'] === $tanggal) {
+                $excelLineNumber = $data['line_number'];
+
+                // Compare with multiple formats: exact match, line code match, or normalized match
+                $normalizedExcel = ltrim($excelLineNumber, '0');
+                $normalizedLineCode = $lineCode ? ltrim($lineCode, '0') : null;
+
+                $isMatch = ($excelLineNumber === $lineNumber) ||
+                           ($lineCode && $excelLineNumber === $lineCode) ||
+                           ($normalizedLineCode && $normalizedExcel === $normalizedLineCode);
+
+                if ($isMatch && $data['tanggal'] === $tanggal) {
                     $excelMatch = $data;
                     $excelMatch['excel_row'] = $row;
                     break;

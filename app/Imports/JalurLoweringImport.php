@@ -25,6 +25,7 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
     private bool $dryRun;
     private array $results = ['success' => 0, 'updated' => 0, 'skipped' => 0, 'failed' => []];
     private array $hyperlinks = [];
+    private array $rowMapping = []; // Maps line_number+date to actual Excel row
     private GoogleDriveService $googleDriveService;
     private $sheet;
     private string $filePath;
@@ -72,6 +73,28 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
 
             // Start from row 2 (skip header)
             for ($row = 2; $row <= $highestRow; $row++) {
+                // Get line_number (column C) and tanggal (column D) for mapping
+                $lineNumberCell = $worksheet->getCell('C' . $row);
+                $tanggalCell = $worksheet->getCell('D' . $row);
+
+                $lineNumber = $lineNumberCell->getValue();
+                $tanggal = $tanggalCell->getValue();
+
+                // Convert Excel date to Y-m-d format
+                if ($tanggal && is_numeric($tanggal)) {
+                    try {
+                        $tanggal = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($tanggal)->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        // Keep original value if conversion fails
+                    }
+                }
+
+                // Create mapping key: line_number|date
+                if ($lineNumber && $tanggal) {
+                    $mappingKey = $lineNumber . '|' . $tanggal;
+                    $this->rowMapping[$mappingKey] = $row;
+                }
+
                 for ($col = 1; $col <= $highestColumnIndex; $col++) {
                     $cellCoordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
                     $cell = $worksheet->getCell($cellCoordinate);
@@ -147,13 +170,39 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
     public function collection(Collection $rows)
     {
         foreach ($rows as $index => $row) {
-            // Excel row number (header is row 1, data starts from row 2)
-            $excelRowNumber = $index + 2;
-
             // Skip empty rows
             if (empty(array_filter($row->toArray(), fn($v) => $v !== null && $v !== ''))) {
                 $this->results['skipped']++;
                 continue;
+            }
+
+            // Get actual Excel row number from rowMapping using line_number + date
+            $lineNumber = $row['line_number'] ?? null;
+            $tanggal = $row['tanggal_jalur'] ?? null;
+
+            // Default to old method if mapping not available
+            $excelRowNumber = $index + 2;
+
+            if ($lineNumber && $tanggal) {
+                // Convert tanggal to Y-m-d format if needed
+                if (is_numeric($tanggal)) {
+                    try {
+                        $tanggal = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($tanggal)->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        // Keep original if conversion fails
+                    }
+                }
+
+                $mappingKey = $lineNumber . '|' . $tanggal;
+                if (isset($this->rowMapping[$mappingKey])) {
+                    $excelRowNumber = $this->rowMapping[$mappingKey];
+                    Log::info("Using mapped row number", [
+                        'collection_index' => $index,
+                        'line_number' => $lineNumber,
+                        'tanggal' => $tanggal,
+                        'actual_excel_row' => $excelRowNumber
+                    ]);
+                }
             }
 
             try {
