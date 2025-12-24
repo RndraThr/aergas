@@ -230,7 +230,8 @@ class DiagnoseJalurPhotoMapping extends Command
     private function displayMismatches(): void
     {
         foreach ($this->mismatches as $index => $mismatch) {
-            $this->warn("#{$index + 1} - {$mismatch['line_number']} ({$mismatch['tanggal']})");
+            $number = $index + 1;
+            $this->warn("#{$number} - {$mismatch['line_number']} ({$mismatch['tanggal']})");
             $this->line("  Excel Row: {$mismatch['excel_row']}");
             $this->line("  Lowering ID: {$mismatch['lowering_id']}");
             $this->line("  Field: {$mismatch['field']}");
