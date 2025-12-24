@@ -9,7 +9,7 @@ class CheckExcelRow extends Command
 {
     protected $signature = 'jalur:check-excel-row
                             {excel_file : Path to Excel file}
-                            {line_number : Line number to check}
+                            {line_number : Line number to check (can be just code like 030 or full like 63-PRW-LN030)}
                             {tanggal : Date to check (Y-m-d format)}';
 
     protected $description = 'Check specific row in Excel file';
@@ -25,7 +25,14 @@ class CheckExcelRow extends Command
             return 1;
         }
 
-        $this->info("Searching for: {$searchLineNumber} on {$searchTanggal}");
+        // Extract just the line code if full format given (63-PRW-LN030 -> 030)
+        $searchLineCode = $searchLineNumber;
+        if (preg_match('/LN(\d+)/', $searchLineNumber, $matches)) {
+            $searchLineCode = $matches[1];
+            $this->info("Extracted line code: {$searchLineCode} from {$searchLineNumber}");
+        }
+
+        $this->info("Searching for: {$searchLineCode} on {$searchTanggal}");
         $this->newLine();
 
         try {
@@ -44,7 +51,11 @@ class CheckExcelRow extends Command
                     $tanggal = $tanggalValue;
                 }
 
-                if ($lineNumber === $searchLineNumber && $tanggal === $searchTanggal) {
+                // Normalize line number for comparison (remove leading zeros)
+                $normalizedLineNumber = ltrim($lineNumber, '0');
+                $normalizedSearchCode = ltrim($searchLineCode, '0');
+
+                if (($lineNumber === $searchLineCode || $normalizedLineNumber === $normalizedSearchCode) && $tanggal === $searchTanggal) {
                     $found = true;
                     $this->info("✅ Found at Excel row: {$row}");
                     $this->line("Line Number: {$lineNumber}");
@@ -94,10 +105,13 @@ class CheckExcelRow extends Command
                 $this->newLine();
 
                 // Show similar records
-                $this->info("Showing all records for line number: {$searchLineNumber}");
+                $this->info("Showing all records for line number: {$searchLineCode}");
                 for ($row = 2; $row <= $worksheet->getHighestRow(); $row++) {
                     $lineNumber = $worksheet->getCell('C' . $row)->getValue();
-                    if ($lineNumber === $searchLineNumber) {
+                    $normalizedLineNumber = ltrim($lineNumber, '0');
+                    $normalizedSearchCode = ltrim($searchLineCode, '0');
+
+                    if ($lineNumber === $searchLineCode || $normalizedLineNumber === $normalizedSearchCode) {
                         $tanggalValue = $worksheet->getCell('D' . $row)->getValue();
                         if (is_numeric($tanggalValue)) {
                             $tanggal = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($tanggalValue)->format('Y-m-d');
