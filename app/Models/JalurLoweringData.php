@@ -274,8 +274,86 @@ class JalurLoweringData extends BaseModuleModel
         ]);
 
         $this->updateLineNumberTotals();
-        
+
         return true;
+    }
+
+    /**
+     * Sync module status based on photo approval statuses
+     * Called by PhotoApprovalService after photo approval/rejection
+     *
+     * Override parent method because Jalur modules use different status system
+     * (status_laporan instead of module_status)
+     */
+    public function syncModuleStatusFromPhotos(bool $save = true): string
+    {
+        $photos = $this->photoApprovals;
+
+        // If no photos, keep status as draft
+        if ($photos->isEmpty()) {
+            if ($save) {
+                $this->update(['status_laporan' => 'draft']);
+            } else {
+                $this->status_laporan = 'draft';
+            }
+            return 'draft';
+        }
+
+        // Count photo statuses
+        $totalPhotos = $photos->count();
+        $tracerApproved = $photos->where('photo_status', 'tracer_approved')->count();
+        $cgpApproved = $photos->where('photo_status', 'cgp_approved')->count();
+        $tracerRejected = $photos->where('photo_status', 'tracer_rejected')->count();
+        $cgpRejected = $photos->where('photo_status', 'cgp_rejected')->count();
+        $pending = $photos->whereIn('photo_status', ['draft', 'tracer_pending'])->count();
+
+        // Determine status based on photo statuses
+        $newStatus = 'draft';
+
+        if ($cgpRejected > 0) {
+            // If any photo rejected by CGP
+            $newStatus = 'revisi_cgp';
+        } elseif ($cgpApproved === $totalPhotos) {
+            // All photos approved by CGP
+            $newStatus = 'acc_cgp';
+        } elseif ($tracerRejected > 0) {
+            // If any photo rejected by Tracer
+            $newStatus = 'revisi_tracer';
+        } elseif ($tracerApproved === $totalPhotos) {
+            // All photos approved by Tracer
+            $newStatus = 'acc_tracer';
+        } elseif ($tracerApproved > 0 && $pending > 0) {
+            // Some approved, some pending - keep as draft
+            $newStatus = 'draft';
+        } else {
+            // Default to draft
+            $newStatus = 'draft';
+        }
+
+        // Update status if changed
+        if ($this->status_laporan !== $newStatus) {
+            if ($save) {
+                $this->update(['status_laporan' => $newStatus]);
+            } else {
+                $this->status_laporan = $newStatus;
+            }
+
+            \Log::info('Lowering status updated from photos', [
+                'lowering_id' => $this->id,
+                'old_status' => $this->status_laporan,
+                'new_status' => $newStatus,
+                'photo_stats' => [
+                    'total' => $totalPhotos,
+                    'tracer_approved' => $tracerApproved,
+                    'cgp_approved' => $cgpApproved,
+                    'tracer_rejected' => $tracerRejected,
+                    'cgp_rejected' => $cgpRejected,
+                    'pending' => $pending
+                ]
+            ]);
+        }
+
+        return $newStatus;
     }
 
     protected static function booted(): void

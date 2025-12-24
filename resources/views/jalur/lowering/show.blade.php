@@ -8,7 +8,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-3xl font-bold text-gray-800">Detail Lowering</h1>
-      <p class="text-gray-600 mt-1">Line: <b>{{ $lowering->lineNumber->line_number }}</b> - {{ $lowering->nama_jalan }}</p>
+      <p class="text-gray-600 mt-1">Line: <b>{{ $lowering->lineNumber->line_number }}</b>@if($lowering->lineNumber->nama_jalan) - {{ $lowering->lineNumber->nama_jalan }}@endif</p>
     </div>
     <div class="flex gap-2">
       @if(in_array($lowering->status_laporan, ['draft', 'revisi_tracer', 'revisi_cgp']))
@@ -203,13 +203,13 @@
                   $imageUrl = $photo->photo_url;
                   $isPdf = str_ends_with(Str::lower($imageUrl), '.pdf');
                   $fileId = null;
-                  
+
                   // Handle Google Drive URLs
                   if (str_contains($imageUrl, 'drive.google.com')) {
                       // Extract file ID from various Google Drive URL formats
                       if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $imageUrl, $matches)) {
                           $fileId = $matches[1];
-                          // Primary Google Drive image URL (most reliable)
+                          // Use lh3.googleusercontent.com - fastest and most reliable for thumbnails
                           $imageUrl = "https://lh3.googleusercontent.com/d/{$fileId}=w800";
                       } elseif (preg_match('/id=([a-zA-Z0-9_-]+)/', $imageUrl, $matches)) {
                           $fileId = $matches[1];
@@ -336,7 +336,7 @@
 </div>
 
 <!-- Image Modal -->
-<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center p-4" style="z-index: 9999; overflow: hidden;">
+<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-90 hidden items-center justify-center p-4" style="z-index: 9999;" onclick="closeImageModal(event)">
   <div class="photo-modal-controls">
     <button onclick="zoomIn(event)" title="Zoom In (+)">
       <i class="fas fa-search-plus"></i>
@@ -351,8 +351,8 @@
       <i class="fas fa-times"></i>
     </button>
   </div>
-  <div class="relative max-w-4xl max-h-full">
-    <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded" style="cursor: zoom-in; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+  <div class="relative flex items-center justify-center" style="width: 90vw; height: 90vh;" onclick="event.stopPropagation()">
+    <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded" style="cursor: zoom-in;">
     <div id="modalTitle" class="absolute bottom-4 left-4 right-4 text-white text-center text-lg font-medium bg-black bg-opacity-50 rounded p-2"></div>
   </div>
 </div>
@@ -407,23 +407,78 @@ function openImageModal(imageUrl, title) {
   const img = document.getElementById('modalImage');
   const modalTitle = document.getElementById('modalTitle');
 
-  img.src = imageUrl;
-  modalTitle.textContent = title;
+  console.log('Opening modal with URL:', imageUrl);
+
+  // Show loading state
+  modalTitle.textContent = 'Loading...';
   modal.classList.remove('hidden');
+  modal.classList.add('flex');
   document.body.style.overflow = 'hidden';
 
   // Reset zoom
   zoomLevel = 1;
   translateX = 0;
   translateY = 0;
-  updateImageTransform();
   img.classList.remove('zoomed');
+  img.style.transform = 'translate(0, 0) scale(1)';
+
+  // Load image with error handling
+  img.onerror = function() {
+    console.error('Failed to load image:', imageUrl);
+
+    // Extract file ID and try alternative URLs
+    const fileIdMatch = imageUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)/);
+    const fileId = fileIdMatch ? (fileIdMatch[1] || fileIdMatch[2]) : null;
+
+    if (fileId && !img.dataset.modalRetried) {
+      console.log('Trying alternative URL for file ID:', fileId);
+      img.dataset.modalRetried = 'true';
+
+      // Try different URL formats (alternatives to lh3 which is the primary)
+      const alternatives = [
+        `https://drive.google.com/uc?export=view&id=${fileId}`,
+        `https://drive.google.com/uc?id=${fileId}`,
+        `https://docs.google.com/uc?id=${fileId}`
+      ];
+
+      const currentSrc = img.src;
+      const nextAlt = alternatives.find(alt => alt !== currentSrc);
+
+      if (nextAlt) {
+        console.log('Retrying with:', nextAlt);
+        img.src = nextAlt;
+      } else {
+        showImageError(img, modalTitle, imageUrl);
+      }
+    } else {
+      showImageError(img, modalTitle, imageUrl);
+    }
+  };
+
+  img.onload = function() {
+    console.log('Image loaded successfully');
+    modalTitle.textContent = title;
+    delete img.dataset.modalRetried;
+  };
+
+  // Set image source
+  img.src = imageUrl;
+}
+
+function showImageError(img, modalTitle, originalUrl) {
+  modalTitle.innerHTML = '⚠️ Tidak dapat memuat foto. <a href="' + originalUrl + '" target="_blank" class="underline text-blue-400 hover:text-blue-300">Buka di tab baru</a>';
+  img.style.display = 'none';
+
+  setTimeout(() => {
+    img.style.display = 'block';
+  }, 100);
 }
 
 function closeImageModal(event) {
   if (event) event.stopPropagation();
   const modal = document.getElementById('imageModal');
   modal.classList.add('hidden');
+  modal.classList.remove('flex');
   document.body.style.overflow = 'auto';
 
   // Reset state
@@ -431,6 +486,8 @@ function closeImageModal(event) {
   translateX = 0;
   translateY = 0;
   isDragging = false;
+
+  console.log('Modal closed');
 }
 
 // Zoom functions
@@ -471,7 +528,7 @@ function updateImageTransform(withTransition = false) {
     }, 200);
   }
 
-  img.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${zoomLevel})`;
+  img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
 }
 
 function updateZoomClass() {
@@ -600,21 +657,24 @@ function tryAlternativeUrls(imgElement) {
         imgElement.parentElement.innerHTML = '<div class="flex flex-col items-center justify-center h-48 text-red-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"></path></svg><p class="text-xs mt-2">Image unavailable</p><button onclick="viewGoogleDrivePhoto(\''+imgElement.dataset.originalUrl+'\')" class="text-xs text-blue-500 hover:text-blue-700 mt-1">📁 Buka di Drive</button></div>';
         return;
     }
-    
+
     const alternatives = [
-        `https://drive.google.com/uc?export=view&id=${fileId}`,
+        `https://lh3.googleusercontent.com/d/${fileId}=w800`,
         `https://drive.google.com/uc?id=${fileId}`,
-        `https://docs.google.com/uc?id=${fileId}`
+        `https://docs.google.com/uc?id=${fileId}`,
+        `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`
     ];
-    
+
     let currentIndex = imgElement.dataset.attemptIndex || 0;
     currentIndex = parseInt(currentIndex);
-    
+
     if (currentIndex < alternatives.length) {
         imgElement.dataset.attemptIndex = currentIndex + 1;
+        console.log(`Trying alternative URL ${currentIndex + 1}/${alternatives.length}: ${alternatives[currentIndex]}`);
         imgElement.src = alternatives[currentIndex];
     } else {
-        // All alternatives failed, show fallback
+        // All alternatives failed, show fallback with link to open in Drive
+        console.log('All alternative URLs failed, showing fallback UI');
         imgElement.parentElement.innerHTML = '<div class="flex flex-col items-center justify-center h-48 text-orange-400"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><p class="text-xs mt-2">Foto Google Drive</p><button onclick="viewGoogleDrivePhoto(\''+imgElement.dataset.originalUrl+'\')" class="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 border border-blue-300 rounded">📁 Buka di Drive</button></div>';
     }
 }

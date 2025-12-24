@@ -17,7 +17,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('Rennn123!#'),
                 'name' => 'Rendra',
                 'full_name' => 'Rendra Tuharea',
-                'role' => 'super_admin',
+                'roles' => ['super_admin'], // Changed to array for multi-role
                 'is_active' => true,
             ],
             [
@@ -26,7 +26,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'name' => 'Admin CGP',
                 'full_name' => 'Administrator CGP Reviewer',
-                'role' => 'admin',
+                'roles' => ['admin'],
                 'is_active' => true,
             ],
             [
@@ -35,7 +35,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'name' => 'Tracer Field',
                 'full_name' => 'Tracer Field Inspector',
-                'role' => 'tracer',
+                'roles' => ['tracer'],
                 'is_active' => true,
             ],
 
@@ -46,7 +46,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'name' => 'Petugas SK 1',
                 'full_name' => 'Petugas Sambungan Kompor 1',
-                'role' => 'sk',
+                'roles' => ['sk'],
                 'is_active' => true,
             ],
             [
@@ -55,7 +55,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'name' => 'Petugas SK 2',
                 'full_name' => 'Petugas Sambungan Kompor 2',
-                'role' => 'sk',
+                'roles' => ['sk'],
                 'is_active' => true,
             ],
             // New SK Personnel
@@ -65,7 +65,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('aergas_selamet'),
                 'name' => 'Selamet',
                 'full_name' => 'Selamet',
-                'role' => 'sk',
+                'roles' => ['sk'],
                 'is_active' => true,
             ],
             [
@@ -74,7 +74,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('aergas_jaya'),
                 'name' => 'Jaya',
                 'full_name' => 'Jaya',
-                'role' => 'sk',
+                'roles' => ['sk'],
                 'is_active' => true,
             ],
             [
@@ -83,7 +83,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('aergas_aya'),
                 'name' => 'Aya',
                 'full_name' => 'Aya',
-                'role' => 'sk',
+                'roles' => ['sk'],
                 'is_active' => true,
             ],
             [
@@ -92,7 +92,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('aergas_sugi'),
                 'name' => 'Sugi',
                 'full_name' => 'Sugi',
-                'role' => 'sk',
+                'roles' => ['sk'],
                 'is_active' => true,
             ],
             [
@@ -101,7 +101,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('aergas_buyung'),
                 'name' => 'Buyung',
                 'full_name' => 'Buyung',
-                'role' => 'sk',
+                'roles' => ['sk'],
                 'is_active' => true,
             ],
 
@@ -112,7 +112,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'name' => 'Petugas SR 1',
                 'full_name' => 'Petugas Sambungan Rumah 1',
-                'role' => 'sr',
+                'roles' => ['sr'],
                 'is_active' => true,
             ],
             [
@@ -121,7 +121,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'name' => 'Petugas SR 2',
                 'full_name' => 'Petugas Sambungan Rumah 2',
-                'role' => 'sr',
+                'roles' => ['sr'],
                 'is_active' => true,
             ],
             // New SR Personnel
@@ -131,7 +131,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('aergas_lepek'),
                 'name' => 'Lepek',
                 'full_name' => 'Lepek',
-                'role' => 'sr',
+                'roles' => ['sr'],
                 'is_active' => true,
             ],
 
@@ -141,7 +141,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'name' => 'Petugas MGRT 1',
                 'full_name' => 'Petugas MGRT dan Pondasi 1',
-                'role' => 'mgrt',
+                'roles' => ['mgrt'],
                 'is_active' => true,
             ],
 
@@ -152,7 +152,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'name' => 'Petugas Gas In 1',
                 'full_name' => 'Petugas Gas In 1',
-                'role' => 'gas_in',
+                'roles' => ['gas_in'],
                 'is_active' => true,
             ],
             // New Gas In Personnel
@@ -162,7 +162,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('aergas_jidan'),
                 'name' => 'Jidan',
                 'full_name' => 'Jidan',
-                'role' => 'gas_in',
+                'roles' => ['gas_in'],
                 'is_active' => true,
             ],
 
@@ -172,13 +172,25 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'name' => 'CGP Pipa 1',
                 'full_name' => 'CGP Jalur Pipa dan Penyambungan 1',
-                'role' => 'cgp',
+                'roles' => ['cgp'],
                 'is_active' => true,
             ],
         ];
 
         foreach ($users as $userData) {
-            User::create($userData);
+            // Extract roles before creating user
+            $roles = $userData['roles'];
+            unset($userData['roles']);
+
+            // Create user without role column
+            $user = User::create($userData);
+
+            // Assign roles using the multi-role system
+            foreach ($roles as $role) {
+                $user->assignRole($role);
+            }
+
+            $this->command->info("Created user: {$user->username} with roles: " . implode(', ', $roles));
         }
 
         $this->command->info('Created ' . count($users) . ' users successfully.');

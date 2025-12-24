@@ -318,7 +318,7 @@
 </div>
 
 <!-- Image Modal -->
-<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center p-4" style="z-index: 9999; overflow: hidden;">
+<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-90 hidden items-center justify-center p-4" style="z-index: 9999;" onclick="closeImageModal(event)">
   <div class="photo-modal-controls">
     <button onclick="zoomIn(event)" title="Zoom In (+)">
       <i class="fas fa-search-plus"></i>
@@ -333,8 +333,8 @@
       <i class="fas fa-times"></i>
     </button>
   </div>
-  <div class="relative max-w-4xl max-h-full">
-    <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded" style="cursor: zoom-in; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+  <div class="relative flex items-center justify-center" style="width: 90vw; height: 90vh;" onclick="event.stopPropagation()">
+    <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded" style="cursor: zoom-in;">
     <div id="modalTitle" class="absolute bottom-4 left-4 right-4 text-white text-center text-lg font-medium bg-black bg-opacity-50 rounded p-2"></div>
   </div>
 </div>
@@ -419,23 +419,38 @@ function openImageModal(imageUrl, title) {
     const img = document.getElementById('modalImage');
     const modalTitle = document.getElementById('modalTitle');
 
-    img.src = imageUrl;
-    modalTitle.textContent = title || '';
+    console.log('Opening modal with URL:', imageUrl);
+
+    // Show loading state
+    modalTitle.textContent = 'Loading...';
     modal.classList.remove('hidden');
+    modal.classList.add('flex');
     document.body.style.overflow = 'hidden';
 
     // Reset zoom
     zoomLevel = 1;
     translateX = 0;
     translateY = 0;
-    updateImageTransform();
     img.classList.remove('zoomed');
+    img.style.transform = 'translate(0, 0) scale(1)';
+
+    // Load image
+    img.src = imageUrl;
+    img.onload = function() {
+        modalTitle.textContent = title || '';
+        console.log('Image loaded successfully');
+    };
+    img.onerror = function() {
+        modalTitle.textContent = 'Error loading image';
+        console.error('Failed to load image:', imageUrl);
+    };
 }
 
 function closeImageModal(event) {
     if (event) event.stopPropagation();
     const modal = document.getElementById('imageModal');
     modal.classList.add('hidden');
+    modal.classList.remove('flex');
     document.body.style.overflow = 'auto';
 
     // Reset state
@@ -443,6 +458,8 @@ function closeImageModal(event) {
     translateX = 0;
     translateY = 0;
     isDragging = false;
+
+    console.log('Modal closed');
 }
 
 // Zoom functions
@@ -483,7 +500,7 @@ function updateImageTransform(withTransition = false) {
         }, 200);
     }
 
-    img.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${zoomLevel})`;
+    img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
 }
 
 function updateZoomClass() {

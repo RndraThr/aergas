@@ -419,8 +419,15 @@ class PhotoApprovalService
             }
 
             DB::commit();
-            // Skip recalc for jalur modules as they don't have customer association
-            if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+
+            // Recalc module status
+            if (in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                // For jalur modules, use module_record_id
+                if ($pa->module_record_id) {
+                    $this->recalcJalurModule($pa->module_record_id, $pa->module_name);
+                }
+            } else {
+                // For customer modules, use reff_id_pelanggan
                 $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
             }
 
@@ -459,8 +466,15 @@ class PhotoApprovalService
             $this->handlePhotoRejection($pa, $user->full_name.' (CGP)', $reason);
 
             DB::commit();
-            // Skip recalc for jalur modules as they don't have customer association
-            if (!in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+
+            // Recalc module status
+            if (in_array($pa->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                // For jalur modules, use module_record_id
+                if ($pa->module_record_id) {
+                    $this->recalcJalurModule($pa->module_record_id, $pa->module_name);
+                }
+            } else {
+                // For customer modules, use reff_id_pelanggan
                 $this->recalcModule($pa->reff_id_pelanggan, $pa->module_name);
             }
 
@@ -969,6 +983,24 @@ class PhotoApprovalService
         }
     }
 
+    /**
+     * Recalculate jalur module status by module_record_id
+     */
+    private function recalcJalurModule(int $moduleRecordId, string $moduleSlug): void
+    {
+        try {
+            $class = $this->resolveModuleModelClass($moduleSlug);
+            if (!$class) return;
+
+            $m = $class::find($moduleRecordId);
+            if ($m && method_exists($m, 'syncModuleStatusFromPhotos')) {
+                $m->syncModuleStatusFromPhotos();
+            }
+        } catch (Exception $e) {
+            Log::info('recalcJalurModule soft-failed', ['err' => $e->getMessage(), 'module' => $moduleSlug, 'record_id' => $moduleRecordId]);
+        }
+    }
+
     private function clearModuleApprovals(string $reffId, string $moduleSlug): void
     {
         try {
@@ -1039,10 +1071,12 @@ class PhotoApprovalService
     private function resolveModuleModelClass(string $moduleSlug): ?string
     {
         return match (strtolower($moduleSlug)) {
-            'sk'           => SkData::class,
-            'sr'           => SrData::class,
-            'gas_in'       => GasInData::class,
-            default        => null,
+            'sk'               => SkData::class,
+            'sr'               => SrData::class,
+            'gas_in'           => GasInData::class,
+            'jalur_lowering'   => \App\Models\JalurLoweringData::class,
+            'jalur_joint'      => \App\Models\JalurJointData::class,
+            default            => null,
         };
     }
 
@@ -1254,7 +1288,13 @@ class PhotoApprovalService
             DB::commit();
 
             // Update module status and auto-promote to cgp_pending if all required photos are approved
-            if (!in_array($photo->module_name, ['jalur_lowering', 'jalur_joint'])) {
+            if (in_array($photo->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                // For jalur modules, use module_record_id
+                if ($photo->module_record_id) {
+                    $this->recalcJalurModule($photo->module_record_id, $photo->module_name);
+                }
+            } else {
+                // For customer modules, use reff_id_pelanggan
                 $this->recalcModule($photo->reff_id_pelanggan, $photo->module_name);
 
                 // Check if ALL required photos are now tracer-approved and uploaded
@@ -1311,12 +1351,18 @@ class PhotoApprovalService
             $this->handlePhotoRejection($photo, $tracer->full_name . ' (Tracer)', $notes ?? '');
 
             DB::commit();
-            
-            // Update module status (skip for jalur modules as they don't have customer association)
-            if (!in_array($photo->module_name, ['jalur_lowering', 'jalur_joint'])) {
+
+            // Update module status
+            if (in_array($photo->module_name, ['jalur_lowering', 'jalur_joint'])) {
+                // For jalur modules, use module_record_id
+                if ($photo->module_record_id) {
+                    $this->recalcJalurModule($photo->module_record_id, $photo->module_name);
+                }
+            } else {
+                // For customer modules, use reff_id_pelanggan
                 $this->recalcModule($photo->reff_id_pelanggan, $photo->module_name);
             }
-            
+
             return $photo->fresh();
 
         } catch (Exception $e) {

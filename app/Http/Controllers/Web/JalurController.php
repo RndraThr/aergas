@@ -178,11 +178,8 @@ class JalurController extends Controller
     private function getComprehensiveReport($export = false)
     {
         $lineNumbers = JalurLineNumber::with([
-            'cluster', 
-            'loweringData', 
-            'jointData' => function($q) {
-                $q->with('fittingType');
-            }
+            'cluster',
+            'loweringData'
         ])->get();
 
         $data = $lineNumbers->map(function($line) {
@@ -192,10 +189,20 @@ class JalurController extends Controller
             $actualMc100 = $line->actual_mc100 ?? 0;
             $loweringLastUpdate = $line->loweringData->max('updated_at');
 
-            // Calculate joint totals
-            $jointTotal = $line->jointData->count();
-            $jointCompleted = $line->jointData->where('status_laporan', 'cgp_approved')->count();
-            $jointLastUpdate = $line->jointData->max('updated_at');
+            // Calculate lowering approval status
+            $loweringAccCgp = $line->loweringData->where('status_laporan', 'acc_cgp')->count();
+            $loweringAccTracer = $line->loweringData->where('status_laporan', 'acc_tracer')->count();
+            $loweringRevisi = $line->loweringData->whereIn('status_laporan', ['revisi_tracer', 'revisi_cgp'])->count();
+            $loweringDraft = $line->loweringData->where('status_laporan', 'draft')->count();
+
+            // Calculate joint totals - use accessor (no eager loading possible)
+            $joints = $line->jointData; // This calls the accessor which queries and caches
+            $jointTotal = $joints->count();
+            $jointAccCgp = $joints->where('status_laporan', 'acc_cgp')->count();
+            $jointAccTracer = $joints->where('status_laporan', 'acc_tracer')->count();
+            $jointRevisi = $joints->whereIn('status_laporan', ['revisi_tracer', 'revisi_cgp'])->count();
+            $jointDraft = $joints->where('status_laporan', 'draft')->count();
+            $jointLastUpdate = $joints->max('updated_at');
 
             // Calculate variance
             $estimasi = $line->estimasi_panjang ?? 0;
@@ -205,12 +212,30 @@ class JalurController extends Controller
             // Calculate progress
             $progressPercentage = $estimasi > 0 ? (($totalPenggelaran / $estimasi) * 100) : 0;
 
-            // Determine overall status
-            $overallStatus = 'pending';
-            if ($jointCompleted > 0 && $actualMc100 > 0) {
+            // Determine overall status based on approval statuses
+            $totalRecords = $loweringEntries + $jointTotal;
+            $totalAccCgp = $loweringAccCgp + $jointAccCgp;
+            $totalRevisi = $loweringRevisi + $jointRevisi;
+            $totalAccTracer = $loweringAccTracer + $jointAccTracer;
+            $totalDraft = $loweringDraft + $jointDraft;
+
+            if ($totalRecords === 0) {
+                // No data yet
+                $overallStatus = 'pending';
+            } elseif ($totalRevisi > 0) {
+                // Ada yang butuh revisi (prioritas tertinggi)
+                $overallStatus = 'needs_revision';
+            } elseif ($totalAccCgp === $totalRecords) {
+                // Semua sudah ACC CGP
                 $overallStatus = 'completed';
-            } elseif ($loweringEntries > 0 || $jointTotal > 0) {
+            } elseif ($totalAccCgp > 0 || $totalAccTracer > 0) {
+                // Ada yang sudah ACC (tracer atau CGP) tapi belum semua
                 $overallStatus = 'in_progress';
+            } elseif ($totalDraft > 0) {
+                // Semua masih draft
+                $overallStatus = 'in_progress';
+            } else {
+                $overallStatus = 'pending';
             }
 
             return [
@@ -230,7 +255,7 @@ class JalurController extends Controller
                 
                 // Joint data
                 'joint_total' => $jointTotal,
-                'joint_completed' => $jointCompleted,
+                'joint_completed' => $jointAccCgp,
                 'joint_last_update' => $jointLastUpdate,
                 
                 // Calculations

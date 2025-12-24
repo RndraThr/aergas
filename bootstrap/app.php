@@ -5,6 +5,10 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AergasRoleMiddleware;
 
+// Set PHP execution time limits
+ini_set('max_execution_time', '1500');
+ini_set('max_input_time', '1500');
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',

@@ -65,7 +65,6 @@ class JalurClusterController extends Controller
     {
         $cluster->load([
             'lineNumbers.loweringData',
-            'lineNumbers.jointData.fittingType',
             'createdBy'
         ]);
 

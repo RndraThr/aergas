@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController, HseDailyReportController};
+use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurLoweringImportController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController, HseDailyReportController};
 
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -622,6 +622,28 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                     Route::get('/', [JalurLoweringController::class, 'index'])->name('index');
                     Route::get('/create', [JalurLoweringController::class, 'create'])->name('create');
                     Route::post('/', [JalurLoweringController::class, 'store'])->name('store');
+
+                    // Import/Export Routes - MUST BE BEFORE {lowering} parameter routes
+                    Route::prefix('import')
+                        ->name('import.')
+                        ->group(function () {
+                            Route::get('/', [JalurLoweringImportController::class, 'index'])
+                                ->name('index');
+                            Route::get('/template', [JalurLoweringImportController::class, 'downloadTemplate'])
+                                ->name('template');
+                            Route::post('/preview', [JalurLoweringImportController::class, 'preview'])
+                                ->name('preview');
+                            Route::post('/', [JalurLoweringImportController::class, 'import'])
+                                ->name('execute');
+                        });
+
+                    // API endpoints - Also before {lowering} parameter routes
+                    Route::get('/api/line-numbers', [JalurLoweringController::class, 'getLineNumbers'])
+                        ->name('api.line-numbers');
+                    Route::get('/api/check-line-availability', [JalurLoweringController::class, 'checkLineNumberAvailability'])
+                        ->name('api.check-line-availability');
+
+                    // Resource routes with {lowering} parameter - MUST BE LAST
                     Route::get('/{lowering}', [JalurLoweringController::class, 'show'])
                         ->name('show');
                     Route::get('/{lowering}/edit', [JalurLoweringController::class, 'edit'])
@@ -644,12 +666,6 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                         ->name('approve-cgp');
                     Route::post('/{lowering}/reject-cgp', [JalurLoweringController::class, 'rejectByCgp'])
                         ->name('reject-cgp');
-
-                    // API endpoints
-                    Route::get('/api/line-numbers', [JalurLoweringController::class, 'getLineNumbers'])
-                        ->name('api.line-numbers');
-                    Route::get('/api/check-line-availability', [JalurLoweringController::class, 'checkLineNumberAvailability'])
-                        ->name('api.check-line-availability');
                 });
 
             // Joint Data Management
@@ -659,6 +675,30 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                     Route::get('/', [JalurJointController::class, 'index'])->name('index');
                     Route::get('/create', [JalurJointController::class, 'create'])->name('create');
                     Route::post('/', [JalurJointController::class, 'store'])->name('store');
+
+                    // Import/Export Routes - MUST BE BEFORE {joint} parameter routes
+                    Route::prefix('import')
+                        ->name('import.')
+                        ->group(function () {
+                            Route::get('/', [\App\Http\Controllers\Web\JalurJointImportController::class, 'index'])
+                                ->name('index');
+                            Route::get('/template', [\App\Http\Controllers\Web\JalurJointImportController::class, 'downloadTemplate'])
+                                ->name('template');
+                            Route::post('/preview', [\App\Http\Controllers\Web\JalurJointImportController::class, 'preview'])
+                                ->name('preview');
+                            Route::get('/preview', function () {
+                                return redirect()->route('jalur.joint.import.index')
+                                    ->with('info', 'Silakan upload file untuk melakukan preview.');
+                            });
+                            Route::post('/', [\App\Http\Controllers\Web\JalurJointImportController::class, 'import'])
+                                ->name('execute');
+                            Route::get('/execute', function () {
+                                return redirect()->route('jalur.joint.import.index')
+                                    ->with('info', 'Silakan upload file untuk melakukan import.');
+                            });
+                        });
+
+                    // Resource routes with {joint} parameter - MUST BE AFTER import routes
                     Route::get('/{joint}', [JalurJointController::class, 'show'])
                         ->name('show');
                     Route::get('/{joint}/edit', [JalurJointController::class, 'edit'])
