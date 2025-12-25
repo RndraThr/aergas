@@ -175,13 +175,9 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
             }
         }
 
-        // 9. Validate Equal Tee (TE) - requires 3rd line
-        if ($fittingType->code_fitting === 'TE') {
-            if (empty($jointLineOptional)) {
-                throw new \Exception("Field 'joint_line_optional' wajib diisi untuk Equal Tee (TE)");
-            }
-
-            // Validate joint_line_optional (skip validation if "EXISTING")
+        // 9. Validate Equal Tee (TE) - optional 3rd line
+        if ($fittingType->code_fitting === 'TE' && !empty($jointLineOptional)) {
+            // Validate joint_line_optional only if provided (skip validation if "EXISTING")
             if (strtoupper($jointLineOptional) !== 'EXISTING') {
                 $lineOptional = JalurLineNumber::where('line_number', $jointLineOptional)
                     ->where('cluster_id', $cluster->id)
@@ -200,19 +196,15 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
             throw new \Exception("Tipe penyambungan harus 'EF' atau 'BF'");
         }
 
-        // 11. Extract hyperlink for foto from joint_number cell
+        // 11. Extract hyperlink for foto from joint_number cell (optional)
         $fotoHyperlink = $this->getHyperlink($excelRowNumber, 'joint_number');
-
-        if (!$fotoHyperlink) {
-            throw new \Exception("Foto evidence joint wajib ada (hyperlink di cell joint_number)");
-        }
 
         Log::info("Processing joint row", [
             'row' => $excelRowNumber,
             'joint_number' => $jointNumber,
             'cluster' => $clusterCode,
             'fitting' => $fittingCode,
-            'foto_hyperlink' => $fotoHyperlink,
+            'foto_hyperlink' => $fotoHyperlink ?? 'no photo',
         ]);
 
         // DRY RUN - Don't save to database
@@ -282,8 +274,10 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
                     'updated_by' => Auth::id(),
                 ]);
 
-                // Handle photo from Google Drive hyperlink (only for new records)
-                $this->handlePhotoFromDriveLink($joint, $fotoHyperlink, 'foto_evidence_joint');
+                // Handle photo from Google Drive hyperlink (only for new records and if hyperlink exists)
+                if ($fotoHyperlink) {
+                    $this->handlePhotoFromDriveLink($joint, $fotoHyperlink, 'foto_evidence_joint');
+                }
             }
 
             DB::commit();
