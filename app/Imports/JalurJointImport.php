@@ -310,16 +310,20 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
     private function parseJointNumber(string $jointNumber): ?array
     {
         // Format: {CLUSTER}-{FITTING}{CODE}
-        // Contoh: KRG-CP001, GDK-EL90001, KRG-TE002
+        // Contoh: KRG-CP001, GDK-EL90124, KRG-TE002
+        // Note: Elbow has angle in code: EL90 (Elbow 90), EL45 (Elbow 45)
 
-        if (!preg_match('/^([A-Z]+)-([A-Z0-9]+?)(\d+)$/', $jointNumber, $matches)) {
+        // Try to match pattern: CLUSTER-FITTING_CODE+NUMBER
+        // Fitting code can contain letters and numbers (e.g., EL90, EL45, ECP)
+        // Joint number must be at least 3 digits
+        if (!preg_match('/^([A-Z]+)-([A-Z]+\d*)(\d{3,})$/', $jointNumber, $matches)) {
             return null;
         }
 
         return [
             $matches[1], // Cluster Code (KRG, GDK)
-            $matches[2], // Fitting Code (CP, ECP, EL90, TE, RD, FA, VL, TF, TS)
-            $matches[3], // Joint Code Suffix (001, 002, 003)
+            $matches[2], // Fitting Code (CP, EL90, EL45, TE, RD, FA, VL, TF, TS, ECP)
+            $matches[3], // Joint Number (001, 124, etc - minimum 3 digits)
         ];
     }
 
