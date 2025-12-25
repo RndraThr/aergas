@@ -778,6 +778,220 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         }
     }
 
+    /**
+     * Batch approve all joints for a specific line on a specific date
+     */
+    public function approveJointByDate(Request $request)
+    {
+        $request->validate([
+            'line_number' => 'required|string',
+            'date' => 'required|date',
+            'notes' => 'nullable|string|max:1000'
+        ]);
+
+        try {
+            $lineNumber = $request->get('line_number');
+            $date = $request->get('date');
+            $notes = $request->get('notes');
+
+            // Get all joint records that involve this line number on this date
+            $jointRecords = JalurJointData::where(function($query) use ($lineNumber) {
+                    $query->where('joint_line_from', $lineNumber)
+                          ->orWhere('joint_line_to', $lineNumber)
+                          ->orWhere('joint_line_optional', $lineNumber);
+                })
+                ->whereDate('tanggal_joint', $date)
+                ->pluck('id');
+
+            if ($jointRecords->isEmpty()) {
+                throw new Exception('Tidak ada joint data untuk line dan tanggal ini');
+            }
+
+            // Get all photos ready for CGP approval (tracer_approved or cgp_pending)
+            $photos = PhotoApproval::whereIn('module_record_id', $jointRecords)
+                ->where('module_name', 'jalur_joint')
+                ->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])
+                ->get();
+
+            if ($photos->isEmpty()) {
+                throw new Exception('Tidak ada foto joint yang perlu di-approve untuk tanggal ini');
+            }
+
+            $approved = 0;
+            $failed = 0;
+            $errors = [];
+
+            foreach ($photos as $photo) {
+                try {
+                    $this->photoApprovalService->approveByCgp(
+                        $photo->id,
+                        Auth::id(),
+                        $notes
+                    );
+                    $approved++;
+                } catch (Exception $e) {
+                    $failed++;
+                    $errors[] = "Photo {$photo->id}: " . $e->getMessage();
+                    Log::warning('Failed to approve joint photo in batch', [
+                        'photo_id' => $photo->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Organize all approved joint photos
+            if ($approved > 0) {
+                try {
+                    // Get line_id for organization
+                    $line = JalurLineNumber::where('line_number', $lineNumber)->first();
+                    if ($line) {
+                        $this->folderOrganizationService->organizeJalurPhotosAfterCgpApproval(
+                            $line->id,
+                            $date,
+                            'jalur_joint'
+                        );
+                    }
+                } catch (Exception $e) {
+                    Log::warning('Joint photo organization failed but approvals succeeded', [
+                        'line_number' => $lineNumber,
+                        'date' => $date,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            if ($failed > 0 && $approved === 0) {
+                throw new Exception('Semua foto gagal di-approve: ' . implode(', ', $errors));
+            }
+
+            $message = "{$approved} foto joint berhasil di-approve untuk tanggal {$date}";
+            if ($failed > 0) {
+                $message .= ", {$failed} foto gagal";
+            }
+
+            return back()->with('success', $message);
+
+        } catch (Exception $e) {
+            Log::error('CGP joint batch approve error: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Batch approve all joints connected to a line (all dates)
+     */
+    public function approveJointByLine(Request $request)
+    {
+        $request->validate([
+            'line_number' => 'required|string',
+            'notes' => 'nullable|string|max:1000'
+        ]);
+
+        try {
+            $lineNumber = $request->get('line_number');
+            $notes = $request->get('notes');
+
+            // Get all joint records that involve this line number
+            $jointRecords = JalurJointData::where(function($query) use ($lineNumber) {
+                    $query->where('joint_line_from', $lineNumber)
+                          ->orWhere('joint_line_to', $lineNumber)
+                          ->orWhere('joint_line_optional', $lineNumber);
+                })
+                ->pluck('id');
+
+            if ($jointRecords->isEmpty()) {
+                throw new Exception('Tidak ada joint data untuk line ini');
+            }
+
+            // Get all photos ready for CGP approval
+            $photos = PhotoApproval::whereIn('module_record_id', $jointRecords)
+                ->where('module_name', 'jalur_joint')
+                ->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])
+                ->get();
+
+            if ($photos->isEmpty()) {
+                throw new Exception('Tidak ada foto joint yang perlu di-approve untuk line ini');
+            }
+
+            $approved = 0;
+            $failed = 0;
+            $errors = [];
+
+            foreach ($photos as $photo) {
+                try {
+                    $this->photoApprovalService->approveByCgp(
+                        $photo->id,
+                        Auth::id(),
+                        $notes
+                    );
+                    $approved++;
+                } catch (Exception $e) {
+                    $failed++;
+                    $errors[] = "Photo {$photo->id}: " . $e->getMessage();
+                    Log::warning('Failed to approve joint photo in batch', [
+                        'photo_id' => $photo->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Organize all approved joint photos by unique dates
+            if ($approved > 0) {
+                try {
+                    $line = JalurLineNumber::where('line_number', $lineNumber)->first();
+                    if ($line) {
+                        // Get unique dates for this line's joints
+                        $uniqueDates = JalurJointData::where(function($query) use ($lineNumber) {
+                                $query->where('joint_line_from', $lineNumber)
+                                      ->orWhere('joint_line_to', $lineNumber)
+                                      ->orWhere('joint_line_optional', $lineNumber);
+                            })
+                            ->distinct()
+                            ->pluck('tanggal_joint')
+                            ->map(fn($date) => \Carbon\Carbon::parse($date)->format('Y-m-d'))
+                            ->unique();
+
+                        foreach ($uniqueDates as $date) {
+                            $this->folderOrganizationService->organizeJalurPhotosAfterCgpApproval(
+                                $line->id,
+                                $date,
+                                'jalur_joint'
+                            );
+                        }
+                    }
+                } catch (Exception $e) {
+                    Log::warning('Joint photo organization failed but approvals succeeded', [
+                        'line_number' => $lineNumber,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            if ($failed > 0 && $approved === 0) {
+                throw new Exception('Semua foto gagal di-approve: ' . implode(', ', $errors));
+            }
+
+            $message = "Line {$lineNumber}: {$approved} foto joint berhasil di-approve";
+            if ($failed > 0) {
+                $message .= ", {$failed} foto gagal";
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'approved_count' => $approved,
+                'failed_count' => $failed,
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('CGP joint line batch approve error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
     // ==================== PRIVATE METHODS ====================
 
     private function getClusterCgpApprovalStats(JalurCluster $cluster): array

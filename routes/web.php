@@ -911,6 +911,10 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 Route::post('/approve-date', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'approveDatePhotos'])->name('approve-date');
                 Route::post('/approve-line', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'approveLine'])->name('approve-line');
                 Route::post('/replace-photo', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'replacePhoto'])->name('replace-photo');
+
+                // Batch Joint Approval Actions
+                Route::post('/approve-joint-by-date', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'approveJointByDate'])->name('approve-joint-by-date');
+                Route::post('/approve-joint-by-line', [App\Http\Controllers\Web\CgpJalurApprovalController::class, 'approveJointByLine'])->name('approve-joint-by-line');
             });
         });
 

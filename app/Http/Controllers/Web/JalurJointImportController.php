@@ -150,6 +150,19 @@ class JalurJointImportController extends Controller
                 'total' => count($results),
             ]);
 
+            // Sync joint counts to line numbers after successful import
+            if ($successCount > 0) {
+                try {
+                    \Artisan::call('jalur:sync-joint-count', ['--force' => true]);
+                    Log::info('Joint counts synced after import');
+                } catch (\Exception $e) {
+                    Log::warning('Failed to sync joint counts after import', [
+                        'error' => $e->getMessage()
+                    ]);
+                    // Don't fail the import if sync fails
+                }
+            }
+
             // Clean up temp file if exists
             if ($request->has('temp_file_path') && isset($tempFilePath) && file_exists($tempFilePath)) {
                 @unlink($tempFilePath);
