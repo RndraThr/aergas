@@ -65,7 +65,8 @@ class SyncJalurJointNumbers extends Command
                         'cluster_id' => $joint->cluster_id,
                         'fitting_type_id' => $joint->fitting_type_id,
                         'joint_code' => $joint->joint_code,
-                        'status' => 'used', // Mark as used since it's from actual joint data
+                        'is_used' => true, // Mark as used since it's from actual joint data
+                        'is_active' => true,
                         'created_by' => 1, // System user
                         'updated_by' => 1,
                     ]);
