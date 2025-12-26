@@ -143,7 +143,7 @@ class CheckJalurJointDriveFolder extends Command
     private function checkSamplePhotos(int $limit): void
     {
         $photos = PhotoApproval::where('module_name', 'jalur_joint')
-            ->with('jointData')
+            ->with('jalurJoint')
             ->take($limit)
             ->get();
 
@@ -164,7 +164,7 @@ class CheckJalurJointDriveFolder extends Command
             }
 
             foreach ($photos as $photo) {
-                $joint = $photo->jointData;
+                $joint = $photo->jalurJoint;
 
                 if (!$joint) {
                     $this->warn("⚠️  Photo #{$photo->id} has no associated joint data");
