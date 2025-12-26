@@ -121,16 +121,10 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
             throw new \Exception("Fitting Type dengan code '{$fittingCode}' tidak ditemukan di database");
         }
 
-        // 4. Check duplicate joint number
-        $existingJoint = JalurJointData::where('nomor_joint', $jointNumber)->first();
-        if ($existingJoint) {
-            throw new \Exception("Joint number '{$jointNumber}' sudah digunakan di database");
-        }
-
-        // 5. Validate required fields
+        // 4. Validate required fields
         $this->validateRequiredFields($data);
 
-        // 6. Convert tanggal_joint
+        // 5. Convert tanggal_joint
         $tanggalJoint = $data['tanggal_joint'];
         if (is_numeric($tanggalJoint) && $tanggalJoint > 0) {
             try {
@@ -140,13 +134,13 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
             }
         }
 
-        // 7. Validate diameter
+        // 6. Validate diameter
         $diameter = (string) $data['diameter'];
         if (!in_array($diameter, ['63', '90', '110', '160', '180', '200'])) {
             throw new \Exception("Diameter tidak valid. Pilihan: 63, 90, 110, 160, 180, 200");
         }
 
-        // 8. Validate Line Numbers
+        // 7. Validate Line Numbers
         $jointLineFrom = trim($data['joint_line_from']);
         $jointLineTo = trim($data['joint_line_to']);
         $jointLineOptional = !empty($data['joint_line_optional']) ? trim($data['joint_line_optional']) : null;
@@ -231,7 +225,9 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
         // REAL IMPORT - Save to database
         DB::beginTransaction();
         try {
-            // Check for existing joint data (duplicate detection by nomor_joint)
+            // Check for existing joint data by nomor_joint only
+            // Each joint number represents a unique physical joint
+            // Different joints (BF.05, BF.06) can have same line combinations (e.g., diameter 180 case)
             $existingJoint = JalurJointData::where('nomor_joint', $jointNumber)->first();
 
             if ($existingJoint) {
