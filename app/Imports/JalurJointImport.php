@@ -127,9 +127,35 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
         }
 
         // 3. Validate Fitting Type
-        $fittingType = JalurFittingType::where('code_fitting', $fittingCode)->first();
-        if (!$fittingType) {
-            throw new \Exception("Fitting Type dengan code '{$fittingCode}' tidak ditemukan di database");
+        // For diameter 180 format (DIAMETER_180 marker), use a default fitting type
+        if ($fittingCode === 'DIAMETER_180') {
+            // For diameter 180, fitting type is not part of joint number
+            // Use a generic/default fitting type or get from Excel if available
+            // Check if there's a fitting type column in Excel
+            $fittingTypeCode = !empty($data['fitting_type']) ? trim($data['fitting_type']) : null;
+
+            if ($fittingTypeCode) {
+                // Try to get fitting type from Excel column
+                $fittingType = JalurFittingType::where('code_fitting', $fittingTypeCode)->first();
+                if (!$fittingType) {
+                    throw new \Exception("Fitting Type dengan code '{$fittingTypeCode}' tidak ditemukan di database");
+                }
+            } else {
+                // Use default fitting type for diameter 180 (e.g., 'CP' for Coupler)
+                // Or create a special 'GENERIC' fitting type
+                $fittingType = JalurFittingType::where('code_fitting', 'CP')->first();
+                if (!$fittingType) {
+                    throw new \Exception("Untuk diameter 180, fitting type default 'CP' tidak ditemukan. Tambahkan kolom 'fitting_type' di Excel atau buat fitting type 'CP' di database.");
+                }
+            }
+            // Reset fittingCode for later use
+            $fittingCode = $fittingType->code_fitting;
+        } else {
+            // Standard format: fitting type is part of joint number
+            $fittingType = JalurFittingType::where('code_fitting', $fittingCode)->first();
+            if (!$fittingType) {
+                throw new \Exception("Fitting Type dengan code '{$fittingCode}' tidak ditemukan di database");
+            }
         }
 
         // 4. Validate required fields
@@ -327,14 +353,16 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
             ];
         }
 
-        // Try Format 2: FITTING.CODE or FITTING-CODE (untuk diameter 180)
+        // Try Format 2: TIPE_PENYAMBUNGAN.CODE (untuk diameter 180)
+        // Contoh: BF.05, EF.010
+        // BF/EF adalah tipe penyambungan (Butt Fusion / Electro Fusion), BUKAN fitting type
         if (preg_match('/^([A-Z]+)[\.\-]?(\d{1,})$/', $jointNumber, $matches)) {
-            // Extract cluster from data context (will be filled from Excel cluster column)
-            // For now, return special marker 'NONE' to indicate no cluster in joint number
+            // For diameter 180, fitting type must be specified in separate Excel column
+            // Return special markers to indicate diameter 180 format
             return [
-                'NONE',      // No cluster in joint number (will use from Excel data)
-                $matches[1], // Fitting Code (BF, EF, etc)
-                $matches[2], // Joint Code (05, 010, etc - can be 1-3 digits)
+                'NONE',          // No cluster in joint number (will use from line_from)
+                'DIAMETER_180',  // Special marker: fitting type from Excel column, not from joint number
+                $matches[0],     // Full joint number as code (BF.05, EF.010, etc)
             ];
         }
 
