@@ -46,15 +46,26 @@ class SyncJalurJointNumbers extends Command
 
         $created = 0;
         $existing = 0;
+        $updated = 0;
         $errors = 0;
 
-        $this->withProgressBar($jointData, function ($joint) use (&$created, &$existing, &$errors, $dryRun) {
+        $this->withProgressBar($jointData, function ($joint) use (&$created, &$existing, &$updated, &$errors, $dryRun) {
             try {
                 // Check if joint number already exists
                 $existingJoint = JalurJointNumber::where('nomor_joint', $joint->nomor_joint)->first();
 
                 if ($existingJoint) {
-                    $existing++;
+                    // Update is_used status if not already marked as used
+                    if (!$existingJoint->is_used && !$dryRun) {
+                        $existingJoint->update([
+                            'is_used' => true,
+                            'is_active' => true,
+                            'updated_by' => 1,
+                        ]);
+                        $updated++;
+                    } else {
+                        $existing++;
+                    }
                     return;
                 }
 
@@ -92,7 +103,8 @@ class SyncJalurJointNumbers extends Command
             [
                 ['Joint Numbers Processed', $jointData->count()],
                 ['New Records Created', $created],
-                ['Already Existing', $existing],
+                ['Existing Records Updated', $updated],
+                ['Already Up to Date', $existing],
                 ['Errors', $errors],
             ]
         );
@@ -101,8 +113,12 @@ class SyncJalurJointNumbers extends Command
             $this->info("✅ {$created} new joint number records created");
         }
 
+        if ($updated > 0) {
+            $this->info("✅ {$updated} joint numbers marked as used");
+        }
+
         if ($existing > 0) {
-            $this->line("ℹ️  {$existing} joint numbers already exist in jalur_joint_numbers");
+            $this->line("ℹ️  {$existing} joint numbers already up to date");
         }
 
         if ($errors > 0) {
