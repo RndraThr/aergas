@@ -41,10 +41,22 @@ class CheckJalurJointDriveFolder extends Command
         // Get statistics
         $totalJoints = JalurJointData::count();
         $totalPhotos = PhotoApproval::where('module_name', 'jalur_joint')->count();
+        $minJointId = JalurJointData::min('id');
+        $maxJointId = JalurJointData::max('id');
+        $validPhotos = PhotoApproval::where('module_name', 'jalur_joint')
+            ->where('module_record_id', '>=', $minJointId)
+            ->where('module_record_id', '<=', $maxJointId)
+            ->count();
+        $orphanedPhotos = $totalPhotos - $validPhotos;
 
         $this->info("📊 Database Statistics:");
         $this->line("   Total Joint Records: {$totalJoints}");
+        $this->line("   Joint ID Range: {$minJointId} - {$maxJointId}");
         $this->line("   Total Joint Photos: {$totalPhotos}");
+        $this->line("   ├─ Valid Photos: {$validPhotos} ✅");
+        if ($orphanedPhotos > 0) {
+            $this->line("   └─ Orphaned Photos: {$orphanedPhotos} ⚠️  (joint data deleted)");
+        }
         $this->newLine();
 
         // Check jalur_joint folder structure
@@ -142,7 +154,11 @@ class CheckJalurJointDriveFolder extends Command
 
     private function checkSamplePhotos(int $limit): void
     {
+        // Get min joint ID to filter out orphaned photos
+        $minJointId = JalurJointData::min('id');
+
         $photos = PhotoApproval::where('module_name', 'jalur_joint')
+            ->where('module_record_id', '>=', $minJointId)
             ->with('jalurJoint')
             ->take($limit)
             ->get();
