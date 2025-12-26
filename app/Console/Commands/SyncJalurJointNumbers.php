@@ -51,15 +51,20 @@ class SyncJalurJointNumbers extends Command
 
         $this->withProgressBar($jointData, function ($joint) use (&$created, &$existing, &$updated, &$errors, $dryRun) {
             try {
+                // Get the actual joint data to get the joint_data ID and timestamp
+                $actualJointData = JalurJointData::where('nomor_joint', $joint->nomor_joint)->first();
+
                 // Check if joint number already exists
                 $existingJoint = JalurJointNumber::where('nomor_joint', $joint->nomor_joint)->first();
 
                 if ($existingJoint) {
-                    // Update is_used status if not already marked as used
-                    if (!$existingJoint->is_used && !$dryRun) {
+                    // Update is_used status if not already marked as used or if used_by_joint_id is NULL
+                    if ((!$existingJoint->is_used || !$existingJoint->used_by_joint_id) && !$dryRun && $actualJointData) {
                         $existingJoint->update([
                             'is_used' => true,
                             'is_active' => true,
+                            'used_by_joint_id' => $actualJointData->id,
+                            'used_at' => $actualJointData->created_at ?? now(),
                             'updated_by' => 1,
                         ]);
                         $updated++;
@@ -69,7 +74,7 @@ class SyncJalurJointNumbers extends Command
                     return;
                 }
 
-                if (!$dryRun) {
+                if (!$dryRun && $actualJointData) {
                     // Create new joint number record
                     JalurJointNumber::create([
                         'nomor_joint' => $joint->nomor_joint,
@@ -78,6 +83,8 @@ class SyncJalurJointNumbers extends Command
                         'joint_code' => $joint->joint_code,
                         'is_used' => true, // Mark as used since it's from actual joint data
                         'is_active' => true,
+                        'used_by_joint_id' => $actualJointData->id,
+                        'used_at' => $actualJointData->created_at ?? now(),
                         'created_by' => 1, // System user
                         'updated_by' => 1,
                     ]);
