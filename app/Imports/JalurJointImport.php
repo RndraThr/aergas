@@ -104,12 +104,23 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
         $parsed = $this->parseJointNumber($jointNumber);
 
         if (!$parsed) {
-            throw new \Exception("Format joint number tidak valid. Format yang benar: {CLUSTER}-{FITTING}{CODE}. Contoh: KRG-CP001");
+            throw new \Exception("Format joint number tidak valid. Format yang benar: {CLUSTER}-{FITTING}{CODE} (Contoh: KRG-CP001) atau {FITTING}.{CODE} untuk diameter 180 (Contoh: BF.05)");
         }
 
         [$clusterCode, $fittingCode, $jointCode] = $parsed;
 
         // 2. Validate Cluster
+        // If cluster code is 'NONE', get cluster from Excel 'cluster' column or line_number
+        if ($clusterCode === 'NONE') {
+            // Try to get cluster from line_from (e.g., 180-SLM-LN001 -> cluster SLM)
+            $lineFrom = trim($data['joint_line_from']);
+            if (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineFrom, $lineMatches)) {
+                $clusterCode = $lineMatches[1];
+            } else {
+                throw new \Exception("Untuk format joint tanpa cluster (BF.05), harus ada cluster di joint_line_from. Format: {DIAMETER}-{CLUSTER}-LN{NUMBER}");
+            }
+        }
+
         $cluster = JalurCluster::where('code_cluster', $clusterCode)->first();
         if (!$cluster) {
             throw new \Exception("Cluster dengan code '{$clusterCode}' tidak ditemukan di database");
@@ -299,22 +310,35 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
 
     private function parseJointNumber(string $jointNumber): ?array
     {
-        // Format: {CLUSTER}-{FITTING}{CODE}
+        // Format 1: {CLUSTER}-{FITTING}{CODE}
         // Contoh: KRG-CP001, GDK-EL90124, KRG-TE002
         // Note: Elbow has angle in code: EL90 (Elbow 90), EL45 (Elbow 45)
 
-        // Try to match pattern: CLUSTER-FITTING_CODE+NUMBER
-        // Fitting code can contain letters and numbers (e.g., EL90, EL45, ECP)
-        // Joint number must be at least 3 digits
-        if (!preg_match('/^([A-Z]+)-([A-Z]+\d*)(\d{3,})$/', $jointNumber, $matches)) {
-            return null;
+        // Format 2 (Diameter 180): {FITTING}.{CODE} or {FITTING}{CODE}
+        // Contoh: BF.05, EF.010, BF.011
+        // Joint tanpa cluster, biasanya untuk diameter besar (180)
+
+        // Try Format 1: CLUSTER-FITTING_CODE+NUMBER
+        if (preg_match('/^([A-Z]+)-([A-Z]+\d*)(\d{3,})$/', $jointNumber, $matches)) {
+            return [
+                $matches[1], // Cluster Code (KRG, GDK)
+                $matches[2], // Fitting Code (CP, EL90, EL45, TE, RD, FA, VL, TF, TS, ECP)
+                $matches[3], // Joint Number (001, 124, etc - minimum 3 digits)
+            ];
         }
 
-        return [
-            $matches[1], // Cluster Code (KRG, GDK)
-            $matches[2], // Fitting Code (CP, EL90, EL45, TE, RD, FA, VL, TF, TS, ECP)
-            $matches[3], // Joint Number (001, 124, etc - minimum 3 digits)
-        ];
+        // Try Format 2: FITTING.CODE or FITTING-CODE (untuk diameter 180)
+        if (preg_match('/^([A-Z]+)[\.\-]?(\d{1,})$/', $jointNumber, $matches)) {
+            // Extract cluster from data context (will be filled from Excel cluster column)
+            // For now, return special marker 'NONE' to indicate no cluster in joint number
+            return [
+                'NONE',      // No cluster in joint number (will use from Excel data)
+                $matches[1], // Fitting Code (BF, EF, etc)
+                $matches[2], // Joint Code (05, 010, etc - can be 1-3 digits)
+            ];
+        }
+
+        return null;
     }
 
     private function validateRequiredFields(Collection $data): void
