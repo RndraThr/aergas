@@ -70,18 +70,40 @@ class ImportController extends Controller
                 'RT',
                 'RW',
                 'Nomor Ponsel',
+                'No KTP',
                 'Kelurahan',
-                'Padukuhan'
+                'Kota/Kabupaten',
+                'Kecamatan',
+                'Padukuhan',
+                'Jenis Calon Pelanggan'
             ],
             [
-                'ABC001',
+                '00442142',
                 'John Doe',
                 'Jl. Malioboro No. 123',
                 '01',
                 '02',
                 '08123456789',
+                '3374012345678901',
                 'Caturtunggal',
-                'Mrican'
+                'Sleman',
+                'Depok',
+                'Mrican',
+                'Pengembangan'
+            ],
+            [
+                '00551234',
+                'Jane Smith',
+                'Jl. Solo No. 456',
+                '02',
+                '03',
+                '08129876543',
+                '3374019876543210',
+                'Caturtunggal',
+                'Sleman',
+                'Depok',
+                'Karanggayam',
+                'Penetrasi'
             ]
         ];
 

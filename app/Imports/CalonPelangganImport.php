@@ -120,14 +120,19 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
         }
 
         // === mapping persis sesuai request ===
-        $reff   = $this->toString($n['id reff'] ?? $n['id_reff'] ?? null);
-        $nama   = $n['nama'] ?? null;
-        $hp     = $this->toString($n['nomor ponsel'] ?? $n['nomor_ponsel'] ?? $n['no telepon'] ?? $n['no_telepon'] ?? $n['telepon'] ?? null);
-        $alamat = $n['alamat'] ?? null;
-        $rt     = $this->toString($n['rt'] ?? null);
-        $rw     = $this->toString($n['rw'] ?? null);
-        $kel    = $n['kelurahan'] ?? $n['id kelurahan'] ?? null;
-        $pdk    = $n['padukuhan'] ?? $n['dusun'] ?? null;
+        // Reff ID: preserve string format to keep leading zeros (e.g., 00442142)
+        $reff          = $this->toStringPreserveLeadingZeros($n['id reff'] ?? $n['id_reff'] ?? null);
+        $nama          = $n['nama'] ?? null;
+        $hp            = $this->toString($n['nomor ponsel'] ?? $n['nomor_ponsel'] ?? $n['no telepon'] ?? $n['no_telepon'] ?? $n['telepon'] ?? null);
+        $noKtp         = $this->toString($n['no ktp'] ?? $n['no_ktp'] ?? $n['nomor ktp'] ?? $n['nomor_ktp'] ?? $n['nik'] ?? null);
+        $alamat        = $n['alamat'] ?? null;
+        $rt            = $this->toString($n['rt'] ?? null);
+        $rw            = $this->toString($n['rw'] ?? null);
+        $kel           = $n['kelurahan'] ?? $n['id kelurahan'] ?? null;
+        $kotaKabupaten = $n['kota kabupaten'] ?? $n['kota_kabupaten'] ?? $n['kota'] ?? $n['kabupaten'] ?? null;
+        $kecamatan     = $n['kecamatan'] ?? null;
+        $pdk           = $n['padukuhan'] ?? $n['dusun'] ?? null;
+        $jenisPelanggan = $n['jenis calon pelanggan'] ?? $n['jenis_calon_pelanggan'] ?? $n['jenis pelanggan'] ?? $n['jenis_pelanggan'] ?? $n['jenis'] ?? null;
 
         // DEBUG: Log extracted values
         if ($rowIndex < 5) {
@@ -171,11 +176,15 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
             'reff_id_pelanggan' => $reff,
             'nama_pelanggan'    => $nama,
             'no_telepon'        => $hp ?? '',
+            'no_ktp'            => $noKtp,
             'alamat'            => $alamat,
             'rt'                => $rt,
             'rw'                => $rw,
             'kelurahan'         => $kel,
+            'kota_kabupaten'    => $kotaKabupaten,
+            'kecamatan'         => $kecamatan,
             'padukuhan'         => $pdk,
+            'jenis_pelanggan'   => $this->normalizeJenisPelanggan($jenisPelanggan),
         ];
 
         // validator menyesuaikan skema (rt/rw optional)
@@ -184,10 +193,14 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
             'nama_pelanggan'    => ['required','string','max:255'],
             'alamat'            => ['required','string'],
             'no_telepon'        => ['nullable','string','max:20'],
+            'no_ktp'            => ['nullable','string','max:20'],
             'rt'                => ['nullable','string','max:10'],
             'rw'                => ['nullable','string','max:10'],
             'kelurahan'         => ['required','string','max:120'],
+            'kota_kabupaten'    => ['nullable','string','max:100'],
+            'kecamatan'         => ['nullable','string','max:100'],
             'padukuhan'         => ['required','string','max:120'],
+            'jenis_pelanggan'   => ['required','in:pengembangan,penetrasi,on_the_spot_penetrasi,on_the_spot_pengembangan'],
         ]);
 
         return [$v->passes(), $data, $v->errors()->all()];
@@ -199,16 +212,23 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
             'reff_id_pelanggan' => $d['reff_id_pelanggan'],
             'nama_pelanggan'    => $d['nama_pelanggan'],
             'alamat'            => $d['alamat'],
+            'status'            => 'lanjut',        // Set status langsung 'lanjut' saat import
+            'progress_status'   => 'validasi',      // Progress dimulai dari 'validasi'
+            'tanggal_registrasi' => now(),          // Set tanggal registrasi saat import
             'created_at'        => now(),
             'updated_at'        => now(),
         ];
 
         // tulis hanya kolom yang memang ada di tabel
-        if (in_array('no_telepon', $this->cols, true)) $row['no_telepon'] = $d['no_telepon'] ?? '';
-        if (in_array('rt',         $this->cols, true)) $row['rt']         = $d['rt'] ?? null;
-        if (in_array('rw',         $this->cols, true)) $row['rw']         = $d['rw'] ?? null;
-        if (in_array('kelurahan',  $this->cols, true)) $row['kelurahan']  = $d['kelurahan'] ?? null;
-        if (in_array('padukuhan',  $this->cols, true)) $row['padukuhan']  = $d['padukuhan'] ?? null;
+        if (in_array('no_telepon',      $this->cols, true)) $row['no_telepon']      = $d['no_telepon'] ?? '';
+        if (in_array('no_ktp',          $this->cols, true)) $row['no_ktp']          = $d['no_ktp'] ?? null;
+        if (in_array('rt',              $this->cols, true)) $row['rt']              = $d['rt'] ?? null;
+        if (in_array('rw',              $this->cols, true)) $row['rw']              = $d['rw'] ?? null;
+        if (in_array('kelurahan',       $this->cols, true)) $row['kelurahan']       = $d['kelurahan'] ?? null;
+        if (in_array('kota_kabupaten',  $this->cols, true)) $row['kota_kabupaten']  = $d['kota_kabupaten'] ?? null;
+        if (in_array('kecamatan',       $this->cols, true)) $row['kecamatan']       = $d['kecamatan'] ?? null;
+        if (in_array('padukuhan',       $this->cols, true)) $row['padukuhan']       = $d['padukuhan'] ?? null;
+        if (in_array('jenis_pelanggan', $this->cols, true)) $row['jenis_pelanggan'] = $d['jenis_pelanggan'] ?? 'pengembangan';
 
         return $row;
     }
@@ -230,12 +250,18 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
         $updateCols = array_values(array_filter([
             'nama_pelanggan',
             'alamat',
-            in_array('no_telepon', $this->cols, true) ? 'no_telepon' : null,
-            in_array('rt',         $this->cols, true) ? 'rt'         : null,
-            in_array('rw',         $this->cols, true) ? 'rw'         : null,
-            in_array('kelurahan',  $this->cols, true) ? 'kelurahan'  : null,
-            in_array('padukuhan',  $this->cols, true) ? 'padukuhan'  : null,
+            in_array('no_telepon',      $this->cols, true) ? 'no_telepon'      : null,
+            in_array('no_ktp',          $this->cols, true) ? 'no_ktp'          : null,
+            in_array('rt',              $this->cols, true) ? 'rt'              : null,
+            in_array('rw',              $this->cols, true) ? 'rw'              : null,
+            in_array('kelurahan',       $this->cols, true) ? 'kelurahan'       : null,
+            in_array('kota_kabupaten',  $this->cols, true) ? 'kota_kabupaten'  : null,
+            in_array('kecamatan',       $this->cols, true) ? 'kecamatan'       : null,
+            in_array('padukuhan',       $this->cols, true) ? 'padukuhan'       : null,
+            in_array('jenis_pelanggan', $this->cols, true) ? 'jenis_pelanggan' : null,
             'updated_at',
+            // NOTE: Jangan update status/progress_status untuk data existing
+            // Hanya set untuk data baru (insert)
         ]));
 
         DB::table($this->table)->upsert($this->buf, ['reff_id_pelanggan'], $updateCols);
@@ -247,5 +273,59 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
         if ($v === null) return null;
         if (is_numeric($v)) return rtrim(rtrim(number_format((float)$v, 10, '.', ''), '0'), '.');
         return trim((string)$v);
+    }
+
+    /**
+     * Convert value to string while preserving leading zeros
+     * Used for Reff ID to keep format like 00442142
+     */
+    private function toStringPreserveLeadingZeros($v): ?string
+    {
+        if ($v === null) return null;
+
+        // Always treat as string to preserve leading zeros
+        $str = trim((string)$v);
+
+        // Handle scientific notation (e.g., 4.42142E+5 -> 442142)
+        if (is_numeric($str) && (strpos(strtolower($str), 'e') !== false)) {
+            // Convert scientific notation to full number
+            $str = number_format((float)$str, 0, '', '');
+        }
+
+        // Ensure minimum 8 digits with leading zeros if it's purely numeric
+        if (ctype_digit($str) && strlen($str) < 8) {
+            $str = str_pad($str, 8, '0', STR_PAD_LEFT);
+        }
+
+        return $str !== '' ? $str : null;
+    }
+
+    /**
+     * Normalize jenis pelanggan value to match database enum
+     * Valid values: pengembangan, penetrasi, on_the_spot_penetrasi, on_the_spot_pengembangan
+     */
+    private function normalizeJenisPelanggan($v): ?string
+    {
+        if ($v === null) return 'pengembangan'; // Default
+
+        $str = strtolower(trim((string)$v));
+
+        // Map variations to standard values
+        $mapping = [
+            'pengembangan' => 'pengembangan',
+            'penetrasi' => 'penetrasi',
+            'on the spot penetrasi' => 'on_the_spot_penetrasi',
+            'on_the_spot_penetrasi' => 'on_the_spot_penetrasi',
+            'on-the-spot penetrasi' => 'on_the_spot_penetrasi',
+            'ots penetrasi' => 'on_the_spot_penetrasi',
+            'otsp' => 'on_the_spot_penetrasi',
+            'on the spot pengembangan' => 'on_the_spot_pengembangan',
+            'on_the_spot_pengembangan' => 'on_the_spot_pengembangan',
+            'on-the-spot pengembangan' => 'on_the_spot_pengembangan',
+            'ots pengembangan' => 'on_the_spot_pengembangan',
+            'otspg' => 'on_the_spot_pengembangan',
+        ];
+
+        return $mapping[$str] ?? 'pengembangan'; // Default to pengembangan if not recognized
     }
 }

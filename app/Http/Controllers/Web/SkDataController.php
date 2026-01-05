@@ -14,6 +14,7 @@ use App\Services\PhotoRuleEvaluator;
 use App\Models\SkData;
 use App\Services\PhotoApprovalService;
 use App\Services\BeritaAcaraService;
+use App\Helpers\ReffIdHelper;
 
 class SkDataController extends Controller
 {
@@ -126,6 +127,11 @@ class SkDataController extends Controller
 
     public function store(Request $r)
     {
+        // Normalize reff_id_pelanggan (uppercase + auto-pad to 8 digits if numeric)
+        $r->merge([
+            'reff_id_pelanggan' => ReffIdHelper::normalize($r->input('reff_id_pelanggan')),
+        ]);
+
         // Check if customer status is batal
         $customer = \App\Models\CalonPelanggan::where('reff_id_pelanggan', $r->reff_id_pelanggan)->first();
         if ($customer && $customer->status === 'batal') {

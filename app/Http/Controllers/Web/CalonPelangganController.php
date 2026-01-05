@@ -18,6 +18,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
+use App\Helpers\ReffIdHelper;
 use Illuminate\Support\Facades\Storage;
 
 use Exception;
@@ -171,9 +172,9 @@ class CalonPelangganController extends Controller
      */
     public function store(Request $request)
     {
-        // Normalisasi dulu agar unique ngecek nilai uppercase juga
+        // Normalize reff_id_pelanggan (uppercase + auto-pad to 8 digits if numeric)
         $request->merge([
-            'reff_id_pelanggan' => strtoupper((string) $request->input('reff_id_pelanggan')),
+            'reff_id_pelanggan' => ReffIdHelper::normalize($request->input('reff_id_pelanggan')),
         ]);
 
         $validator = Validator::make($request->all(), [
@@ -184,7 +185,10 @@ class CalonPelangganController extends Controller
             'nama_pelanggan'   => 'required|string|max:255',
             'alamat'           => 'required|string|max:1000',
             'no_telepon'       => 'required|string|max:20|regex:/^[0-9+\-\s]+$/',
+            'no_ktp'           => 'nullable|string|max:20|regex:/^[0-9]+$/',
             'kelurahan'        => 'nullable|string|max:120',
+            'kota_kabupaten'   => 'nullable|string|max:100',
+            'kecamatan'        => 'nullable|string|max:100',
             'padukuhan'        => 'nullable|string|max:120',
             'jenis_pelanggan'  => 'nullable|in:pengembangan,penetrasi,on_the_spot_penetrasi,on_the_spot_pengembangan',
             'keterangan'       => 'nullable|string|max:500',

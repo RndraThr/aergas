@@ -189,6 +189,13 @@
                         <div class="mt-1 text-sm text-gray-900">{{ $customer->no_telepon }}</div>
                     </div>
 
+                    @if($customer->no_ktp)
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">No. KTP</label>
+                        <div class="mt-1 text-sm text-gray-900">{{ $customer->no_ktp }}</div>
+                    </div>
+                    @endif
+
                     <div>
                         <label class="block text-sm font-medium text-gray-500">Jenis Calon Pelanggan</label>
                         <div class="mt-1 text-sm text-gray-900">
@@ -208,6 +215,20 @@
                         <label class="block text-sm font-medium text-gray-500">Kelurahan</label>
                         <div class="mt-1 text-sm text-gray-900">{{ $customer->kelurahan ?: 'Belum diisi' }}</div>
                     </div>
+
+                    @if($customer->kota_kabupaten)
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">Kota/Kabupaten</label>
+                        <div class="mt-1 text-sm text-gray-900">{{ $customer->kota_kabupaten }}</div>
+                    </div>
+                    @endif
+
+                    @if($customer->kecamatan)
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">Kecamatan</label>
+                        <div class="mt-1 text-sm text-gray-900">{{ $customer->kecamatan }}</div>
+                    </div>
+                    @endif
 
                     <div>
                         <label class="block text-sm font-medium text-gray-500">Padukuhan/Dusun</label>
