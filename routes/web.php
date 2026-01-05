@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurLoweringImportController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController, HseDailyReportController};
+use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurLoweringImportController, JalurMc0ImportController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController, HseDailyReportController};
 
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -24,7 +24,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
     Route::post('/change-password', [AuthController::class, 'changePassword'])->name('password.change');
 
     // Proxy Google Drive images (authenticated download with caching)
-    Route::get('/drive-image/{fileId}', function($fileId) {
+    Route::get('/drive-image/{fileId}', function ($fileId) {
         try {
             $cacheKey = "drive_image_{$fileId}";
             $cacheDuration = 3600; // 1 hour
@@ -77,12 +77,12 @@ Route::middleware(['auth', 'user.active'])->group(function () {
     })->name('drive.image');
 
     Route::middleware('role:admin,cgp,tracer,super_admin,jalur')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard/data', [DashboardController::class, 'getData'])->name('dashboard.data');
-    Route::get('/dashboard/installation-trend', [DashboardController::class, 'getInstallationTrend'])->name('dashboard.installation-trend');
-    Route::get('/dashboard/activity-metrics', [DashboardController::class, 'getActivityMetrics'])->name('dashboard.activity-metrics');
-    Route::get('/dashboard/marker/{customerId}', [DashboardController::class, 'getMarkerDetail'])->name('dashboard.marker-detail');
-    Route::get('/dashboard/pipe-exceed-detail', [DashboardController::class, 'getPipeExceedDetail'])->name('dashboard.pipe-exceed-detail');
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/data', [DashboardController::class, 'getData'])->name('dashboard.data');
+        Route::get('/dashboard/installation-trend', [DashboardController::class, 'getInstallationTrend'])->name('dashboard.installation-trend');
+        Route::get('/dashboard/activity-metrics', [DashboardController::class, 'getActivityMetrics'])->name('dashboard.activity-metrics');
+        Route::get('/dashboard/marker/{customerId}', [DashboardController::class, 'getMarkerDetail'])->name('dashboard.marker-detail');
+        Route::get('/dashboard/pipe-exceed-detail', [DashboardController::class, 'getPipeExceedDetail'])->name('dashboard.pipe-exceed-detail');
     });
 
     // Map Features Routes
@@ -97,7 +97,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
     });
 
     // Report Dashboard Routes
-    Route::get('/reports/test', function() {
+    Route::get('/reports/test', function () {
         // Auto login test user for testing
         $testUser = \App\Models\User::where('email', 'test@test.com')->first();
         if (!$testUser) {
@@ -213,10 +213,10 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 ->prefix('system')
                 ->name('system.')
                 ->group(function () {
-                    Route::get('/phpinfo', function () {
-                        return view('info.phpinfo');
-                    });
+                Route::get('/phpinfo', function () {
+                    return view('info.phpinfo');
                 });
+            });
         });
 
     // Customer Routes
@@ -561,235 +561,249 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::prefix('clusters')
                 ->name('clusters.')
                 ->group(function () {
-                    Route::get('/', [JalurClusterController::class, 'index'])->name('index');
-                    Route::get('/create', [JalurClusterController::class, 'create'])->name('create');
-                    Route::post('/', [JalurClusterController::class, 'store'])->name('store');
-                    Route::get('/{cluster}', [JalurClusterController::class, 'show'])
-                        ->name('show');
-                    Route::get('/{cluster}/edit', [JalurClusterController::class, 'edit'])
-                        ->name('edit');
-                    Route::put('/{cluster}', [JalurClusterController::class, 'update'])
-                        ->name('update');
-                    Route::delete('/{cluster}', [JalurClusterController::class, 'destroy'])
-                        ->name('destroy');
-                    Route::patch('/{cluster}/toggle', [JalurClusterController::class, 'toggleStatus'])
-                        ->name('toggle');
+                Route::get('/', [JalurClusterController::class, 'index'])->name('index');
+                Route::get('/create', [JalurClusterController::class, 'create'])->name('create');
+                Route::post('/', [JalurClusterController::class, 'store'])->name('store');
+                Route::get('/{cluster}', [JalurClusterController::class, 'show'])
+                    ->name('show');
+                Route::get('/{cluster}/edit', [JalurClusterController::class, 'edit'])
+                    ->name('edit');
+                Route::put('/{cluster}', [JalurClusterController::class, 'update'])
+                    ->name('update');
+                Route::delete('/{cluster}', [JalurClusterController::class, 'destroy'])
+                    ->name('destroy');
+                Route::patch('/{cluster}/toggle', [JalurClusterController::class, 'toggleStatus'])
+                    ->name('toggle');
 
-                    // API endpoints
-                    Route::prefix('api')
-                        ->name('api.')
-                        ->group(function () {
-                            Route::get('/', [JalurClusterController::class, 'apiIndex'])->name('index');
-                            Route::get('/{cluster}/line-numbers', [JalurClusterController::class, 'getLineNumbers'])
-                                ->name('line-numbers');
-                        });
+                // API endpoints
+                Route::prefix('api')
+                    ->name('api.')
+                    ->group(function () {
+                    Route::get('/', [JalurClusterController::class, 'apiIndex'])->name('index');
+                    Route::get('/{cluster}/line-numbers', [JalurClusterController::class, 'getLineNumbers'])
+                        ->name('line-numbers');
                 });
+            });
 
             // Line Number Management
             Route::prefix('line-numbers')
                 ->name('line-numbers.')
                 ->group(function () {
-                    Route::get('/', [JalurLineNumberController::class, 'index'])->name('index');
-                    Route::get('/create', [JalurLineNumberController::class, 'create'])->name('create');
-                    Route::post('/', [JalurLineNumberController::class, 'store'])->name('store');
-                    Route::get('/{lineNumber}', [JalurLineNumberController::class, 'show'])
-                        ->name('show');
-                    Route::get('/{lineNumber}/edit', [JalurLineNumberController::class, 'edit'])
-                        ->name('edit');
-                    Route::put('/{lineNumber}', [JalurLineNumberController::class, 'update'])
-                        ->name('update');
-                    Route::delete('/{lineNumber}', [JalurLineNumberController::class, 'destroy'])
-                        ->name('destroy');
-                    Route::patch('/{lineNumber}/toggle', [JalurLineNumberController::class, 'toggleStatus'])
-                        ->name('toggle');
-                    Route::put('/{lineNumber}/mc100', [JalurLineNumberController::class, 'updateMC100'])
-                        ->name('update-mc100');
+                Route::get('/', [JalurLineNumberController::class, 'index'])->name('index');
+                Route::get('/create', [JalurLineNumberController::class, 'create'])->name('create');
+                Route::post('/', [JalurLineNumberController::class, 'store'])->name('store');
+                Route::get('/{lineNumber}', [JalurLineNumberController::class, 'show'])
+                    ->name('show');
+                Route::get('/{lineNumber}/edit', [JalurLineNumberController::class, 'edit'])
+                    ->name('edit');
+                Route::put('/{lineNumber}', [JalurLineNumberController::class, 'update'])
+                    ->name('update');
+                Route::delete('/{lineNumber}', [JalurLineNumberController::class, 'destroy'])
+                    ->name('destroy');
+                Route::patch('/{lineNumber}/toggle', [JalurLineNumberController::class, 'toggleStatus'])
+                    ->name('toggle');
+                Route::put('/{lineNumber}/mc100', [JalurLineNumberController::class, 'updateMC100'])
+                    ->name('update-mc100');
 
-                    // API endpoints
-                    Route::prefix('api')
-                        ->name('api.')
-                        ->group(function () {
-                            Route::get('/', [JalurLineNumberController::class, 'apiIndex'])->name('index');
-                            Route::get('/{lineNumber}/stats', [JalurLineNumberController::class, 'getStats'])
-                                ->name('stats');
-                        });
+                // API endpoints
+                Route::prefix('api')
+                    ->name('api.')
+                    ->group(function () {
+                    Route::get('/', [JalurLineNumberController::class, 'apiIndex'])->name('index');
+                    Route::get('/{lineNumber}/stats', [JalurLineNumberController::class, 'getStats'])
+                        ->name('stats');
                 });
+            });
+
+            // MC-0 Import (Estimasi Panjang)
+            Route::prefix('mc0/import')
+                ->name('mc0.import.')
+                ->group(function () {
+                Route::get('/', [\App\Http\Controllers\Web\JalurMc0ImportController::class, 'index'])
+                    ->name('index');
+                Route::get('/template', [\App\Http\Controllers\Web\JalurMc0ImportController::class, 'downloadTemplate'])
+                    ->name('template');
+                Route::post('/preview', [\App\Http\Controllers\Web\JalurMc0ImportController::class, 'preview'])
+                    ->name('preview');
+                Route::post('/', [\App\Http\Controllers\Web\JalurMc0ImportController::class, 'import'])
+                    ->name('execute');
+            });
 
             // Lowering Data Management
             Route::prefix('lowering')
                 ->name('lowering.')
                 ->group(function () {
-                    Route::get('/', [JalurLoweringController::class, 'index'])->name('index');
-                    Route::get('/create', [JalurLoweringController::class, 'create'])->name('create');
-                    Route::post('/', [JalurLoweringController::class, 'store'])->name('store');
+                Route::get('/', [JalurLoweringController::class, 'index'])->name('index');
+                Route::get('/create', [JalurLoweringController::class, 'create'])->name('create');
+                Route::post('/', [JalurLoweringController::class, 'store'])->name('store');
 
-                    // Import/Export Routes - MUST BE BEFORE {lowering} parameter routes
-                    Route::prefix('import')
-                        ->name('import.')
-                        ->group(function () {
-                            Route::get('/', [JalurLoweringImportController::class, 'index'])
-                                ->name('index');
-                            Route::get('/template', [JalurLoweringImportController::class, 'downloadTemplate'])
-                                ->name('template');
-                            Route::post('/preview', [JalurLoweringImportController::class, 'preview'])
-                                ->name('preview');
-                            Route::post('/', [JalurLoweringImportController::class, 'import'])
-                                ->name('execute');
-                        });
-
-                    // API endpoints - Also before {lowering} parameter routes
-                    Route::get('/api/line-numbers', [JalurLoweringController::class, 'getLineNumbers'])
-                        ->name('api.line-numbers');
-                    Route::get('/api/check-line-availability', [JalurLoweringController::class, 'checkLineNumberAvailability'])
-                        ->name('api.check-line-availability');
-
-                    // Resource routes with {lowering} parameter - MUST BE LAST
-                    Route::get('/{lowering}', [JalurLoweringController::class, 'show'])
-                        ->name('show');
-                    Route::get('/{lowering}/edit', [JalurLoweringController::class, 'edit'])
-                        ->name('edit');
-                    Route::put('/{lowering}', [JalurLoweringController::class, 'update'])
-                        ->name('update');
-                    Route::delete('/{lowering}', [JalurLoweringController::class, 'destroy'])
-                        ->name('destroy');
-
-                    // Photo upload
-                    Route::post('/{lowering}/photos', [JalurLoweringController::class, 'uploadPhoto'])
-                        ->name('photos.upload');
-
-                    // Approval Actions
-                    Route::post('/{lowering}/approve-tracer', [JalurLoweringController::class, 'approveByTracer'])
-                        ->name('approve-tracer');
-                    Route::post('/{lowering}/reject-tracer', [JalurLoweringController::class, 'rejectByTracer'])
-                        ->name('reject-tracer');
-                    Route::post('/{lowering}/approve-cgp', [JalurLoweringController::class, 'approveByCgp'])
-                        ->name('approve-cgp');
-                    Route::post('/{lowering}/reject-cgp', [JalurLoweringController::class, 'rejectByCgp'])
-                        ->name('reject-cgp');
+                // Import/Export Routes - MUST BE BEFORE {lowering} parameter routes
+                Route::prefix('import')
+                    ->name('import.')
+                    ->group(function () {
+                    Route::get('/', [JalurLoweringImportController::class, 'index'])
+                        ->name('index');
+                    Route::get('/template', [JalurLoweringImportController::class, 'downloadTemplate'])
+                        ->name('template');
+                    Route::post('/preview', [JalurLoweringImportController::class, 'preview'])
+                        ->name('preview');
+                    Route::post('/', [JalurLoweringImportController::class, 'import'])
+                        ->name('execute');
                 });
+
+                // API endpoints - Also before {lowering} parameter routes
+                Route::get('/api/line-numbers', [JalurLoweringController::class, 'getLineNumbers'])
+                    ->name('api.line-numbers');
+                Route::get('/api/check-line-availability', [JalurLoweringController::class, 'checkLineNumberAvailability'])
+                    ->name('api.check-line-availability');
+
+                // Resource routes with {lowering} parameter - MUST BE LAST
+                Route::get('/{lowering}', [JalurLoweringController::class, 'show'])
+                    ->name('show');
+                Route::get('/{lowering}/edit', [JalurLoweringController::class, 'edit'])
+                    ->name('edit');
+                Route::put('/{lowering}', [JalurLoweringController::class, 'update'])
+                    ->name('update');
+                Route::delete('/{lowering}', [JalurLoweringController::class, 'destroy'])
+                    ->name('destroy');
+
+                // Photo upload
+                Route::post('/{lowering}/photos', [JalurLoweringController::class, 'uploadPhoto'])
+                    ->name('photos.upload');
+
+                // Approval Actions
+                Route::post('/{lowering}/approve-tracer', [JalurLoweringController::class, 'approveByTracer'])
+                    ->name('approve-tracer');
+                Route::post('/{lowering}/reject-tracer', [JalurLoweringController::class, 'rejectByTracer'])
+                    ->name('reject-tracer');
+                Route::post('/{lowering}/approve-cgp', [JalurLoweringController::class, 'approveByCgp'])
+                    ->name('approve-cgp');
+                Route::post('/{lowering}/reject-cgp', [JalurLoweringController::class, 'rejectByCgp'])
+                    ->name('reject-cgp');
+            });
 
             // Joint Data Management
             Route::prefix('joint')
                 ->name('joint.')
                 ->group(function () {
-                    Route::get('/', [JalurJointController::class, 'index'])->name('index');
-                    Route::get('/create', [JalurJointController::class, 'create'])->name('create');
-                    Route::post('/', [JalurJointController::class, 'store'])->name('store');
+                Route::get('/', [JalurJointController::class, 'index'])->name('index');
+                Route::get('/create', [JalurJointController::class, 'create'])->name('create');
+                Route::post('/', [JalurJointController::class, 'store'])->name('store');
 
-                    // Import/Export Routes - MUST BE BEFORE {joint} parameter routes
-                    Route::prefix('import')
-                        ->name('import.')
-                        ->group(function () {
-                            Route::get('/', [\App\Http\Controllers\Web\JalurJointImportController::class, 'index'])
-                                ->name('index');
-                            Route::get('/template', [\App\Http\Controllers\Web\JalurJointImportController::class, 'downloadTemplate'])
-                                ->name('template');
-                            Route::post('/preview', [\App\Http\Controllers\Web\JalurJointImportController::class, 'preview'])
-                                ->name('preview');
-                            Route::get('/preview', function () {
-                                return redirect()->route('jalur.joint.import.index')
-                                    ->with('info', 'Silakan upload file untuk melakukan preview.');
-                            });
-                            Route::post('/', [\App\Http\Controllers\Web\JalurJointImportController::class, 'import'])
-                                ->name('execute');
-                            Route::get('/execute', function () {
-                                return redirect()->route('jalur.joint.import.index')
-                                    ->with('info', 'Silakan upload file untuk melakukan import.');
-                            });
-                        });
-
-                    // Resource routes with {joint} parameter - MUST BE AFTER import routes
-                    Route::get('/{joint}', [JalurJointController::class, 'show'])
-                        ->name('show');
-                    Route::get('/{joint}/edit', [JalurJointController::class, 'edit'])
-                        ->name('edit');
-                    Route::put('/{joint}', [JalurJointController::class, 'update'])
-                        ->name('update');
-                    Route::delete('/{joint}', [JalurJointController::class, 'destroy'])
-                        ->name('destroy');
-
-                    // Photo upload
-                    Route::post('/{joint}/photos', [JalurJointController::class, 'uploadPhoto'])
-                        ->name('photos.upload');
-
-                    // Approval Actions
-                    Route::post('/{joint}/approve-tracer', [JalurJointController::class, 'approveByTracer'])
-                        ->name('approve-tracer');
-                    Route::post('/{joint}/reject-tracer', [JalurJointController::class, 'rejectByTracer'])
-                        ->name('reject-tracer');
-                    Route::post('/{joint}/approve-cgp', [JalurJointController::class, 'approveByCgp'])
-                        ->name('approve-cgp');
-                    Route::post('/{joint}/reject-cgp', [JalurJointController::class, 'rejectByCgp'])
-                        ->name('reject-cgp');
-
-                    // API endpoints
-                    Route::prefix('api')
-                        ->name('api.')
-                        ->group(function () {
-                            Route::get('/fitting-types', [JalurJointController::class, 'getFittingTypes'])
-                                ->name('fitting-types');
-                            Route::get('/available-diameters', [JalurJointController::class, 'getAvailableDiameters'])
-                                ->name('available-diameters');
-                            Route::get('/line-numbers', [JalurJointController::class, 'getLineNumbers'])
-                                ->name('line-numbers');
-                            Route::get('/available-joint-numbers', [JalurJointController::class, 'getAvailableJointNumbers'])
-                                ->name('available-joint-numbers');
-                            Route::get('/check-joint-status', [JalurJointController::class, 'checkJointNumberStatus'])
-                                ->name('check-joint-status');
-                            Route::get('/check-joint-availability', [JalurJointController::class, 'checkJointAvailability'])
-                                ->name('check-joint-availability');
-                        });
+                // Import/Export Routes - MUST BE BEFORE {joint} parameter routes
+                Route::prefix('import')
+                    ->name('import.')
+                    ->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Web\JalurJointImportController::class, 'index'])
+                        ->name('index');
+                    Route::get('/template', [\App\Http\Controllers\Web\JalurJointImportController::class, 'downloadTemplate'])
+                        ->name('template');
+                    Route::post('/preview', [\App\Http\Controllers\Web\JalurJointImportController::class, 'preview'])
+                        ->name('preview');
+                    Route::get('/preview', function () {
+                        return redirect()->route('jalur.joint.import.index')
+                            ->with('info', 'Silakan upload file untuk melakukan preview.');
+                    });
+                    Route::post('/', [\App\Http\Controllers\Web\JalurJointImportController::class, 'import'])
+                        ->name('execute');
+                    Route::get('/execute', function () {
+                        return redirect()->route('jalur.joint.import.index')
+                            ->with('info', 'Silakan upload file untuk melakukan import.');
+                    });
                 });
+
+                // Resource routes with {joint} parameter - MUST BE AFTER import routes
+                Route::get('/{joint}', [JalurJointController::class, 'show'])
+                    ->name('show');
+                Route::get('/{joint}/edit', [JalurJointController::class, 'edit'])
+                    ->name('edit');
+                Route::put('/{joint}', [JalurJointController::class, 'update'])
+                    ->name('update');
+                Route::delete('/{joint}', [JalurJointController::class, 'destroy'])
+                    ->name('destroy');
+
+                // Photo upload
+                Route::post('/{joint}/photos', [JalurJointController::class, 'uploadPhoto'])
+                    ->name('photos.upload');
+
+                // Approval Actions
+                Route::post('/{joint}/approve-tracer', [JalurJointController::class, 'approveByTracer'])
+                    ->name('approve-tracer');
+                Route::post('/{joint}/reject-tracer', [JalurJointController::class, 'rejectByTracer'])
+                    ->name('reject-tracer');
+                Route::post('/{joint}/approve-cgp', [JalurJointController::class, 'approveByCgp'])
+                    ->name('approve-cgp');
+                Route::post('/{joint}/reject-cgp', [JalurJointController::class, 'rejectByCgp'])
+                    ->name('reject-cgp');
+
+                // API endpoints
+                Route::prefix('api')
+                    ->name('api.')
+                    ->group(function () {
+                    Route::get('/fitting-types', [JalurJointController::class, 'getFittingTypes'])
+                        ->name('fitting-types');
+                    Route::get('/available-diameters', [JalurJointController::class, 'getAvailableDiameters'])
+                        ->name('available-diameters');
+                    Route::get('/line-numbers', [JalurJointController::class, 'getLineNumbers'])
+                        ->name('line-numbers');
+                    Route::get('/available-joint-numbers', [JalurJointController::class, 'getAvailableJointNumbers'])
+                        ->name('available-joint-numbers');
+                    Route::get('/check-joint-status', [JalurJointController::class, 'checkJointNumberStatus'])
+                        ->name('check-joint-status');
+                    Route::get('/check-joint-availability', [JalurJointController::class, 'checkJointAvailability'])
+                        ->name('check-joint-availability');
+                });
+            });
 
             // Fitting Types Management (Admin only)
             Route::prefix('fitting-types')
                 ->name('fitting-types.')
                 ->middleware('role:admin,super_admin')
                 ->group(function () {
-                    Route::get('/', [JalurFittingTypeController::class, 'index'])->name('index');
-                    Route::get('/create', [JalurFittingTypeController::class, 'create'])->name('create');
-                    Route::post('/', [JalurFittingTypeController::class, 'store'])->name('store');
-                    Route::get('/{fittingType}', [JalurFittingTypeController::class, 'show'])
-                        ->name('show');
-                    Route::get('/{fittingType}/edit', [JalurFittingTypeController::class, 'edit'])
-                        ->name('edit');
-                    Route::put('/{fittingType}', [JalurFittingTypeController::class, 'update'])
-                        ->name('update');
-                    Route::delete('/{fittingType}', [JalurFittingTypeController::class, 'destroy'])
-                        ->name('destroy');
-                    Route::patch('/{fittingType}/toggle', [JalurFittingTypeController::class, 'toggleStatus'])
-                        ->name('toggle-status');
-                });
+                Route::get('/', [JalurFittingTypeController::class, 'index'])->name('index');
+                Route::get('/create', [JalurFittingTypeController::class, 'create'])->name('create');
+                Route::post('/', [JalurFittingTypeController::class, 'store'])->name('store');
+                Route::get('/{fittingType}', [JalurFittingTypeController::class, 'show'])
+                    ->name('show');
+                Route::get('/{fittingType}/edit', [JalurFittingTypeController::class, 'edit'])
+                    ->name('edit');
+                Route::put('/{fittingType}', [JalurFittingTypeController::class, 'update'])
+                    ->name('update');
+                Route::delete('/{fittingType}', [JalurFittingTypeController::class, 'destroy'])
+                    ->name('destroy');
+                Route::patch('/{fittingType}/toggle', [JalurFittingTypeController::class, 'toggleStatus'])
+                    ->name('toggle-status');
+            });
 
             // Joint Numbers Management (Admin only)
             Route::prefix('joint-numbers')
                 ->name('joint-numbers.')
                 ->middleware('role:jalur,admin,super_admin')
                 ->group(function () {
-                    Route::get('/', [JalurJointNumberController::class, 'index'])->name('index');
-                    Route::get('/create', [JalurJointNumberController::class, 'create'])->name('create');
-                    Route::post('/', [JalurJointNumberController::class, 'store'])->name('store');
-                    Route::get('/{jointNumber}', [JalurJointNumberController::class, 'show'])
-                        ->name('show');
-                    Route::get('/{jointNumber}/edit', [JalurJointNumberController::class, 'edit'])
-                        ->name('edit');
-                    Route::put('/{jointNumber}', [JalurJointNumberController::class, 'update'])
-                        ->name('update');
-                    Route::delete('/{jointNumber}', [JalurJointNumberController::class, 'destroy'])
-                        ->name('destroy');
-                    Route::patch('/{jointNumber}/toggle', [JalurJointNumberController::class, 'toggleStatus'])
-                        ->name('toggle-status');
-                    Route::post('/batch-create', [JalurJointNumberController::class, 'batchCreate'])
-                        ->name('batch-create');
+                Route::get('/', [JalurJointNumberController::class, 'index'])->name('index');
+                Route::get('/create', [JalurJointNumberController::class, 'create'])->name('create');
+                Route::post('/', [JalurJointNumberController::class, 'store'])->name('store');
+                Route::get('/{jointNumber}', [JalurJointNumberController::class, 'show'])
+                    ->name('show');
+                Route::get('/{jointNumber}/edit', [JalurJointNumberController::class, 'edit'])
+                    ->name('edit');
+                Route::put('/{jointNumber}', [JalurJointNumberController::class, 'update'])
+                    ->name('update');
+                Route::delete('/{jointNumber}', [JalurJointNumberController::class, 'destroy'])
+                    ->name('destroy');
+                Route::patch('/{jointNumber}/toggle', [JalurJointNumberController::class, 'toggleStatus'])
+                    ->name('toggle-status');
+                Route::post('/batch-create', [JalurJointNumberController::class, 'batchCreate'])
+                    ->name('batch-create');
 
-                    // API routes
-                    Route::prefix('api')
-                        ->name('api.')
-                        ->group(function () {
-                            Route::get('/available-joint-numbers', [JalurJointNumberController::class, 'getAvailableJointNumbers'])
-                                ->name('available-joint-numbers');
-                        });
+                // API routes
+                Route::prefix('api')
+                    ->name('api.')
+                    ->group(function () {
+                    Route::get('/available-joint-numbers', [JalurJointNumberController::class, 'getAvailableJointNumbers'])
+                        ->name('available-joint-numbers');
                 });
+            });
         });
 
     // Photo Approval Management Routes
