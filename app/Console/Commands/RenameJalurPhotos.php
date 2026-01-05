@@ -17,7 +17,8 @@ class RenameJalurPhotos extends Command
     protected $signature = 'jalur:rename-photos 
                             {--module=all : Module to process (lowering, joint, or all)}
                             {--dry-run : Run without actually renaming files}
-                            {--limit=0 : Limit number of files to process (0 = no limit)}';
+                            {--limit=0 : Limit number of files to process (0 = no limit)}
+                            {--debug : Show debug information}';
 
     /**
      * The console command description.
@@ -41,6 +42,7 @@ class RenameJalurPhotos extends Command
         $module = $this->option('module');
         $dryRun = $this->option('dry-run');
         $limit = (int) $this->option('limit');
+        $debug = $this->option('debug');
 
         $this->info("🔧 Jalur Photo Renaming Tool");
         $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -48,6 +50,9 @@ class RenameJalurPhotos extends Command
         $this->info("Mode: " . ($dryRun ? "DRY RUN (no changes)" : "LIVE (will rename files)"));
         if ($limit > 0) {
             $this->info("Limit: {$limit} files");
+        }
+        if ($debug) {
+            $this->info("Debug: ENABLED");
         }
         $this->newLine();
 
@@ -63,11 +68,11 @@ class RenameJalurPhotos extends Command
 
         // Process based on module selection
         if ($module === 'all' || $module === 'lowering') {
-            $this->processModule('jalur_lowering', $dryRun, $limit);
+            $this->processModule('jalur_lowering', $dryRun, $limit, $debug);
         }
 
         if ($module === 'all' || $module === 'joint') {
-            $this->processModule('jalur_joint', $dryRun, $limit);
+            $this->processModule('jalur_joint', $dryRun, $limit, $debug);
         }
 
         // Summary
@@ -83,18 +88,35 @@ class RenameJalurPhotos extends Command
         return 0;
     }
 
-    private function processModule(string $moduleName, bool $dryRun, int $limit): void
+    private function processModule(string $moduleName, bool $dryRun, int $limit, bool $debug): void
     {
         $this->info("📁 Processing {$moduleName}...");
         $this->newLine();
+
+        // Debug info
+        if ($debug) {
+            $total = PhotoApproval::where('module_name', $moduleName)->count();
+            $withDriveId = PhotoApproval::where('module_name', $moduleName)->whereNotNull('drive_file_id')->count();
+            $withoutDriveId = $total - $withDriveId;
+
+            $this->warn("🔍 Debug Info:");
+            $this->info("   Total photos: {$total}");
+            $this->info("   With drive_file_id: {$withDriveId}");
+            $this->info("   Without drive_file_id: {$withoutDriveId}");
+            $this->newLine();
+        }
 
         // Get photos with old naming convention
         $query = PhotoApproval::where('module_name', $moduleName)
             ->whereNotNull('drive_file_id')
             ->where(function ($q) {
-                // Old naming patterns
+                // Old naming patterns - specifically looking for timestamp pattern
                 $q->where('storage_path', 'LIKE', '%foto_evidence_%')
-                    ->orWhere('storage_path', 'LIKE', '%_' . '%'); // Contains timestamp pattern
+                    ->where(function ($q2) {
+                    // Must NOT start with LOWERING_ or JOINT_ (new format)
+                    $q2->where('storage_path', 'NOT LIKE', '%LOWERING_%')
+                        ->where('storage_path', 'NOT LIKE', '%JOINT_%');
+                });
             });
 
         if ($limit > 0) {
