@@ -65,7 +65,7 @@ class JalurLoweringData extends BaseModuleModel
     public function photoApprovals(): HasMany
     {
         return $this->hasMany(PhotoApproval::class, 'module_record_id')
-                   ->where('module_name', 'jalur_lowering');
+            ->where('module_name', 'jalur_lowering');
     }
 
     // Scopes
@@ -106,7 +106,7 @@ class JalurLoweringData extends BaseModuleModel
             'foto_evidence_penggelaran_bongkaran',
             'foto_evidence_kedalaman_lowering',
         ];
-        
+
         // Add accessory photos based on tipe_bongkaran
         if ($this->tipe_bongkaran === 'Open Cut') {
             $photos[] = 'foto_evidence_marker_tape';
@@ -115,7 +115,7 @@ class JalurLoweringData extends BaseModuleModel
         } elseif (in_array($this->tipe_bongkaran, ['Crossing', 'Zinker'])) {
             $photos[] = 'foto_evidence_cassing';
         }
-        
+
         return $photos;
     }
 
@@ -201,7 +201,7 @@ class JalurLoweringData extends BaseModuleModel
      */
     public function getTipePekerjaanBadgeColor(): string
     {
-        return match($this->tipe_bongkaran) {
+        return match ($this->tipe_bongkaran) {
             'Manual Boring' => 'blue',
             'Open Cut' => 'green',
             'Crossing' => 'orange',
@@ -218,7 +218,7 @@ class JalurLoweringData extends BaseModuleModel
      */
     public function getJenisPerkerasanIcon(): string
     {
-        return match($this->tipe_material) {
+        return match ($this->tipe_material) {
             'Aspal' => 'road',
             'Tanah' => 'terrain',
             'Paving' => 'brick-wall',
@@ -256,7 +256,7 @@ class JalurLoweringData extends BaseModuleModel
         ]);
 
         $this->updateLineNumberTotals();
-        
+
         return true;
     }
 
@@ -274,6 +274,31 @@ class JalurLoweringData extends BaseModuleModel
         ]);
 
         $this->updateLineNumberTotals();
+
+        // Reorganize photos to jalur_lowering_approved folder after CGP approval
+        try {
+            $folderOrgService = app(\App\Services\FolderOrganizationService::class);
+            $result = $folderOrgService->organizeJalurPhotosAfterCgpApproval(
+                $this->line_number_id,
+                $this->tanggal_jalur->format('Y-m-d'),
+                'jalur_lowering'
+            );
+
+            \Log::info('Jalur lowering photos reorganized after CGP approval', [
+                'lowering_id' => $this->id,
+                'line_number_id' => $this->line_number_id,
+                'date' => $this->tanggal_jalur->format('Y-m-d'),
+                'result' => $result
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't fail the approval process
+            \Log::error('Failed to reorganize jalur lowering photos after CGP approval', [
+                'lowering_id' => $this->id,
+                'line_number_id' => $this->line_number_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
 
         return true;
     }

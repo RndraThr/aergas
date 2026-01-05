@@ -12,7 +12,8 @@ class FolderOrganizationService
 {
     public function __construct(
         private ?GoogleDriveService $googleDriveService = null
-    ) {}
+    ) {
+    }
 
     /**
      * Organize photos into dedicated folders after CGP approval
@@ -22,7 +23,7 @@ class FolderOrganizationService
         try {
             $moduleUpper = strtoupper($module);
             $moduleSlug = strtolower($module);
-            
+
             Log::info("Starting photo organization for CGP approved module", [
                 'reff_id' => $reffId,
                 'module' => $moduleUpper
@@ -49,7 +50,7 @@ class FolderOrganizationService
 
             // Create organized folder structure
             $baseFolder = $this->buildOrganizedFolderPath($reffId, $moduleUpper, $customer->nama_pelanggan ?? null);
-            
+
             foreach ($photos as $photo) {
                 try {
                     $result = $this->movePhotoToOrganizedFolder($photo, $baseFolder);
@@ -63,7 +64,7 @@ class FolderOrganizationService
                         'reff_id' => $reffId,
                         'error' => $e->getMessage()
                     ]);
-                    
+
                     $results[] = [
                         'success' => false,
                         'photo_id' => $photo->id,
@@ -222,8 +223,7 @@ class FolderOrganizationService
                     'reason' => 'Could not extract file ID from photo_url',
                     'target_folder' => $targetFolder
                 ];
-            }
-            else {
+            } else {
                 throw new Exception("No valid file location found for photo {$photo->id}");
             }
 
@@ -268,7 +268,7 @@ class FolderOrganizationService
     {
         $customerSlug = $customerName ? $this->slugify($customerName) : '';
         $customerFolderName = $customerSlug ? "{$reffId}__{$customerSlug}" : $reffId;
-        
+
         return "aergas_approved/{$customerFolderName}/{$module}";
     }
 
@@ -289,11 +289,11 @@ class FolderOrganizationService
         $timestamp = now()->format('Ymd_His');
         $extension = pathinfo($originalFilename, PATHINFO_EXTENSION);
         $baseName = pathinfo($originalFilename, PATHINFO_FILENAME);
-        
+
         // Remove existing timestamp patterns if any
         $baseName = preg_replace('/\d{8}_\d{6}/', '', $baseName);
         $baseName = trim($baseName, '_-');
-        
+
         return "{$photo->reff_id_pelanggan}_{$photo->photo_field_name}_{$timestamp}.{$extension}";
     }
 
@@ -308,16 +308,21 @@ class FolderOrganizationService
 
         // Ensure target folder exists
         $targetFolderId = $this->googleDriveService->ensureNestedFolders($targetFolder);
-        
+
         // Move and rename file
         $result = $this->googleDriveService->moveFile($photo->drive_file_id, $targetFolderId, $targetFilename);
-        
+
+        // Generate direct image URL using file ID for faster loading
+        // Use lh3.googleusercontent.com format for direct image access
+        $fileId = $result['id'];
+        $directImageUrl = "https://drive.google.com/file/d/{$fileId}/view";
+
         return [
             'success' => true,
             'new_path' => "{$targetFolder}/{$targetFilename}",
-            'new_url' => $result['webViewLink'] ?? $result['webContentLink'] ?? $photo->photo_url,
-            'new_drive_id' => $result['id'],
-            'new_drive_link' => $result['webViewLink'] ?? $result['webContentLink']
+            'new_url' => $directImageUrl,
+            'new_drive_id' => $fileId,
+            'new_drive_link' => $result['webViewLink'] ?? $result['webContentLink'] ?? $directImageUrl
         ];
     }
 
@@ -327,16 +332,16 @@ class FolderOrganizationService
     private function moveFileLocal(PhotoApproval $photo, string $targetFolder, string $targetFilename): array
     {
         $disk = Storage::disk($photo->storage_disk);
-        
+
         if (!$disk->exists($photo->storage_path)) {
             throw new Exception("Original file not found: {$photo->storage_path}");
         }
 
         $targetPath = "{$targetFolder}/{$targetFilename}";
-        
+
         // Ensure target directory exists
         $disk->makeDirectory(dirname($targetPath));
-        
+
         // Move file
         if (!$disk->move($photo->storage_path, $targetPath)) {
             throw new Exception("Failed to move file from {$photo->storage_path} to {$targetPath}");
@@ -373,7 +378,8 @@ class FolderOrganizationService
      */
     private function canUseDrive(): bool
     {
-        if (!$this->googleDriveService) return false;
+        if (!$this->googleDriveService)
+            return false;
         $root = (string) (config('services.google_drive.folder_id') ?? '');
         return $root !== '';
     }
@@ -545,7 +551,7 @@ class FolderOrganizationService
 
             // Get all CGP approved photos for this line on this date
             $photos = PhotoApproval::where('module_name', $moduleType)
-                ->where('module_record_id', function($query) use ($lineId, $date, $moduleType) {
+                ->where('module_record_id', function ($query) use ($lineId, $date, $moduleType) {
                     if ($moduleType === 'jalur_lowering') {
                         $query->select('id')
                             ->from('jalur_lowering_data')
@@ -565,7 +571,7 @@ class FolderOrganizationService
             if ($photos->isEmpty()) {
                 // Debug: Check what photos exist for this module_record
                 $allPhotos = PhotoApproval::where('module_name', $moduleType)
-                    ->where('module_record_id', function($query) use ($lineId, $date, $moduleType) {
+                    ->where('module_record_id', function ($query) use ($lineId, $date, $moduleType) {
                         if ($moduleType === 'jalur_lowering') {
                             $query->select('id')
                                 ->from('jalur_lowering_data')

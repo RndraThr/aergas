@@ -61,7 +61,7 @@ class JalurJointData extends BaseModuleModel
     public function photoApprovals(): HasMany
     {
         return $this->hasMany(PhotoApproval::class, 'module_record_id', 'id')
-                    ->where('module_name', 'jalur_joint');
+            ->where('module_name', 'jalur_joint');
     }
 
     // Scopes
@@ -143,7 +143,7 @@ class JalurJointData extends BaseModuleModel
             'tracer_approved_by' => $userId,
             'tracer_notes' => $notes,
         ]);
-        
+
         return true;
     }
 
@@ -159,6 +159,48 @@ class JalurJointData extends BaseModuleModel
             'cgp_approved_by' => $userId,
             'cgp_notes' => $notes,
         ]);
+
+        // Reorganize photos to jalur_joint_approved folder after CGP approval
+        try {
+            $folderOrgService = app(\App\Services\FolderOrganizationService::class);
+
+            // Determine line_number_id for folder organization
+            // Priority: 1) line_number_id (FK), 2) lookup from joint_line_from
+            $lineNumberId = $this->line_number_id;
+
+            if (!$lineNumberId && $this->joint_line_from) {
+                $lineNumber = \App\Models\JalurLineNumber::where('line_number', $this->joint_line_from)->first();
+                $lineNumberId = $lineNumber?->id;
+            }
+
+            if ($lineNumberId) {
+                $result = $folderOrgService->organizeJalurPhotosAfterCgpApproval(
+                    $lineNumberId,
+                    $this->tanggal_joint->format('Y-m-d'),
+                    'jalur_joint'
+                );
+
+                \Log::info('Jalur joint photos reorganized after CGP approval', [
+                    'joint_id' => $this->id,
+                    'line_number_id' => $lineNumberId,
+                    'date' => $this->tanggal_joint->format('Y-m-d'),
+                    'result' => $result
+                ]);
+            } else {
+                \Log::warning('Cannot reorganize joint photos - no line_number_id found', [
+                    'joint_id' => $this->id,
+                    'joint_line_from' => $this->joint_line_from
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Log error but don't fail the approval process
+            \Log::error('Failed to reorganize jalur joint photos after CGP approval', [
+                'joint_id' => $this->id,
+                'line_number_id' => $this->line_number_id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
 
         return true;
     }
@@ -253,34 +295,34 @@ class JalurJointData extends BaseModuleModel
     public function getFormattedJointLineAttribute(): string
     {
         $base = $this->joint_line_from . ' → ' . $this->joint_line_to;
-        
+
         // Add optional line for Equal Tee (3-way connection)
         if ($this->joint_line_optional && $this->isEqualTee()) {
             $base .= ' → ' . $this->joint_line_optional;
         }
-        
+
         return $base;
     }
-    
+
     public function getAllJointLines(): array
     {
         $lines = [
             'from' => $this->joint_line_from,
             'to' => $this->joint_line_to,
         ];
-        
+
         if ($this->joint_line_optional && $this->isEqualTee()) {
             $lines['optional'] = $this->joint_line_optional;
         }
-        
+
         return array_filter($lines); // Remove empty values
     }
-    
+
     public function isEqualTee(): bool
     {
         return $this->fittingType && $this->fittingType->code_fitting === 'ET';
     }
-    
+
     public function requiresThirdLine(): bool
     {
         return $this->isEqualTee();
@@ -290,13 +332,13 @@ class JalurJointData extends BaseModuleModel
     {
         $cluster = JalurCluster::find($clusterId);
         $fitting = JalurFittingType::find($fittingTypeId);
-        
+
         if (!$cluster || !$fitting) {
             throw new \Exception('Invalid cluster or fitting type');
         }
 
         $nextCode = $fitting->getNextJointCode($cluster->code_cluster);
-        
+
         return $cluster->generateJointNumber($fitting->code_fitting, $nextCode);
     }
 }
