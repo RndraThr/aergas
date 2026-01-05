@@ -24,13 +24,13 @@ class JalurLoweringController extends Controller
         $query = JalurLoweringData::query()->with(['lineNumber.cluster', 'tracerApprover', 'cgpApprover']);
 
         if ($request->filled('search')) {
-            $query->whereHas('lineNumber', function($q) use ($request) {
+            $query->whereHas('lineNumber', function ($q) use ($request) {
                 $q->where('line_number', 'like', "%{$request->search}%");
             })->orWhere('nama_jalan', 'like', "%{$request->search}%");
         }
 
         if ($request->filled('cluster_id')) {
-            $query->whereHas('lineNumber', function($q) use ($request) {
+            $query->whereHas('lineNumber', function ($q) use ($request) {
                 $q->where('cluster_id', $request->cluster_id);
             });
         }
@@ -62,7 +62,7 @@ class JalurLoweringController extends Controller
     {
         $clusters = JalurCluster::active()->get();
         $lineNumbers = collect();
-        
+
         if ($request->filled('cluster_id')) {
             $lineNumbers = JalurLineNumber::byCluster($request->cluster_id)->active()->get();
         }
@@ -244,10 +244,15 @@ class JalurLoweringController extends Controller
                     $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
                     $customDrivePath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$tanggalFolder}";
 
+                    // Generate descriptive filename
+                    $waktu = date('H-i-s');
+                    $fieldSlug = 'penggelaran-bongkaran';
+                    $customFileName = "LOWERING_{$lineNumber}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
+
                     $result = $googleDriveService->copyFromDriveLink(
                         $driveLink,
                         $customDrivePath,
-                        'foto_evidence_penggelaran_bongkaran_' . time()
+                        $customFileName
                     );
 
                     // Create photo approval record directly for jalur lowering
@@ -291,10 +296,15 @@ class JalurLoweringController extends Controller
                     $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
                     $customDrivePath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$tanggalFolder}";
 
+                    // Generate descriptive filename  
+                    $waktu = date('H-i-s');
+                    $fieldSlug = 'cassing';
+                    $customFileName = "LOWERING_{$lineNumber}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
+
                     $result = $googleDriveService->copyFromDriveLink(
                         $cassingDriveLink,
                         $customDrivePath,
-                        'foto_evidence_cassing_' . time()
+                        $customFileName
                     );
 
                     PhotoApproval::create([
@@ -336,10 +346,15 @@ class JalurLoweringController extends Controller
                     $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
                     $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
 
+                    // Generate descriptive filename
+                    $waktu = date('H-i-s');
+                    $fieldSlug = 'marker-tape';
+                    $customFileName = "LOWERING_{$lineNumber}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
+
                     $result = $googleDriveService->copyFromDriveLink(
                         $markerTapeDriveLink,
                         $customDrivePath,
-                        'foto_evidence_marker_tape_' . time()
+                        $customFileName
                     );
 
                     PhotoApproval::create([
@@ -380,10 +395,15 @@ class JalurLoweringController extends Controller
                     $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
                     $customDrivePath = "JALUR_LOWERING/{$clusterName}/{$lineNumber}/{$tanggalFolder}";
 
+                    // Generate descriptive filename
+                    $waktu = date('H-i-s');
+                    $fieldSlug = 'concrete-slab';
+                    $customFileName = "LOWERING_{$lineNumber}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
+
                     $result = $googleDriveService->copyFromDriveLink(
                         $concreteSlabDriveLink,
                         $customDrivePath,
-                        'foto_evidence_concrete_slab_' . time()
+                        $customFileName
                     );
 
                     PhotoApproval::create([
@@ -420,7 +440,7 @@ class JalurLoweringController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return back()
                 ->withInput()
                 ->with('error', 'Gagal menyimpan data lowering: ' . $e->getMessage());
@@ -451,7 +471,7 @@ class JalurLoweringController extends Controller
 
         $clusters = JalurCluster::active()->get();
         $lineNumbers = JalurLineNumber::active()->with('cluster')->get();
-        
+
         return view('jalur.lowering.edit', compact('lowering', 'clusters', 'lineNumbers'));
     }
 
@@ -493,7 +513,7 @@ class JalurLoweringController extends Controller
         // Remove file/link fields from validated data (handled separately)
         unset($validated['foto_evidence_penggelaran_bongkaran']);
         unset($validated['foto_evidence_penggelaran_bongkaran_link']);
-        
+
         $validated['updated_by'] = Auth::id();
 
         try {
@@ -506,7 +526,7 @@ class JalurLoweringController extends Controller
                 if ($uploadMethod === 'file') {
                     // Handle photo uploads - multiple photos based on accessories
                     $photoFields = ['foto_evidence_penggelaran_bongkaran']; // Always required
-                    
+
                     // Add accessory photos based on tipe_bongkaran and checkboxes
                     if ($validated['tipe_bongkaran'] === 'Open Cut') {
                         if ($request->hasFile('foto_evidence_marker_tape')) {
@@ -523,28 +543,33 @@ class JalurLoweringController extends Controller
                             $photoFields[] = 'foto_evidence_cassing';
                         }
                     }
-                    
+
                     $this->handlePhotoUploads($request, $lowering, $photoFields);
                 } else {
                     // Handle Google Drive link for main photo
                     $driveLink = $request->input('foto_evidence_penggelaran_bongkaran_link');
-                    
+
                     try {
                         $googleDriveService = app(GoogleDriveService::class);
-                        
+
                         // Use same path structure as direct upload
                         $lineNumber = $lowering->lineNumber->line_number;
                         $clusterName = $lowering->lineNumber->cluster->nama_cluster;
                         $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
                         $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
                         $customDrivePath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$tanggalFolder}";
-                        
+
+                        // Generate descriptive filename
+                        $waktu = date('H-i-s');
+                        $fieldSlug = 'penggelaran-bongkaran';
+                        $customFileName = "LOWERING_{$lineNumber}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
+
                         $result = $googleDriveService->copyFromDriveLink(
-                            $driveLink, 
+                            $driveLink,
                             $customDrivePath,
-                            'foto_evidence_penggelaran_bongkaran_' . time()
+                            $customFileName
                         );
-                        
+
                         // Replace existing photo or create new one
                         $existingPhoto = PhotoApproval::where('module_name', 'jalur_lowering')
                             ->where('module_record_id', $lowering->id)
@@ -578,13 +603,13 @@ class JalurLoweringController extends Controller
                         } else {
                             PhotoApproval::create($photoData);
                         }
-                        
+
                         Log::info('Google Drive photo copied successfully in update', [
                             'lowering_id' => $lowering->id,
                             'drive_link' => $driveLink,
                             'result' => $result
                         ]);
-                        
+
                     } catch (\Exception $e) {
                         Log::error('Failed to copy photo from Google Drive link in update', [
                             'lowering_id' => $lowering->id,
@@ -597,7 +622,7 @@ class JalurLoweringController extends Controller
             }
 
             // Update line number totals (handled by model events)
-            
+
             DB::commit();
 
             return redirect()
@@ -606,7 +631,7 @@ class JalurLoweringController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return back()
                 ->withInput()
                 ->with('error', 'Gagal memperbarui data lowering: ' . $e->getMessage());
@@ -624,11 +649,11 @@ class JalurLoweringController extends Controller
 
             // Delete related photos
             PhotoApproval::where('module_name', 'jalur_lowering')
-                        ->where('module_record_id', $lowering->id)
-                        ->delete();
+                ->where('module_record_id', $lowering->id)
+                ->delete();
 
             $lowering->delete();
-            
+
             DB::commit();
 
             return redirect()
@@ -637,7 +662,7 @@ class JalurLoweringController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return back()->with('error', 'Gagal menghapus data lowering: ' . $e->getMessage());
         }
     }
@@ -720,7 +745,7 @@ class JalurLoweringController extends Controller
             $file = $request->file('photo');
             $fileName = time() . '_' . $file->getClientOriginalName();
             $path = "jalur/lowering/{$lowering->lineNumber->line_number}/" . $fileName;
-            
+
             Storage::disk('public')->put($path, file_get_contents($file));
 
             // Create photo approval record dengan PhotoApprovalService untuk AI processing
@@ -744,7 +769,7 @@ class JalurLoweringController extends Controller
     public function getLineNumbers(Request $request)
     {
         $clusterId = $request->get('cluster_id');
-        
+
         if (!$clusterId) {
             return response()->json([]);
         }
@@ -761,20 +786,20 @@ class JalurLoweringController extends Controller
     private function handlePhotoUploads(Request $request, JalurLoweringData $lowering, array $photoFields): void
     {
         $fileUploadService = app(FileUploadService::class);
-        
+
         foreach ($photoFields as $fieldName) {
             if ($request->hasFile($fieldName)) {
                 $file = $request->file($fieldName);
-                
+
                 $lineNumber = $lowering->lineNumber->line_number;
                 $namaJalan = $lowering->nama_jalan;
-                
+
                 // Generate descriptive filename
                 $waktu = date('H-i-s');
                 $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
                 $fieldSlug = str_replace(['foto_evidence_', '_'], ['', '-'], $fieldName);
                 $customFileName = "LOWERING_{$lineNumber}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
-                
+
                 try {
                     // Custom upload untuk struktur: jalur_lowering/cluster_slug/LineNumber/Date/
                     $googleDriveService = app(GoogleDriveService::class);
@@ -783,7 +808,7 @@ class JalurLoweringController extends Controller
                     $clusterName = $lowering->lineNumber->cluster->nama_cluster; // Karanggayam
                     $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
                     $customDrivePath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$tanggalFolder}";
-                    
+
                     // Upload dengan custom path
                     $uploadResult = $this->uploadToCustomDrivePath(
                         $googleDriveService,
@@ -826,17 +851,17 @@ class JalurLoweringController extends Controller
                     } else {
                         PhotoApproval::create($photoData);
                     }
-                    
+
                 } catch (\Exception $e) {
                     // Log error untuk debugging
                     Log::error("Google Drive upload failed for lowering: " . $e->getMessage());
-                    
+
                     // Fallback ke manual storage dengan struktur yang diinginkan
                     $clusterCode = $lowering->lineNumber->cluster->code_cluster;
                     $customPath = "jalur-lowering/{$clusterCode}/{$lineNumber}/{$tanggalFolder}";
                     $fileName = $customFileName . '.' . strtolower($file->getClientOriginalExtension() ?: 'jpg');
                     $fullPath = $customPath . '/' . $fileName;
-                    
+
                     // Simpan ke public storage agar bisa diakses
                     $publicPath = public_path('storage/' . $fullPath);
                     $directory = dirname($publicPath);
@@ -844,7 +869,7 @@ class JalurLoweringController extends Controller
                         mkdir($directory, 0755, true);
                     }
                     move_uploaded_file($file->getPathname(), $publicPath);
-                    
+
                     // Backup ke storage/app/public
                     Storage::disk('public')->put($fullPath, file_get_contents($publicPath));
 
@@ -902,7 +927,7 @@ class JalurLoweringController extends Controller
                 'cgp_notes' => null,
                 'updated_by' => Auth::id()
             ]);
-            
+
             Log::info('Module status reset to draft due to photo replacement', [
                 'lowering_id' => $lowering->id,
                 'line_number' => $lowering->lineNumber->line_number,

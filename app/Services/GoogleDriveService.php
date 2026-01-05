@@ -133,7 +133,7 @@ class GoogleDriveService
     private function refreshTokenWithRetry(GoogleClient $client, string $refreshToken, int $maxRetries = 3): array
     {
         $cacheKey = 'google_drive_access_token';
-        
+
         // Check if we have a cached valid token
         $cachedToken = Cache::get($cacheKey);
         if ($cachedToken && isset($cachedToken['access_token']) && isset($cachedToken['expires_at'])) {
@@ -156,7 +156,7 @@ class GoogleDriveService
 
                 // Add expires_at timestamp for easier checking
                 $token['expires_at'] = time() + ($token['expires_in'] ?? 3600);
-                
+
                 // Cache the token for slightly less than its expiration time
                 $cacheMinutes = floor(($token['expires_in'] ?? 3600) / 60) - 5; // 5 minutes buffer
                 Cache::put($cacheKey, $token, now()->addMinutes(max($cacheMinutes, 30)));
@@ -194,7 +194,7 @@ class GoogleDriveService
             return $this->rootFolderId;
         }
 
-        $parts = array_values(array_filter(explode('/', $path), fn ($v) => $v !== ''));
+        $parts = array_values(array_filter(explode('/', $path), fn($v) => $v !== ''));
 
         $parentId = $this->rootFolderId;
         foreach ($parts as $name) {
@@ -213,17 +213,17 @@ class GoogleDriveService
         $mime = $file->getMimeType() ?: 'application/octet-stream';
 
         $driveFile = new DriveFile([
-            'name'    => $name,
+            'name' => $name,
             'parents' => [$folderId],
         ]);
 
         $created = $this->drive->files->create(
             $driveFile,
             [
-                'data'       => file_get_contents($file->getRealPath()),
-                'mimeType'   => $mime,
+                'data' => file_get_contents($file->getRealPath()),
+                'mimeType' => $mime,
                 'uploadType' => 'multipart',
-                'fields'     => 'id,name,webViewLink,webContentLink',
+                'fields' => 'id,name,webViewLink,webContentLink',
                 'supportsAllDrives' => true,
             ]
         );
@@ -241,9 +241,9 @@ class GoogleDriveService
         }
 
         return [
-            'id'             => $created->id,
-            'name'           => $created->name ?? $name,
-            'webViewLink'    => $created->webViewLink ?? null,
+            'id' => $created->id,
+            'name' => $created->name ?? $name,
+            'webViewLink' => $created->webViewLink ?? null,
             'webContentLink' => $created->webContentLink ?? null,
         ];
     }
@@ -283,7 +283,7 @@ class GoogleDriveService
             if (!empty($updateData) || isset($updateParams['addParents'])) {
                 $driveFile = new DriveFile($updateData);
                 $updated = $this->drive->files->update($fileId, $driveFile, $updateParams);
-                
+
                 Log::info('File moved successfully in Google Drive', [
                     'file_id' => $fileId,
                     'old_name' => $file->getName(),
@@ -316,6 +316,52 @@ class GoogleDriveService
                 'errors' => $e->getErrors()
             ]);
             throw new Exception('Failed to move file in Google Drive: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Rename file in Google Drive (without changing parent folder)
+     *
+     * @param string $fileId File ID to rename
+     * @param string $newName New filename
+     * @return array ['id' => file ID, 'name' => new filename, 'webViewLink' => URL]
+     * @throws Exception
+     */
+    public function renameFile(string $fileId, string $newName): array
+    {
+        if (!$this->initialize()) {
+            throw new Exception('Google Drive service not available: ' . $this->getError());
+        }
+
+        try {
+            // Update file with new name
+            $driveFile = new DriveFile(['name' => $newName]);
+
+            $updated = $this->drive->files->update($fileId, $driveFile, [
+                'fields' => 'id,name,webViewLink,webContentLink',
+                'supportsAllDrives' => true
+            ]);
+
+            Log::info('File renamed successfully in Google Drive', [
+                'file_id' => $fileId,
+                'new_name' => $newName
+            ]);
+
+            return [
+                'id' => $updated->getId(),
+                'name' => $updated->getName(),
+                'webViewLink' => $updated->getWebViewLink(),
+                'webContentLink' => $updated->getWebContentLink(),
+            ];
+
+        } catch (\Google\Service\Exception $e) {
+            Log::error('Google Drive API error during rename', [
+                'file_id' => $fileId,
+                'new_name' => $newName,
+                'error' => $e->getMessage(),
+                'errors' => $e->getErrors()
+            ]);
+            throw new Exception('Failed to rename file in Google Drive: ' . $e->getMessage());
         }
     }
 
@@ -605,21 +651,21 @@ class GoogleDriveService
         }
 
         $moduleFolderName = strtoupper($module) . '_Data';
-        $folderModuleId   = $this->ensureFolder($this->rootFolderId, $moduleFolderName);
-        $folderReffId     = $this->ensureFolder($folderModuleId, $reffId);
-        $folderSubId      = $this->ensureFolder($folderReffId, $sub);
+        $folderModuleId = $this->ensureFolder($this->rootFolderId, $moduleFolderName);
+        $folderReffId = $this->ensureFolder($folderModuleId, $reffId);
+        $folderSubId = $this->ensureFolder($folderReffId, $sub);
 
         $file = new DriveFile([
-            'name'    => basename($abs),
+            'name' => basename($abs),
             'parents' => [$folderSubId],
         ]);
 
         $mime = mime_content_type($abs) ?: 'application/octet-stream';
         $created = $this->drive->files->create($file, [
-            'data'       => file_get_contents($abs),
-            'mimeType'   => $mime,
+            'data' => file_get_contents($abs),
+            'mimeType' => $mime,
             'uploadType' => 'media',
-            'fields'     => 'id,webViewLink',
+            'fields' => 'id,webViewLink',
             'supportsAllDrives' => true,
         ]);
 
@@ -734,7 +780,7 @@ class GoogleDriveService
                 return $this->rootFolderId;
             }
 
-            $parts = array_values(array_filter(explode('/', $path), fn ($v) => $v !== ''));
+            $parts = array_values(array_filter(explode('/', $path), fn($v) => $v !== ''));
             $parentId = $this->rootFolderId;
 
             foreach ($parts as $name) {
@@ -742,7 +788,7 @@ class GoogleDriveService
                 $q = "mimeType='application/vnd.google-apps.folder' and name='{$quoted}' and '{$parentId}' in parents and trashed=false";
 
                 $list = $this->drive->files->listFiles([
-                    'q'      => $q,
+                    'q' => $q,
                     'fields' => 'files(id,name)',
                     'pageSize' => 1,
                     'supportsAllDrives' => true,
@@ -777,17 +823,17 @@ class GoogleDriveService
 
         try {
             $about = $this->drive->about->get(['fields' => 'user,storageQuota']);
-            $user  = $about->getUser();
+            $user = $about->getUser();
             $quota = $about->getStorageQuota();
 
             return [
-                'success'       => true,
-                'message'       => 'Connected to Google Drive successfully',
-                'user_email'    => $user?->getEmailAddress(),
-                'display_name'  => $user?->getDisplayName(),
-                'storage_used'  => $quota?->getUsage(),
+                'success' => true,
+                'message' => 'Connected to Google Drive successfully',
+                'user_email' => $user?->getEmailAddress(),
+                'display_name' => $user?->getDisplayName(),
+                'storage_used' => $quota?->getUsage(),
                 'storage_limit' => $quota?->getLimit(),
-                'auth_method'   => config('services.google_drive.service_account_json') ? 'service_account' : 'oauth',
+                'auth_method' => config('services.google_drive.service_account_json') ? 'service_account' : 'oauth',
             ];
         } catch (\Throwable $e) {
             Log::error('Google Drive test connection failed', ['error' => $e->getMessage()]);
@@ -821,12 +867,12 @@ class GoogleDriveService
             $limit = $quota?->getLimit();
 
             return [
-                'used'        => $used,
-                'limit'       => $limit,
-                'used_human'  => $this->formatBytes($used),
+                'used' => $used,
+                'limit' => $limit,
+                'used_human' => $this->formatBytes($used),
                 'limit_human' => $limit ? $this->formatBytes($limit) : 'Unlimited',
-                'percentage'  => $limit ? round(($used / $limit) * 100, 2) : 0,
-                'folders'     => [],
+                'percentage' => $limit ? round(($used / $limit) * 100, 2) : 0,
+                'folders' => [],
             ];
         } catch (\Throwable $e) {
             Log::error('Google Drive storage stats failed', ['error' => $e->getMessage()]);
@@ -847,7 +893,7 @@ class GoogleDriveService
         $q = "mimeType='application/vnd.google-apps.folder' and name='{$quoted}' and '{$parentId}' in parents and trashed=false";
 
         $list = $this->drive->files->listFiles([
-            'q'      => $q,
+            'q' => $q,
             'fields' => 'files(id,name)',
             'pageSize' => 1,
             'supportsAllDrives' => true,
@@ -860,9 +906,9 @@ class GoogleDriveService
         }
 
         $folder = new DriveFile([
-            'name'     => $name,
+            'name' => $name,
             'mimeType' => 'application/vnd.google-apps.folder',
-            'parents'  => [$parentId],
+            'parents' => [$parentId],
         ]);
 
         $created = $this->drive->files->create($folder, [
@@ -875,8 +921,9 @@ class GoogleDriveService
 
     private function formatBytes(int $bytes): string
     {
-        if ($bytes <= 0) return '0 B';
-        $units = ['B','KB','MB','GB','TB'];
+        if ($bytes <= 0)
+            return '0 B';
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         $i = (int) floor(log($bytes, 1024));
         $i = min($i, count($units) - 1);
         return round($bytes / (1024 ** $i), 2) . ' ' . $units[$i];
@@ -939,7 +986,7 @@ class GoogleDriveService
             }
 
             // Determine file extension from mime type
-            $extension = match($file->mimeType) {
+            $extension = match ($file->mimeType) {
                 'image/jpeg' => '.jpg',
                 'image/png' => '.png',
                 'image/gif' => '.gif',
@@ -1043,15 +1090,15 @@ class GoogleDriveService
         // https://drive.google.com/file/d/FILE_ID/view
         // https://drive.google.com/open?id=FILE_ID
         // https://drive.google.com/uc?id=FILE_ID
-        
+
         if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $link, $matches)) {
             return $matches[1];
         }
-        
+
         if (preg_match('/[?&]id=([a-zA-Z0-9_-]+)/', $link, $matches)) {
             return $matches[1];
         }
-        
+
         return null;
     }
 
@@ -1064,11 +1111,12 @@ class GoogleDriveService
         $currentParentId = $parentId;
 
         foreach ($folders as $folderName) {
-            if (empty($folderName)) continue;
-            
+            if (empty($folderName))
+                continue;
+
             // Check if folder already exists
             $existingFolder = $this->findFolderByName($folderName, $currentParentId);
-            
+
             if ($existingFolder) {
                 $currentParentId = $existingFolder->id;
             } else {
@@ -1082,7 +1130,7 @@ class GoogleDriveService
                     'fields' => 'id',
                     'supportsAllDrives' => true,
                 ]);
-                
+
                 $currentParentId = $folder->id;
             }
         }
@@ -1124,7 +1172,7 @@ class GoogleDriveService
         try {
             // Ensure the target folder exists
             $targetFolderId = $this->ensureNestedFolders($folderPath);
-            
+
             // Get original file info
             $originalFile = $this->drive->files->get($fileId, [
                 'fields' => 'id,name,mimeType',
@@ -1354,7 +1402,8 @@ class GoogleDriveService
             ]);
 
             foreach ($pathParts as $index => $folderName) {
-                if (empty($folderName)) continue;
+                if (empty($folderName))
+                    continue;
 
                 // Escape folder name for query
                 $escapedName = addslashes($folderName);
