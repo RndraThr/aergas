@@ -54,7 +54,7 @@ class JalurController extends Controller
     {
         $type = $request->get('type', 'summary');
         $export = $request->get('export', false);
-        
+
         switch ($type) {
             case 'summary':
                 return $this->getSummaryReport();
@@ -72,14 +72,16 @@ class JalurController extends Controller
     private function getSummaryReport()
     {
         $clusters = JalurCluster::with([
-            'lineNumbers' => function($q) {
+            'lineNumbers' => function ($q) {
                 $q->with(['loweringData']);
             }
         ])->active()->get();
 
-        $data = $clusters->map(function($cluster) {
+        $data = $clusters->map(function ($cluster) {
             $totalLines = $cluster->lineNumbers->count();
-            $completedLines = $cluster->lineNumbers->where('status_line', 'completed')->count();
+            // Calculate how many lines have meaningful progress (penggelaran > 0)
+            $linesWithProgress = $cluster->lineNumbers->where('total_penggelaran', '>', 0)->count();
+
             $totalEstimate = $cluster->lineNumbers->sum('estimasi_panjang');
             // Calculate actual from both actual_mc100 field and total penggelaran from lowering data
             $totalActualFromField = $cluster->lineNumbers->whereNotNull('actual_mc100')->sum('actual_mc100');
@@ -88,14 +90,11 @@ class JalurController extends Controller
             // Use actual_mc100 if available, otherwise use total_penggelaran as actual
             $totalActual = $totalActualFromField > 0 ? $totalActualFromField : $totalPenggelaran;
 
-            // Calculate progress based on actual work done vs estimate, not just completed count
+            // Calculate progress based on actual work done vs estimate
             $progressPercentage = 0;
             if ($totalEstimate > 0) {
                 $progressPercentage = min(100, ($totalPenggelaran / $totalEstimate) * 100);
             }
-
-            // Calculate how many lines have meaningful progress (penggelaran > 0)
-            $linesWithProgress = $cluster->lineNumbers->where('total_penggelaran', '>', 0)->count();
 
             // Only calculate variance if we have actual data
             $variance = ($totalActual > 0 && $totalEstimate > 0) ? $totalActual - $totalEstimate : null;
@@ -104,7 +103,7 @@ class JalurController extends Controller
                 'cluster' => $cluster->nama_cluster,
                 'code' => $cluster->code_cluster,
                 'total_lines' => $totalLines,
-                'completed_lines' => $completedLines,
+                'completed_lines' => $linesWithProgress, // Use lines with progress instead of status
                 'lines_with_progress' => $linesWithProgress,
                 'progress_percentage' => round($progressPercentage, 1),
                 'total_estimate' => $totalEstimate,
@@ -121,7 +120,7 @@ class JalurController extends Controller
     {
         $lineNumbers = JalurLineNumber::with(['cluster', 'loweringData'])
             ->get()
-            ->map(function($line) {
+            ->map(function ($line) {
                 return [
                     'line_number' => $line->line_number,
                     'cluster' => $line->cluster->nama_cluster,
@@ -142,22 +141,22 @@ class JalurController extends Controller
     private function getVarianceReport()
     {
         $lineNumbers = JalurLineNumber::with('cluster')
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->whereNotNull('actual_mc100')
-                  ->orWhere('total_penggelaran', '>', 0);
+                    ->orWhere('total_penggelaran', '>', 0);
             })
             ->get()
-            ->map(function($line) {
+            ->map(function ($line) {
                 // Use actual_mc100 if available, otherwise use total_penggelaran
                 $actualValue = $line->actual_mc100 ?? $line->total_penggelaran;
-                
+
                 if (!$actualValue || $line->estimasi_panjang <= 0) {
                     return null; // Skip lines without valid data
                 }
-                
+
                 $variance = $actualValue - $line->estimasi_panjang;
                 $variancePercentage = ($variance / $line->estimasi_panjang) * 100;
-                
+
                 return [
                     'line_number' => $line->line_number,
                     'cluster' => $line->cluster->nama_cluster,
@@ -165,8 +164,8 @@ class JalurController extends Controller
                     'actual_mc100' => $actualValue,
                     'variance' => $variance,
                     'variance_percentage' => $variancePercentage,
-                    'status' => $variancePercentage > 10 ? 'over' : 
-                              ($variancePercentage < -10 ? 'under' : 'normal'),
+                    'status' => $variancePercentage > 10 ? 'over' :
+                        ($variancePercentage < -10 ? 'under' : 'normal'),
                 ];
             })
             ->filter() // Remove null values
@@ -182,7 +181,7 @@ class JalurController extends Controller
             'loweringData'
         ])->get();
 
-        $data = $lineNumbers->map(function($line) {
+        $data = $lineNumbers->map(function ($line) {
             // Calculate lowering totals
             $loweringEntries = $line->loweringData->count();
             $totalPenggelaran = $line->total_penggelaran ?? 0;
@@ -246,18 +245,18 @@ class JalurController extends Controller
                 'nama_jalan' => $line->nama_jalan,
                 'estimasi_panjang' => $estimasi,
                 'is_active' => $line->is_active,
-                
+
                 // Lowering data
                 'lowering_entries' => $loweringEntries,
                 'total_penggelaran' => $totalPenggelaran,
                 'actual_mc100' => $actualMc100,
                 'lowering_last_update' => $loweringLastUpdate,
-                
+
                 // Joint data
                 'joint_total' => $jointTotal,
                 'joint_completed' => $jointAccCgp,
                 'joint_last_update' => $jointLastUpdate,
-                
+
                 // Calculations
                 'variance' => $variance,
                 'variance_percentage' => $variancePercentage,

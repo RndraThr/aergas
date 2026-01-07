@@ -1857,7 +1857,7 @@
                     this.availableLineNumbers.forEach(line => {
                         const option = document.createElement('option');
                         option.value = line.id;
-                        option.textContent = `${line.line_code} - ${line.nama_jalan} (Ø${line.diameter}mm)`;
+                        option.textContent = `${line.line_number} - ${line.nama_jalan} (Ø${line.diameter}mm)`;
                         selectElement.appendChild(option);
                     });
                 }
