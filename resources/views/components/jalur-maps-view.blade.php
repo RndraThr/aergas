@@ -66,6 +66,14 @@
                     <span class="text-sm font-medium">Import KMZ/KML</span>
                 </a>
 
+                {{-- Satellite View Toggle --}}
+                <button @click="toggleSatelliteView()"
+                    :class="satelliteView ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300'"
+                    class="flex items-center space-x-2 px-4 py-2 rounded-lg hover:opacity-90 transition-all shadow-sm">
+                    <i :class="satelliteView ? 'fas fa-satellite' : 'fas fa-map'" class="text-sm"></i>
+                    <span class="text-sm font-medium" x-text="satelliteView ? 'Satellite' : 'Map'"></span>
+                </button>
+
                 <!-- Layer Toggle -->
                 <div class="relative" x-data="{ open: false }">
                     <button @click="open = !open"
@@ -438,6 +446,12 @@
             isEditMode: false,
             editingFeatureId: null,
             editingFeature: null,
+            // Satellite view toggle
+            satelliteView: false,
+            baseLayers: {
+                street: null,
+                satellite: null
+            },
 
             init() {
                 // Set global reference for popup button actions
@@ -1302,11 +1316,11 @@
                 const defaults = {
                     line: (() => {
                         if (isUnassigned) {
-                            // Unassigned lines are dashed orange
+                            // Unassigned lines are dashed black
                             return {
-                                color: '#f97316',
+                                color: '#1F2937',  // Dark gray/black
                                 weight: 4,
-                                opacity: 0.7,
+                                opacity: 0.8,
                                 dashArray: '10, 10'
                             };
                         }
@@ -1958,6 +1972,50 @@
                 } catch (error) {
                     console.error('Delete error:', error);
                     window.showToast && window.showToast('error', 'Gagal menghapus jalur: ' + error.message);
+                }
+            },
+
+            // Toggle Satellite View
+            toggleSatelliteView() {
+                // Check if map exists
+                if (!this.map) {
+                    console.warn('Map not initialized yet');
+                    return;
+                }
+
+                // Initialize tile layers if not yet created
+                if (!this.baseLayers.street) {
+                    console.log('Initializing tile layers...');
+
+                    // OpenStreetMap (default)
+                    this.baseLayers.street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap contributors',
+                        maxZoom: 19
+                    });
+
+                    // Esri World Imagery (Satellite)
+                    this.baseLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                        attribution: 'Tiles &copy; Esri',
+                        maxZoom: 19
+                    });
+
+                    // Add default street layer to map
+                    this.baseLayers.street.addTo(this.map);
+                }
+
+                // Toggle between layers
+                this.satelliteView = !this.satelliteView;
+
+                if (this.satelliteView) {
+                    // Switch to satellite
+                    this.map.removeLayer(this.baseLayers.street);
+                    this.map.addLayer(this.baseLayers.satellite);
+                    console.log('Switched to satellite view');
+                } else {
+                    // Switch to street
+                    this.map.removeLayer(this.baseLayers.satellite);
+                    this.map.addLayer(this.baseLayers.street);
+                    console.log('Switched to street view');
                 }
             }
         };
