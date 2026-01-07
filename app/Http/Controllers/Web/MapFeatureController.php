@@ -24,12 +24,30 @@ class MapFeatureController extends Controller
     public function index(): JsonResponse
     {
         try {
+            // Get context parameter (default: 'main' for main dashboard)
+            $context = request()->get('context', 'main');
+
             // Simple test first - just return empty array if model not working
             try {
-                $features = MapGeometricFeature::with(['lineNumber.cluster', 'cluster', 'creator'])
+                $query = MapGeometricFeature::with(['lineNumber.cluster', 'cluster', 'creator'])
                     ->visible()
-                    ->ordered()
-                    ->get();
+                    ->ordered();
+
+                // Filter based on context
+                if ($context === 'main') {
+                    // Main dashboard: exclude jalur-related features (no line_number_id and no cluster_id)
+                    $query->whereNull('line_number_id')
+                        ->whereNull('cluster_id');
+                } elseif ($context === 'jalur') {
+                    // Jalur dashboard: only jalur-related features (has line_number_id or cluster_id)
+                    $query->where(function ($q) {
+                        $q->whereNotNull('line_number_id')
+                            ->orWhereNotNull('cluster_id');
+                    });
+                }
+                // If context is 'all', no filter applied
+
+                $features = $query->get();
 
                 $geoJsonFeatures = $features->map(function ($feature) {
                     return $feature->toGeoJson();
@@ -48,7 +66,8 @@ class MapFeatureController extends Controller
             return response()->json([
                 'success' => true,
                 'features' => $geoJsonFeatures,
-                'count' => $features->count()
+                'count' => $features->count(),
+                'context' => $context
             ]);
         } catch (\Exception $e) {
             Log::error('MapFeatureController index error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());

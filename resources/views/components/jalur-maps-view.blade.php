@@ -1162,7 +1162,7 @@
                 this.loading = true;
 
                 try {
-                    const response = await fetch('{{ route('map-features.index') }}', {
+                    const response = await fetch('{{ route('map-features.index') }}?context=jalur', {
                         headers: {
                             'Accept': 'application/json',
                             'X-CSRF-TOKEN': window.csrfToken

@@ -128,13 +128,19 @@ class JalurKmzImportController extends Controller
             $feature->update([
                 'line_number_id' => $lineNumber->id,
                 'cluster_id' => $lineNumber->cluster_id,
-                'name' => $lineNumber->line_code . ' - ' . $lineNumber->nama_jalan,
+                'name' => $lineNumber->line_number . ' - ' . $lineNumber->nama_jalan,
                 'metadata' => array_merge($feature->metadata ?? [], [
                     'line_number' => $lineNumber->line_number,
                     'nama_jalan' => $lineNumber->nama_jalan,
                     'diameter' => $lineNumber->diameter,
-                    'cluster_name' => $lineNumber->cluster->name ?? null,
-                    'cluster_code' => $lineNumber->cluster->code ?? null,
+                    'cluster_name' => $lineNumber->cluster->nama_cluster ?? null,
+                    'cluster_code' => $lineNumber->cluster->code_cluster ?? null,
+                    'line_code' => $lineNumber->line_code,
+                    'estimasi_panjang' => $lineNumber->estimasi_panjang,
+                    'total_penggelaran' => $lineNumber->total_penggelaran,
+                    'actual_mc100' => $lineNumber->actual_mc100,
+                    'status' => $lineNumber->status_line,
+                    'keterangan' => $lineNumber->keterangan,
                     'assigned_at' => now()->toIso8601String(),
                     'assigned_by' => auth()->user()->name
                 ]),
@@ -228,14 +234,14 @@ class JalurKmzImportController extends Controller
 
         foreach ($placemarks as $placemark) {
             // Get feature name
-            $name = (string)($placemark->name ?? 'Unnamed Line');
-            $description = (string)($placemark->description ?? '');
+            $name = (string) ($placemark->name ?? 'Unnamed Line');
+            $description = (string) ($placemark->description ?? '');
 
             // Look for LineString geometry
             $lineString = $placemark->xpath('.//LineString/coordinates');
 
             if (!empty($lineString)) {
-                $coordinatesText = trim((string)$lineString[0]);
+                $coordinatesText = trim((string) $lineString[0]);
                 $coordinates = $this->parseCoordinates($coordinatesText);
 
                 if (!empty($coordinates)) {
@@ -259,7 +265,7 @@ class JalurKmzImportController extends Controller
             if (!empty($multiGeometry)) {
                 $lineStrings = $multiGeometry[0]->xpath('.//LineString/coordinates');
                 foreach ($lineStrings as $ls) {
-                    $coordinatesText = trim((string)$ls);
+                    $coordinatesText = trim((string) $ls);
                     $coordinates = $this->parseCoordinates($coordinatesText);
 
                     if (!empty($coordinates)) {
@@ -292,14 +298,15 @@ class JalurKmzImportController extends Controller
 
         foreach ($points as $point) {
             $point = trim($point);
-            if (empty($point)) continue;
+            if (empty($point))
+                continue;
 
             // KML format: longitude,latitude,altitude
             $parts = explode(',', $point);
             if (count($parts) >= 2) {
                 // Convert to [lng, lat] format (GeoJSON format)
-                $lng = (float)trim($parts[0]);
-                $lat = (float)trim($parts[1]);
+                $lng = (float) trim($parts[0]);
+                $lat = (float) trim($parts[1]);
 
                 // Validate coordinates
                 if ($lng >= -180 && $lng <= 180 && $lat >= -90 && $lat <= 90) {
@@ -323,13 +330,13 @@ class JalurKmzImportController extends Controller
         ];
 
         // Try to get style from styleUrl reference
-        $styleUrl = (string)($placemark->styleUrl ?? '');
+        $styleUrl = (string) ($placemark->styleUrl ?? '');
 
         // Try to get inline style
         $lineStyle = $placemark->xpath('.//LineStyle');
         if (!empty($lineStyle)) {
-            $color = (string)($lineStyle[0]->color ?? '');
-            $width = (float)($lineStyle[0]->width ?? 3);
+            $color = (string) ($lineStyle[0]->color ?? '');
+            $width = (float) ($lineStyle[0]->width ?? 3);
 
             if ($color) {
                 // KML color format: aabbggrr (alpha, blue, green, red)
