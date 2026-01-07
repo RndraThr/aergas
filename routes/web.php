@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurLoweringImportController, JalurMc0ImportController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController, HseDailyReportController};
+use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurLoweringImportController, JalurMc0ImportController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController, HseDailyReportController, JalurKmzImportController};
 
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -556,6 +556,14 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/dashboard', [JalurController::class, 'dashboard'])->name('dashboard');
             Route::get('/reports', [JalurController::class, 'reports'])->name('reports');
             Route::get('/reports/data', [JalurController::class, 'getReportData'])->name('reports.data');
+
+            // KMZ/KML Import
+            Route::prefix('kmz-import')->name('kmz-import.')->group(function () {
+                Route::get('/', [JalurKmzImportController::class, 'index'])->name('index');
+                Route::post('/upload', [JalurKmzImportController::class, 'upload'])->name('upload');
+                Route::post('/{feature}/assign', [JalurKmzImportController::class, 'assign'])->name('assign');
+                Route::delete('/{feature}', [JalurKmzImportController::class, 'destroy'])->name('destroy');
+            });
 
             // Cluster Management (Perencanaan)
             Route::prefix('clusters')

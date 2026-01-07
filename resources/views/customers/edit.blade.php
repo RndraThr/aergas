@@ -95,6 +95,17 @@
                 </div>
 
                 <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">No. KTP / NIK</label>
+                    <input type="text"
+                           x-model="form.no_ktp"
+                           :class="errors.no_ktp ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           placeholder="3374012345678901"
+                           maxlength="20">
+                    <div x-show="errors.no_ktp" class="mt-1 text-sm text-red-600" x-text="errors.no_ktp"></div>
+                </div>
+
+                <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Calon Pelanggan</label>
                     <select x-model="form.jenis_pelanggan"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-aergas-orange focus:border-transparent">
@@ -138,6 +149,26 @@
                 </div>
 
                 <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Kota/Kabupaten</label>
+                    <input type="text"
+                           x-model="form.kota_kabupaten"
+                           :class="errors.kota_kabupaten ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           placeholder="Nama kota/kabupaten">
+                    <div x-show="errors.kota_kabupaten" class="mt-1 text-sm text-red-600" x-text="errors.kota_kabupaten"></div>
+                </div>
+
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Kecamatan</label>
+                    <input type="text"
+                           x-model="form.kecamatan"
+                           :class="errors.kecamatan ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           placeholder="Nama kecamatan">
+                    <div x-show="errors.kecamatan" class="mt-1 text-sm text-red-600" x-text="errors.kecamatan"></div>
+                </div>
+
+                <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Padukuhan/Dusun</label>
                     <input type="text"
                            x-model="form.padukuhan"
@@ -145,6 +176,28 @@
                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
                            placeholder="Nama padukuhan/dusun">
                     <div x-show="errors.padukuhan" class="mt-1 text-sm text-red-600" x-text="errors.padukuhan"></div>
+                </div>
+
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">RT</label>
+                    <input type="text"
+                           x-model="form.rt"
+                           :class="errors.rt ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           placeholder="01"
+                           maxlength="10">
+                    <div x-show="errors.rt" class="mt-1 text-sm text-red-600" x-text="errors.rt"></div>
+                </div>
+
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">RW</label>
+                    <input type="text"
+                           x-model="form.rw"
+                           :class="errors.rw ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-aergas-orange focus:border-transparent'"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors"
+                           placeholder="02"
+                           maxlength="10">
+                    <div x-show="errors.rw" class="mt-1 text-sm text-red-600" x-text="errors.rw"></div>
                 </div>
 
                 <div class="md:col-span-2">
@@ -353,9 +406,14 @@ function customerEditData() {
             nama_pelanggan: @json($customer->nama_pelanggan),
             alamat: @json($customer->alamat),
             no_telepon: @json($customer->no_telepon),
+            no_ktp: @json($customer->no_ktp ?? ''),
             email: @json($customer->email ?? ''),
             kelurahan: @json($customer->kelurahan ?? ''),
+            kota_kabupaten: @json($customer->kota_kabupaten ?? ''),
+            kecamatan: @json($customer->kecamatan ?? ''),
             padukuhan: @json($customer->padukuhan ?? ''),
+            rt: @json($customer->rt ?? ''),
+            rw: @json($customer->rw ?? ''),
             jenis_pelanggan: @json($customer->jenis_pelanggan ?? 'pengembangan'),
             keterangan: @json($customer->keterangan ?? ''),
             latitude: @json($customer->latitude ?? ''),
@@ -371,9 +429,14 @@ function customerEditData() {
             nama_pelanggan: @json($customer->nama_pelanggan),
             alamat: @json($customer->alamat),
             no_telepon: @json($customer->no_telepon),
+            no_ktp: @json($customer->no_ktp ?? ''),
             email: @json($customer->email ?? ''),
             kelurahan: @json($customer->kelurahan ?? ''),
+            kota_kabupaten: @json($customer->kota_kabupaten ?? ''),
+            kecamatan: @json($customer->kecamatan ?? ''),
             padukuhan: @json($customer->padukuhan ?? ''),
+            rt: @json($customer->rt ?? ''),
+            rw: @json($customer->rw ?? ''),
             jenis_pelanggan: @json($customer->jenis_pelanggan ?? 'pengembangan'),
             keterangan: @json($customer->keterangan ?? ''),
             latitude: @json($customer->latitude ?? ''),

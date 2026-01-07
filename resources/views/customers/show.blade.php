@@ -235,6 +235,20 @@
                         <div class="mt-1 text-sm text-gray-900">{{ $customer->padukuhan ?: 'Belum diisi' }}</div>
                     </div>
 
+                    @if($customer->rt)
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">RT</label>
+                        <div class="mt-1 text-sm text-gray-900">{{ $customer->rt }}</div>
+                    </div>
+                    @endif
+
+                    @if($customer->rw)
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">RW</label>
+                        <div class="mt-1 text-sm text-gray-900">{{ $customer->rw }}</div>
+                    </div>
+                    @endif
+
                     @if($customer->email)
                     <div>
                         <label class="block text-sm font-medium text-gray-500">Email</label>
@@ -246,6 +260,23 @@
                         <label class="block text-sm font-medium text-gray-500">Tanggal Registrasi</label>
                         <div class="mt-1 text-sm text-gray-900">{{ $customer->tanggal_registrasi ? $customer->tanggal_registrasi->format('d/m/Y H:i') : '-' }}</div>
                     </div>
+
+                    @if($customer->latitude && $customer->longitude)
+                    <div class="md:col-span-2 lg:col-span-3">
+                        <label class="block text-sm font-medium text-gray-500">Koordinat Lokasi</label>
+                        <div class="mt-1 text-sm text-gray-900 flex items-center space-x-2">
+                            <span class="font-mono">{{ $customer->latitude }}, {{ $customer->longitude }}</span>
+                            @if($customer->coordinate_source)
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">{{ ucfirst($customer->coordinate_source) }}</span>
+                            @endif
+                            <a href="https://www.google.com/maps?q={{ $customer->latitude }},{{ $customer->longitude }}"
+                               target="_blank"
+                               class="text-blue-600 hover:text-blue-800 text-xs flex items-center">
+                                <i class="fas fa-external-link-alt mr-1"></i> Buka di Maps
+                            </a>
+                        </div>
+                    </div>
+                    @endif
 
                     <div class="md:col-span-2 lg:col-span-3">
                         <label class="block text-sm font-medium text-gray-500">Alamat</label>

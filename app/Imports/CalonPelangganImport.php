@@ -103,20 +103,6 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
         foreach ($r as $k => $v) {
             $normalizedKey = $this->normKey((string)$k);
             $n[$normalizedKey] = is_string($v) ? trim($v) : $v;
-
-            // DEBUG: Log normalisasi key
-            if ($rowIndex < 5 && str_contains(strtolower($k), 'kelurahan')) {
-                Log::info("Key normalization:", [
-                    'original' => $k,
-                    'normalized' => $normalizedKey,
-                    'value' => $v
-                ]);
-            }
-        }
-
-        // DEBUG: Log normalized data
-        if ($rowIndex < 5) {
-            Log::info("Normalized Row $rowIndex:", $n);
         }
 
         // === mapping persis sesuai request ===
@@ -129,19 +115,10 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
         $rt            = $this->toString($n['rt'] ?? null);
         $rw            = $this->toString($n['rw'] ?? null);
         $kel           = $n['kelurahan'] ?? $n['id kelurahan'] ?? null;
-        $kotaKabupaten = $n['kota kabupaten'] ?? $n['kota_kabupaten'] ?? $n['kota'] ?? $n['kabupaten'] ?? null;
+        $kotaKabupaten = $n['kota kabupaten'] ?? $n['kota_kabupaten'] ?? $n['kota'] ?? $n['kabupaten'] ?? $n['kotakabupaten'] ?? null;
         $kecamatan     = $n['kecamatan'] ?? null;
         $pdk           = $n['padukuhan'] ?? $n['dusun'] ?? null;
         $jenisPelanggan = $n['jenis calon pelanggan'] ?? $n['jenis_calon_pelanggan'] ?? $n['jenis pelanggan'] ?? $n['jenis_pelanggan'] ?? $n['jenis'] ?? null;
-
-        // DEBUG: Log extracted values
-        if ($rowIndex < 5) {
-            Log::info("Extracted values Row $rowIndex:", [
-                'kelurahan' => $kel,
-                'padukuhan' => $pdk,
-                'available_keys' => array_keys($n)
-            ]);
-        }
 
         // fallback reff dari ujung alamat (… AF6518) jika id_reff kosong
         if (!$reff && is_string($alamat) && $alamat !== '') {
@@ -152,25 +129,10 @@ class CalonPelangganImport implements ToCollection, WithHeadingRow
         }
 
         // fill-down (atasi cell merge)
-        $originalKel = $kel;
-        $originalPdk = $pdk;
-
         if ($kel === null || $kel === '') $kel = $this->lastKel ?? null;
         if ($pdk === null || $pdk === '') $pdk = $this->lastPdk ?? null;
         if ($kel) $this->lastKel = $kel;
         if ($pdk) $this->lastPdk = $pdk;
-
-        // DEBUG: Log fill-down process
-        if ($rowIndex < 10) {
-            Log::info("Fill-down Row $rowIndex:", [
-                'original_kel' => $originalKel,
-                'final_kel' => $kel,
-                'last_kel' => $this->lastKel,
-                'original_pdk' => $originalPdk,
-                'final_pdk' => $pdk,
-                'last_pdk' => $this->lastPdk
-            ]);
-        }
 
         $data = [
             'reff_id_pelanggan' => $reff,
