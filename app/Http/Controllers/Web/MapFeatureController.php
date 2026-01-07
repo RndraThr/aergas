@@ -35,14 +35,24 @@ class MapFeatureController extends Controller
 
                 // Filter based on context
                 if ($context === 'main') {
-                    // Main dashboard: exclude jalur-related features (no line_number_id and no cluster_id)
+                    // Main dashboard: exclude jalur-related features
+                    // Exclude features that have line_number_id, cluster_id, OR are from kmz_import
                     $query->whereNull('line_number_id')
-                        ->whereNull('cluster_id');
+                        ->whereNull('cluster_id')
+                        ->where(function ($q) {
+                            // Also exclude features with source = kmz_import in metadata
+                            $q->whereNull('metadata')
+                                ->orWhereRaw("JSON_EXTRACT(metadata, '$.source') != 'kmz_import'")
+                                ->orWhereRaw("JSON_EXTRACT(metadata, '$.source') IS NULL");
+                        });
+
                 } elseif ($context === 'jalur') {
-                    // Jalur dashboard: only jalur-related features (has line_number_id or cluster_id)
+                    // Jalur dashboard: only jalur-related features
+                    // Include features that have line_number_id, cluster_id, OR are from kmz_import
                     $query->where(function ($q) {
                         $q->whereNotNull('line_number_id')
-                            ->orWhereNotNull('cluster_id');
+                            ->orWhereNotNull('cluster_id')
+                            ->orWhereRaw("JSON_EXTRACT(metadata, '$.source') = 'kmz_import'");
                     });
                 }
                 // If context is 'all', no filter applied
