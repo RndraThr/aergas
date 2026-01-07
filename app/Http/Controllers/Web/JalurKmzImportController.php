@@ -193,6 +193,72 @@ class JalurKmzImportController extends Controller
     }
 
     /**
+     * Bulk delete imported jalur features
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'mode' => 'required|in:all,unassigned,assigned,selected',
+            'feature_ids' => 'required_if:mode,selected|array',
+            'feature_ids.*' => 'exists:map_geometric_features,id'
+        ]);
+
+        try {
+            $mode = $request->mode;
+            $deleted = 0;
+
+            DB::beginTransaction();
+
+            if ($mode === 'all') {
+                // Delete all jalur features (features with line_number_id or cluster_id)
+                $deleted = MapGeometricFeature::where(function ($q) {
+                    $q->whereNotNull('line_number_id')
+                        ->orWhereNotNull('cluster_id');
+                })->delete();
+
+            } elseif ($mode === 'unassigned') {
+                // Delete only unassigned jalur features
+                $deleted = MapGeometricFeature::whereNull('line_number_id')
+                    ->where('feature_type', 'line')
+                    ->delete();
+
+            } elseif ($mode === 'assigned') {
+                // Delete only assigned jalur features
+                $deleted = MapGeometricFeature::whereNotNull('line_number_id')
+                    ->delete();
+
+            } elseif ($mode === 'selected') {
+                // Delete selected features
+                $deleted = MapGeometricFeature::whereIn('id', $request->feature_ids)
+                    ->delete();
+            }
+
+            DB::commit();
+
+            Log::info('Bulk delete jalur features', [
+                'mode' => $mode,
+                'deleted_count' => $deleted,
+                'user_id' => auth()->id()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$deleted} jalur berhasil dihapus",
+                'deleted_count' => $deleted
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Bulk Delete Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus jalur: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Extract KML from KMZ file
      */
     private function extractKmlFromKmz($file): string

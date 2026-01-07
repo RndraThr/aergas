@@ -561,6 +561,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::prefix('kmz-import')->name('kmz-import.')->group(function () {
                 Route::get('/', [JalurKmzImportController::class, 'index'])->name('index');
                 Route::post('/upload', [JalurKmzImportController::class, 'upload'])->name('upload');
+                Route::post('/bulk-delete', [JalurKmzImportController::class, 'bulkDelete'])->name('bulk-delete');
                 Route::post('/{feature}/assign', [JalurKmzImportController::class, 'assign'])->name('assign');
                 Route::delete('/{feature}', [JalurKmzImportController::class, 'destroy'])->name('destroy');
             });
