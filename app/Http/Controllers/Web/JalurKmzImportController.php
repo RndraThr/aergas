@@ -125,10 +125,34 @@ class JalurKmzImportController extends Controller
             $lineNumber = JalurLineNumber::with('cluster')->findOrFail($request->line_number_id);
 
             // Update feature with line number assignment
+
+            // Calculate style based on diameter
+            $diameterColors = [
+                '63' => '#3B82F6',   // Blue
+                '90' => '#F59E0B',   // Orange
+                '180' => '#EF4444'   // Red
+            ];
+
+            $diameterWeights = [
+                '63' => 3,
+                '90' => 4,
+                '180' => 5
+            ];
+
+            $diameter = $lineNumber->diameter;
+            $color = $diameterColors[$diameter] ?? '#3B82F6';
+            $weight = $diameterWeights[$diameter] ?? 3;
+
             $feature->update([
                 'line_number_id' => $lineNumber->id,
                 'cluster_id' => $lineNumber->cluster_id,
                 'name' => $lineNumber->line_number . ' - ' . $lineNumber->nama_jalan,
+                'style_properties' => [
+                    'color' => $color,
+                    'weight' => $weight,
+                    'opacity' => 0.8,
+                    'dashArray' => null
+                ],
                 'metadata' => array_merge($feature->metadata ?? [], [
                     'line_number' => $lineNumber->line_number,
                     'nama_jalan' => $lineNumber->nama_jalan,

@@ -102,21 +102,20 @@
                     <span class="text-3xl font-bold">{{ $stats['fitting_stats']['total'] }}</span>
                 </div>
                 <h3 class="text-sm font-medium opacity-90 mb-3">Total Fitting Terpakai</h3>
-                <div class="space-y-1 text-xs opacity-80">
+                <div class="space-y-1 text-xs opacity-80 max-h-24 overflow-y-auto scrollbar-thin scrollbar-thumb-white/30 scrollbar-track-white/10">
                     @php
-                        $topFittings = collect($stats['fitting_stats']['by_type'])->sortByDesc('total')->take(3);
+                        $allFittings = collect($stats['fitting_stats']['by_type'])->sortByDesc('total');
                     @endphp
-                    @foreach($topFittings as $fitting)
-                        <div class="flex justify-between">
-                            <span>● {{ Str::limit($fitting['name'], 12) }}:</span>
-                            <span class="font-semibold">{{ $fitting['total'] }}</span>
+                    @forelse($allFittings as $fitting)
+                        <div class="flex justify-between hover:bg-white/10 px-1 py-0.5 rounded transition-colors">
+                            <span class="truncate mr-2">● {{ $fitting['name'] }}:</span>
+                            <span class="font-semibold flex-shrink-0">{{ $fitting['total'] }}</span>
                         </div>
-                    @endforeach
-                    @if(count($stats['fitting_stats']['by_type']) > 3)
-                        <div class="text-center pt-1 opacity-60">
-                            +{{ count($stats['fitting_stats']['by_type']) - 3 }} jenis lainnya
+                    @empty
+                        <div class="text-center py-2 opacity-60">
+                            Belum ada data fitting
                         </div>
-                    @endif
+                    @endforelse
                 </div>
             </div>
         </div>

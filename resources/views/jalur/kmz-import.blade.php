@@ -184,7 +184,7 @@
                                             <option value="">-- Pilih Line Number --</option>
                                             <template x-for="line in lineNumbers" :key="line.id">
                                                 <option :value="line.id"
-                                                    x-text="line.line_code + ' - ' + line.nama_jalan + ' (Ø' + line.diameter + 'mm)'">
+                                                    x-text="line.line_number + ' - ' + line.nama_jalan + ' (Ø' + line.diameter + 'mm)'">
                                                 </option>
                                             </template>
                                         </select>
