@@ -42,7 +42,138 @@ class JalurController extends Controller
             ->limit(10)
             ->get();
 
-        return view('jalur.dashboard', compact('recentLowering', 'recentJoint', 'lineProgress'));
+        // Calculate comprehensive statistics
+        $stats = $this->calculateDashboardStats();
+
+        return view('jalur.dashboard', compact(
+            'recentLowering',
+            'recentJoint',
+            'lineProgress',
+            'stats'
+        ));
+    }
+
+    /**
+     * Calculate comprehensive dashboard statistics
+     */
+    private function calculateDashboardStats()
+    {
+        $lineNumbers = JalurLineNumber::with(['loweringData', 'cluster'])->get();
+
+        // Overall statistics
+        $totalLines = $lineNumbers->count();
+        $totalMc0 = $lineNumbers->sum('estimasi_panjang');
+        $totalActualLowering = $lineNumbers->sum('total_penggelaran');
+        $totalMc100 = $lineNumbers->sum('actual_mc100');
+
+        // Progress calculation
+        $completedLines = $lineNumbers->where('status_line', 'completed')->count();
+        $inProgressLines = $lineNumbers->where('status_line', 'in_progress')->count();
+        $notStartedLines = $lineNumbers->where('status_line', 'pending')->count();
+
+        $overallProgress = $totalMc0 > 0 ? round(($totalActualLowering / $totalMc0) * 100, 1) : 0;
+
+        // Diameter breakdown
+        $diameterStats = [
+            '63' => $this->getDiameterStats($lineNumbers, '63'),
+            '90' => $this->getDiameterStats($lineNumbers, '90'),
+            '180' => $this->getDiameterStats($lineNumbers, '180'),
+        ];
+
+        // Fitting statistics from Joint data
+        $fittingStats = $this->getFittingStats();
+
+        // Lowering statistics
+        $loweringStats = $this->getLoweringStats();
+
+        return [
+            'total_lines' => $totalLines,
+            'total_mc0' => $totalMc0,
+            'total_actual_lowering' => $totalActualLowering,
+            'total_mc100' => $totalMc100,
+            'completed_lines' => $completedLines,
+            'in_progress_lines' => $inProgressLines,
+            'not_started_lines' => $notStartedLines,
+            'overall_progress' => $overallProgress,
+            'diameter_stats' => $diameterStats,
+            'fitting_stats' => $fittingStats,
+            'lowering_stats' => $loweringStats,
+        ];
+    }
+
+    /**
+     * Get statistics for specific diameter
+     */
+    private function getDiameterStats($lineNumbers, $diameter)
+    {
+        $lines = $lineNumbers->where('diameter', $diameter);
+        $totalPanjang = $lines->sum('total_penggelaran');
+        $estimasi = $lines->sum('estimasi_panjang');
+        $progress = $estimasi > 0 ? round(($totalPanjang / $estimasi) * 100, 1) : 0;
+
+        return [
+            'count' => $lines->count(),
+            'total_panjang' => $totalPanjang,
+            'estimasi' => $estimasi,
+            'progress' => $progress,
+            'completed' => $lines->where('status_line', 'completed')->count(),
+            'in_progress' => $lines->where('status_line', 'in_progress')->count(),
+        ];
+    }
+
+    /**
+     * Get fitting statistics from Joint data
+     */
+    private function getFittingStats()
+    {
+        $joints = JalurJointData::with('fittingType')->get();
+
+        $fittingsByType = $joints->groupBy('fitting_type_id')->map(function ($group) {
+            $byDiameter = $group->groupBy(function ($joint) {
+                // Extract diameter from line number string
+                if (preg_match('/^(\d+)-/', $joint->joint_line_from ?? '', $matches)) {
+                    return $matches[1];
+                }
+                return 'unknown';
+            });
+
+            return [
+                'name' => $group->first()->fittingType->nama_fitting ?? 'Unknown',
+                'total' => $group->count(),
+                'by_diameter' => [
+                    '63' => ($byDiameter['63'] ?? collect())->count(),
+                    '90' => ($byDiameter['90'] ?? collect())->count(),
+                    '180' => ($byDiameter['180'] ?? collect())->count(),
+                ]
+            ];
+        });
+
+        $totalFittings = $joints->count();
+
+        return [
+            'total' => $totalFittings,
+            'by_type' => $fittingsByType,
+        ];
+    }
+
+    /**
+     * Get lowering statistics
+     */
+    private function getLoweringStats()
+    {
+        $lowering = JalurLoweringData::all();
+
+        return [
+            'total_entries' => $lowering->count(),
+            'approved' => $lowering->where('status_cgp', 'acc_cgp')->count(),
+            'pending_cgp' => $lowering->where('status_cgp', 'waiting')->count(),
+            'pending_tracer' => $lowering->where('status_tracer', 'waiting')->count(),
+            'rejected' => $lowering->where('status_cgp', 'rejected')->count(),
+            'avg_length' => $lowering->avg('panjang_penggelaran_pipa') ?? 0,
+            'total_photos' => $lowering->sum(function ($l) {
+                return ($l->foto_evidence_1 ? 1 : 0) + ($l->foto_evidence_2 ? 1 : 0);
+            }),
+        ];
     }
 
     public function reports()

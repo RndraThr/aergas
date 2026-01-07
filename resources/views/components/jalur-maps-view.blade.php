@@ -278,21 +278,21 @@
             <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
                 <div class="text-xs font-medium text-gray-600 mb-2">Tipe Pipa</div>
                 <div class="grid grid-cols-3 gap-2">
-                    <!-- Pipa 63mm -->
+                    <!-- Pipa 63mm - Blue -->
                     <div class="flex items-center space-x-2 px-2 py-1.5 bg-white rounded border border-gray-200">
-                        <div class="w-6 h-1 rounded" style="background-color: #10B981"></div>
+                        <div class="w-6 h-0.5 rounded" style="background-color: #3B82F6"></div>
                         <span class="text-xs font-medium text-gray-700">Ø63mm</span>
                     </div>
 
-                    <!-- Pipa 90mm -->
+                    <!-- Pipa 90mm - Orange -->
                     <div class="flex items-center space-x-2 px-2 py-1.5 bg-white rounded border border-gray-200">
-                        <div class="w-6 h-1.5 rounded" style="background-color: #3B82F6"></div>
+                        <div class="w-6 h-1 rounded" style="background-color: #F59E0B"></div>
                         <span class="text-xs font-medium text-gray-700">Ø90mm</span>
                     </div>
 
-                    <!-- Pipa 180mm -->
+                    <!-- Pipa 180mm - Red -->
                     <div class="flex items-center space-x-2 px-2 py-1.5 bg-white rounded border border-gray-200">
-                        <div class="w-6 h-2 rounded" style="background-color: #EF4444"></div>
+                        <div class="w-6 h-1.5 rounded" style="background-color: #EF4444"></div>
                         <span class="text-xs font-medium text-gray-700">Ø180mm</span>
                     </div>
                 </div>
@@ -1216,8 +1216,9 @@
             createFeatureLayer(feature) {
                 const geometry = feature.geometry;
                 const properties = feature.properties;
+                const metadata = properties.metadata || {};
                 const isUnassigned = properties.feature_type === 'line' && !properties.line_number_id;
-                const style = properties.style || this.getDefaultStyle(properties.feature_type, isUnassigned);
+                const style = properties.style || this.getDefaultStyle(properties.feature_type, isUnassigned, metadata);
 
                 let layer;
 
@@ -1283,14 +1284,45 @@
                 return layer;
             },
 
-            getDefaultStyle(featureType, isUnassigned = false) {
+            getDefaultStyle(featureType, isUnassigned = false, metadata = {}) {
+                // Color scheme based on diameter
+                const diameterColors = {
+                    '63': '#3B82F6',   // Blue for 63mm
+                    '90': '#F59E0B',   // Orange for 90mm
+                    '180': '#EF4444'   // Red for 180mm
+                };
+
+                // Weight based on diameter
+                const diameterWeights = {
+                    '63': 3,
+                    '90': 4,
+                    '180': 5
+                };
+
                 const defaults = {
-                    line: {
-                        color: isUnassigned ? '#f97316' : '#3388ff', // Orange for unassigned
-                        weight: isUnassigned ? 5 : 4,
-                        opacity: 0.8,
-                        dashArray: isUnassigned ? '10, 10' : null // Dashed line for unassigned
-                    },
+                    line: (() => {
+                        if (isUnassigned) {
+                            // Unassigned lines are dashed orange
+                            return {
+                                color: '#f97316',
+                                weight: 4,
+                                opacity: 0.7,
+                                dashArray: '10, 10'
+                            };
+                        }
+
+                        // Get diameter from metadata
+                        const diameter = metadata?.diameter || '63'; // Default to 63mm
+                        const color = diameterColors[diameter] || diameterColors['63'];
+                        const weight = diameterWeights[diameter] || 3;
+
+                        return {
+                            color: color,
+                            weight: weight,
+                            opacity: 0.8,
+                            dashArray: null
+                        };
+                    })(),
                     polygon: {
                         color: '#8b5cf6',
                         weight: 2,
