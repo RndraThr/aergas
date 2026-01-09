@@ -273,12 +273,18 @@
                                                     }
                                                 }
                                                 // Local storage files
-                                                elseif (!str_contains($imageUrl, 'http') && !str_starts_with($imageUrl, 'jalur/joint/') && Storage::disk('public')->exists($imageUrl)) {
-                                                    $imageUrl = asset('storage/' . $imageUrl);
-                                                }
-                                                // Local jalur joint files
-                                                elseif (str_starts_with($imageUrl, 'jalur/joint/')) {
-                                                    $imageUrl = asset('storage/' . $imageUrl);
+                                                elseif (!str_contains($imageUrl, 'http')) {
+                                                    $checkPath = $imageUrl;
+                                                    // Strip /storage/ prefix if present for exists check
+                                                    if (str_starts_with($imageUrl, '/storage/')) {
+                                                        $checkPath = substr($imageUrl, 9);
+                                                    } elseif (str_starts_with($imageUrl, 'storage/')) {
+                                                        $checkPath = substr($imageUrl, 8);
+                                                    }
+                                                    
+                                                    if (Storage::disk('public')->exists($checkPath)) {
+                                                        $imageUrl = asset('storage/' . $checkPath);
+                                                    }
                                                 }
                                             @endphp
 

@@ -855,7 +855,20 @@ function updateAksesoris() {
     if (concreteSlabCheckbox) concreteSlabCheckbox.disabled = false;
     if (cassingCheckbox) cassingCheckbox.disabled = false;
 
-    // Auto-check based on tipe bongkaran for convenience (but user can still uncheck/change)
+    // --- RESET LOGIC ---
+    // Uncheck Marker Tape & Concrete Slab (reset state when changing type)
+    if (markerTapeCheckbox && markerTapeCheckbox.checked) {
+        markerTapeCheckbox.checked = false;
+        toggleQuantityField('marker_tape'); // This will hide inputs
+    }
+    if (concreteSlabCheckbox && concreteSlabCheckbox.checked) {
+        concreteSlabCheckbox.checked = false;
+        toggleQuantityField('concrete_slab'); // This will hide inputs
+    }
+    // Note: Cassing is kept manual unless specific requirement.
+
+    // --- AUTO-CHECK LOGIC ---
+    // Auto-check based on tipe bongkaran for convenience
     if (tipeBongkaran === 'Open Cut') {
         // Auto-check marker tape and concrete slab for Open Cut
         if (markerTapeCheckbox && !markerTapeCheckbox.checked) {

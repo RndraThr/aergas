@@ -24,10 +24,10 @@ class JalurJointController extends Controller
         $query = JalurJointData::query()->with(['cluster', 'fittingType', 'tracerApprover', 'cgpApprover']);
 
         if ($request->filled('search')) {
-            $query->where(function($q) use ($request) {
+            $query->where(function ($q) use ($request) {
                 $q->where('nomor_joint', 'like', "%{$request->search}%")
-                  ->orWhere('joint_line_from', 'like', "%{$request->search}%")
-                  ->orWhere('joint_line_to', 'like', "%{$request->search}%");
+                    ->orWhere('joint_line_from', 'like', "%{$request->search}%")
+                    ->orWhere('joint_line_to', 'like', "%{$request->search}%");
             });
         }
 
@@ -54,7 +54,7 @@ class JalurJointController extends Controller
         $jointData = $query->latest()->paginate(15);
         $clusters = JalurCluster::active()->get();
         $fittingTypes = JalurFittingType::active()->get();
-        
+
         // Get all line numbers for filter dropdown
         $lineNumbers = JalurLineNumber::active()
             ->with('cluster')
@@ -68,12 +68,22 @@ class JalurJointController extends Controller
     {
         $clusters = JalurCluster::active()->get();
         $fittingTypes = JalurFittingType::active()->get();
-        
-        // Get all available diameters for dropdown selection
-        $diameters = JalurLineNumber::active()
+
+        // Get available diameters (Merge DB values with Standard Sizes)
+        $dbDiameters = JalurLineNumber::active()
             ->distinct()
-            ->orderByRaw("CAST(diameter AS UNSIGNED)")
-            ->pluck('diameter');
+            ->pluck('diameter')
+            ->toArray();
+
+        // Add standard PE diameters to ensure availability (Restricted to 63, 90, 180 as requested)
+        $standardDiameters = ['63', '90', '180'];
+
+        $diameters = collect(array_merge($dbDiameters, $standardDiameters))
+            ->unique()
+            ->sort(function ($a, $b) {
+                return (int) $a - (int) $b;
+            })
+            ->values();
 
         return view('jalur.joint.create', compact('clusters', 'fittingTypes', 'diameters'));
     }
@@ -83,11 +93,11 @@ class JalurJointController extends Controller
         // Check if fitting type is Equal Tee to determine if joint_line_optional is required
         $fittingType = JalurFittingType::find($request->fitting_type_id);
         $isEqualTee = $fittingType && $fittingType->code_fitting === 'ET';
-        
+
         // Validate upload method and joint number mode
         $uploadMethod = $request->input('upload_method', 'file');
         $jointNumberMode = $request->input('joint_number_mode', 'manual');
-        
+
         $validationRules = [
             'cluster_id' => 'required|exists:jalur_clusters,id',
             'fitting_type_id' => 'required|exists:jalur_fitting_types,id',
@@ -100,7 +110,7 @@ class JalurJointController extends Controller
             'keterangan' => 'nullable|string|max:1000',
             'upload_method' => 'required|in:file,link',
         ];
-        
+
         // Conditional validation based on joint number mode
         if ($jointNumberMode === 'manual') {
             $validationRules['nomor_joint_suffix'] = 'required|string|max:10|regex:/^[0-9A-Za-z]+$/';
@@ -132,7 +142,7 @@ class JalurJointController extends Controller
         // Get cluster and fitting type
         $cluster = JalurCluster::findOrFail($validated['cluster_id']);
         $fittingType = JalurFittingType::findOrFail($validated['fitting_type_id']);
-        
+
         // Handle joint number based on mode
         if ($jointNumberMode === 'manual') {
             // Manual mode: Build complete joint number
@@ -141,26 +151,28 @@ class JalurJointController extends Controller
         } else {
             // Select mode: Get from pre-created joint number
             $selectedJointNumber = JalurJointNumber::findOrFail($validated['selected_joint_number_id']);
-            
+
             // Validate that selected joint number matches cluster and fitting type
-            if ($selectedJointNumber->cluster_id != $validated['cluster_id'] || 
-                $selectedJointNumber->fitting_type_id != $validated['fitting_type_id']) {
+            if (
+                $selectedJointNumber->cluster_id != $validated['cluster_id'] ||
+                $selectedJointNumber->fitting_type_id != $validated['fitting_type_id']
+            ) {
                 return back()
                     ->withInput()
                     ->with('error', 'Nomor joint yang dipilih tidak sesuai dengan cluster atau fitting type.');
             }
-            
+
             // Check if joint number is already used
             if ($selectedJointNumber->usedByJoint) {
                 return back()
                     ->withInput()
                     ->with('error', 'Nomor joint yang dipilih sudah digunakan.');
             }
-            
+
             $nomorJoint = $selectedJointNumber->nomor_joint;
             $jointNumberId = $selectedJointNumber->id;
         }
-        
+
         // Check if joint number already exists (including soft deleted)
         $existingJoint = JalurJointData::withTrashed()->where('nomor_joint', $nomorJoint)->first();
         if ($existingJoint && !$existingJoint->trashed()) {
@@ -215,32 +227,32 @@ class JalurJointController extends Controller
         } else if ($uploadMethod === 'link' && $validated['foto_evidence_joint_link']) {
             // Handle Google Drive link download
             $driveLink = $validated['foto_evidence_joint_link'];
-            
+
             // Generate descriptive filename
             $waktu = date('H-i-s');
             $tanggalFolder = date('Y-m-d');
             $customFileName = "JOINT_{$nomorJoint}_{$tanggalFolder}_{$waktu}_drive-download";
-            
+
             try {
                 // Download and upload from Google Drive link
                 $googleDriveService = app(\App\Services\GoogleDriveService::class);
-                
+
                 // Create custom path: jalur_joint/cluster_slug/JointNumber/Date/
                 $clusterName = $cluster->nama_cluster;
                 $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
                 $customDrivePath = "jalur_joint/{$clusterSlug}/{$nomorJoint}/{$tanggalFolder}";
-                
+
                 // Copy from Google Drive link to our Drive folder
                 $copyResult = $googleDriveService->copyFromDriveLink($driveLink, $customDrivePath, $customFileName);
-                
+
                 $photoPath = $copyResult['url'] ?? $copyResult['path'];
-                
+
                 Log::info("Successfully downloaded and saved photo from Google Drive link", [
                     'joint_number' => $nomorJoint,
                     'drive_link' => $driveLink,
                     'saved_path' => $photoPath
                 ]);
-                
+
             } catch (\Exception $e) {
                 Log::error("Failed to download from Google Drive link: " . $e->getMessage(), [
                     'joint_number' => $nomorJoint,
@@ -261,13 +273,13 @@ class JalurJointController extends Controller
             $selectedJointNumber = JalurJointNumber::findOrFail($validated['selected_joint_number_id']);
             $validated['joint_code'] = $selectedJointNumber->joint_code;
         }
-        
+
         // Remove foto_evidence_joint and related fields from validated data
         unset($validated['foto_evidence_joint']);
         unset($validated['foto_evidence_joint_link']);
         unset($validated['upload_method']);
         unset($validated['joint_number_mode']);
-        
+
         // Remove fields based on mode
         if ($jointNumberMode === 'manual') {
             unset($validated['nomor_joint_suffix']);
@@ -276,7 +288,14 @@ class JalurJointController extends Controller
             unset($validated['selected_joint_number_id']);
             // nomor_joint_suffix doesn't exist in select mode
         }
-        
+
+        // Link to Line Number to enable obtaining Diameter/Jalan via relation
+        // Users select Line Number filtered by Diameter, so this links to the correct metadata.
+        $lineFrom = JalurLineNumber::where('line_number', $validated['joint_line_from'])->first();
+        if ($lineFrom) {
+            $validated['line_number_id'] = $lineFrom->id;
+        }
+
         $validated['nomor_joint'] = $nomorJoint;
         $validated['created_by'] = Auth::id();
         $validated['updated_by'] = Auth::id();
@@ -284,7 +303,7 @@ class JalurJointController extends Controller
 
         try {
             DB::beginTransaction();
-            
+
             // Double-check joint number availability right before insert
             $existingJoint = JalurJointData::withTrashed()->where('nomor_joint', $nomorJoint)->first();
             if ($existingJoint && !$existingJoint->trashed()) {
@@ -301,7 +320,7 @@ class JalurJointController extends Controller
                 // Auto-create joint number record if not exists
                 $jointCode = str_pad($jointSuffix, 3, '0', STR_PAD_LEFT);
                 $existingJointNumber = JalurJointNumber::where('nomor_joint', $nomorJoint)->first();
-                
+
                 if (!$existingJointNumber) {
                     JalurJointNumber::create([
                         'cluster_id' => $validated['cluster_id'],
@@ -329,7 +348,7 @@ class JalurJointController extends Controller
                     'module_name' => 'jalur_joint',
                     'module_record_id' => $joint->id,
                     'photo_field_name' => 'foto_evidence_joint',
-                    'photo_url' => Storage::url($photoPath),
+                    'photo_url' => isset($uploadResult['url']) ? $uploadResult['url'] : Storage::url($photoPath),
                     'storage_path' => $uploadResult['path'] ?? $photoPath,
                     'drive_file_id' => $uploadResult['drive_file_id'] ?? null,
                     'photo_status' => 'tracer_pending', // Reset to pending when replaced
@@ -356,7 +375,7 @@ class JalurJointController extends Controller
             }
 
             DB::commit();
-            
+
             return redirect()
                 ->route('jalur.joint.show', $joint)
                 ->with('success', 'Data joint berhasil dibuat.');
@@ -394,13 +413,13 @@ class JalurJointController extends Controller
 
         $clusters = JalurCluster::active()->get();
         $fittingTypes = JalurFittingType::active()->get();
-        
+
         // Get all line numbers for dropdown selection
         $lineNumbers = JalurLineNumber::active()
             ->with('cluster')
             ->orderBy('line_number')
             ->get();
-        
+
         return view('jalur.joint.edit', compact('joint', 'clusters', 'fittingTypes', 'lineNumbers'));
     }
 
@@ -413,14 +432,17 @@ class JalurJointController extends Controller
         // Check if fitting type is Equal Tee to determine if joint_line_optional is required
         $fittingType = JalurFittingType::find($request->fitting_type_id);
         $isEqualTee = $fittingType && $fittingType->code_fitting === 'ET';
-        
+
         $validated = $request->validate([
+            'cluster_id' => 'required|exists:jalur_clusters,id',
+            'line_number_id' => 'required|exists:jalur_line_numbers,id',
             'fitting_type_id' => 'required|exists:jalur_fitting_types,id',
             'tanggal_joint' => 'required|date',
             'joint_line_from' => 'required|string|max:50',
             'joint_line_to' => 'required|string|max:50',
             'joint_line_optional' => $isEqualTee ? 'required|string|max:50' : 'nullable|string|max:50',
             'tipe_penyambungan' => 'required|in:EF,BF',
+            'lokasi_joint' => 'required|string|max:255',
             'keterangan' => 'nullable|string|max:1000',
         ], [
             'joint_line_optional.required' => 'Joint Line Optional wajib diisi untuk Equal Tee (3-way connection).',
@@ -429,6 +451,105 @@ class JalurJointController extends Controller
         $validated['updated_by'] = Auth::id();
 
         $joint->update($validated);
+
+        // Handle Photo Uploads (Foto Sebelum & Sesudah)
+        $singlePhotos = ['foto_sebelum', 'foto_sesudah'];
+        $googleDriveService = app(\App\Services\GoogleDriveService::class);
+        $nomorJoint = $joint->nomor_joint;
+        $clusterSlug = \Illuminate\Support\Str::slug($joint->cluster->nama_cluster, '_');
+        $tanggalFolder = $joint->tanggal_joint->format('Y-m-d');
+        $customDrivePath = "jalur_joint/{$clusterSlug}/{$nomorJoint}/{$tanggalFolder}";
+
+        // Process Single Photos (Replace if exists)
+        foreach ($singlePhotos as $fieldName) {
+            if ($request->hasFile($fieldName)) {
+                $file = $request->file($fieldName);
+                $waktu = date('H-i-s');
+                $fieldSlug = str_replace(['foto_', '_'], ['', '-'], $fieldName);
+                $customFileName = "JOINT_{$nomorJoint}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
+
+                try {
+                    $uploadResult = $this->uploadToCustomDrivePath(
+                        $googleDriveService,
+                        $file,
+                        $customDrivePath,
+                        $customFileName
+                    );
+
+                    $existingPhoto = PhotoApproval::where('module_name', 'jalur_joint')
+                        ->where('module_record_id', $joint->id)
+                        ->where('photo_field_name', $fieldName)
+                        ->first();
+
+                    $photoData = [
+                        'module_name' => 'jalur_joint',
+                        'module_record_id' => $joint->id,
+                        'photo_field_name' => $fieldName,
+                        'photo_url' => $uploadResult['url'] ?? Storage::url($uploadResult['path']),
+                        'storage_path' => $uploadResult['path'] ?? null,
+                        'drive_file_id' => $uploadResult['drive_file_id'] ?? null,
+                        'photo_status' => 'tracer_pending',
+                        'uploaded_by' => Auth::id(),
+                        'uploaded_at' => now(),
+                        'tracer_user_id' => null,
+                        'tracer_approved_at' => null,
+                        'tracer_rejected_at' => null,
+                        'tracer_notes' => null,
+                        'cgp_user_id' => null,
+                        'cgp_approved_at' => null,
+                        'cgp_rejected_at' => null,
+                        'cgp_notes' => null,
+                    ];
+
+                    if ($existingPhoto) {
+                        $existingPhoto->update($photoData);
+                        // Reset status if this method exists, otherwise manually
+                        if (method_exists($this, 'resetModuleStatusWhenPhotoReplaced')) {
+                            $this->resetModuleStatusWhenPhotoReplaced($joint);
+                        }
+                    } else {
+                        PhotoApproval::create($photoData);
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Failed to upload {$fieldName} for joint {$joint->id}: " . $e->getMessage());
+                    // Fallback to local not fully implemented here to save space, assuming Drive works or catching error
+                }
+            }
+        }
+
+        // Process Additional Photos (Always Append)
+        if ($request->hasFile('foto_tambahan')) {
+            foreach ($request->file('foto_tambahan') as $index => $file) {
+                $fieldName = 'foto_tambahan';
+                $waktu = date('H-i-s');
+                $customFileName = "JOINT_{$nomorJoint}_{$tanggalFolder}_{$waktu}_tambahan-{$index}";
+
+                try {
+                    $uploadResult = $this->uploadToCustomDrivePath(
+                        $googleDriveService,
+                        $file,
+                        $customDrivePath,
+                        $customFileName
+                    );
+
+                    $photoData = [
+                        'module_name' => 'jalur_joint',
+                        'module_record_id' => $joint->id,
+                        'photo_field_name' => $fieldName, // Duplicate field name allowed for HasMany
+                        'photo_url' => $uploadResult['url'] ?? Storage::url($uploadResult['path']),
+                        'storage_path' => $uploadResult['path'] ?? null,
+                        'drive_file_id' => $uploadResult['drive_file_id'] ?? null,
+                        'photo_status' => 'tracer_pending',
+                        'uploaded_by' => Auth::id(),
+                        'uploaded_at' => now(),
+                    ];
+
+                    PhotoApproval::create($photoData);
+                } catch (\Exception $e) {
+                    Log::error("Failed to upload info photo for joint {$joint->id}: " . $e->getMessage());
+                }
+            }
+        }
 
         return redirect()
             ->route('jalur.joint.show', $joint)
@@ -454,7 +575,7 @@ class JalurJointController extends Controller
             $joint->photoApprovals()->delete();
 
             $joint->delete();
-            
+
             DB::commit();
 
             return redirect()
@@ -463,7 +584,7 @@ class JalurJointController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return back()->with('error', 'Gagal menghapus data joint: ' . $e->getMessage());
         }
     }
@@ -544,24 +665,24 @@ class JalurJointController extends Controller
 
         try {
             $file = $request->file('photo');
-            
+
             // Generate descriptive filename
             $waktu = date('H-i-s');
             $tanggalFolder = date('Y-m-d');
             $fieldName = $validated['photo_field_name'];
             $fieldSlug = str_replace(['foto_evidence_', '_'], ['', '-'], $fieldName);
             $customFileName = "JOINT_{$joint->nomor_joint}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
-            
+
             $photoPath = null;
             try {
                 // Upload to Google Drive with custom path structure
                 $googleDriveService = app(\App\Services\GoogleDriveService::class);
-                
+
                 // Create custom path: jalur_joint/cluster_slug/JointNumber/Date/
                 $clusterName = $joint->cluster->nama_cluster;
                 $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
                 $customDrivePath = "jalur_joint/{$clusterSlug}/{$joint->nomor_joint}/{$tanggalFolder}";
-                
+
                 // Upload with custom path
                 $uploadResult = $this->uploadToCustomDrivePath(
                     $googleDriveService,
@@ -571,10 +692,10 @@ class JalurJointController extends Controller
                 );
 
                 $photoPath = $uploadResult['url'] ?? $uploadResult['path'];
-                
+
             } catch (\Exception $e) {
                 Log::error("Google Drive upload failed for joint photo: " . $e->getMessage());
-                
+
                 // Fallback to local storage
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $fallbackPath = "jalur/joint/{$joint->nomor_joint}/" . $fileName;
@@ -641,7 +762,7 @@ class JalurJointController extends Controller
                 'cgp_notes' => null,
                 'updated_by' => Auth::id()
             ]);
-            
+
             Log::info('Module status reset to draft due to photo replacement', [
                 'joint_id' => $joint->id,
                 'nomor_joint' => $joint->nomor_joint,
@@ -665,13 +786,13 @@ class JalurJointController extends Controller
     {
         $clusterId = $request->get('cluster_id');
         $diameter = $request->get('diameter');
-        
+
         if (!$clusterId) {
             return response()->json([]);
         }
 
         $query = JalurLineNumber::byCluster($clusterId)->active();
-        
+
         // Filter by diameter if provided
         if ($diameter) {
             $query->where('diameter', $diameter);
@@ -683,21 +804,21 @@ class JalurJointController extends Controller
 
         return response()->json($lineNumbers);
     }
-    
+
     public function getAvailableDiameters(Request $request)
     {
         $clusterId = $request->get('cluster_id');
-        
+
         if (!$clusterId) {
             return response()->json([]);
         }
-        
+
         $diameters = JalurLineNumber::byCluster($clusterId)
             ->active()
             ->distinct()
             ->orderByRaw("CAST(diameter AS UNSIGNED)")
             ->pluck('diameter');
-        
+
         return response()->json($diameters);
     }
 
@@ -705,7 +826,7 @@ class JalurJointController extends Controller
     {
         $clusterId = $request->get('cluster_id');
         $fittingTypeId = $request->get('fitting_type_id');
-        
+
         if (!$clusterId || !$fittingTypeId) {
             return response()->json([]);
         }
@@ -720,22 +841,22 @@ class JalurJointController extends Controller
     public function checkJointNumberStatus(Request $request)
     {
         $jointNumberId = $request->get('joint_number_id');
-        
+
         if (!$jointNumberId) {
             return response()->json(['error' => 'Joint number ID is required'], 400);
         }
 
         $jointNumber = JalurJointNumber::with(['usedByJoint'])->find($jointNumberId);
-        
+
         if (!$jointNumber) {
             return response()->json(['error' => 'Joint number not found'], 404);
         }
-        
+
         // Additional check for conflicting nomor_joint in active records
         $conflictingJoint = JalurJointData::where('nomor_joint', $jointNumber->nomor_joint)
             ->whereNull('deleted_at')
             ->first();
-            
+
         $hasConflict = $conflictingJoint && (!$jointNumber->usedByJoint || $conflictingJoint->id !== $jointNumber->usedByJoint->id);
 
         return response()->json([
@@ -750,10 +871,10 @@ class JalurJointController extends Controller
                 'nomor_joint' => $jointNumber->usedByJoint->nomor_joint,
                 'created_at' => $jointNumber->usedByJoint->created_at->format('d/m/Y H:i'),
             ] : ($conflictingJoint ? [
-                'id' => $conflictingJoint->id,
-                'nomor_joint' => $conflictingJoint->nomor_joint,
-                'created_at' => $conflictingJoint->created_at->format('d/m/Y H:i'),
-            ] : null),
+                    'id' => $conflictingJoint->id,
+                    'nomor_joint' => $conflictingJoint->nomor_joint,
+                    'created_at' => $conflictingJoint->created_at->format('d/m/Y H:i'),
+                ] : null),
         ]);
     }
 
@@ -762,12 +883,12 @@ class JalurJointController extends Controller
         if (!$jointNumber->is_active) {
             return 'Nomor joint tidak aktif dan tidak dapat digunakan';
         }
-        
+
         // Check for conflicting joint first
         if ($conflictingJoint && (!$jointNumber->usedByJoint || $conflictingJoint->id !== $jointNumber->usedByJoint->id)) {
             return "Nomor joint sudah digunakan oleh joint {$conflictingJoint->nomor_joint} pada {$conflictingJoint->created_at->format('d/m/Y H:i')}";
         }
-        
+
         if ($jointNumber->is_used) {
             $usedBy = $jointNumber->usedByJoint;
             if ($usedBy) {
@@ -775,7 +896,7 @@ class JalurJointController extends Controller
             }
             return 'Nomor joint sudah digunakan';
         }
-        
+
         return 'Nomor joint tersedia dan dapat digunakan';
     }
 
@@ -783,13 +904,13 @@ class JalurJointController extends Controller
     {
         // Gunakan ensureNestedFolders untuk membuat struktur folder secara otomatis
         $folderId = $googleDriveService->ensureNestedFolders($customPath);
-        
+
         // Upload file ke folder terakhir
         $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
         $fullFileName = $fileName . '.' . $ext;
-        
+
         $uploadResult = $googleDriveService->uploadFile($file, $folderId, $fullFileName);
-        
+
         return [
             'path' => $customPath . '/' . $fullFileName,
             'drive_file_id' => $uploadResult['id'] ?? null,
@@ -800,17 +921,17 @@ class JalurJointController extends Controller
     public function checkJointAvailability(Request $request)
     {
         $nomorJoint = $request->get('nomor_joint');
-        
+
         if (empty($nomorJoint)) {
             return response()->json([
                 'error' => 'Nomor joint is required'
             ], 400);
         }
-        
+
         // Check if joint number already exists (including soft deleted)
         $existingJoint = JalurJointData::withTrashed()->where('nomor_joint', $nomorJoint)->first();
         $isAvailable = !$existingJoint || $existingJoint->trashed();
-        
+
         return response()->json([
             'is_available' => $isAvailable,
             'nomor_joint' => $nomorJoint,

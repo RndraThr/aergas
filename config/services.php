@@ -74,15 +74,24 @@ return [
     ],
 
     'google_sheets' => [
+        'enabled' => env('GOOGLE_SHEETS_ENABLED', true),
         'spreadsheet_id' => env('GOOGLE_SHEETS_SPREADSHEET_ID'),
-        'range' => env('GOOGLE_SHEETS_RANGE', 'Sheet1!A1:Z1000'),
+        'credentials_path' => env('GOOGLE_SHEETS_CREDENTIALS_PATH', storage_path('app/google/service-account.json')),
+        'sheet_name_pe' => env('GOOGLE_SHEETS_SHEET_NAME_PE', 'PE'),
+        'sheet_name_joint' => env('GOOGLE_SHEETS_SHEET_NAME_JOINT', 'Joint Data'),
+        'sync_mode' => env('GOOGLE_SHEETS_SYNC_MODE', 'realtime'), // realtime or batch
+        'batch_interval_minutes' => env('GOOGLE_SHEETS_BATCH_INTERVAL', 30),
     ],
 
     'aergas' => [
         'photo_max_size' => env('MAX_FILE_SIZE', 20971520), // 20MB
         'allowed_mime_types' => [
-            'image/jpeg', 'image/png', 'image/jpg',
-            'image/gif', 'image/webp', 'application/pdf'
+            'image/jpeg',
+            'image/png',
+            'image/jpg',
+            'image/gif',
+            'image/webp',
+            'application/pdf'
         ],
         'sla_tracer_hours' => env('AERGAS_SLA_TRACER_HOURS', 24),
         'sla_cgp_hours' => env('AERGAS_SLA_CGP_HOURS', 48),

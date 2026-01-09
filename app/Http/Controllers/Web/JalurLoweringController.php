@@ -262,6 +262,7 @@ class JalurLoweringController extends Controller
                         'module_record_id' => $lowering->id,
                         'photo_field_name' => 'foto_evidence_penggelaran_bongkaran',
                         'photo_url' => $result['url'],
+                        'drive_link' => $result['url'],
                         'photo_status' => 'tracer_pending', // Skip AI, go directly to tracer
                         'uploaded_by' => Auth::id(),
                         'uploaded_at' => now(),
@@ -313,6 +314,7 @@ class JalurLoweringController extends Controller
                         'module_record_id' => $lowering->id,
                         'photo_field_name' => 'foto_evidence_cassing',
                         'photo_url' => $result['url'],
+                        'drive_link' => $result['url'],
                         'photo_status' => 'tracer_pending',
                         'uploaded_by' => Auth::id(),
                         'uploaded_at' => now(),
@@ -363,6 +365,7 @@ class JalurLoweringController extends Controller
                         'module_record_id' => $lowering->id,
                         'photo_field_name' => 'foto_evidence_marker_tape',
                         'photo_url' => $result['url'],
+                        'drive_link' => $result['url'],
                         'photo_status' => 'tracer_pending',
                         'uploaded_by' => Auth::id(),
                         'uploaded_at' => now(),
@@ -412,6 +415,7 @@ class JalurLoweringController extends Controller
                         'module_record_id' => $lowering->id,
                         'photo_field_name' => 'foto_evidence_concrete_slab',
                         'photo_url' => $result['url'],
+                        'drive_link' => $result['url'],
                         'photo_status' => 'tracer_pending',
                         'uploaded_by' => Auth::id(),
                         'uploaded_at' => now(),
@@ -479,6 +483,23 @@ class JalurLoweringController extends Controller
     {
         if (!in_array($lowering->status_laporan, ['draft', 'revisi_tracer', 'revisi_cgp'])) {
             return back()->with('error', 'Data lowering ini tidak dapat diedit.');
+        }
+
+        // Map crossing inputs to standard names if Tipe Bongkaran is Crossing/Zinker
+        // This prevents collision with Open Cut inputs in the DOM
+        if (in_array($request->input('tipe_bongkaran'), ['Crossing', 'Zinker'])) {
+            if ($request->has('aksesoris_cassing_crossing')) {
+                $request->merge(['aksesoris_cassing' => $request->input('aksesoris_cassing_crossing')]);
+            }
+            if ($request->filled('cassing_quantity_crossing')) {
+                $request->merge(['cassing_quantity' => $request->input('cassing_quantity_crossing')]);
+            }
+            if ($request->filled('cassing_type_crossing')) {
+                $request->merge(['cassing_type' => $request->input('cassing_type_crossing')]);
+            }
+            if ($request->hasFile('foto_evidence_cassing_crossing')) {
+                $request->files->set('foto_evidence_cassing', $request->file('foto_evidence_cassing_crossing'));
+            }
         }
 
         // Determine upload method and create conditional validation rules
@@ -582,6 +603,7 @@ class JalurLoweringController extends Controller
                             'module_record_id' => $lowering->id,
                             'photo_field_name' => 'foto_evidence_penggelaran_bongkaran',
                             'photo_url' => $result['url'],
+                            'drive_link' => $result['url'],
                             'photo_status' => 'tracer_pending', // Reset to pending when replaced
                             'uploaded_by' => Auth::id(),
                             'uploaded_at' => now(),
@@ -831,6 +853,7 @@ class JalurLoweringController extends Controller
                         'photo_url' => $uploadResult['url'] ?? $uploadResult['path'],
                         'storage_path' => $uploadResult['path'] ?? null,
                         'drive_file_id' => $uploadResult['drive_file_id'] ?? null,
+                        'drive_link' => $uploadResult['url'] ?? null,
                         'photo_status' => 'tracer_pending', // Reset to pending when replaced
                         'uploaded_by' => Auth::id(),
                         'uploaded_at' => now(),

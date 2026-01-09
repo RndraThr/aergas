@@ -8,11 +8,14 @@ use Illuminate\Support\Facades\Route;
 use App\Services\TelegramService;
 use App\Services\OpenAIService;
 use App\Services\GoogleDriveService;
+use App\Services\GoogleSheetsService;
 use App\Services\PhotoApprovalService;
 use App\Services\NotificationService;
 use App\Services\FileUploadService;
 use App\Services\FolderOrganizationService;
 use App\Models\GasInData;
+use App\Models\JalurLoweringData;
+use App\Observers\JalurLoweringDataObserver;
 
 
 class AppServiceProvider extends ServiceProvider
@@ -33,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(GoogleDriveService::class, function ($app) {
             return new GoogleDriveService();
+        });
+
+        $this->app->singleton(GoogleSheetsService::class, function ($app) {
+            return new GoogleSheetsService();
         });
 
         $this->app->singleton(NotificationService::class, function ($app) {
@@ -66,9 +73,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register Model Observers
+        JalurLoweringData::observe(JalurLoweringDataObserver::class);
+        \App\Models\JalurJointData::observe(\App\Observers\JalurJointDataObserver::class);
+        \App\Models\JalurLineNumber::observe(\App\Observers\JalurLineNumberObserver::class);
+        \App\Models\PhotoApproval::observe(\App\Observers\PhotoApprovalObserver::class);
+
         // Route model binding for Gas In Data
         Route::model('gasIn', GasInData::class);
-        
+
         // Custom validation rules for AERGAS
         Validator::extend('reff_id_format', function ($attribute, $value, $parameters, $validator) {
             return preg_match('/^[A-Z]{3}[0-9]{3,}$/', $value);

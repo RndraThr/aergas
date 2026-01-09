@@ -222,6 +222,7 @@
                                 <input type="checkbox" 
                                        id="aksesoris_marker_tape" 
                                        name="aksesoris_marker_tape" 
+                                       value="1"
                                        {{ old('aksesoris_marker_tape', $lowering->aksesoris_marker_tape) ? 'checked' : '' }}
                                        class="h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
                                        onchange="toggleMarkerTapeQuantity()">
@@ -236,7 +237,10 @@
                                        step="0.1" 
                                        min="0"
                                        placeholder="Quantity (meter)"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('marker_tape_quantity') border-red-500 @enderror">
+                                @error('marker_tape_quantity')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
 
@@ -245,6 +249,7 @@
                                 <input type="checkbox" 
                                        id="aksesoris_concrete_slab" 
                                        name="aksesoris_concrete_slab" 
+                                       value="1"
                                        {{ old('aksesoris_concrete_slab', $lowering->aksesoris_concrete_slab) ? 'checked' : '' }}
                                        class="h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
                                        onchange="toggleConcreteSlabQuantity()">
@@ -258,7 +263,10 @@
                                        value="{{ old('concrete_slab_quantity', $lowering->concrete_slab_quantity) }}"
                                        min="0"
                                        placeholder="Quantity (pcs)"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('concrete_slab_quantity') border-red-500 @enderror">
+                                @error('concrete_slab_quantity')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
 
@@ -267,6 +275,7 @@
                                 <input type="checkbox" 
                                        id="aksesoris_cassing" 
                                        name="aksesoris_cassing" 
+                                       value="1"
                                        {{ old('aksesoris_cassing', $lowering->aksesoris_cassing) ? 'checked' : '' }}
                                        class="h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
                                        onchange="toggleCassingQuantity()">
@@ -281,13 +290,18 @@
                                        step="0.1" 
                                        min="0"
                                        placeholder="Quantity (meter)"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 mb-2">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 mb-2 @error('cassing_quantity') border-red-500 @enderror">
+                                @error('cassing_quantity')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
                                 <select name="cassing_type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
                                     <option value="">Pilih Tipe Cassing</option>
-                                    <option value="PVC" {{ old('cassing_type', $lowering->cassing_type) === 'PVC' ? 'selected' : '' }}>PVC</option>
-                                    <option value="Steel" {{ old('cassing_type', $lowering->cassing_type) === 'Steel' ? 'selected' : '' }}>Steel</option>
-                                    <option value="HDPE" {{ old('cassing_type', $lowering->cassing_type) === 'HDPE' ? 'selected' : '' }}>HDPE</option>
+                                    <option value="4_inch" {{ old('cassing_type', $lowering->cassing_type) === '4_inch' ? 'selected' : '' }}>4 Inch</option>
+                                    <option value="8_inch" {{ old('cassing_type', $lowering->cassing_type) === '8_inch' ? 'selected' : '' }}>8 Inch</option>
                                 </select>
+                                @error('cassing_type')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
                     </div>
@@ -301,28 +315,34 @@
                             <div class="flex items-center mb-3">
                                 <input type="checkbox" 
                                        id="aksesoris_cassing_crossing" 
-                                       name="aksesoris_cassing" 
-                                       {{ old('aksesoris_cassing', $lowering->aksesoris_cassing) ? 'checked' : '' }}
+                                       name="aksesoris_cassing_crossing" 
+                                       value="1"
+                                       {{ old('aksesoris_cassing_crossing', ($lowering->tipe_bongkaran == 'Crossing' || $lowering->tipe_bongkaran == 'Zinker') ? $lowering->aksesoris_cassing : false) ? 'checked' : '' }}
                                        class="h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
                                        onchange="toggleCassingQuantityCrossing()">
                                 <label for="aksesoris_cassing_crossing" class="ml-2 text-sm font-medium text-gray-700">
                                     Cassing
                                 </label>
                             </div>
-                            <div id="cassing-fields-crossing" class="{{ old('aksesoris_cassing', $lowering->aksesoris_cassing) ? '' : 'hidden' }}">
+                            <div id="cassing-fields-crossing" class="{{ old('aksesoris_cassing_crossing', ($lowering->tipe_bongkaran == 'Crossing' || $lowering->tipe_bongkaran == 'Zinker') ? $lowering->aksesoris_cassing : false) ? '' : 'hidden' }}">
                                 <input type="number" 
-                                       name="cassing_quantity" 
-                                       value="{{ old('cassing_quantity', $lowering->cassing_quantity) }}"
+                                       name="cassing_quantity_crossing" 
+                                       value="{{ old('cassing_quantity_crossing', ($lowering->tipe_bongkaran == 'Crossing' || $lowering->tipe_bongkaran == 'Zinker') ? $lowering->cassing_quantity : '') }}"
                                        step="0.1" 
                                        min="0"
                                        placeholder="Quantity (meter)"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 mb-2">
-                                <select name="cassing_type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 mb-2 @error('cassing_quantity') border-red-500 @enderror">
+                                @error('cassing_quantity')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
+                                <select name="cassing_type_crossing" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
                                     <option value="">Pilih Tipe Cassing</option>
-                                    <option value="PVC" {{ old('cassing_type', $lowering->cassing_type) === 'PVC' ? 'selected' : '' }}>PVC</option>
-                                    <option value="Steel" {{ old('cassing_type', $lowering->cassing_type) === 'Steel' ? 'selected' : '' }}>Steel</option>
-                                    <option value="HDPE" {{ old('cassing_type', $lowering->cassing_type) === 'HDPE' ? 'selected' : '' }}>HDPE</option>
+                                    <option value="4_inch" {{ old('cassing_type_crossing', ($lowering->tipe_bongkaran == 'Crossing' || $lowering->tipe_bongkaran == 'Zinker') ? $lowering->cassing_type : '') === '4_inch' ? 'selected' : '' }}>4 Inch</option>
+                                    <option value="8_inch" {{ old('cassing_type_crossing', ($lowering->tipe_bongkaran == 'Crossing' || $lowering->tipe_bongkaran == 'Zinker') ? $lowering->cassing_type : '') === '8_inch' ? 'selected' : '' }}>8 Inch</option>
                                 </select>
+                                @error('cassing_type')
+                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
                     </div>
@@ -384,8 +404,15 @@
                                                             $imageUrl = "https://lh3.googleusercontent.com/d/{$fileId}=w800";
                                                         }
                                                     }
-                                                    elseif (!str_contains($imageUrl, 'http') && !str_starts_with($imageUrl, 'JALUR_LOWERING/') && Storage::disk('public')->exists($imageUrl)) {
-                                                        $imageUrl = asset('storage/' . $imageUrl);
+                                                    elseif (!str_contains($imageUrl, 'http') && !str_starts_with($imageUrl, 'JALUR_LOWERING/') && !str_starts_with($imageUrl, 'aergas/')) {
+                                                        $cleanPath = str_replace('/storage/', '', $imageUrl);
+                                                        $cleanPath = ltrim($cleanPath, '/');
+                                                        
+                                                        if (Storage::disk('public')->exists($cleanPath)) {
+                                                            $imageUrl = asset('storage/' . $cleanPath);
+                                                        } elseif (file_exists(public_path($imageUrl))) {
+                                                            $imageUrl = asset($imageUrl);
+                                                        }
                                                     }
                                                     elseif (str_starts_with($imageUrl, 'JALUR_LOWERING/') || str_starts_with($imageUrl, 'aergas/')) {
                                                         $imageUrl = null;
@@ -592,9 +619,16 @@ function updateTipeBongkaran() {
     const crossingZinkerDiv = document.getElementById('crossing-zinker-aksesoris');
     const bongkaranLabel = document.getElementById('bongkaran-label');
 
-    // Hide all aksesoris sections
-    openCutDiv.classList.add('hidden');
-    crossingZinkerDiv.classList.add('hidden');
+    // Helper to toggle visibility and disabled state
+    const toggleSection = (div, show) => {
+        if (show) {
+            div.classList.remove('hidden');
+            div.querySelectorAll('input, select').forEach(el => el.disabled = false);
+        } else {
+            div.classList.add('hidden');
+            div.querySelectorAll('input, select').forEach(el => el.disabled = true);
+        }
+    };
 
     // Update bongkaran label
     if (['Manual Boring', 'Manual Boring - PK'].includes(tipe)) {
@@ -603,11 +637,21 @@ function updateTipeBongkaran() {
         bongkaranLabel.textContent = 'Bongkaran (meter)';
     }
 
-    // Show relevant aksesoris section
+    // Toggle sections based on tipe
     if (tipe === 'Open Cut') {
-        openCutDiv.classList.remove('hidden');
+        toggleSection(openCutDiv, true);
+        toggleSection(crossingZinkerDiv, false);
+        // Refresh internal toggles to ensure correct state
+        toggleMarkerTapeQuantity();
+        toggleConcreteSlabQuantity();
+        toggleCassingQuantity();
     } else if (['Crossing', 'Zinker'].includes(tipe)) {
-        crossingZinkerDiv.classList.remove('hidden');
+        toggleSection(openCutDiv, false);
+        toggleSection(crossingZinkerDiv, true);
+        toggleCassingQuantityCrossing();
+    } else {
+        toggleSection(openCutDiv, false);
+        toggleSection(crossingZinkerDiv, false);
     }
 
     // Update radio button styles
@@ -965,6 +1009,11 @@ document.addEventListener('keydown', function(e) {
             resetZoom(e);
         }
     }
+});
+
+// Initialize form state on load to ensure correct disabled attributes
+document.addEventListener('DOMContentLoaded', function() {
+    updateTipeBongkaran();
 });
 </script>
 
