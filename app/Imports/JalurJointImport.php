@@ -246,7 +246,7 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
                 'data' => [
                     'joint_number' => $jointNumber,
                     'cluster' => $cluster->nama_cluster,
-                    'fitting_type' => $fittingType->nama_fitting,
+                    'fitting_type' => $fittingType?->nama_fitting ?? '-',
                     'tanggal_joint' => $tanggalJoint,
                     'joint_line_from' => $jointLineFrom,
                     'joint_line_to' => $jointLineTo,
@@ -322,7 +322,7 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
                     'joint_id' => $joint->id,
                     'joint_number' => $jointNumber,
                     'cluster' => $cluster->nama_cluster,
-                    'fitting_type' => $fittingType->nama_fitting,
+                    'fitting_type' => $fittingType?->nama_fitting ?? '-',
                     'tanggal_joint' => $tanggalJoint,
                 ],
                 'message' => 'Joint berhasil diimport',

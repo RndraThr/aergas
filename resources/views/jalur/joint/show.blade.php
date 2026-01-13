@@ -8,7 +8,7 @@
             <div class="flex justify-between items-center mb-8">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ $joint->nomor_joint }}</h1>
-                    <p class="text-gray-600">{{ $joint->fittingType->nama_fitting }} -
+                    <p class="text-gray-600">{{ $joint->fittingType?->nama_fitting ?? '-' }} -
                         {{ $joint->lokasi_joint ?: 'Lokasi belum diisi' }}</p>
                     <p class="text-sm text-gray-500">Line Numbers: {{ $joint->formatted_joint_line }}</p>
                     <p class="text-sm text-gray-500">Cluster: {{ $joint->cluster->nama_cluster }}</p>
@@ -60,7 +60,7 @@
                             </div>
                             <div>
                                 <dt class="text-sm font-medium text-gray-500">Tipe Fitting</dt>
-                                <dd class="mt-1 text-sm text-gray-900">{{ $joint->fittingType->nama_fitting }}</dd>
+                                <dd class="mt-1 text-sm text-gray-900">{{ $joint->fittingType?->nama_fitting ?? '-' }}</dd>
                             </div>
                             <div>
                                 <dt class="text-sm font-medium text-gray-500">Tanggal Joint</dt>

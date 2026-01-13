@@ -109,16 +109,16 @@ class TracerJalurApprovalController extends Controller
         $allLineNumbersInCluster = $cluster->lineNumbers()->pluck('line_number')->toArray();
 
         $jointsForCluster = \App\Models\JalurJointData::with(['photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'fittingType'])
-            ->where(function($q) use ($allLineNumbersInCluster) {
+            ->where(function ($q) use ($allLineNumbersInCluster) {
                 $q->whereIn('joint_line_from', $allLineNumbersInCluster)
-                  ->orWhereIn('joint_line_to', $allLineNumbersInCluster)
-                  ->orWhereIn('joint_line_optional', $allLineNumbersInCluster);
+                    ->orWhereIn('joint_line_to', $allLineNumbersInCluster)
+                    ->orWhereIn('joint_line_optional', $allLineNumbersInCluster);
             })
-            ->when($search, function($q) use ($search) {
+            ->when($search, function ($q) use ($search) {
                 // Allow search by joint number or joint code
-                $q->where(function($query) use ($search) {
+                $q->where(function ($query) use ($search) {
                     $query->where('nomor_joint', 'like', "%{$search}%")
-                          ->orWhere('joint_code', 'like', "%{$search}%");
+                        ->orWhere('joint_code', 'like', "%{$search}%");
                 });
             })
             ->get();
@@ -193,7 +193,7 @@ class TracerJalurApprovalController extends Controller
         // Apply filters BEFORE sorting
         if ($filter !== 'all') {
             $allItems = $allItems->filter(function ($item) use ($filter) {
-                return match($filter) {
+                return match ($filter) {
                     'pending' => $item->approval_stats['status'] === 'pending',
                     'approved' => $item->approval_stats['status'] === 'approved',
                     'rejected' => $item->approval_stats['status'] === 'rejected',
@@ -229,7 +229,7 @@ class TracerJalurApprovalController extends Controller
         $currentPage = $request->input('page', 1);
 
         // Convert to array to ensure all dynamic properties are included
-        $itemsForPage = $sortedItems->forPage($currentPage, $perPage)->map(function($item) {
+        $itemsForPage = $sortedItems->forPage($currentPage, $perPage)->map(function ($item) {
             // Get array representation
             $itemArray = $item->toArray();
 
@@ -534,12 +534,13 @@ class TracerJalurApprovalController extends Controller
 
             $line = JalurLineNumber::with('loweringData')->findOrFail($request->line_id);
 
-            $allPhotos = PhotoApproval::whereIn('module_record_id',
+            $allPhotos = PhotoApproval::whereIn(
+                'module_record_id',
                 $line->loweringData->pluck('id')
             )
-            ->where('module_name', 'jalur_lowering')
-            ->whereIn('photo_status', ['tracer_pending', 'draft'])
-            ->get();
+                ->where('module_name', 'jalur_lowering')
+                ->whereIn('photo_status', ['tracer_pending', 'draft'])
+                ->get();
 
             if ($allPhotos->isEmpty()) {
                 throw new \Exception('Tidak ada foto yang perlu di-approve untuk line ini');
@@ -1004,7 +1005,7 @@ class TracerJalurApprovalController extends Controller
 
                 $jointDatesDetail[] = [
                     'date' => $joint->tanggal_joint->format('Y-m-d'),
-                    'fitting_type' => $joint->fittingType->nama_fitting ?? '-',
+                    'fitting_type' => $joint->fittingType?->nama_fitting ?? '-',
                     'photos_count' => $joint->photoApprovals->count(),
                 ];
             }
@@ -1039,10 +1040,14 @@ class TracerJalurApprovalController extends Controller
      */
     private function determineClusterStatus(int $total, int $approved, int $pending, int $rejected): string
     {
-        if ($total === 0) return 'no_evidence';
-        if ($rejected > 0) return 'rejected';
-        if ($approved === $total) return 'approved';
-        if ($pending > 0) return 'pending';
+        if ($total === 0)
+            return 'no_evidence';
+        if ($rejected > 0)
+            return 'rejected';
+        if ($approved === $total)
+            return 'approved';
+        if ($pending > 0)
+            return 'pending';
         return 'unknown';
     }
 
@@ -1155,7 +1160,7 @@ class TracerJalurApprovalController extends Controller
             $statusLabel = $status === 'rejected' ? 'Rejected by Tracer' : 'Partial';
         } else {
             // No CGP involvement yet, use Tracer status
-            $statusLabel = match($status) {
+            $statusLabel = match ($status) {
                 'pending' => 'Pending Tracer Review',
                 'approved' => 'Approved by Tracer',
                 'rejected' => 'Rejected by Tracer',
@@ -1304,7 +1309,7 @@ class TracerJalurApprovalController extends Controller
             $statusLabel = $status === 'rejected' ? 'Rejected by Tracer' : 'Partial';
         } else {
             // No CGP involvement yet, use Tracer status
-            $statusLabel = match($status) {
+            $statusLabel = match ($status) {
                 'pending' => 'Pending Tracer Review',
                 'approved' => 'Approved by Tracer',
                 'rejected' => 'Rejected by Tracer',
@@ -1339,10 +1344,14 @@ class TracerJalurApprovalController extends Controller
      */
     private function determineLineStatus(int $total, int $approved, int $pending, int $rejected): string
     {
-        if ($total === 0) return 'no_evidence';
-        if ($rejected > 0) return 'rejected';
-        if ($approved === $total) return 'approved';
-        if ($pending > 0) return 'pending';
+        if ($total === 0)
+            return 'no_evidence';
+        if ($rejected > 0)
+            return 'rejected';
+        if ($approved === $total)
+            return 'approved';
+        if ($pending > 0)
+            return 'pending';
         return 'partial';
     }
 }

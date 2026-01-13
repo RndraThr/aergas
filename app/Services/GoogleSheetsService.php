@@ -214,7 +214,7 @@ class GoogleSheetsService
             '',                     // AC - Status
             '',                     // AD - Notes
             '',                     // AE - Keterangan (Empty as requested)
-            $mainPhotoUrl                                           // AF
+            ''                      // AF
         ];
     }
 
@@ -427,7 +427,17 @@ class GoogleSheetsService
 
             $from = $joint->joint_line_from ?? '';
             $to = $joint->joint_line_to ?? '';
-            $fitting = strtoupper($joint->fittingType->nama_fitting ?? $joint->jenis_fitting ?? '-');
+
+            // Get diameter from joint table (primary) or Line Number (fallback)
+            $diameter = $joint->diameter ?? ($joint->lineNumber->diameter ?? '');
+
+            // Special handling for Diameter 90: No fitting (direct pipe-to-pipe joint)
+            if ($diameter == '90') {
+                $fitting = ''; // Empty for diameter 90
+                Log::info("Joint Sync Debug: Diameter 90 detected, Fitting column will be empty (direct pipe-to-pipe joint)");
+            } else {
+                $fitting = strtoupper($joint->fittingType->nama_fitting ?? $joint->jenis_fitting ?? '-');
+            }
 
             // Use Abbreviation EF/BF (Do not convert to full name)
             $tipePenyambungan = $joint->tipe_penyambungan ?? '-';
@@ -441,7 +451,16 @@ class GoogleSheetsService
             $ket = $joint->keterangan ?? '';
 
             $jointValues = [$dateVal, $noJoint, $from, $to, $fitting, $tipePenyambungan, $status, $comment, $ket];
-            Log::info("Joint Sync Data for ID {$joint->id}: " . json_encode($jointValues));
+            Log::info("Joint Sync Data for ID {$joint->id} (Diameter: {$diameter}): " . json_encode($jointValues));
+
+            // Prepare Project Info from Cluster Master Data (used for both update and append)
+            $cluster = $joint->cluster;
+            $spkName = $cluster->spk_name ?? 'City Gas 5 Tahap 2';
+            $clusterDisplay = $cluster->sheet_cluster_name ?? $cluster->nama_cluster ?? '';
+            $rsSektor = $cluster->rs_sektor ?? $cluster->nama_cluster ?? '';
+            $testPackage = $cluster->test_package_code ?? "TP-{$cluster->code_cluster}";
+            $jalan = $joint->lokasi_joint ?? '';
+            Log::info("Joint Sync Debug: lokasi_joint value = '{$jalan}' for Joint ID {$joint->id}");
 
             // Scan for Existing Row by Joint Number (Column X / Index 23)
             // Reading A:X to ensure we cover Joint Number column
@@ -483,27 +502,27 @@ class GoogleSheetsService
             }
 
             if ($targetRow > 0) {
-                // Update Existing Row (Start at W / Index 22)
-                // Update Existing Row using Batch Update to ensure precise column mapping
-                // W: Date, X: Joint, Y: From, Z: To, AA: Fit, AB: Type, AC: HIDDEN, AD: Stat, AE: Comm, AF: Ket
-                // Shifted Left -1:
-                // V: Date, W: Joint, X: From, Y: To, Z: Fit, AA: Type, AB: HIDDEN?, AC: Stat, AD: Comm, AE: Ket
-                // User said AC is hidden. If we shift left:
-                // Type (AB) -> AA.
-                // Status (AD) -> AC. (This puts Status in hidden col).
-                // However, obeying "shift 1 left" instruction.
+                // Update Existing Row using Batch Update
+                // Update both project info (C-H) and joint data (W-AF)
                 $colMap = [
-                    'V' => $dateVal,
-                    'W' => $noJoint,
-                    'X' => trim($from),
-                    'Y' => trim($to),
-                    'Z' => trim($fitting),
-                    'AA' => trim($tipePenyambungan),
-                    // 'AB' ?? If AC was hidden, maybe AB is visible.
-                    // Previous code mapped AD->Status. Shifting left -> AC.
-                    'AC' => trim($status),
-                    'AD' => trim($comment),
-                    'AE' => trim($ket)
+                    // Project Info columns
+                    'C' => $spkName,            // SPK
+                    'D' => $clusterDisplay,     // Cluster
+                    'E' => $rsSektor,           // RS Sektor
+                    'F' => $testPackage,        // Test Package
+                    'G' => $jalan,              // Nama Jalan
+                    'H' => $diameter,           // Diameter
+                    // Joint Data columns
+                    'W' => $dateVal,           // Date
+                    'X' => $noJoint,           // Nomor Joint
+                    'Y' => trim($from),        // From
+                    'Z' => trim($to),          // To
+                    'AA' => trim($fitting),    // Jenis Fitting
+                    'AB' => trim($tipePenyambungan),  // Tipe Penyambungan
+                    'AC' => '',                // Empty
+                    'AD' => trim($status),     // Status
+                    'AE' => trim($comment),    // Comment
+                    'AF' => trim($ket)         // Keterangan
                 ];
 
                 $data = [];
@@ -526,42 +545,40 @@ class GoogleSheetsService
                 return true;
             } else {
                 Log::info("Joint Sync Debug: Appending New Row for LN {$lineNumber}");
-                // Append New Row
-                $newRow = array_fill(0, 31, ''); // Reduced size slightly or keep 32
 
-                // Populate Project Info (Columns B-G)
-                $clusterName = $joint->cluster->nama_cluster ?? '';
-                $clusterCode = $joint->cluster->code_cluster ?? '';
-                $diameter = $joint->lineNumber->diameter ?? '';
-                $jalan = $joint->lineNumber->nama_jalan ?? '';
+                // Build row array - Column A is auto-generated, B is empty, data starts at C
+                // Index 0=B (empty), 1=C (SPK), 2=D (Cluster), 3=E (RS Sektor), etc.
+                $newRow = [];
+                $newRow[0] = '';                        // B: (Empty)
+                $newRow[1] = $spkName;                  // C: SPK
+                $newRow[2] = $clusterDisplay;           // D: Cluster
+                $newRow[3] = $rsSektor;                 // E: RS Sektor
+                $newRow[4] = $testPackage;              // F: Test Package
+                $newRow[5] = $jalan;                    // G: Nama Jalan
+                $newRow[6] = $diameter;                 // H: Diameter
+                $newRow[7] = '';                        // I: Line Number (Empty for Joint)
 
-                // Mapping:
-                // 0=A, 1=B, 2=C, 3=D, 4=E, 5=F, 6=G, 7=H, ... 9=J
-                // Shifted Left:
-                // 1=B, 2=C, 3=D, 4=E, 5=F, 6=G
+                // Fill empty columns from J to U (index 8-19)
+                for ($i = 8; $i <= 21; $i++) {
+                    $newRow[$i] = '';
+                }
 
-                $newRow[1] = 'Cty Gas 5 Tahap 2';       // B: SPK
-                $newRow[2] = $clusterName;              // C: Cluster
-                $newRow[3] = $clusterName;              // D: RS Sektor
-                $newRow[4] = "TP-{$clusterCode}";       // E: Test Package
-                $newRow[5] = $jalan;                    // F: Nama Jalan
-                $newRow[6] = $diameter;                 // G: Diameter
+                // Joint Data columns (Index 21-30)
+                $newRow[21] = $dateVal;                 // Date
+                $newRow[22] = $noJoint;                 // Nomor Joint
+                $newRow[23] = trim($from);              // From
+                $newRow[24] = trim($to);                // To
+                $newRow[25] = trim($fitting);           // Jenis Fitting
+                $newRow[26] = trim($tipePenyambungan);  // Tipe Penyambungan
+                $newRow[27] = '';                       // (Empty or other data)
+                $newRow[28] = trim($status);            // Status
+                $newRow[29] = trim($comment);           // Comment
+                $newRow[30] = trim($ket);               // Keterangan
 
-                // LineNumber usually J (Index 9) -> Shifted to I (Index 8)
-                $newRow[8] = '';      // I: Line Number (Empty for Joint)
-
-                // Columns V-AE (Start V / Col 22 / Index 21).
-                // Explicitly map to avoid any loop confusion
-                $newRow[21] = $dateVal;                 // V: Date
-                $newRow[22] = $noJoint;                 // W: Nomor Joint
-                $newRow[23] = trim($from);              // X: From
-                $newRow[24] = trim($to);                // Y: To
-                $newRow[25] = trim($fitting);           // Z: Jenis Fitting
-                $newRow[26] = trim($tipePenyambungan);  // AA: Tipe Penyambungan
-                // AC is Hidden. We shift AD->AC.
-                $newRow[28] = trim($status);            // AC: Status (Hidden?)
-                $newRow[29] = trim($comment);           // AD: Comment
-                $newRow[30] = trim($ket);               // AE: Keterangan
+                // Ensure array is properly indexed from 0 without gaps
+                ksort($newRow);
+                // Convert to sequential array (0,1,2,3...) for Google Sheets API
+                $newRow = array_values($newRow);
 
                 $appendResult = $this->appendRow($sheetName, $newRow);
                 Log::info("Joint Sync Debug: Append Result: " . json_encode($appendResult));

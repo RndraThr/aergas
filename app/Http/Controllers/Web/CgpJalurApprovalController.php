@@ -16,7 +16,8 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
     public function __construct(
         private PhotoApprovalService $photoApprovalService,
         private FolderOrganizationService $folderOrganizationService
-    ) {}
+    ) {
+    }
 
     public static function middleware(): array
     {
@@ -37,33 +38,33 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
 
             // Only show clusters that have lines with tracer-approved photos
             $clusters = JalurCluster::with('lineNumbers')
-            ->withCount([
-                'lineNumbers',
-                'lineNumbers as lines_with_photos' => function($q) {
-                    $q->whereHas('loweringData.photoApprovals', function($photoQ) {
-                        $photoQ->whereIn('photo_status', ['tracer_approved', 'cgp_pending']);
-                    });
-                }
-            ])
-            ->whereHas('lineNumbers.loweringData.photoApprovals', function($q) {
-                // Only show clusters with tracer-approved photos or higher
-                $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
-            })
-            ->when($search, function($q) use ($search) {
-                $q->where('nama_cluster', 'like', "%{$search}%")
-                  ->orWhere('kode_cluster', 'like', "%{$search}%");
-            })
-            ->orderBy('nama_cluster')
-            ->paginate(20)
-            ->through(function ($cluster) {
-                $cluster->approval_stats = $this->getClusterCgpApprovalStats($cluster);
-                return $cluster;
-            });
+                ->withCount([
+                    'lineNumbers',
+                    'lineNumbers as lines_with_photos' => function ($q) {
+                        $q->whereHas('loweringData.photoApprovals', function ($photoQ) {
+                            $photoQ->whereIn('photo_status', ['tracer_approved', 'cgp_pending']);
+                        });
+                    }
+                ])
+                ->whereHas('lineNumbers.loweringData.photoApprovals', function ($q) {
+                    // Only show clusters with tracer-approved photos or higher
+                    $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
+                })
+                ->when($search, function ($q) use ($search) {
+                    $q->where('nama_cluster', 'like', "%{$search}%")
+                        ->orWhere('kode_cluster', 'like', "%{$search}%");
+                })
+                ->orderBy('nama_cluster')
+                ->paginate(20)
+                ->through(function ($cluster) {
+                    $cluster->approval_stats = $this->getClusterCgpApprovalStats($cluster);
+                    return $cluster;
+                });
 
             // Apply filters
             if ($filter !== 'all') {
                 $clusters = $clusters->filter(function ($cluster) use ($filter) {
-                    return match($filter) {
+                    return match ($filter) {
                         'pending' => $cluster->approval_stats['pending_photos'] > 0,
                         'approved' => $cluster->approval_stats['approved_photos'] > 0 && $cluster->approval_stats['pending_photos'] === 0,
                         'no_evidence' => $cluster->approval_stats['total_photos'] === 0,
@@ -108,7 +109,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         // Note: We check joints separately since they use string-based relationships
         $linesQuery = $cluster->lineNumbers()
             ->with(['loweringData.photoApprovals.cgpUser', 'cluster'])
-            ->whereHas('loweringData.photoApprovals', function($query) {
+            ->whereHas('loweringData.photoApprovals', function ($query) {
                 $query->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
             })
             ->when($search, function ($q) use ($search) {
@@ -123,20 +124,20 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         $allLineNumbersInCluster = $cluster->lineNumbers()->pluck('line_number')->toArray();
 
         $jointsForCluster = \App\Models\JalurJointData::with(['photoApprovals.cgpUser', 'fittingType'])
-            ->where(function($q) use ($allLineNumbersInCluster) {
+            ->where(function ($q) use ($allLineNumbersInCluster) {
                 $q->whereIn('joint_line_from', $allLineNumbersInCluster)
-                  ->orWhereIn('joint_line_to', $allLineNumbersInCluster)
-                  ->orWhereIn('joint_line_optional', $allLineNumbersInCluster);
+                    ->orWhereIn('joint_line_to', $allLineNumbersInCluster)
+                    ->orWhereIn('joint_line_optional', $allLineNumbersInCluster);
             })
             // Only include joints that have photos ready for CGP
-            ->whereHas('photoApprovals', function($query) {
+            ->whereHas('photoApprovals', function ($query) {
                 $query->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
             })
-            ->when($search, function($q) use ($search) {
+            ->when($search, function ($q) use ($search) {
                 // Allow search by joint number (nomor_joint or joint_code)
-                $q->where(function($query) use ($search) {
+                $q->where(function ($query) use ($search) {
                     $query->where('nomor_joint', 'like', "%{$search}%")
-                          ->orWhere('joint_code', 'like', "%{$search}%");
+                        ->orWhere('joint_code', 'like', "%{$search}%");
                 });
             })
             ->get();
@@ -145,9 +146,11 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         $jointsByLine = [];
         foreach ($jointsForCluster as $joint) {
             foreach ($allLineNumbersInCluster as $lineNum) {
-                if ($joint->joint_line_from === $lineNum ||
+                if (
+                    $joint->joint_line_from === $lineNum ||
                     $joint->joint_line_to === $lineNum ||
-                    $joint->joint_line_optional === $lineNum) {
+                    $joint->joint_line_optional === $lineNum
+                ) {
                     if (!isset($jointsByLine[$lineNum])) {
                         $jointsByLine[$lineNum] = collect();
                     }
@@ -256,7 +259,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         // Apply status filter BEFORE sorting
         if ($filter !== 'all') {
             $allItems = $allItems->filter(function ($item) use ($filter) {
-                return match($filter) {
+                return match ($filter) {
                     'pending' => $item->approval_stats['status'] === 'pending',
                     'approved' => $item->approval_stats['status'] === 'approved',
                     'rejected' => $item->approval_stats['status'] === 'rejected',
@@ -292,7 +295,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         $currentPage = $request->input('page', 1);
 
         // Convert to array to ensure all dynamic properties are included
-        $itemsForPage = $sortedItems->forPage($currentPage, $perPage)->map(function($item) {
+        $itemsForPage = $sortedItems->forPage($currentPage, $perPage)->map(function ($item) {
             // Get array representation
             $itemArray = $item->toArray();
 
@@ -358,7 +361,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
                 'loweringData.photoApprovals' => function ($q) {
                     // Only show photos ready for CGP review (tracer_approved and above)
                     $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
-                      ->orderBy('photo_field_name', 'asc');
+                        ->orderBy('photo_field_name', 'asc');
                 }
             ])->findOrFail($lineId);
 
@@ -368,7 +371,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             // Get all lowering data (work dates) with photos ready for CGP review
             $workDates = $line->loweringData()
                 ->with(['photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'createdBy'])
-                ->whereHas('photoApprovals', function($q) {
+                ->whereHas('photoApprovals', function ($q) {
                     // Only show dates that have photos ready for CGP review
                     $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
                 })
@@ -396,7 +399,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             // Get all joint data with photos ready for CGP review
             $jointDates = $line->jointDataQuery()
                 ->with(['photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'createdBy', 'fittingType'])
-                ->whereHas('photoApprovals', function($q) {
+                ->whereHas('photoApprovals', function ($q) {
                     // Only show dates that have photos ready for CGP review
                     $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
                 })
@@ -447,10 +450,10 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
     {
         try {
             $joint = JalurJointData::with([
-                'photoApprovals' => function($q) {
+                'photoApprovals' => function ($q) {
                     // Only show photos ready for CGP review
                     $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
-                      ->orderBy('photo_field_name', 'asc');
+                        ->orderBy('photo_field_name', 'asc');
                 },
                 'photoApprovals.tracerUser',
                 'photoApprovals.cgpUser',
@@ -607,12 +610,13 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             $line = JalurLineNumber::with('loweringData')->findOrFail($request->line_id);
 
             // Get all photos ready for CGP approval (tracer_approved or cgp_pending)
-            $allPhotos = PhotoApproval::whereIn('module_record_id',
+            $allPhotos = PhotoApproval::whereIn(
+                'module_record_id',
                 $line->loweringData->pluck('id')
             )
-            ->where('module_name', 'jalur_lowering')
-            ->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])
-            ->get();
+                ->where('module_name', 'jalur_lowering')
+                ->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])
+                ->get();
 
             if ($allPhotos->isEmpty()) {
                 throw new Exception('Tidak ada foto yang perlu di-approve untuk line ini');
@@ -795,11 +799,11 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             $notes = $request->get('notes');
 
             // Get all joint records that involve this line number on this date
-            $jointRecords = JalurJointData::where(function($query) use ($lineNumber) {
-                    $query->where('joint_line_from', $lineNumber)
-                          ->orWhere('joint_line_to', $lineNumber)
-                          ->orWhere('joint_line_optional', $lineNumber);
-                })
+            $jointRecords = JalurJointData::where(function ($query) use ($lineNumber) {
+                $query->where('joint_line_from', $lineNumber)
+                    ->orWhere('joint_line_to', $lineNumber)
+                    ->orWhere('joint_line_optional', $lineNumber);
+            })
                 ->whereDate('tanggal_joint', $date)
                 ->pluck('id');
 
@@ -892,11 +896,11 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             $notes = $request->get('notes');
 
             // Get all joint records that involve this line number
-            $jointRecords = JalurJointData::where(function($query) use ($lineNumber) {
-                    $query->where('joint_line_from', $lineNumber)
-                          ->orWhere('joint_line_to', $lineNumber)
-                          ->orWhere('joint_line_optional', $lineNumber);
-                })
+            $jointRecords = JalurJointData::where(function ($query) use ($lineNumber) {
+                $query->where('joint_line_from', $lineNumber)
+                    ->orWhere('joint_line_to', $lineNumber)
+                    ->orWhere('joint_line_optional', $lineNumber);
+            })
                 ->pluck('id');
 
             if ($jointRecords->isEmpty()) {
@@ -941,11 +945,11 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
                     $line = JalurLineNumber::where('line_number', $lineNumber)->first();
                     if ($line) {
                         // Get unique dates for this line's joints
-                        $uniqueDates = JalurJointData::where(function($query) use ($lineNumber) {
-                                $query->where('joint_line_from', $lineNumber)
-                                      ->orWhere('joint_line_to', $lineNumber)
-                                      ->orWhere('joint_line_optional', $lineNumber);
-                            })
+                        $uniqueDates = JalurJointData::where(function ($query) use ($lineNumber) {
+                            $query->where('joint_line_from', $lineNumber)
+                                ->orWhere('joint_line_to', $lineNumber)
+                                ->orWhere('joint_line_optional', $lineNumber);
+                        })
                             ->distinct()
                             ->pluck('tanggal_joint')
                             ->map(fn($date) => \Carbon\Carbon::parse($date)->format('Y-m-d'))
@@ -998,7 +1002,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
     {
         // Get only lines that have photos ready for CGP review (tracer approved)
         $linesWithCgpReadyPhotos = $cluster->lineNumbers()
-            ->whereHas('loweringData.photoApprovals', function($q) {
+            ->whereHas('loweringData.photoApprovals', function ($q) {
                 $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
             })
             ->get();
@@ -1010,39 +1014,39 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         $countedJoints = []; // Track joints already counted to avoid duplicates
 
         // Get all lowering photos for this cluster (only tracer-approved and above)
-        $loweringPhotos = PhotoApproval::whereIn('module_record_id', function($query) use ($cluster) {
+        $loweringPhotos = PhotoApproval::whereIn('module_record_id', function ($query) use ($cluster) {
             $query->select('id')
                 ->from('jalur_lowering_data')
-                ->whereIn('line_number_id', function($subQuery) use ($cluster) {
+                ->whereIn('line_number_id', function ($subQuery) use ($cluster) {
                     $subQuery->select('id')
                         ->from('jalur_line_numbers')
                         ->where('cluster_id', $cluster->id);
                 });
         })
-        ->where('module_name', 'jalur_lowering')
-        ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
-        ->get();
+            ->where('module_name', 'jalur_lowering')
+            ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
+            ->get();
 
         // Get all joint photos for this cluster
-        $jointPhotos = PhotoApproval::whereIn('module_record_id', function($query) use ($cluster) {
+        $jointPhotos = PhotoApproval::whereIn('module_record_id', function ($query) use ($cluster) {
             $query->select('id')
                 ->from('jalur_joint_data')
-                ->where(function($q) use ($cluster) {
-                    $q->whereIn('joint_line_from', function($subQ) use ($cluster) {
+                ->where(function ($q) use ($cluster) {
+                    $q->whereIn('joint_line_from', function ($subQ) use ($cluster) {
                         $subQ->select('line_number')
                             ->from('jalur_line_numbers')
                             ->where('cluster_id', $cluster->id);
                     })
-                    ->orWhereIn('joint_line_to', function($subQ) use ($cluster) {
-                        $subQ->select('line_number')
-                            ->from('jalur_line_numbers')
-                            ->where('cluster_id', $cluster->id);
-                    });
+                        ->orWhereIn('joint_line_to', function ($subQ) use ($cluster) {
+                            $subQ->select('line_number')
+                                ->from('jalur_line_numbers')
+                                ->where('cluster_id', $cluster->id);
+                        });
                 });
         })
-        ->where('module_name', 'jalur_joint')
-        ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
-        ->get();
+            ->where('module_name', 'jalur_joint')
+            ->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'])
+            ->get();
 
         // Combine photos
         $allPhotos = $loweringPhotos->concat($jointPhotos);
@@ -1055,28 +1059,28 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
 
         // Count lines with pending photos (ready for CGP review)
         foreach ($linesWithCgpReadyPhotos as $line) {
-            $lineHasPending = PhotoApproval::whereIn('module_record_id', function($query) use ($line) {
+            $lineHasPending = PhotoApproval::whereIn('module_record_id', function ($query) use ($line) {
                 $query->select('id')
                     ->from('jalur_lowering_data')
                     ->where('line_number_id', $line->id);
             })
-            ->where('module_name', 'jalur_lowering')
-            ->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])
-            ->exists();
+                ->where('module_name', 'jalur_lowering')
+                ->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])
+                ->exists();
 
             if ($lineHasPending) {
                 $linesWithPending++;
             }
 
             // Count joints for this line (avoid duplicates)
-            $lineJoints = \App\Models\JalurJointData::where(function($q) use ($line) {
+            $lineJoints = \App\Models\JalurJointData::where(function ($q) use ($line) {
                 $q->where('joint_line_from', $line->line_number)
-                  ->orWhere('joint_line_to', $line->line_number);
+                    ->orWhere('joint_line_to', $line->line_number);
             })
-            ->whereHas('photoApprovals', function($q) {
-                $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
-            })
-            ->get();
+                ->whereHas('photoApprovals', function ($q) {
+                    $q->whereIn('photo_status', ['tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected']);
+                })
+                ->get();
 
             foreach ($lineJoints as $joint) {
                 // Skip if this joint was already counted
@@ -1154,7 +1158,10 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
 
             // Only count photos that are tracer-approved or higher
             $cgpReadyPhotos = $lowering->photoApprovals->whereIn('photo_status', [
-                'tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'
+                'tracer_approved',
+                'cgp_pending',
+                'cgp_approved',
+                'cgp_rejected'
             ]);
 
             foreach ($cgpReadyPhotos as $photo) {
@@ -1240,7 +1247,10 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
 
             // Only count photos that are tracer-approved or higher
             $cgpReadyPhotos = $joint->photoApprovals->whereIn('photo_status', [
-                'tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'
+                'tracer_approved',
+                'cgp_pending',
+                'cgp_approved',
+                'cgp_rejected'
             ]);
 
             foreach ($cgpReadyPhotos as $photo) {
@@ -1283,7 +1293,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
                     $jointDates[] = $joint->tanggal_joint;
                     $jointDatesDetail[] = [
                         'date' => $joint->tanggal_joint->format('Y-m-d'),
-                        'fitting_type' => $joint->fittingType->nama_fitting ?? '-',
+                        'fitting_type' => $joint->fittingType?->nama_fitting ?? '-',
                         'photos_count' => $cgpReadyPhotos->count(),
                     ];
                 }
@@ -1354,10 +1364,13 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         // Apply date range filter if provided
         if ($dateFrom || $dateTo) {
             $loweringData = $loweringData->filter(function ($lowering) use ($dateFrom, $dateTo) {
-                if (!$lowering->tanggal_jalur) return false;
+                if (!$lowering->tanggal_jalur)
+                    return false;
                 $dateStr = $lowering->tanggal_jalur->format('Y-m-d');
-                if ($dateFrom && $dateStr < $dateFrom) return false;
-                if ($dateTo && $dateStr > $dateTo) return false;
+                if ($dateFrom && $dateStr < $dateFrom)
+                    return false;
+                if ($dateTo && $dateStr > $dateTo)
+                    return false;
                 return true;
             });
         }
@@ -1366,7 +1379,10 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             $hasTracerApprovedPhotos = false;
 
             $cgpReadyPhotos = $lowering->photoApprovals->whereIn('photo_status', [
-                'tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'
+                'tracer_approved',
+                'cgp_pending',
+                'cgp_approved',
+                'cgp_rejected'
             ]);
 
             foreach ($cgpReadyPhotos as $photo) {
@@ -1403,7 +1419,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         $status = $this->determineLineStatus($totalPhotos, $approvedPhotos, $pendingPhotos, $rejectedPhotos);
 
         // Determine status label (clarify approval level - CGP for CGP controller)
-        $statusLabel = match($status) {
+        $statusLabel = match ($status) {
             'pending' => 'Pending CGP Review',
             'approved' => 'Approved by CGP',
             'rejected' => 'Rejected by CGP',
@@ -1470,7 +1486,10 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         }
 
         $cgpReadyPhotos = $joint->photoApprovals->whereIn('photo_status', [
-            'tracer_approved', 'cgp_pending', 'cgp_approved', 'cgp_rejected'
+            'tracer_approved',
+            'cgp_pending',
+            'cgp_approved',
+            'cgp_rejected'
         ]);
 
         foreach ($cgpReadyPhotos as $photo) {
@@ -1510,7 +1529,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         }
 
         // Determine status label (clarify approval level - CGP for CGP controller)
-        $statusLabel = match($status) {
+        $statusLabel = match ($status) {
             'pending' => 'Pending CGP Review',
             'approved' => 'Approved by CGP',
             'rejected' => 'Rejected by CGP',
@@ -1802,10 +1821,14 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
 
     private function determineLineStatus(int $total, int $approved, int $pending, int $rejected): string
     {
-        if ($total === 0) return 'no_evidence';
-        if ($rejected > 0) return 'rejected';
-        if ($approved === $total) return 'approved';
-        if ($pending > 0) return 'pending';
+        if ($total === 0)
+            return 'no_evidence';
+        if ($rejected > 0)
+            return 'rejected';
+        if ($approved === $total)
+            return 'approved';
+        if ($pending > 0)
+            return 'pending';
         return 'pending';
     }
 }

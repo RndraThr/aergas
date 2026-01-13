@@ -63,6 +63,75 @@
                     @enderror
                 </div>
 
+                <!-- Google Sheets Display Settings -->
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-4">Pengaturan Tampilan Google Sheets</h3>
+                    
+                    <div class="mb-4">
+                        <label for="rs_sektor" class="block text-sm font-medium text-gray-700 mb-2">
+                            RS Sektor / Lokasi
+                        </label>
+                        <input type="text" 
+                               id="rs_sektor" 
+                               name="rs_sektor" 
+                               value="{{ old('rs_sektor') }}"
+                               placeholder="Contoh: RSUP SARDJITO"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('rs_sektor') border-red-500 @enderror">
+                        @error('rs_sektor')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                        <p class="text-sm text-gray-500 mt-1">Nama rumah sakit / lokasi sektor (untuk diameter 90)</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="spk_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Nama SPK
+                        </label>
+                        <input type="text" 
+                               id="spk_name" 
+                               name="spk_name" 
+                               value="{{ old('spk_name', 'City Gas 5 Tahap 2') }}"
+                               placeholder="Contoh: City Gas 5 Tahap 2"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('spk_name') border-red-500 @enderror">
+                        @error('spk_name')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                        <p class="text-sm text-gray-500 mt-1">Nama project/SPK yang ditampilkan di kolom B</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="test_package_code" class="block text-sm font-medium text-gray-700 mb-2">
+                            Kode Test Package
+                        </label>
+                        <input type="text" 
+                               id="test_package_code" 
+                               name="test_package_code" 
+                               value="{{ old('test_package_code') }}"
+                               placeholder="Contoh: TP-PK-KI (kosongkan untuk auto-generate)"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('test_package_code') border-red-500 @enderror">
+                        @error('test_package_code')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                        <p class="text-sm text-gray-500 mt-1">Jika kosong, akan auto-generate: TP-{CODE}</p>
+                    </div>
+
+                    <div class="mb-0">
+                        <label for="sheet_cluster_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Nama Cluster di Sheet
+                        </label>
+                        <input type="text" 
+                               id="sheet_cluster_name" 
+                               name="sheet_cluster_name" 
+                               value="{{ old('sheet_cluster_name') }}"
+                               placeholder="Contoh: PK-KI (kosongkan untuk gunakan Code Cluster)"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('sheet_cluster_name') border-red-500 @enderror">
+                        @error('sheet_cluster_name')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                        <p class="text-sm text-gray-500 mt-1">Nama cluster yang ditampilkan di Google Sheets (default: Code Cluster)</p>
+                    </div>
+                </div>
+
                 <div class="mb-6">
                     <div class="flex items-center">
                         <input type="checkbox" 

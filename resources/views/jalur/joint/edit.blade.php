@@ -7,7 +7,7 @@
     <div class="max-w-4xl mx-auto">
         <div class="mb-8">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Edit Data Joint/Sambungan</h1>
-            <p class="text-gray-600">{{ $joint->nomor_joint }} - {{ $joint->fittingType->nama_fitting }}</p>
+            <p class="text-gray-600">{{ $joint->nomor_joint }} - {{ $joint->fittingType?->nama_fitting ?? '-' }}</p>
             <p class="text-sm text-gray-500">Line Connections: {{ $joint->formatted_joint_line }}
                 @if($joint->joint_line_optional && $joint->isEqualTee())
                     <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">3-Way</span>
@@ -44,12 +44,11 @@
 
                         <div>
                             <label for="line_number_id" class="block text-sm font-medium text-gray-700 mb-2">
-                                Line Number <span class="text-red-500">*</span>
+                                Line Number
                             </label>
                             <select id="line_number_id" 
                                     name="line_number_id" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 @error('line_number_id') border-red-500 @enderror"
-                                    required>
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 @error('line_number_id') border-red-500 @enderror">
                                 <option value="">Loading...</option>
                                 @foreach($lineNumbers as $lineNumber)
                                     <option value="{{ $lineNumber->id }}" 
@@ -71,12 +70,11 @@
 
                         <div>
                             <label for="fitting_type_id" class="block text-sm font-medium text-gray-700 mb-2">
-                                Tipe Fitting <span class="text-red-500">*</span>
+                                Tipe Fitting
                             </label>
                             <select id="fitting_type_id" 
                                     name="fitting_type_id" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 @error('fitting_type_id') border-red-500 @enderror"
-                                    required>
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 @error('fitting_type_id') border-red-500 @enderror">
                                 <option value="">Pilih Tipe Fitting</option>
                                 @foreach($fittingTypes as $fittingType)
                                     <option value="{{ $fittingType->id }}" 
@@ -322,54 +320,26 @@
                                     @endforeach
                                 </div>
                             @endif
-
-                            <h4 class="text-sm font-medium text-gray-700 mb-2">Upload Foto Baru (Opsional)</h4>
-                            <p class="text-sm text-gray-600 mb-4">Upload foto baru akan mengganti foto yang lama</p>
                             
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label for="foto_sebelum" class="block text-sm font-medium text-gray-700 mb-2">
-                                        Foto Sebelum
-                                    </label>
-                                    <input type="file" 
-                                           id="foto_sebelum" 
-                                           name="foto_sebelum" 
-                                           accept="image/*"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 @error('foto_sebelum') border-red-500 @enderror">
-                                    @error('foto_sebelum')
-                                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <div>
-                                    <label for="foto_sesudah" class="block text-sm font-medium text-gray-700 mb-2">
-                                        Foto Sesudah
-                                    </label>
-                                    <input type="file" 
-                                           id="foto_sesudah" 
-                                           name="foto_sesudah" 
-                                           accept="image/*"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 @error('foto_sesudah') border-red-500 @enderror">
-                                    @error('foto_sesudah')
-                                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                            </div>
+                            <h4 class="text-sm font-medium text-gray-700 mb-2 mt-6">Upload Foto Baru (Opsional)</h4>
+                            <p class="text-sm text-gray-600 mb-4">Upload foto baru untuk mengganti foto evidence yang sudah ada</p>
                             
-                            <div class="mt-4">
-                                <label for="foto_tambahan" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Foto Tambahan
+                            <div>
+                                <label for="foto_evidence_joint" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Foto Evidence Joint
                                 </label>
                                 <input type="file" 
-                                       id="foto_tambahan" 
-                                       name="foto_tambahan[]" 
-                                       accept="image/*"
+                                       id="foto_evidence_joint" 
+                                       name="foto_evidence_joint[]" 
+                                       accept="image/*,application/pdf"
                                        multiple
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 @error('foto_tambahan.*') border-red-500 @enderror">
-                                @error('foto_tambahan.*')
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 @error('foto_evidence_joint.*') border-red-500 @enderror">
+                                @error('foto_evidence_joint.*')
                                     <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                                 @enderror
-                                <p class="text-xs text-gray-500 mt-1">Maksimal 5 foto tambahan</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Upload foto evidence joint baru. Foto yang di-upload akan ditambahkan ke foto yang sudah ada.
+                                </p>
                             </div>
                         </div>
                     </div>

@@ -41,10 +41,10 @@ class JalurLineNumber extends Model
      */
     public function jointDataQuery()
     {
-        return \App\Models\JalurJointData::where(function($query) {
+        return \App\Models\JalurJointData::where(function ($query) {
             $query->where('joint_line_from', $this->line_number)
-                  ->orWhere('joint_line_to', $this->line_number)
-                  ->orWhere('joint_line_optional', $this->line_number);
+                ->orWhere('joint_line_to', $this->line_number)
+                ->orWhere('joint_line_optional', $this->line_number);
         });
     }
 
@@ -79,6 +79,11 @@ class JalurLineNumber extends Model
         return $this->hasMany(\App\Models\MapGeometricFeature::class, 'line_number_id');
     }
 
+    public function testPackageItems(): HasMany
+    {
+        return $this->hasMany(\App\Models\JalurTestPackageItem::class, 'line_number_id');
+    }
+
     // Scopes
     public function scopeActive($query)
     {
@@ -107,15 +112,16 @@ class JalurLineNumber extends Model
 
     public function scopeSearch($query, ?string $term)
     {
-        if (!$term) return $query;
-        
+        if (!$term)
+            return $query;
+
         return $query->where(function ($q) use ($term) {
             $q->where('line_number', 'like', "%{$term}%")
-              ->orWhere('line_code', 'like', "%{$term}%")
-              ->orWhereHas('cluster', function($qq) use ($term) {
-                  $qq->where('nama_cluster', 'like', "%{$term}%")
-                     ->orWhere('code_cluster', 'like', "%{$term}%");
-              });
+                ->orWhere('line_code', 'like', "%{$term}%")
+                ->orWhereHas('cluster', function ($qq) use ($term) {
+                    $qq->where('nama_cluster', 'like', "%{$term}%")
+                        ->orWhere('code_cluster', 'like', "%{$term}%");
+                });
         });
     }
 

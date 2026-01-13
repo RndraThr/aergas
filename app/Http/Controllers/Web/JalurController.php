@@ -138,7 +138,7 @@ class JalurController extends Controller
             });
 
             return [
-                'name' => $group->first()->fittingType->nama_fitting ?? 'Unknown',
+                'name' => $group->first()->fittingType?->nama_fitting ?? 'Unknown',
                 'total' => $group->count(),
                 'by_diameter' => [
                     '63' => ($byDiameter['63'] ?? collect())->count(),

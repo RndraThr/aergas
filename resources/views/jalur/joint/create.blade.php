@@ -66,13 +66,12 @@
 
                         <div>
                             <label for="fitting_type_id" class="block text-sm font-medium text-gray-700 mb-2">
-                                Tipe Fitting <span class="text-red-500">*</span>
+                                Tipe Fitting
                             </label>
                             <select id="fitting_type_id" 
                                     name="fitting_type_id" 
                                     onchange="updateFittingTypeBehavior();"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 @error('fitting_type_id') border-red-500 @enderror"
-                                    required>
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 @error('fitting_type_id') border-red-500 @enderror">
                                 <option value="" data-code="">Pilih Tipe Fitting</option>
                                 @foreach($fittingTypes as $fittingType)
                                     <option value="{{ $fittingType->id }}" 
@@ -298,7 +297,8 @@
                                 <code class="text-lg font-mono text-purple-900" id="joint-code-preview">-</code>
                             </div>
                             <p class="text-xs text-purple-600 mt-2">
-                                Format: [Cluster Code]-[Fitting Code][Number]
+                                Format: [Cluster]-[Fitting][Nomor]<br>
+                                <span class="text-xs">Diameter 90: [Tipe Penyambungan].[Nomor] (Contoh: BF.01)</span>
                             </p>
                         </div>
 
@@ -438,7 +438,17 @@ function updateJointPrefix() {
     const clusterId = document.getElementById('cluster_id').value;
     const fittingTypeId = document.getElementById('fitting_type_id').value;
     const jointPrefixElement = document.getElementById('joint-prefix');
+    const diameterFilter = document.getElementById('diameter_filter').value;
+    const tipePenyambungan = document.getElementById('tipe_penyambungan').value;
     
+    // Special format for Diameter 90: {TipePenyambungan}.
+    if (diameterFilter === '90' && tipePenyambungan) {
+        jointPrefixElement.textContent = `${tipePenyambungan}.`;
+        updateJointPreview();
+        return;
+    }
+    
+    // Standard format for other diameters
     if (!clusterId || !fittingTypeId) {
         jointPrefixElement.textContent = '-';
         return;
@@ -654,6 +664,13 @@ document.getElementById('fitting_type_id').addEventListener('change', function()
     updateJointPrefix();
     loadAvailableJointNumbers();
 });
+document.getElementById('diameter_filter').addEventListener('change', function() {
+    updateJointPrefix();
+    filterLineNumbersByDiameter();
+});
+document.getElementById('tipe_penyambungan').addEventListener('change', function() {
+    updateJointPrefix();
+});
 document.getElementById('joint_line_from').addEventListener('change', updateJointLinePreview);
 document.getElementById('joint_line_to').addEventListener('change', updateJointLinePreview);
 
@@ -721,6 +738,12 @@ document.addEventListener('DOMContentLoaded', function() {
     updateFittingTypeBehavior();
     toggleUploadMethod(); // Initialize upload method display
     toggleJointNumberMode(); // Initialize joint number mode
+    
+    // Trigger filter if diameter already selected (e.g., after form error)
+    const diameterFilter = document.getElementById('diameter_filter');
+    if (diameterFilter && diameterFilter.value) {
+        filterLineNumbersByDiameter();
+    }
     
     // Restore old value if exists
     const oldSuffix = '{{ old('nomor_joint_suffix') }}';

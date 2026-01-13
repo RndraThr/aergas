@@ -48,6 +48,10 @@ class JalurClusterController extends Controller
                 Rule::unique('jalur_clusters', 'code_cluster')
             ],
             'deskripsi' => 'nullable|string|max:1000',
+            'rs_sektor' => 'nullable|string|max:255',
+            'spk_name' => 'nullable|string|max:255',
+            'test_package_code' => 'nullable|string|max:255',
+            'sheet_cluster_name' => 'nullable|string|max:255',
             'is_active' => 'boolean',
         ]);
 
@@ -105,6 +109,10 @@ class JalurClusterController extends Controller
                 Rule::unique('jalur_clusters', 'code_cluster')->ignore($cluster->id)
             ],
             'deskripsi' => 'nullable|string|max:1000',
+            'rs_sektor' => 'nullable|string|max:255',
+            'spk_name' => 'nullable|string|max:255',
+            'test_package_code' => 'nullable|string|max:255',
+            'sheet_cluster_name' => 'nullable|string|max:255',
             'is_active' => 'boolean',
         ]);
 
@@ -139,7 +147,7 @@ class JalurClusterController extends Controller
         ]);
 
         $status = $cluster->is_active ? 'diaktifkan' : 'dinonaktifkan';
-        
+
         return back()->with('success', "Cluster berhasil {$status}.");
     }
 
@@ -157,8 +165,8 @@ class JalurClusterController extends Controller
         }
 
         $clusters = $query->select(['id', 'nama_cluster', 'code_cluster'])
-                         ->orderBy('nama_cluster')
-                         ->get();
+            ->orderBy('nama_cluster')
+            ->get();
 
         return response()->json($clusters);
     }
@@ -176,8 +184,8 @@ class JalurClusterController extends Controller
         }
 
         $lineNumbers = $query->select(['id', 'line_number', 'diameter', 'status_line', 'estimasi_panjang', 'actual_mc100'])
-                            ->orderBy('line_number')
-                            ->get();
+            ->orderBy('line_number')
+            ->get();
 
         return response()->json($lineNumbers);
     }

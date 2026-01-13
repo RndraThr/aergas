@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurLoweringImportController, JalurMc0ImportController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController, HseDailyReportController, JalurKmzImportController};
+use App\Http\Controllers\Web\{AuthController, DashboardController, CalonPelangganController, SkDataController, SrDataController, PhotoApprovalController, NotificationController, ImportController, GasInDataController, AdminController, TracerApprovalController, CgpApprovalController, TracerJalurApprovalController, JalurController, JalurClusterController, JalurLineNumberController, JalurLoweringController, JalurLoweringImportController, JalurMc0ImportController, JalurJointController, JalurJointNumberController, JalurFittingTypeController, ReportDashboardController, ComprehensiveReportController, MapFeatureController, HseDailyReportController, JalurKmzImportController, JalurTestPackageController};
 
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
@@ -782,6 +782,18 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                     ->name('destroy');
                 Route::patch('/{fittingType}/toggle', [JalurFittingTypeController::class, 'toggleStatus'])
                     ->name('toggle-status');
+            });
+
+            // Test Package Management
+            Route::prefix('test-packages')
+                ->name('test-package.')
+                ->group(function () {
+                Route::get('/', [JalurTestPackageController::class, 'index'])->name('index');
+                Route::get('/create', [JalurTestPackageController::class, 'create'])->name('create');
+                Route::post('/', [JalurTestPackageController::class, 'store'])->name('store');
+                Route::get('/available-lines/{clusterId}', [JalurTestPackageController::class, 'getAvailableLines'])->name('available-lines');
+                Route::get('/{testPackage}', [JalurTestPackageController::class, 'show'])->name('show');
+                Route::put('/{testPackage}/update-step', [JalurTestPackageController::class, 'updateStep'])->name('update-step');
             });
 
             // Joint Numbers Management (Admin only)
