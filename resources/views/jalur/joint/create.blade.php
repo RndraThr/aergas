@@ -203,7 +203,10 @@
                             @error('diameter_filter')
                                 <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                             @enderror
-                            <p class="text-xs text-gray-500 mt-1">Pilih diameter untuk memfilter line numbers yang tersedia</p>
+                            <div class="mt-2 flex items-center">
+                                <input type="checkbox" id="show_all_diameters" onchange="filterLineNumbersByDiameter()" class="rounded text-purple-600 focus:ring-purple-500 h-4 w-4 border-gray-300">
+                                <label for="show_all_diameters" class="ml-2 text-xs text-gray-700 select-none">Tampilkan semua diameter (untuk Reducer/Lintas Diameter)</label>
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
@@ -580,15 +583,23 @@ async function checkJointNumberAvailability() {
 async function filterLineNumbersByDiameter() {
     const clusterSelect = document.getElementById('cluster_id');
     const diameterSelect = document.getElementById('diameter_filter');
+    const showAllCheckbox = document.getElementById('show_all_diameters');
+    
     const lineFromSelect = document.getElementById('joint_line_from');
     const lineToSelect = document.getElementById('joint_line_to');
     const lineOptionalSelect = document.getElementById('joint_line_optional');
     
     const clusterId = clusterSelect.value;
-    const diameter = diameterSelect.value;
+    let diameter = diameterSelect.value;
+    const showAll = showAllCheckbox ? showAllCheckbox.checked : false;
+
+    // Override diameter if showAll is checked
+    if (showAll) {
+        diameter = 'all';
+    }
     
-    // Clear and disable line selects if no cluster or diameter selected
-    if (!clusterId || !diameter) {
+    // Clear and disable line selects if no cluster or (no diameter AND not showing all)
+    if (!clusterId || (!diameter)) {
         [lineFromSelect, lineToSelect, lineOptionalSelect].forEach(select => {
             select.innerHTML = '<option value="">Pilih Line Number</option>';
             select.disabled = true;

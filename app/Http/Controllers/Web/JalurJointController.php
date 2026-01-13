@@ -896,7 +896,7 @@ class JalurJointController extends Controller
         $query = JalurLineNumber::byCluster($clusterId)->active();
 
         // Filter by diameter if provided
-        if ($diameter) {
+        if ($diameter && $diameter !== 'all') {
             $query->where('diameter', $diameter);
         }
 
