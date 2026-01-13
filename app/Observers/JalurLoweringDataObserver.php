@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 
 class JalurLoweringDataObserver
 {
+    protected $originalDates = [];
+
     /**
      * Handle the JalurLoweringData "created" event.
      */
@@ -20,6 +22,16 @@ class JalurLoweringDataObserver
             ]);
 
             // Dispatch logic disabled to prevent double-sync (handled by PhotoApprovalObserver & Controller fallback)
+        }
+    }
+
+    /**
+     * Handle the JalurLoweringData "updating" event.
+     */
+    public function updating(JalurLoweringData $jalurLoweringData): void
+    {
+        if ($jalurLoweringData->isDirty('tanggal_jalur')) {
+            $this->originalDates[$jalurLoweringData->id] = $jalurLoweringData->getOriginal('tanggal_jalur');
         }
     }
 
@@ -51,12 +63,24 @@ class JalurLoweringDataObserver
             }
 
             if ($hasChanges) {
+                // Retrieve old date if it was changed
+                $oldDate = $this->originalDates[$jalurLoweringData->id] ?? null;
+
+                // Convert Carbon to string if needed
+                if ($oldDate instanceof \DateTimeInterface) {
+                    $oldDate = $oldDate->format('Y-m-d');
+                }
+
+                // Cleanup memory
+                unset($this->originalDates[$jalurLoweringData->id]);
+
                 Log::info('Dispatching Google Sheets sync job for updated lowering data', [
                     'lowering_id' => $jalurLoweringData->id,
-                    'changed_fields' => array_keys($jalurLoweringData->getChanges())
+                    'changed_fields' => array_keys($jalurLoweringData->getChanges()),
+                    'old_date' => $oldDate
                 ]);
 
-                SyncLoweringToGoogleSheets::dispatch($jalurLoweringData);
+                SyncLoweringToGoogleSheets::dispatch($jalurLoweringData, $oldDate);
             }
         }
     }

@@ -591,18 +591,21 @@ class GoogleSheetsService
         }
     }
 
-    public function syncLowering($lowering): bool
+    public function syncLowering($lowering, ?string $oldDate = null): bool
     {
         $sheetName = config('services.google_sheets.sheet_name_pe', 'PE');
         $row = $this->formatLoweringRow($lowering);
         $lineNumber = $lowering->lineNumber->line_number ?? '';
 
-        $tanggal = $this->formatIndoDate($lowering->tanggal_jalur);
-        $rowIndex = $this->findRowIndex($sheetName, $lineNumber, $tanggal);
+        // Determine date to search for: Use old date if provided to handle date changes
+        $searchDateRaw = $oldDate ?: $lowering->tanggal_jalur;
+        $searchDate = $this->formatIndoDate($searchDateRaw);
+
+        $rowIndex = $this->findRowIndex($sheetName, $lineNumber, $searchDate);
 
         if ($rowIndex > 0) {
             // Update Existing Row to prevent duplicates
-            Log::info("Sync Lowering: Updating existing row {$rowIndex} for {$lineNumber}");
+            Log::info("Sync Lowering: Updating existing row {$rowIndex} for {$lineNumber}" . ($oldDate ? " (found via old date)" : ""));
             // Start update from Column B to match Append behavior (which seems to skip A)
             $this->updateRange("{$sheetName}!B{$rowIndex}", [$row]);
 
@@ -611,7 +614,7 @@ class GoogleSheetsService
             return true;
         } else {
             // Append New Row
-            Log::info("Sync Lowering: Appending new row for {$lineNumber}");
+            Log::info("Sync Lowering: Appending new row for {$lineNumber} (Search Date: {$searchDate} not found)");
             $newRow = $this->appendRow($sheetName, $row);
 
             if ($newRow && is_int($newRow)) {

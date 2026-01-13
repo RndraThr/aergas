@@ -16,15 +16,17 @@ class SyncLoweringToGoogleSheets implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $lowering;
+    public $oldDate;
     public $tries = 3;
     public $timeout = 120;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(JalurLoweringData $lowering)
+    public function __construct(JalurLoweringData $lowering, ?string $oldDate = null)
     {
         $this->lowering = $lowering;
+        $this->oldDate = $oldDate;
     }
 
     /**
@@ -35,10 +37,11 @@ class SyncLoweringToGoogleSheets implements ShouldQueue
         try {
             Log::info("Syncing lowering data to Google Sheets", [
                 'lowering_id' => $this->lowering->id,
-                'line_number' => $this->lowering->lineNumber->line_number ?? 'N/A'
+                'line_number' => $this->lowering->lineNumber->line_number ?? 'N/A',
+                'old_date' => $this->oldDate
             ]);
 
-            $success = $sheetsService->syncLowering($this->lowering);
+            $success = $sheetsService->syncLowering($this->lowering, $this->oldDate);
 
             if ($success) {
                 // Update sync status in database (optional)
