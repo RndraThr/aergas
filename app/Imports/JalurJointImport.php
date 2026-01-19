@@ -115,16 +115,14 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
             // Priority 1: Check explicit cluster column from Excel
             if (!empty($data['cluster'])) {
                 $clusterCode = trim($data['cluster']);
-            } 
-            // Priority 2: Try to get cluster from line_from (e.g., 180-SLM-LN001 -> cluster SLM)
-            elseif (!empty($data['joint_line_from'])) {
-                $lineFrom = trim($data['joint_line_from']);
-            
-            // Priority 3: Check line_to as fallback
-            $lineTo = trim($data['joint_line_to']); 
+            }
 
-            if (!isset($clusterCode)) {
-                if (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineFrom ?? '', $lineMatches)) {
+            // Priority 2: If still NONE, try to get cluster from line numbers
+            if ($clusterCode === 'NONE') {
+                $lineFrom = trim($data['joint_line_from'] ?? '');
+                $lineTo = trim($data['joint_line_to'] ?? '');
+
+                if (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineFrom, $lineMatches)) {
                     $clusterCode = $lineMatches[1];
                 } elseif (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineTo, $lineMatches)) {
                     $clusterCode = $lineMatches[1];
