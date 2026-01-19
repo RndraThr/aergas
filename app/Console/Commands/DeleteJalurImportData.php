@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\JalurLoweringData;
 use App\Models\JalurJointData;
+use App\Models\JalurLineNumber;
+use App\Models\JalurJointNumber;
 use App\Models\PhotoApproval;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -62,6 +64,13 @@ class DeleteJalurImportData extends Command
             $stats['joint'] = $this->processJoint($date, $fromDate, $toDate, $dryRun);
         }
 
+        // Process line numbers and joint numbers only if --all is used or specifically requested (if we add module support later)
+        // For now, only on --all to avoid accidental master data deletion
+        if ($this->option('all')) {
+            $stats['line_number'] = $this->processLineNumbers($dryRun);
+            $stats['joint_number'] = $this->processJointNumbers($dryRun);
+        }
+
         // Display summary
         $this->newLine();
         $this->displaySummary($stats, $dryRun);
@@ -92,9 +101,9 @@ class DeleteJalurImportData extends Command
 
     private function processLowering(?string $date, ?string $fromDate, ?string $toDate, bool $dryRun): array
     {
-        $this->info("📋 Checking Lowering Data...");
+        $this->info("📋 Checking Lowering Data (including trashed)...");
 
-        $query = JalurLoweringData::query();
+        $query = JalurLoweringData::withTrashed();
 
         if ($date) {
             $query->whereDate('created_at', $date);
@@ -140,11 +149,27 @@ class DeleteJalurImportData extends Command
         ];
     }
 
+    private function processLineNumbers(bool $dryRun): array
+    {
+        $this->info("📋 Checking Line Number Data...");
+        $count = JalurLineNumber::count();
+        $this->line("Found {$count} line number records");
+        return ['count' => $count];
+    }
+
+    private function processJointNumbers(bool $dryRun): array
+    {
+        $this->info("📋 Checking Joint Number Data...");
+        $count = JalurJointNumber::count();
+        $this->line("Found {$count} joint number records");
+        return ['count' => $count];
+    }
+
     private function processJoint(?string $date, ?string $fromDate, ?string $toDate, bool $dryRun): array
     {
-        $this->info("📋 Checking Joint Data...");
+        $this->info("📋 Checking Joint Data (including trashed)...");
 
-        $query = JalurJointData::query();
+        $query = JalurJointData::withTrashed();
 
         if ($date) {
             $query->whereDate('created_at', $date);
@@ -214,7 +239,21 @@ class DeleteJalurImportData extends Command
             }
         }
 
-        $totalRecords = ($stats['lowering']['count'] ?? 0) + ($stats['joint']['count'] ?? 0);
+        if (isset($stats['line_number'])) {
+            $this->line("Line Numbers:");
+            $this->line("  - Records: {$stats['line_number']['count']}");
+        }
+
+        if (isset($stats['joint_number'])) {
+            $this->line("Joint Numbers:");
+            $this->line("  - Records: {$stats['joint_number']['count']}");
+        }
+
+        $totalRecords = ($stats['lowering']['count'] ?? 0) +
+            ($stats['joint']['count'] ?? 0) +
+            ($stats['line_number']['count'] ?? 0) +
+            ($stats['joint_number']['count'] ?? 0);
+
         $totalPhotos = ($stats['lowering']['photo_count'] ?? 0) + ($stats['joint']['photo_count'] ?? 0);
         $totalApproved = ($stats['lowering']['approved_count'] ?? 0) + ($stats['joint']['approved_count'] ?? 0);
 
@@ -243,7 +282,7 @@ class DeleteJalurImportData extends Command
                 $deletedPhotos += $photoCount;
 
                 // Delete lowering records
-                $recordCount = JalurLoweringData::whereIn('id', $stats['lowering']['ids'])->delete();
+                $recordCount = JalurLoweringData::withTrashed()->whereIn('id', $stats['lowering']['ids'])->forceDelete();
                 $deletedRecords += $recordCount;
 
                 $this->info("✅ Deleted {$recordCount} lowering records and {$photoCount} photos");
@@ -258,10 +297,36 @@ class DeleteJalurImportData extends Command
                 $deletedPhotos += $photoCount;
 
                 // Delete joint records
-                $recordCount = JalurJointData::whereIn('id', $stats['joint']['ids'])->delete();
+                $recordCount = JalurJointData::withTrashed()->whereIn('id', $stats['joint']['ids'])->forceDelete();
                 $deletedRecords += $recordCount;
 
                 $this->info("✅ Deleted {$recordCount} joint records and {$photoCount} photos");
+            }
+
+            // Delete Line Numbers (Hard Delete as per model)
+            if (isset($stats['line_number']) && $stats['line_number']['count'] > 0) {
+                // Disable foreign key checks momentarily to avoid ordering issues if necessary, 
+                // but standard delete should work if children are gone.
+                // However, we deleted children (Lowering/Joint) above.
+                // CAUTION: MapGeometricFeature and TestPackage might use LineNumber.
+                // We should probably DB::statement('SET FOREIGN_KEY_CHECKS=0;'); if we want to be nuclear.
+
+                DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+                // Using delete() instead of truncate() to maintain transaction integrity (TRUNCATE causes implicit commit)
+                $lc = JalurLineNumber::query()->delete();
+                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+                $deletedRecords += $lc;
+                $this->info("✅ Deleted {$lc} Line Number records");
+            }
+
+            // Delete Joint Numbers (Hard Delete)
+            if (isset($stats['joint_number']) && $stats['joint_number']['count'] > 0) {
+                DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+                $jc = JalurJointNumber::query()->delete();
+                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+                $deletedRecords += $jc;
+                $this->info("✅ Deleted {$jc} Joint Number records");
             }
 
             DB::commit();
