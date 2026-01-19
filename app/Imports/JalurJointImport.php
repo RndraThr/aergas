@@ -114,10 +114,15 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
         if ($clusterCode === 'NONE') {
             // Try to get cluster from line_from (e.g., 180-SLM-LN001 -> cluster SLM)
             $lineFrom = trim($data['joint_line_from']);
+            $lineTo = trim($data['joint_line_to']); // Check line_to as fallback
+
             if (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineFrom, $lineMatches)) {
                 $clusterCode = $lineMatches[1];
+            } elseif (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineTo, $lineMatches)) {
+                // Fallback: Try to get cluster from line_to
+                $clusterCode = $lineMatches[1];
             } else {
-                throw new \Exception("Untuk format joint tanpa cluster (BF.05), harus ada cluster di joint_line_from. Format: {DIAMETER}-{CLUSTER}-LN{NUMBER}");
+                throw new \Exception("Untuk format joint tanpa cluster ({$jointNumber}), harus ada cluster di joint_line_from atau joint_line_to. Format: {DIAMETER}-{CLUSTER}-LN{NUMBER}");
             }
         }
 
