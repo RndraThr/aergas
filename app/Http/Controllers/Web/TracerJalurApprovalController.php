@@ -108,7 +108,7 @@ class TracerJalurApprovalController extends Controller
         // Get ALL line numbers in cluster (not just filtered ones) for joint lookup
         $allLineNumbersInCluster = $cluster->lineNumbers()->pluck('line_number')->toArray();
 
-        $jointsForCluster = \App\Models\JalurJointData::with(['photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'fittingType'])
+        $jointsForCluster = JalurJointData::with(['photoApprovals.tracerUser', 'photoApprovals.cgpUser', 'fittingType'])
             ->where(function ($q) use ($allLineNumbersInCluster) {
                 $q->whereIn('joint_line_from', $allLineNumbersInCluster)
                     ->orWhereIn('joint_line_to', $allLineNumbersInCluster)
@@ -340,7 +340,7 @@ class TracerJalurApprovalController extends Controller
      */
     public function jointEvidence(Request $request, int $jointId)
     {
-        $joint = \App\Models\JalurJointData::with([
+        $joint = JalurJointData::with([
             'photoApprovals.tracerUser',
             'photoApprovals.cgpUser',
             'fittingType',
@@ -411,7 +411,7 @@ class TracerJalurApprovalController extends Controller
                 'new_status' => 'tracer_approved'
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Approve photo failed', [
                 'photo_id' => $request->photo_id,
                 'error' => $e->getMessage()
@@ -451,7 +451,7 @@ class TracerJalurApprovalController extends Controller
                 'new_status' => 'tracer_rejected'
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Reject photo failed', [
                 'photo_id' => $request->photo_id,
                 'error' => $e->getMessage()
@@ -484,7 +484,7 @@ class TracerJalurApprovalController extends Controller
                 ->get();
 
             if ($photos->isEmpty()) {
-                throw new \Exception('Tidak ada foto yang perlu di-approve untuk tanggal ini');
+                throw new Exception('Tidak ada foto yang perlu di-approve untuk tanggal ini');
             }
 
             $approved = 0;
@@ -505,7 +505,7 @@ class TracerJalurApprovalController extends Controller
                 'approved_count' => $approved
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             Log::error('Approve date photos failed', [
                 'lowering_id' => $request->lowering_id,
@@ -543,7 +543,7 @@ class TracerJalurApprovalController extends Controller
                 ->get();
 
             if ($allPhotos->isEmpty()) {
-                throw new \Exception('Tidak ada foto yang perlu di-approve untuk line ini');
+                throw new Exception('Tidak ada foto yang perlu di-approve untuk line ini');
             }
 
             $approved = 0;
@@ -565,7 +565,7 @@ class TracerJalurApprovalController extends Controller
                 'line_id' => $line->id
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             Log::error('Approve line failed', [
                 'line_id' => $request->line_id,
@@ -1193,7 +1193,7 @@ class TracerJalurApprovalController extends Controller
     /**
      * Calculate approval statistics for joint data (for separate joint cards)
      */
-    private function calculateJointStats(\App\Models\JalurJointData $joint, $dateFrom = null, $dateTo = null): array
+    private function calculateJointStats(JalurJointData $joint, $dateFrom = null, $dateTo = null): array
     {
         $totalPhotos = 0;
         $approvedPhotos = 0;

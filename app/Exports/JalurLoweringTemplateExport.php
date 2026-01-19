@@ -27,6 +27,7 @@ class JalurLoweringTemplateExport implements FromArray, WithHeadings, WithStyles
             'cassing_quantity',
             'marker_tape_quantity',
             'concrete_slab_quantity',
+            'landasan_quantity',
             'mc_0',
             'mc_100',
             'keterangan',
@@ -51,6 +52,7 @@ class JalurLoweringTemplateExport implements FromArray, WithHeadings, WithStyles
                 '',
                 '100.00',
                 '45.50',
+                '',
                 'Contoh data lowering',
             ],
             [
@@ -68,6 +70,7 @@ class JalurLoweringTemplateExport implements FromArray, WithHeadings, WithStyles
                 '25',
                 '150.00',
                 '30.00',
+                '10.5',
                 'Contoh dengan aksesoris',
             ],
         ];
@@ -105,9 +108,10 @@ class JalurLoweringTemplateExport implements FromArray, WithHeadings, WithStyles
             'J' => 18,  // cassing_quantity
             'K' => 20,  // marker_tape_quantity
             'L' => 22,  // concrete_slab_quantity
-            'M' => 12,  // mc_0
-            'N' => 12,  // mc_100
-            'O' => 30,  // keterangan
+            'M' => 20,  // landasan_quantity
+            'N' => 12,  // mc_0
+            'O' => 12,  // mc_100
+            'P' => 30,  // keterangan
         ];
     }
 }

@@ -155,6 +155,7 @@ class GoogleSheetsService
         $cassingPhotoUrl = $this->getPhotoUrl($lowering, 'foto_evidence_cassing');
         $markerTapePhotoUrl = $this->getPhotoUrl($lowering, 'foto_evidence_marker_tape');
         $concreteSlabPhotoUrl = $this->getPhotoUrl($lowering, 'foto_evidence_concrete_slab');
+        $landasanPhotoUrl = $this->getPhotoUrl($lowering, 'foto_evidence_landasan');
 
         $valLink = function ($val, $url) {
             if (empty($url))
@@ -176,6 +177,11 @@ class GoogleSheetsService
         $concreteSlabVal = '-';
         if ($lowering->aksesoris_concrete_slab)
             $concreteSlabVal = $valLink($lowering->concrete_slab_quantity, $concreteSlabPhotoUrl);
+
+        $landasanVal = '-';
+        if ($lowering->aksesoris_landasan && $lowering->tipe_bongkaran === 'Open Cut') {
+            $landasanVal = $valLink($lowering->landasan_quantity, $landasanPhotoUrl);
+        }
 
         $mc100Raw = $lowering->lineNumber->actual_mc100 ?? '';
         $mc100Val = $valLink($mc100Raw, $mainPhotoUrl);
@@ -200,7 +206,7 @@ class GoogleSheetsService
             $cassingVal,                                            // O
             $markerTapeVal,                                         // P
             $concreteSlabVal,                                       // Q
-            $lowering->tipe_material ?? '',                         // R
+            ($lowering->tipe_bongkaran === 'Open Cut') ? $landasanVal : ($lowering->tipe_material ?? ''), // R
             '',                                                     // S
             $mc100Val,                                              // T
             '',                                                     // U

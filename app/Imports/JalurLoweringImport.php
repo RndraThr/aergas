@@ -40,7 +40,7 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
     public function registerEvents(): array
     {
         return [
-            BeforeSheet::class => function(BeforeSheet $event) {
+            BeforeSheet::class => function (BeforeSheet $event) {
                 $this->sheet = $event->getSheet()->getDelegate();
 
                 // If filePath is provided, load Excel directly to extract hyperlinks
@@ -149,8 +149,9 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
             'cassing_quantity' => 'J',      // Kolom J (I=kedalaman)
             'marker_tape_quantity' => 'K',  // Kolom K
             'concrete_slab_quantity' => 'L', // Kolom L
-            'mc_0' => 'M',                  // Kolom M
-            'mc_100' => 'N',                // Kolom N
+            'landasan_quantity' => 'M',     // Kolom M (New Position)
+            'mc_0' => 'N',                  // Kolom N (Shifted from M)
+            'mc_100' => 'O',                // Kolom O (Shifted from N)
         ];
 
         $columnLetter = $columnMap[$columnName] ?? null;
@@ -251,20 +252,61 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
             $data[$normalizedKey] = $value;
         }
 
-        // Extract values
+        // 1. Smart Parsing: Check if line_number contains Full Line Number (e.g. 63-PK-KI-LN001)
+        // 1. Smart Parsing: Check if line_number contains Full Line Number (e.g. 63-PK-KI-LN001)
+        $rawLineNumber = isset($data['line_number']) || isset($data['linenumber'])
+            ? (string) ($data['line_number'] ?? $data['linenumber'])
+            : null;
+
+        if ($rawLineNumber && preg_match('/^\s*(\d+)\s*-\s*([A-Z0-9\-]+)\s*-\s*LN\s*([A-Za-z0-9]+)\s*$/i', $rawLineNumber, $matches)) {
+            // Format detected: {DIAMETER}-{CLUSTER}-LN{SUFFIX}
+            $data['diameter'] = $matches[1];
+            $data['cluster_code'] = $matches[2];
+            $data['line_number_suffix'] = (string) $matches[3]; // Cast to string to satisfy validator
+        } else {
+            // Fallback: If parsing fails, treat the whole string as suffix (will likely fail max:10 but gives better clue)
+            // Or better: don't set it if it looks like a full number but failed regex
+            $data['line_number_suffix'] = (string) $rawLineNumber;
+        }
+
+        // Extract values (reload after potential parsing)
         $diameter = $data['diameter'] ?? null;
         $clusterCode = $data['cluster_code'] ?? $data['clustercode'] ?? null;
-        $lineNumberSuffix = $data['line_number'] ?? $data['linenumber'] ?? null;
+        $lineNumberSuffix = isset($data['line_number_suffix']) ? (string) $data['line_number_suffix'] : null;
         $tanggalJalur = $data['tanggal_jalur'] ?? $data['tanggaljalur'] ?? null;
         $namaJalan = $data['nama_jalan'] ?? $data['namajalan'] ?? null;
-        $tipeBongkaran = $data['tipe_bongkaran'] ?? $data['tipebongkaran'] ?? null;
+
+        // 2. Shortcodes Map for Tipe Bongkaran
+        $tipeBongkaranRaw = $data['tipe_bongkaran'] ?? $data['tipebongkaran'] ?? null;
+        $tipeMap = [
+            'MB' => 'Manual Boring',
+            'OC' => 'Open Cut',
+            'CR' => 'Crossing',
+            'ZK' => 'Zinker',
+            'HDD' => 'HDD',
+            'MB-PK' => 'Manual Boring - PK',
+            'CR-PK' => 'Crossing - PK'
+        ];
+
+        $tipeBongkaran = $tipeMap[strtoupper($tipeBongkaranRaw)] ?? $tipeBongkaranRaw;
+
         $lowering = $data['lowering'] ?? null;
+
+        // 3. Auto-fill logic
+        // Bongkaran defaults to Lowering if empty
         $bongkaran = $data['bongkaran'] ?? null;
+        if ((is_null($bongkaran) || $bongkaran === '') && is_numeric($lowering)) {
+            $bongkaran = $lowering;
+        }
+
+        // Kedalaman defaults to null (handled later)
         $kedalaman = $data['kedalaman'] ?? null;
+
         $cassingQty = $data['cassing_quantity'] ?? $data['cassingquantity'] ?? null;
         $cassingType = $data['cassing_type'] ?? $data['cassingtype'] ?? null;
         $markerTapeQty = $data['marker_tape_quantity'] ?? $data['markertapequantity'] ?? null;
         $concreteSlabQty = $data['concrete_slab_quantity'] ?? $data['concreteslabquantity'] ?? null;
+        $landasanQty = $data['landasan_quantity'] ?? $data['landasanquantity'] ?? null;
         $mc0 = $data['mc_0'] ?? $data['mc0'] ?? null;
         $mc100 = $data['mc_100'] ?? $data['mc100'] ?? null;
         $keterangan = $data['keterangan'] ?? null;
@@ -280,7 +322,6 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
         }
 
         // Convert kedalaman to integer (remove decimals)
-        // If empty or null, set to null (will be handled by nullable validation)
         if (!empty($kedalaman)) {
             $kedalaman = (int) round((float) $kedalaman);
         } else {
@@ -306,6 +347,7 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
         $cassingLink = $this->getHyperlink($excelRowNumber, 'cassing_quantity');
         $markerTapeLink = $this->getHyperlink($excelRowNumber, 'marker_tape_quantity');
         $concreteSlabLink = $this->getHyperlink($excelRowNumber, 'concrete_slab_quantity');
+        $landasanLink = $this->getHyperlink($excelRowNumber, 'landasan_quantity');
 
         // Validation rules
         $rules = [
@@ -317,11 +359,12 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
             'tipe_bongkaran' => 'required|in:Manual Boring,Open Cut,Crossing,Zinker,HDD,Manual Boring - PK,Crossing - PK',
             'lowering' => 'required|numeric|min:0.01',
             'bongkaran' => 'required|numeric|min:0.01',
-            'kedalaman' => 'nullable|integer|min:1', // Changed to nullable
+            'kedalaman' => 'nullable|integer|min:1',
             'cassing_quantity' => 'nullable|numeric|min:0.1',
             'cassing_type' => 'nullable|in:4_inch,8_inch',
             'marker_tape_quantity' => 'nullable|numeric|min:0.1',
             'concrete_slab_quantity' => 'nullable|integer|min:1',
+            'landasan_quantity' => 'nullable|numeric|min:0.1',
             'mc_0' => 'nullable|numeric|min:0.01',
             'mc_100' => 'nullable|numeric|min:0.01',
             'keterangan' => 'nullable|string|max:1000',
@@ -341,6 +384,7 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
             'cassing_type' => $cassingType,
             'marker_tape_quantity' => $markerTapeQty,
             'concrete_slab_quantity' => $concreteSlabQty,
+            'landasan_quantity' => $landasanQty,
             'mc_0' => $mc0,
             'mc_100' => $mc100,
             'keterangan' => $keterangan,
@@ -355,15 +399,13 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
 
         // Custom validation: cluster must exist
         $validator->after(function ($validator) use ($clusterCode) {
-            $cluster = JalurCluster::where('code_cluster', $clusterCode)->first();
-            if (!$cluster) {
-                $validator->errors()->add('cluster_code', "Cluster dengan code '{$clusterCode}' tidak ditemukan.");
+            if ($clusterCode) {
+                $cluster = JalurCluster::where('code_cluster', $clusterCode)->first();
+                if (!$cluster) {
+                    $validator->errors()->add('cluster_code', "Cluster dengan code '{$clusterCode}' tidak ditemukan.");
+                }
             }
         });
-
-        // Note: Hyperlinks are now OPTIONAL for all fields including lowering
-        // If there's a hyperlink, it will be used to copy photo from Google Drive
-        // If no hyperlink, the field will just be null (no photo)
 
         if ($validator->fails()) {
             return [false, $validationData, $validator->errors()->all()];
@@ -374,6 +416,7 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
         $validationData['cassing_link'] = $cassingLink;
         $validationData['marker_tape_link'] = $markerTapeLink;
         $validationData['concrete_slab_link'] = $concreteSlabLink;
+        $validationData['landasan_link'] = $landasanLink;
 
         return [true, $validationData, []];
     }
@@ -480,6 +523,8 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
                     'marker_tape_quantity' => $data['marker_tape_quantity'],
                     'aksesoris_concrete_slab' => !empty($data['concrete_slab_quantity']),
                     'concrete_slab_quantity' => $data['concrete_slab_quantity'],
+                    'aksesoris_landasan' => !empty($data['landasan_quantity']),
+                    'landasan_quantity' => $data['landasan_quantity'],
                     'keterangan' => $data['keterangan'],
                     'status_laporan' => 'draft',
                     'created_by' => Auth::id(),
@@ -501,6 +546,10 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
 
                 if (!empty($data['concrete_slab_quantity']) && !empty($data['concrete_slab_link'])) {
                     $this->handlePhotoFromDriveLink($loweringData, 'foto_evidence_concrete_slab', $data['concrete_slab_link']);
+                }
+
+                if (!empty($data['landasan_quantity']) && !empty($data['landasan_link'])) {
+                    $this->handlePhotoFromDriveLink($loweringData, 'foto_evidence_landasan', $data['landasan_link']);
                 }
             }
 
@@ -573,7 +622,7 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
 
         // Define field categories
         $nonKrusialFields = ['nama_jalan', 'keterangan'];
-        $krusialDataFields = ['penggelaran', 'bongkaran', 'kedalaman_lowering', 'cassing_quantity', 'marker_tape_quantity', 'concrete_slab_quantity'];
+        $krusialDataFields = ['penggelaran', 'bongkaran', 'kedalaman_lowering', 'cassing_quantity', 'marker_tape_quantity', 'concrete_slab_quantity', 'landasan_quantity'];
 
         // Check what changed
         $changedFields = [];
@@ -589,23 +638,26 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
         }
 
         // Check krusial data fields
-        if ((float)$existingLowering->penggelaran !== (float)$newData['lowering']) {
+        if ((float) $existingLowering->penggelaran !== (float) $newData['lowering']) {
             $changedKrusial[] = 'penggelaran';
         }
-        if ((float)$existingLowering->bongkaran !== (float)$newData['bongkaran']) {
+        if ((float) $existingLowering->bongkaran !== (float) $newData['bongkaran']) {
             $changedKrusial[] = 'bongkaran';
         }
-        if ((int)($existingLowering->kedalaman_lowering ?? 0) !== (int)($newData['kedalaman'] ?? 0)) {
+        if ((int) ($existingLowering->kedalaman_lowering ?? 0) !== (int) ($newData['kedalaman'] ?? 0)) {
             $changedKrusial[] = 'kedalaman_lowering';
         }
-        if ((float)($existingLowering->cassing_quantity ?? 0) !== (float)($newData['cassing_quantity'] ?? 0)) {
+        if ((float) ($existingLowering->cassing_quantity ?? 0) !== (float) ($newData['cassing_quantity'] ?? 0)) {
             $changedKrusial[] = 'cassing_quantity';
         }
-        if ((float)($existingLowering->marker_tape_quantity ?? 0) !== (float)($newData['marker_tape_quantity'] ?? 0)) {
+        if ((float) ($existingLowering->marker_tape_quantity ?? 0) !== (float) ($newData['marker_tape_quantity'] ?? 0)) {
             $changedKrusial[] = 'marker_tape_quantity';
         }
-        if ((int)($existingLowering->concrete_slab_quantity ?? 0) !== (int)($newData['concrete_slab_quantity'] ?? 0)) {
+        if ((int) ($existingLowering->concrete_slab_quantity ?? 0) !== (int) ($newData['concrete_slab_quantity'] ?? 0)) {
             $changedKrusial[] = 'concrete_slab_quantity';
+        }
+        if ((float) ($existingLowering->landasan_quantity ?? 0) !== (float) ($newData['landasan_quantity'] ?? 0)) {
+            $changedKrusial[] = 'landasan_quantity';
         }
 
         // Check photo evidence changes (compare hyperlinks from photo_approvals)
@@ -665,6 +717,8 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
                 'marker_tape_quantity' => $newData['marker_tape_quantity'],
                 'aksesoris_concrete_slab' => !empty($newData['concrete_slab_quantity']),
                 'concrete_slab_quantity' => $newData['concrete_slab_quantity'],
+                'aksesoris_landasan' => !empty($newData['landasan_quantity']),
+                'landasan_quantity' => $newData['landasan_quantity'],
                 'keterangan' => $newData['keterangan'],
                 'nama_jalan' => $newData['nama_jalan'] ?? null,
                 'updated_by' => Auth::id(),
@@ -736,6 +790,14 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
             }
         }
 
+        // Check landasan photo
+        $landasanPhoto = $existingPhotos->get('foto_evidence_landasan');
+        if ($landasanPhoto && !empty($newData['landasan_link'])) {
+            if ($landasanPhoto->drive_link !== $newData['landasan_link']) {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -764,6 +826,10 @@ class JalurLoweringImport implements ToCollection, WithHeadingRow, WithEvents, W
 
         if (!empty($newData['concrete_slab_quantity']) && !empty($newData['concrete_slab_link'])) {
             $this->handlePhotoFromDriveLink($lowering, 'foto_evidence_concrete_slab', $newData['concrete_slab_link']);
+        }
+
+        if (!empty($newData['landasan_quantity']) && !empty($newData['landasan_link'])) {
+            $this->handlePhotoFromDriveLink($lowering, 'foto_evidence_landasan', $newData['landasan_link']);
         }
     }
 

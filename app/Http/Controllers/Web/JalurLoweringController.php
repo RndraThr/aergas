@@ -103,6 +103,8 @@ class JalurLoweringController extends Controller
             'concrete_slab_quantity' => 'required_if:aksesoris_concrete_slab,1|nullable|integer|min:1',
             'cassing_quantity' => 'required_if:aksesoris_cassing,1|nullable|numeric|min:0.1',
             'cassing_type' => 'required_if:aksesoris_cassing,1|nullable|in:4_inch,8_inch',
+            'aksesoris_landasan' => 'boolean',
+            'landasan_quantity' => 'required_if:aksesoris_landasan,1|nullable|numeric|min:0.1',
             'keterangan' => 'nullable|string|max:1000',
         ];
 
@@ -143,6 +145,17 @@ class JalurLoweringController extends Controller
                 $validationRules['foto_evidence_concrete_slab'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
             } else {
                 $validationRules['foto_evidence_concrete_slab_link'] = 'required|url';
+            }
+        }
+
+        // Add conditional validation for landasan photo
+        if ($request->has('aksesoris_landasan')) {
+            $uploadMethodLandasan = $request->input('upload_method_landasan', 'file');
+
+            if ($uploadMethodLandasan === 'file') {
+                $validationRules['foto_evidence_landasan'] = 'required|image|mimes:jpeg,jpg,png|max:35840';
+            } else {
+                $validationRules['foto_evidence_landasan_link'] = 'required|url';
             }
         }
 
@@ -227,6 +240,9 @@ class JalurLoweringController extends Controller
                 }
                 if ($request->has('aksesoris_cassing') && $request->hasFile('foto_evidence_cassing')) {
                     $photoFields[] = 'foto_evidence_cassing';
+                }
+                if ($request->has('aksesoris_landasan') && $request->hasFile('foto_evidence_landasan')) {
+                    $photoFields[] = 'foto_evidence_landasan';
                 }
 
                 $this->handlePhotoUploads($request, $lowering, $photoFields);
@@ -436,6 +452,56 @@ class JalurLoweringController extends Controller
                 }
             }
 
+            // Handle landasan photo from Google Drive link (if provided)
+            if ($request->filled('foto_evidence_landasan_link') && $request->has('aksesoris_landasan')) {
+                $landasanDriveLink = $request->input('foto_evidence_landasan_link');
+
+                try {
+                    $googleDriveService = app(GoogleDriveService::class);
+
+                    $lineNumber = $lowering->lineNumber->line_number;
+                    $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+                    $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
+                    $customDrivePath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$tanggalFolder}";
+
+                    // Generate descriptive filename
+                    $waktu = date('H-i-s');
+                    $fieldSlug = 'landasan';
+                    $customFileName = "LOWERING_{$lineNumber}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
+
+                    $result = $googleDriveService->copyFromDriveLink(
+                        $landasanDriveLink,
+                        $customDrivePath,
+                        $customFileName
+                    );
+
+                    PhotoApproval::create([
+                        'reff_id_pelanggan' => null,
+                        'module_name' => 'jalur_lowering',
+                        'module_record_id' => $lowering->id,
+                        'photo_field_name' => 'foto_evidence_landasan',
+                        'photo_url' => $result['url'],
+                        'drive_link' => $result['url'],
+                        'photo_status' => 'tracer_pending',
+                        'uploaded_by' => Auth::id(),
+                        'uploaded_at' => now(),
+                    ]);
+
+                    Log::info('Google Drive landasan photo copied successfully', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $landasanDriveLink,
+                        'result' => $result
+                    ]);
+
+                } catch (\Exception $e) {
+                    Log::error('Failed to copy landasan photo from Google Drive link', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $landasanDriveLink,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
             DB::commit();
 
             return redirect()
@@ -517,6 +583,8 @@ class JalurLoweringController extends Controller
             'aksesoris_concrete_slab' => 'boolean',
             'marker_tape_quantity' => 'required_if:aksesoris_marker_tape,1|nullable|numeric|min:0.1',
             'concrete_slab_quantity' => 'required_if:aksesoris_concrete_slab,1|nullable|integer|min:1',
+            'aksesoris_landasan' => 'boolean',
+            'landasan_quantity' => 'required_if:aksesoris_landasan,1|nullable|numeric|min:0.1',
             'cassing_quantity' => 'required_if:aksesoris_cassing,1|nullable|numeric|min:0.1',
             'cassing_type' => 'required_if:aksesoris_cassing,1|nullable|in:4_inch,8_inch',
             'keterangan' => 'nullable|string|max:1000',
@@ -563,6 +631,11 @@ class JalurLoweringController extends Controller
                         if ($request->has('aksesoris_cassing') && $request->hasFile('foto_evidence_cassing')) {
                             $photoFields[] = 'foto_evidence_cassing';
                         }
+                    }
+
+                    // Add landasan photo if checked
+                    if ($request->has('aksesoris_landasan') && $request->hasFile('foto_evidence_landasan')) {
+                        $photoFields[] = 'foto_evidence_landasan';
                     }
 
                     $this->handlePhotoUploads($request, $lowering, $photoFields);
@@ -640,6 +713,82 @@ class JalurLoweringController extends Controller
                         ]);
                         throw new \Exception('Gagal mengunduh foto dari Google Drive: ' . $e->getMessage());
                     }
+                }
+            }
+
+            // Handle landasan photo from Google Drive link (if provided in update)
+            if ($request->filled('foto_evidence_landasan_link') && $request->has('aksesoris_landasan')) {
+                $landasanDriveLink = $request->input('foto_evidence_landasan_link');
+
+                try {
+                    $googleDriveService = app(GoogleDriveService::class);
+
+                    $lineNumber = $lowering->lineNumber->line_number;
+                    $clusterName = $lowering->lineNumber->cluster->nama_cluster;
+                    $clusterSlug = \Illuminate\Support\Str::slug($clusterName, '_');
+                    $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
+                    $customDrivePath = "jalur_lowering/{$clusterSlug}/{$lineNumber}/{$tanggalFolder}";
+
+                    // Generate descriptive filename
+                    $waktu = date('H-i-s');
+                    $fieldSlug = 'landasan';
+                    $customFileName = "LOWERING_{$lineNumber}_{$tanggalFolder}_{$waktu}_{$fieldSlug}";
+
+                    $result = $googleDriveService->copyFromDriveLink(
+                        $landasanDriveLink,
+                        $customDrivePath,
+                        $customFileName
+                    );
+
+                    // Replace existing photo or create new one
+                    $existingPhoto = PhotoApproval::where('module_name', 'jalur_lowering')
+                        ->where('module_record_id', $lowering->id)
+                        ->where('photo_field_name', 'foto_evidence_landasan')
+                        ->first();
+
+                    $photoData = [
+                        'reff_id_pelanggan' => null,
+                        'module_name' => 'jalur_lowering',
+                        'module_record_id' => $lowering->id,
+                        'photo_field_name' => 'foto_evidence_landasan',
+                        'photo_url' => $result['url'],
+                        'drive_link' => $result['url'],
+                        'photo_status' => 'tracer_pending',
+                        'uploaded_by' => Auth::id(),
+                        'uploaded_at' => now(),
+                        'tracer_user_id' => null,
+                        'tracer_approved_at' => null,
+                        'tracer_rejected_at' => null,
+                        'tracer_notes' => null,
+                        'cgp_user_id' => null,
+                        'cgp_approved_at' => null,
+                        'cgp_rejected_at' => null,
+                        'cgp_notes' => null,
+                    ];
+
+                    if ($existingPhoto) {
+                        $existingPhoto->update($photoData);
+                        $this->resetModuleStatusWhenPhotoReplaced($lowering);
+                    } else {
+                        PhotoApproval::create($photoData);
+                    }
+
+                    Log::info('Google Drive landasan photo copied successfully in update', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $landasanDriveLink,
+                        'result' => $result
+                    ]);
+
+                } catch (\Exception $e) {
+                    Log::error('Failed to copy landasan photo from Google Drive link in update', [
+                        'lowering_id' => $lowering->id,
+                        'drive_link' => $landasanDriveLink,
+                        'error' => $e->getMessage()
+                    ]);
+                    // Don't throw logic breaking error, just log and continue or flash warning?
+                    // User might want to know.
+                    // But for consistency with main photo catch (Line 712 throws Exception).
+                    throw new \Exception('Gagal mengunduh foto Landasan dari Google Drive: ' . $e->getMessage());
                 }
             }
 

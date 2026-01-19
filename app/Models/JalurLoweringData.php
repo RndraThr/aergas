@@ -27,6 +27,8 @@ class JalurLoweringData extends BaseModuleModel
         'aksesoris_concrete_slab' => 'boolean',
         'marker_tape_quantity' => 'decimal:2',
         'concrete_slab_quantity' => 'integer',
+        'aksesoris_landasan' => 'boolean',
+        'landasan_quantity' => 'decimal:2',
         'cassing_quantity' => 'decimal:2',
         'cassing_type' => 'string',
         'tipe_material' => 'string',
@@ -112,7 +114,14 @@ class JalurLoweringData extends BaseModuleModel
             $photos[] = 'foto_evidence_marker_tape';
             $photos[] = 'foto_evidence_concrete_slab';
             $photos[] = 'foto_evidence_cassing';
-        } elseif (in_array($this->tipe_bongkaran, ['Crossing', 'Zinker'])) {
+        }
+
+        // Conditional photos based on aksesoris flags
+        if ($this->aksesoris_landasan) {
+            $photos[] = 'foto_evidence_landasan';
+        }
+
+        if (in_array($this->tipe_bongkaran, ['Crossing', 'Zinker'])) {
             $photos[] = 'foto_evidence_cassing';
         }
 
@@ -123,7 +132,7 @@ class JalurLoweringData extends BaseModuleModel
     public function getAksesorisRequired(): array
     {
         return match ($this->tipe_bongkaran) {
-            'Open Cut' => ['marker_tape', 'concrete_slab', 'cassing'],
+            'Open Cut' => ['marker_tape', 'concrete_slab', 'cassing', 'landasan'],
             'Crossing', 'Zinker' => ['cassing'],
             default => [],
         };

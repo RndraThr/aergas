@@ -309,6 +309,37 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Landasan (Open Cut Only) -->
+                        <div id="landasan_container" class="space-y-2 hidden">
+                            <div class="flex items-center">
+                                <input type="checkbox"
+                                       id="aksesoris_landasan"
+                                       name="aksesoris_landasan"
+                                       value="1"
+                                       onchange="toggleQuantityField('landasan')"
+                                       {{ old('aksesoris_landasan') ? 'checked' : '' }}
+                                       class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500">
+                                <label for="aksesoris_landasan" class="ml-2 text-sm font-medium text-gray-700">
+                                    Tipe Landasan
+                                </label>
+                            </div>
+                            <div id="landasan_quantity_field" class="ml-6 hidden">
+                                <div class="mb-2">
+                                    <label for="landasan_quantity" class="block text-xs text-gray-600 mb-1">
+                                        Quantity
+                                    </label>
+                                    <input type="number"
+                                           id="landasan_quantity"
+                                           name="landasan_quantity"
+                                           value="{{ old('landasan_quantity') }}"
+                                           step="0.1"
+                                           min="0.1"
+                                           placeholder="0.0"
+                                           class="w-48 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -612,6 +643,44 @@
                                 </p>
                             </div>
                         </div>
+
+                        <!-- Landasan Photo -->
+                        <div id="landasan-photo" class="border rounded-lg p-4 hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Foto Evidence Landasan <span class="text-red-500">*</span>
+                            </label>
+
+                            <div class="mb-3 flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="upload_method_landasan" value="file" checked
+                                           onchange="toggleUploadMethodLandasan('file')">
+                                    <span class="ml-2 text-sm">Upload File</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="upload_method_landasan" value="link"
+                                           onchange="toggleUploadMethodLandasan('link')">
+                                    <span class="ml-2 text-sm">Google Drive Link</span>
+                                </label>
+                            </div>
+
+                            <div id="landasan_file_upload">
+                                <input type="file"
+                                       id="foto_evidence_landasan"
+                                       name="foto_evidence_landasan"
+                                       accept="image/*"
+                                       class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100">
+                                <p class="text-xs text-gray-500 mt-1">Foto evidence landasan.</p>
+                            </div>
+
+                            <div id="landasan_link_upload" class="hidden">
+                                <input type="url"
+                                       id="foto_evidence_landasan_link"
+                                       name="foto_evidence_landasan_link"
+                                       placeholder="https://drive.google.com/file/d/..."
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <p class="text-xs text-gray-500 mt-1">Paste link Google Drive untuk foto landasan.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -837,6 +906,13 @@ function updateAksesoris() {
     // Update label field Bongkaran berdasarkan tipe bongkaran
     updateBongkaranLabel(tipeBongkaran);
 
+    // Landasan Visibility Logic - Show for ALL types (User Request)
+    const landasanContainer = document.getElementById('landasan_container');
+    if (landasanContainer) {
+        landasanContainer.classList.remove('hidden');
+    }
+
+
     // Show aksesoris section for all tipe bongkaran (flexible & dynamic)
     if (tipeBongkaran) {
         aksesorisSection.classList.remove('hidden');
@@ -1001,14 +1077,16 @@ function updateAccessoryPhotoSections() {
     const markerTapePhoto = document.getElementById('marker-tape-photo');
     const concreteSlabPhoto = document.getElementById('concrete-slab-photo');
     const cassingPhoto = document.getElementById('cassing-photo');
+    const landasanPhoto = document.getElementById('landasan-photo');
 
     // Get checkbox states
     const markerTapeChecked = document.getElementById('aksesoris_marker_tape')?.checked;
     const concreteSlabChecked = document.getElementById('aksesoris_concrete_slab')?.checked;
     const cassingChecked = document.getElementById('aksesoris_cassing')?.checked;
+    const landasanChecked = document.getElementById('aksesoris_landasan')?.checked;
 
     // Show/hide photo sections based on what's checked
-    let anyChecked = markerTapeChecked || concreteSlabChecked || cassingChecked;
+    let anyChecked = markerTapeChecked || concreteSlabChecked || cassingChecked || landasanChecked;
 
     if (anyChecked) {
         accessoryPhotosSection.classList.remove('hidden');
@@ -1030,6 +1108,12 @@ function updateAccessoryPhotoSections() {
             cassingPhoto.classList.remove('hidden');
         } else {
             cassingPhoto.classList.add('hidden');
+        }
+
+        if (landasanChecked && landasanPhoto) {
+            landasanPhoto.classList.remove('hidden');
+        } else if (landasanPhoto) {
+            landasanPhoto.classList.add('hidden');
         }
     } else {
         accessoryPhotosSection.classList.add('hidden');
@@ -1077,6 +1161,8 @@ document.getElementById('loweringForm').addEventListener('submit', function(e) {
     const markerTapeQty = document.getElementById('marker_tape_quantity');
     const concreteSlabCheckbox = document.getElementById('aksesoris_concrete_slab');
     const concreteSlabQty = document.getElementById('concrete_slab_quantity');
+    const landasanCheckbox = document.getElementById('aksesoris_landasan');
+    const landasanQty = document.getElementById('landasan_quantity');
 
     // Force enable cassing fields if checkbox is checked (prevent disabled fields from blocking submission)
     if (cassingCheckbox && cassingCheckbox.checked && !cassingCheckbox.disabled) {
@@ -1092,6 +1178,11 @@ document.getElementById('loweringForm').addEventListener('submit', function(e) {
     // Force enable concrete slab fields if checkbox is checked
     if (concreteSlabCheckbox && concreteSlabCheckbox.checked && !concreteSlabCheckbox.disabled) {
         if (concreteSlabQty) concreteSlabQty.disabled = false;
+    }
+
+    // Force enable landasan fields
+    if (landasanCheckbox && landasanCheckbox.checked && !landasanCheckbox.disabled) {
+        if (landasanQty) landasanQty.disabled = false;
     }
 });
 
@@ -1194,6 +1285,32 @@ function toggleUploadMethodConcreteSlab(method) {
     }
 }
 
+function toggleUploadMethodLandasan(method) {
+    const fileSection = document.getElementById('landasan_file_upload');
+    const linkSection = document.getElementById('landasan_link_upload');
+    const fileInput = document.getElementById('foto_evidence_landasan');
+    const linkInput = document.getElementById('foto_evidence_landasan_link');
+
+    if (method === 'file') {
+        fileSection.classList.remove('hidden');
+        linkSection.classList.add('hidden');
+        if (document.getElementById('aksesoris_landasan')?.checked) {
+            fileInput.required = true;
+        }
+        linkInput.required = false;
+        linkInput.value = '';
+    } else {
+        fileSection.classList.add('hidden');
+        linkSection.classList.remove('hidden');
+        fileInput.required = false;
+        if (document.getElementById('aksesoris_landasan')?.checked) {
+            linkInput.required = true;
+        }
+        fileInput.value = '';
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize line number preview
     updateLineNumberPreview();
@@ -1213,6 +1330,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('aksesoris_cassing').checked ||
         (document.getElementById('aksesoris_cassing_open_cut') && document.getElementById('aksesoris_cassing_open_cut').checked)) {
         toggleQuantityField('cassing');
+    }
+    if (document.getElementById('aksesoris_landasan') && document.getElementById('aksesoris_landasan').checked) {
+        toggleQuantityField('landasan');
     }
     // Initialize bongkaran label and value
     const tipeBongkaran = document.getElementById('tipe_bongkaran').value;

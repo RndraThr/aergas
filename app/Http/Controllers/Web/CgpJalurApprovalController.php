@@ -123,7 +123,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
         // Get ALL line numbers in cluster (not just filtered ones) for joint lookup
         $allLineNumbersInCluster = $cluster->lineNumbers()->pluck('line_number')->toArray();
 
-        $jointsForCluster = \App\Models\JalurJointData::with(['photoApprovals.cgpUser', 'fittingType'])
+        $jointsForCluster = JalurJointData::with(['photoApprovals.cgpUser', 'fittingType'])
             ->where(function ($q) use ($allLineNumbersInCluster) {
                 $q->whereIn('joint_line_from', $allLineNumbersInCluster)
                     ->orWhereIn('joint_line_to', $allLineNumbersInCluster)
@@ -1073,7 +1073,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
             }
 
             // Count joints for this line (avoid duplicates)
-            $lineJoints = \App\Models\JalurJointData::where(function ($q) use ($line) {
+            $lineJoints = JalurJointData::where(function ($q) use ($line) {
                 $q->where('joint_line_from', $line->line_number)
                     ->orWhere('joint_line_to', $line->line_number);
             })
@@ -1625,7 +1625,7 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
                 'message' => 'Photo berhasil di-revert ke Tracer Approved'
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('CGP revert photo error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,

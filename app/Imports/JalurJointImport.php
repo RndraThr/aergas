@@ -186,23 +186,39 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
         if (strtoupper($jointLineFrom) !== 'EXISTING') {
             $lineFrom = JalurLineNumber::where('line_number', $jointLineFrom)
                 ->where('cluster_id', $cluster->id)
-                ->where('diameter', $diameter)
+                // Removed diameter check to allow Reducer/Cross-diameter joints
                 ->first();
 
             if (!$lineFrom) {
-                throw new \Exception("Line '{$jointLineFrom}' tidak ditemukan di cluster {$cluster->nama_cluster} dengan diameter {$diameter}\"");
+                throw new \Exception("Line '{$jointLineFrom}' tidak ditemukan di cluster {$cluster->nama_cluster}. Pastikan Line Number benar.");
             }
+        } else {
+            $lineFrom = null; // Mark as null/existing
         }
 
         // Validate joint_line_to (skip validation if "EXISTING")
         if (strtoupper($jointLineTo) !== 'EXISTING') {
             $lineTo = JalurLineNumber::where('line_number', $jointLineTo)
                 ->where('cluster_id', $cluster->id)
-                ->where('diameter', $diameter)
+                // Removed diameter check
                 ->first();
 
             if (!$lineTo) {
-                throw new \Exception("Line '{$jointLineTo}' tidak ditemukan di cluster {$cluster->nama_cluster} dengan diameter {$diameter}\"");
+                throw new \Exception("Line '{$jointLineTo}' tidak ditemukan di cluster {$cluster->nama_cluster}. Pastikan Line Number benar.");
+            }
+        } else {
+            $lineTo = null;
+        }
+
+        // Check for Reducer logic (Different Diameters)
+        if ($lineFrom && $lineTo) {
+            if ($lineFrom->diameter != $lineTo->diameter) {
+                // Validate fitting type is Reducer (RD) or allow with warning
+                if (strpos($fittingType->code_fitting, 'RD') === false) {
+                    // Not a Reducer but diameters differ.
+                    // Allow it but log warning
+                    Log::warning("Joint {$jointNumber} connects different diameters ({$lineFrom->diameter} vs {$lineTo->diameter}) but fitting type is {$fittingType->code_fitting} (not RD).");
+                }
             }
         }
 
@@ -212,11 +228,11 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
             if (strtoupper($jointLineOptional) !== 'EXISTING') {
                 $lineOptional = JalurLineNumber::where('line_number', $jointLineOptional)
                     ->where('cluster_id', $cluster->id)
-                    ->where('diameter', $diameter)
+                    // Removed diameter check
                     ->first();
 
                 if (!$lineOptional) {
-                    throw new \Exception("Line '{$jointLineOptional}' tidak ditemukan di cluster {$cluster->nama_cluster} dengan diameter {$diameter}\"");
+                    throw new \Exception("Line '{$jointLineOptional}' tidak ditemukan di cluster {$cluster->nama_cluster}.");
                 }
             }
         }
@@ -654,7 +670,7 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
     private function checkJointPhotoLinkChanged($joint, string $newPhotoLink): bool
     {
         // Get existing photo approval
-        $existingPhoto = \App\Models\PhotoApproval::where('module_name', 'jalur_joint')
+        $existingPhoto = PhotoApproval::where('module_name', 'jalur_joint')
             ->where('module_record_id', $joint->id)
             ->where('photo_field_name', 'foto_evidence_joint')
             ->first();

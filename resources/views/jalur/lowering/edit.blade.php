@@ -213,9 +213,9 @@
                     </div>
                 </div>
 
-                <!-- Aksesoris Open Cut -->
-                <div id="open-cut-aksesoris" class="{{ old('tipe_bongkaran', $lowering->tipe_bongkaran) === 'Open Cut' ? '' : 'hidden' }} mb-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Aksesoris Open Cut</h3>
+                <!-- Aksesoris (Unified) -->
+                <div id="aksesoris-section" class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Aksesoris</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <div class="flex items-center mb-3">
@@ -304,49 +304,37 @@
                                 @enderror
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Aksesoris Crossing/Zinker -->
-                <div id="crossing-zinker-aksesoris" class="{{ in_array(old('tipe_bongkaran', $lowering->tipe_bongkaran), ['Crossing', 'Zinker']) ? '' : 'hidden' }} mb-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Aksesoris {{ old('tipe_bongkaran', $lowering->tipe_bongkaran) }}</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Landasan (Open Cut) -->
                         <div>
                             <div class="flex items-center mb-3">
-                                <input type="checkbox" 
-                                       id="aksesoris_cassing_crossing" 
-                                       name="aksesoris_cassing_crossing" 
+                                <input type="checkbox"
+                                       id="aksesoris_landasan"
+                                       name="aksesoris_landasan"
                                        value="1"
-                                       {{ old('aksesoris_cassing_crossing', ($lowering->tipe_bongkaran == 'Crossing' || $lowering->tipe_bongkaran == 'Zinker') ? $lowering->aksesoris_cassing : false) ? 'checked' : '' }}
+                                       {{ old('aksesoris_landasan', $lowering->aksesoris_landasan) ? 'checked' : '' }}
                                        class="h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
-                                       onchange="toggleCassingQuantityCrossing()">
-                                <label for="aksesoris_cassing_crossing" class="ml-2 text-sm font-medium text-gray-700">
-                                    Cassing
+                                       onchange="toggleLandasanQuantity()">
+                                <label for="aksesoris_landasan" class="ml-2 text-sm font-medium text-gray-700">
+                                    Tipe Landasan
                                 </label>
                             </div>
-                            <div id="cassing-fields-crossing" class="{{ old('aksesoris_cassing_crossing', ($lowering->tipe_bongkaran == 'Crossing' || $lowering->tipe_bongkaran == 'Zinker') ? $lowering->aksesoris_cassing : false) ? '' : 'hidden' }}">
-                                <input type="number" 
-                                       name="cassing_quantity_crossing" 
-                                       value="{{ old('cassing_quantity_crossing', ($lowering->tipe_bongkaran == 'Crossing' || $lowering->tipe_bongkaran == 'Zinker') ? $lowering->cassing_quantity : '') }}"
-                                       step="0.1" 
+                            <div id="landasan-quantity" class="{{ old('aksesoris_landasan', $lowering->aksesoris_landasan) ? '' : 'hidden' }}">
+                                <input type="number"
+                                       name="landasan_quantity"
+                                       value="{{ old('landasan_quantity', $lowering->landasan_quantity) }}"
+                                       step="0.1"
                                        min="0"
                                        placeholder="Quantity (meter)"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 mb-2 @error('cassing_quantity') border-red-500 @enderror">
-                                @error('cassing_quantity')
-                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                                @enderror
-                                <select name="cassing_type_crossing" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
-                                    <option value="">Pilih Tipe Cassing</option>
-                                    <option value="4_inch" {{ old('cassing_type_crossing', ($lowering->tipe_bongkaran == 'Crossing' || $lowering->tipe_bongkaran == 'Zinker') ? $lowering->cassing_type : '') === '4_inch' ? 'selected' : '' }}>4 Inch</option>
-                                    <option value="8_inch" {{ old('cassing_type_crossing', ($lowering->tipe_bongkaran == 'Crossing' || $lowering->tipe_bongkaran == 'Zinker') ? $lowering->cassing_type : '') === '8_inch' ? 'selected' : '' }}>8 Inch</option>
-                                </select>
-                                @error('cassing_type')
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 @error('landasan_quantity') border-red-500 @enderror">
+                                @error('landasan_quantity')
                                     <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                                 @enderror
                             </div>
                         </div>
                     </div>
                 </div>
+
 
                 <!-- Keterangan -->
                 <div class="mb-6">
@@ -588,6 +576,44 @@
                                        class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100">
                                 <p class="text-xs text-gray-500 mt-1">Foto pemasangan cassing pada jalur crossing/open cut.</p>
                             </div>
+
+                            <!-- Landasan Photo (with Drive Link support) -->
+                            <div id="landasan-photo" class="border rounded-lg p-4 hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Foto Evidence Landasan
+                                </label>
+
+                                <div class="mb-3 flex space-x-4">
+                                    <label class="inline-flex items-center">
+                                        <input type="radio" name="upload_method_landasan" value="file" checked
+                                               onchange="toggleUploadMethodLandasan('file')">
+                                        <span class="ml-2 text-sm">Upload File</span>
+                                    </label>
+                                    <label class="inline-flex items-center">
+                                        <input type="radio" name="upload_method_landasan" value="link"
+                                               onchange="toggleUploadMethodLandasan('link')">
+                                        <span class="ml-2 text-sm">Google Drive Link</span>
+                                    </label>
+                                </div>
+
+                                <div id="landasan_file_upload">
+                                    <input type="file"
+                                           id="foto_evidence_landasan"
+                                           name="foto_evidence_landasan"
+                                           accept="image/*"
+                                           class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100">
+                                    <p class="text-xs text-gray-500 mt-1">Foto evidence landasan.</p>
+                                </div>
+
+                                <div id="landasan_link_upload" class="hidden">
+                                    <input type="url"
+                                           id="foto_evidence_landasan_link"
+                                           name="foto_evidence_landasan_link"
+                                           placeholder="https://drive.google.com/file/d/..."
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                    <p class="text-xs text-gray-500 mt-1">Paste link Google Drive untuk foto landasan.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -615,43 +641,13 @@ function updateTipeBongkaran() {
     if (!selectedTipe) return;
 
     const tipe = selectedTipe.value;
-    const openCutDiv = document.getElementById('open-cut-aksesoris');
-    const crossingZinkerDiv = document.getElementById('crossing-zinker-aksesoris');
     const bongkaranLabel = document.getElementById('bongkaran-label');
-
-    // Helper to toggle visibility and disabled state
-    const toggleSection = (div, show) => {
-        if (show) {
-            div.classList.remove('hidden');
-            div.querySelectorAll('input, select').forEach(el => el.disabled = false);
-        } else {
-            div.classList.add('hidden');
-            div.querySelectorAll('input, select').forEach(el => el.disabled = true);
-        }
-    };
 
     // Update bongkaran label
     if (['Manual Boring', 'Manual Boring - PK'].includes(tipe)) {
         bongkaranLabel.textContent = 'Pekerjaan Manual Boring (meter)';
     } else {
         bongkaranLabel.textContent = 'Bongkaran (meter)';
-    }
-
-    // Toggle sections based on tipe
-    if (tipe === 'Open Cut') {
-        toggleSection(openCutDiv, true);
-        toggleSection(crossingZinkerDiv, false);
-        // Refresh internal toggles to ensure correct state
-        toggleMarkerTapeQuantity();
-        toggleConcreteSlabQuantity();
-        toggleCassingQuantity();
-    } else if (['Crossing', 'Zinker'].includes(tipe)) {
-        toggleSection(openCutDiv, false);
-        toggleSection(crossingZinkerDiv, true);
-        toggleCassingQuantityCrossing();
-    } else {
-        toggleSection(openCutDiv, false);
-        toggleSection(crossingZinkerDiv, false);
     }
 
     // Update radio button styles
@@ -665,6 +661,10 @@ function updateTipeBongkaran() {
             label.classList.add('border-gray-200');
         }
     });
+
+    // Handle Accessories Visibility - Always Show, just ensure inputs are correct
+    // We removed hiding logic so user can choose any accessory for any type.
+    updatePhotoSections();
 }
 
 function toggleMarkerTapeQuantity() {
@@ -703,17 +703,6 @@ function toggleCassingQuantity() {
     }
 }
 
-function toggleCassingQuantityCrossing() {
-    const checkbox = document.getElementById('aksesoris_cassing_crossing');
-    const fieldsDiv = document.getElementById('cassing-fields-crossing');
-    
-    if (checkbox.checked) {
-        fieldsDiv.classList.remove('hidden');
-    } else {
-        fieldsDiv.classList.add('hidden');
-        fieldsDiv.querySelectorAll('input, select').forEach(input => input.value = '');
-    }
-}
 
 // Photo upload functions
 function previewPhoto(input) {
@@ -758,30 +747,33 @@ function toggleUploadMethod() {
 }
 
 function updatePhotoSections() {
-    const selectedTipe = document.querySelector('input[name="tipe_bongkaran"]:checked');
-    if (!selectedTipe) return;
-
-    const tipe = selectedTipe.value;
     const accessoryPhotosSection = document.getElementById('accessory-photos-section');
     const markerTapePhoto = document.getElementById('marker-tape-photo');
     const concreteSlabPhoto = document.getElementById('concrete-slab-photo');
     const cassingPhoto = document.getElementById('cassing-photo');
+    const landasanPhoto = document.getElementById('landasan-photo');
 
-    // Hide all accessory photo sections first
-    accessoryPhotosSection.classList.add('hidden');
-    markerTapePhoto.classList.add('hidden');
-    concreteSlabPhoto.classList.add('hidden');
-    cassingPhoto.classList.add('hidden');
+    const markerTapeChecked = document.getElementById('aksesoris_marker_tape')?.checked;
+    const concreteSlabChecked = document.getElementById('aksesoris_concrete_slab')?.checked;
+    const cassingChecked = document.getElementById('aksesoris_cassing')?.checked;
+    const landasanChecked = document.getElementById('aksesoris_landasan')?.checked;
 
-    // Show relevant photo sections based on tipe
-    if (tipe === 'Open Cut') {
+    // Show/hide photo sections based on what's checked
+    let anyChecked = markerTapeChecked || concreteSlabChecked || cassingChecked || landasanChecked;
+
+    if (anyChecked) {
         accessoryPhotosSection.classList.remove('hidden');
-        markerTapePhoto.classList.remove('hidden');
-        concreteSlabPhoto.classList.remove('hidden');
-        cassingPhoto.classList.remove('hidden');
-    } else if (['Crossing', 'Zinker'].includes(tipe)) {
-        accessoryPhotosSection.classList.remove('hidden');
-        cassingPhoto.classList.remove('hidden');
+
+        if (markerTapeChecked) markerTapePhoto.classList.remove('hidden'); else markerTapePhoto.classList.add('hidden');
+        if (concreteSlabChecked) concreteSlabPhoto.classList.remove('hidden'); else concreteSlabPhoto.classList.add('hidden');
+        if (cassingChecked) cassingPhoto.classList.remove('hidden'); else cassingPhoto.classList.add('hidden');
+        if (landasanChecked && landasanPhoto) landasanPhoto.classList.remove('hidden'); else if (landasanPhoto) landasanPhoto.classList.add('hidden');
+    } else {
+        accessoryPhotosSection.classList.add('hidden');
+        markerTapePhoto.classList.add('hidden');
+        concreteSlabPhoto.classList.add('hidden');
+        cassingPhoto.classList.add('hidden');
+        if (landasanPhoto) landasanPhoto.classList.add('hidden');
     }
 }
 
