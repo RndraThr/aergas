@@ -122,12 +122,15 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
                 $lineFrom = trim($data['joint_line_from'] ?? '');
                 $lineTo = trim($data['joint_line_to'] ?? '');
 
-                if (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineFrom, $lineMatches)) {
-                    $clusterCode = $lineMatches[1];
-                } elseif (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineTo, $lineMatches)) {
-                    $clusterCode = $lineMatches[1];
+                // Regex: Start with digits, optional space, hyphen, optional space, capture Cluster (alphanumeric), optional space, hyphen, optional space, LN followed by digits, End. Case insensitive.
+                $regex = '/^\d+\s*-\s*([A-Za-z0-9]+)\s*-\s*LN\d+$/i';
+
+                if (preg_match($regex, $lineFrom, $lineMatches)) {
+                    $clusterCode = strtoupper($lineMatches[1]);
+                } elseif (preg_match($regex, $lineTo, $lineMatches)) {
+                    $clusterCode = strtoupper($lineMatches[1]);
                 } else {
-                    throw new \Exception("Untuk format joint tanpa cluster ({$jointNumber}), harus ada kolom 'Cluster' di Excel, atau cluster di joint_line_from/joint_line_to. Format Line: {DIAMETER}-{CLUSTER}-LN{NUMBER}");
+                    throw new \Exception("Gagal mendeteksi Cluster. \nJoint: {$jointNumber}. \nLine From: '{$lineFrom}'. \nLine To: '{$lineTo}'. \nPastikan format Line benar: {DIAMETER}-{CLUSTER}-LN{NUMBER} (Contoh: 180-KRG-LN001), atau isi kolom 'Cluster' di Excel.");
                 }
             }
         }
