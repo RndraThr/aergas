@@ -112,17 +112,25 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
         // 2. Validate Cluster
         // If cluster code is 'NONE', get cluster from Excel 'cluster' column or line_number
         if ($clusterCode === 'NONE') {
-            // Try to get cluster from line_from (e.g., 180-SLM-LN001 -> cluster SLM)
-            $lineFrom = trim($data['joint_line_from']);
-            $lineTo = trim($data['joint_line_to']); // Check line_to as fallback
+            // Priority 1: Check explicit cluster column from Excel
+            if (!empty($data['cluster'])) {
+                $clusterCode = trim($data['cluster']);
+            } 
+            // Priority 2: Try to get cluster from line_from (e.g., 180-SLM-LN001 -> cluster SLM)
+            elseif (!empty($data['joint_line_from'])) {
+                $lineFrom = trim($data['joint_line_from']);
+            
+            // Priority 3: Check line_to as fallback
+            $lineTo = trim($data['joint_line_to']); 
 
-            if (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineFrom, $lineMatches)) {
-                $clusterCode = $lineMatches[1];
-            } elseif (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineTo, $lineMatches)) {
-                // Fallback: Try to get cluster from line_to
-                $clusterCode = $lineMatches[1];
-            } else {
-                throw new \Exception("Untuk format joint tanpa cluster ({$jointNumber}), harus ada cluster di joint_line_from atau joint_line_to. Format: {DIAMETER}-{CLUSTER}-LN{NUMBER}");
+            if (!isset($clusterCode)) {
+                if (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineFrom ?? '', $lineMatches)) {
+                    $clusterCode = $lineMatches[1];
+                } elseif (preg_match('/^\d+-([A-Z]+)-LN\d+$/', $lineTo, $lineMatches)) {
+                    $clusterCode = $lineMatches[1];
+                } else {
+                    throw new \Exception("Untuk format joint tanpa cluster ({$jointNumber}), harus ada kolom 'Cluster' di Excel, atau cluster di joint_line_from/joint_line_to. Format Line: {DIAMETER}-{CLUSTER}-LN{NUMBER}");
+                }
             }
         }
 
