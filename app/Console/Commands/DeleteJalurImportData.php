@@ -16,6 +16,7 @@ class DeleteJalurImportData extends Command
                             {--from-date= : Delete data imported from this date}
                             {--to-date= : Delete data imported until this date}
                             {--module= : Specify module (lowering, joint, or all)}
+                            {--all : Delete ALL data without date filter}
                             {--dry-run : Preview what will be deleted without actually deleting}
                             {--force : Skip confirmation}';
 
@@ -29,14 +30,24 @@ class DeleteJalurImportData extends Command
         $module = $this->option('module') ?? 'all';
         $dryRun = $this->option('dry-run');
         $force = $this->option('force');
+        $all = $this->option('all');
 
-        if (!$date && !$fromDate && !$toDate) {
-            $this->error("You must specify at least one of: --date, --from-date, or --to-date");
+        if (!$date && !$fromDate && !$toDate && !$all) {
+            $this->error("You must specify at least one of: --date, --from-date, --to-date, or --all");
+            return 1;
+        }
+
+        if ($all && ($date || $fromDate || $toDate)) {
+            $this->error("You cannot use --all with date filters.");
             return 1;
         }
 
         $this->info("Jalur Import Data Deletion");
         $this->info("Module: " . ($module === 'all' ? 'Lowering & Joint' : ucfirst($module)));
+
+        if ($all) {
+            $this->warn("⚠️  DELETING ALL DATA (No Date Filter) ⚠️");
+        }
         $this->newLine();
 
         $stats = [];
