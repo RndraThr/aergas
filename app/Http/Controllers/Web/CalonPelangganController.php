@@ -49,8 +49,8 @@ class CalonPelangganController extends Controller
             if ($s = trim((string) $request->input('search', ''))) {
                 $query->where(function ($q) use ($s) {
                     $q->where('nama_pelanggan', 'like', "%{$s}%")
-                    ->orWhere('alamat', 'like', "%{$s}%")
-                    ->orWhere('reff_id_pelanggan', 'like', "%{$s}%");
+                        ->orWhere('alamat', 'like', "%{$s}%")
+                        ->orWhere('reff_id_pelanggan', 'like', "%{$s}%");
                 });
             }
             if ($request->filled('status')) {
@@ -59,35 +59,46 @@ class CalonPelangganController extends Controller
             if ($request->filled('progress_status')) {
                 $query->where('progress_status', $request->input('progress_status'));
             }
-            if ($request->filled('kelurahan')){$query->where('kelurahan','like','%'.$request->kelurahan.'%');}
-            if ($request->filled('padukuhan')){$query->where('padukuhan','like','%'.$request->padukuhan.'%');}
+            if ($request->filled('kelurahan')) {
+                $query->where('kelurahan', 'like', '%' . $request->kelurahan . '%');
+            }
+            if ($request->filled('padukuhan')) {
+                $query->where('padukuhan', 'like', '%' . $request->padukuhan . '%');
+            }
 
 
             // Sorting (whitelist)
-            $allowedSorts = ['created_at','updated_at','nama_pelanggan','progress_status','status','kelurahan','padukuhan'];
-            $sortBy        = in_array($request->input('sort_by'), $allowedSorts, true) ? $request->input('sort_by') : 'created_at';
+            $allowedSorts = ['created_at', 'updated_at', 'nama_pelanggan', 'progress_status', 'status', 'kelurahan', 'padukuhan'];
+            $sortBy = in_array($request->input('sort_by'), $allowedSorts, true) ? $request->input('sort_by') : 'created_at';
             $sortDirection = strtolower($request->input('sort_direction')) === 'asc' ? 'asc' : 'desc';
 
             $query->orderBy($sortBy, $sortDirection);
 
             // Pagination
-            $perPage   = min(max((int) $request->input('per_page', 15), 5), 50);
+            $perPage = min(max((int) $request->input('per_page', 15), 5), 50);
             $customers = $query->paginate($perPage)->appends($request->only([
-                'search','status','progress_status','kelurahan','padukuhan','sort_by','sort_direction','per_page'
+                'search',
+                'status',
+                'progress_status',
+                'kelurahan',
+                'padukuhan',
+                'sort_by',
+                'sort_direction',
+                'per_page'
             ]));
 
             // Updated stats with validation metrics
             $stats = [
-                'total_customers'       => CalonPelanggan::count(),
-                'pending_validation'    => CalonPelanggan::where('status', 'pending')->count(),
-                'validated_customers'   => CalonPelanggan::where('status', 'lanjut')->count(),
+                'total_customers' => CalonPelanggan::count(),
+                'pending_validation' => CalonPelanggan::where('status', 'pending')->count(),
+                'validated_customers' => CalonPelanggan::where('status', 'lanjut')->count(),
                 'in_progress_customers' => CalonPelanggan::whereIn('status', ['in_progress', 'lanjut'])
-                                                       ->whereNotIn('progress_status', ['done', 'batal'])
-                                                       ->count(),
-                'completed_customers'   => CalonPelanggan::where('progress_status', 'done')->count(),
-                'cancelled_customers'   => CalonPelanggan::where('progress_status', 'batal')
-                                                       ->orWhere('status', 'batal')
-                                                       ->count(),
+                    ->whereNotIn('progress_status', ['done', 'batal'])
+                    ->count(),
+                'completed_customers' => CalonPelanggan::where('progress_status', 'done')->count(),
+                'cancelled_customers' => CalonPelanggan::where('progress_status', 'batal')
+                    ->orWhere('status', 'batal')
+                    ->count(),
             ];
 
             // JSON for AJAX (fetch ?ajax=1)
@@ -102,23 +113,23 @@ class CalonPelangganController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'data'    => $customers, // paginator object
-                    'stats'   => $stats,
-                    'filters' => $request->only(['search','status','progress_status','kelurahan','padukuhan']),
+                    'data' => $customers, // paginator object
+                    'stats' => $stats,
+                    'filters' => $request->only(['search', 'status', 'progress_status', 'kelurahan', 'padukuhan']),
                     'currentSort' => ['field' => $sortBy, 'direction' => $sortDirection],
                 ]);
             }
 
             // Blade view (SSR first load)
             return view('customers.index', [
-                'customers'    => $customers,
-                'stats'        => $stats,
-                'currentSort'  => ['field' => $sortBy, 'direction' => $sortDirection],
-                'activeFilters'=> $request->only(['search','status','progress_status','kelurahan','padukuhan']),
+                'customers' => $customers,
+                'stats' => $stats,
+                'currentSort' => ['field' => $sortBy, 'direction' => $sortDirection],
+                'activeFilters' => $request->only(['search', 'status', 'progress_status', 'kelurahan', 'padukuhan']),
             ]);
         } catch (\Throwable $e) {
             Log::error('Error fetching customers', [
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'user_id' => $request->user()?->id,
             ]);
 
@@ -138,8 +149,11 @@ class CalonPelangganController extends Controller
     {
         try {
             $customer = CalonPelanggan::with([
-                'skData.photoApprovals', 'srData.photoApprovals','gasInData.photoApprovals',
-                'photoApprovals.tracerUser', 'photoApprovals.cgpUser',
+                'skData.photoApprovals',
+                'srData.photoApprovals',
+                'gasInData.photoApprovals',
+                'photoApprovals.tracerUser',
+                'photoApprovals.cgpUser',
                 'auditLogs.user'
             ])->findOrFail($reffId);
 
@@ -179,24 +193,27 @@ class CalonPelangganController extends Controller
 
         $validator = Validator::make($request->all(), [
             'reff_id_pelanggan' => [
-                'required', 'string', 'max:50', 'regex:/^[A-Z0-9]+$/',
+                'required',
+                'string',
+                'max:50',
+                'regex:/^[A-Z0-9]+$/',
                 Rule::unique('calon_pelanggan', 'reff_id_pelanggan'),
             ],
-            'nama_pelanggan'   => 'required|string|max:255',
-            'alamat'           => 'required|string|max:1000',
-            'no_telepon'       => 'required|string|max:20|regex:/^[0-9+\-\s]+$/',
-            'no_ktp'           => 'nullable|string|max:20|regex:/^[0-9]+$/',
-            'kelurahan'        => 'nullable|string|max:120',
-            'kota_kabupaten'   => 'nullable|string|max:100',
-            'kecamatan'        => 'nullable|string|max:100',
-            'padukuhan'        => 'nullable|string|max:120',
-            'jenis_pelanggan'  => 'nullable|in:pengembangan,penetrasi,on_the_spot_penetrasi,on_the_spot_pengembangan',
-            'keterangan'       => 'nullable|string|max:500',
-            'status'           => 'sometimes|in:pending,lanjut,in_progress,batal',
-            'progress_status'  => 'sometimes|in:validasi,sk,sr,gas_in,done,batal',
-            'email'            => 'nullable|email',
-            'latitude'         => 'nullable|numeric|between:-90,90',
-            'longitude'        => 'nullable|numeric|between:-180,180',
+            'nama_pelanggan' => 'required|string|max:255',
+            'alamat' => 'required|string|max:1000',
+            'no_telepon' => 'required|string|max:20|regex:/^[0-9+\-\s]+$/',
+            'no_ktp' => 'nullable|string|max:20|regex:/^[0-9]+$/',
+            'kelurahan' => 'nullable|string|max:120',
+            'kota_kabupaten' => 'nullable|string|max:100',
+            'kecamatan' => 'nullable|string|max:100',
+            'padukuhan' => 'nullable|string|max:120',
+            'jenis_pelanggan' => 'nullable|in:pengembangan,penetrasi,on_the_spot_penetrasi,on_the_spot_pengembangan',
+            'keterangan' => 'nullable|string|max:500',
+            'status' => 'sometimes|in:pending,lanjut,in_progress,batal',
+            'progress_status' => 'sometimes|in:validasi,sk,sr,gas_in,done,batal',
+            'email' => 'nullable|email',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
             'coordinate_source' => 'nullable|in:manual,gps,maps,survey,excel_import',
         ]);
 
@@ -205,7 +222,7 @@ class CalonPelangganController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Validasi gagal',
-                    'errors'  => $validator->errors(),
+                    'errors' => $validator->errors(),
                 ], 422);
             }
             return back()->withErrors($validator)->withInput();
@@ -213,15 +230,26 @@ class CalonPelangganController extends Controller
 
         try {
             $data = $request->only([
-                'reff_id_pelanggan','nama_pelanggan','alamat','no_telepon',
-                'kelurahan','padukuhan','keterangan','jenis_pelanggan','status','progress_status','email',
-                'latitude','longitude','coordinate_source'
+                'reff_id_pelanggan',
+                'nama_pelanggan',
+                'alamat',
+                'no_telepon',
+                'kelurahan',
+                'padukuhan',
+                'keterangan',
+                'jenis_pelanggan',
+                'status',
+                'progress_status',
+                'email',
+                'latitude',
+                'longitude',
+                'coordinate_source'
             ]);
 
             // default kalau tidak dikirim
-            $data['jenis_pelanggan']   = $data['jenis_pelanggan']  ?? 'pengembangan';
-            $data['status']            = $data['status']           ?? 'pending';
-            $data['progress_status']   = $data['progress_status']  ?? 'validasi';
+            $data['jenis_pelanggan'] = $data['jenis_pelanggan'] ?? 'pengembangan';
+            $data['status'] = $data['status'] ?? 'pending';
+            $data['progress_status'] = $data['progress_status'] ?? 'validasi';
             $data['tanggal_registrasi'] = now();
 
             // Set coordinate_updated_at if coordinates are provided
@@ -246,7 +274,7 @@ class CalonPelangganController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Pelanggan berhasil didaftarkan',
-                    'data'    => $customer,
+                    'data' => $customer,
                 ], 201);
             }
 
@@ -284,8 +312,10 @@ class CalonPelangganController extends Controller
         $steps = ['validasi', 'sk', 'sr', 'gas_in', 'done'];
         $currentIndex = array_search($customer->progress_status, $steps);
 
-        if ($currentIndex === false) return 0;
-        if ($customer->progress_status === 'done') return 100;
+        if ($currentIndex === false)
+            return 0;
+        if ($customer->progress_status === 'done')
+            return 100;
 
         return round(($currentIndex / (count($steps) - 1)) * 100);
     }
@@ -323,18 +353,18 @@ class CalonPelangganController extends Controller
 
             // rules dasar
             $rules = [
-                'nama_pelanggan'  => 'sometimes|string|max:255',
-                'alamat'          => 'sometimes|string|max:1000',
-                'no_telepon'      => 'sometimes|string|max:20|regex:/^[0-9+\-\s]+$/',
-                'status'          => 'sometimes|in:pending,lanjut,in_progress,batal',
+                'nama_pelanggan' => 'sometimes|string|max:255',
+                'alamat' => 'sometimes|string|max:1000',
+                'no_telepon' => 'sometimes|string|max:20|regex:/^[0-9+\-\s]+$/',
+                'status' => 'sometimes|in:pending,lanjut,in_progress,batal',
                 'progress_status' => 'sometimes|in:validasi,sk,sr,gas_in,done,batal',
-                'kelurahan'       => 'nullable|string|max:120',
-                'padukuhan'       => 'nullable|string|max:120',
+                'kelurahan' => 'nullable|string|max:120',
+                'padukuhan' => 'nullable|string|max:120',
                 'jenis_pelanggan' => 'nullable|in:pengembangan,penetrasi,on_the_spot_penetrasi,on_the_spot_pengembangan',
-                'keterangan'      => 'nullable|string|max:500',
-                'email'           => 'nullable|email',
-                'latitude'        => 'nullable|numeric|between:-90,90',
-                'longitude'       => 'nullable|numeric|between:-180,180',
+                'keterangan' => 'nullable|string|max:500',
+                'email' => 'nullable|email',
+                'latitude' => 'nullable|numeric|between:-90,90',
+                'longitude' => 'nullable|numeric|between:-180,180',
                 'coordinate_source' => 'nullable|in:manual,gps,maps,survey,excel_import'
             ];
 
@@ -362,14 +392,26 @@ class CalonPelangganController extends Controller
 
             // siapkan data update biasa
             $data = $request->only([
-                'nama_pelanggan','alamat','no_telepon','status',
-                'progress_status','kelurahan','padukuhan','jenis_pelanggan','keterangan','email',
-                'latitude','longitude','coordinate_source'
+                'nama_pelanggan',
+                'alamat',
+                'no_telepon',
+                'status',
+                'progress_status',
+                'kelurahan',
+                'padukuhan',
+                'jenis_pelanggan',
+                'keterangan',
+                'email',
+                'latitude',
+                'longitude',
+                'coordinate_source'
             ]);
 
             // Update coordinate_updated_at if coordinates are being updated
-            if (($request->filled('latitude') && $request->filled('longitude')) &&
-                ($customer->latitude !== $request->latitude || $customer->longitude !== $request->longitude)) {
+            if (
+                ($request->filled('latitude') && $request->filled('longitude')) &&
+                ($customer->latitude !== $request->latitude || $customer->longitude !== $request->longitude)
+            ) {
                 $data['coordinate_updated_at'] = now();
             }
 
@@ -383,12 +425,12 @@ class CalonPelangganController extends Controller
 
             // Check if status is changing from 'pending' to 'lanjut' or 'batal'
             $isChangingToValidated = $customer->status === 'pending' &&
-                                     isset($data['status']) &&
-                                     $data['status'] === 'lanjut';
+                isset($data['status']) &&
+                $data['status'] === 'lanjut';
 
             $isChangingToRejected = $customer->status === 'pending' &&
-                                    isset($data['status']) &&
-                                    $data['status'] === 'batal';
+                isset($data['status']) &&
+                $data['status'] === 'batal';
 
             // If validating customer, use proper validation method
             if ($isChangingToValidated) {
@@ -439,12 +481,12 @@ class CalonPelangganController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Pelanggan berhasil diperbarui',
-                    'data'    => $customer
+                    'data' => $customer
                 ]);
             }
 
             return redirect()->route('customers.show', $targetReff)
-                            ->with('success', 'Pelanggan berhasil diperbarui');
+                ->with('success', 'Pelanggan berhasil diperbarui');
 
         } catch (Exception $e) {
             Log::error('Error updating customer', ['reff_id' => $reffId, 'error' => $e->getMessage()]);
@@ -470,49 +512,50 @@ class CalonPelangganController extends Controller
 
             // 2) fallback kalau nol depan mungkin hilang saat disimpan numerik
             if (!$cp && ctype_digit($id)) {
-                $cp = CalonPelanggan::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$id])->first();
+                $cp = CalonPelanggan::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int) $id])->first();
             }
 
             // 3) fallback: ada di SK → ambil relasi calon_pelanggan
             if (!$cp) {
                 $sk = SkData::with('calonPelanggan')
-                           ->where('reff_id_pelanggan', $id)
-                           ->whereNull('deleted_at')
-                           ->first();
+                    ->where('reff_id_pelanggan', $id)
+                    ->whereNull('deleted_at')
+                    ->first();
                 if (!$sk && ctype_digit($id)) {
                     $sk = SkData::with('calonPelanggan')
-                        ->whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$id])
+                        ->whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int) $id])
                         ->whereNull('deleted_at')
                         ->first();
                 }
-                if ($sk && $sk->calonPelanggan) $cp = $sk->calonPelanggan;
+                if ($sk && $sk->calonPelanggan)
+                    $cp = $sk->calonPelanggan;
             }
 
             if ($cp) {
                 return response()->json([
                     'success' => true,
-                    'valid'   => false,
-                    'exists'  => true,
+                    'valid' => false,
+                    'exists' => true,
                     'message' => 'Pelanggan ditemukan',
-                    'data'    => [
+                    'data' => [
                         'reff_id_pelanggan' => $cp->reff_id_pelanggan,
-                        'nama_pelanggan'    => $cp->nama_pelanggan ?? null,
-                        'alamat'            => $cp->alamat ?? null,
-                        'no_telepon'        => $cp->no_telepon ?? null,
-                        'kelurahan'         => $cp->kelurahan ?? null,
-                        'padukuhan'         => $cp->padukuhan ?? null,
-                        'status'            => $cp->status ?? null,
-                        'progress_status'   => $cp->progress_status ?? null,
-                        'latitude'          => $cp->latitude ?? null,
-                        'longitude'         => $cp->longitude ?? null,
+                        'nama_pelanggan' => $cp->nama_pelanggan ?? null,
+                        'alamat' => $cp->alamat ?? null,
+                        'no_telepon' => $cp->no_telepon ?? null,
+                        'kelurahan' => $cp->kelurahan ?? null,
+                        'padukuhan' => $cp->padukuhan ?? null,
+                        'status' => $cp->status ?? null,
+                        'progress_status' => $cp->progress_status ?? null,
+                        'latitude' => $cp->latitude ?? null,
+                        'longitude' => $cp->longitude ?? null,
                     ],
                 ]);
             }
 
             return response()->json([
                 'success' => false,
-                'valid'   => true,
-                'exists'  => false,
+                'valid' => true,
+                'exists' => false,
                 'message' => 'Pelanggan tidak ditemukan',
             ], 404);
 
@@ -540,15 +583,15 @@ class CalonPelangganController extends Controller
     {
         if ($request->filled('search')) {
             $search = $request->string('search');
-            $query->where(function($q) use ($search) {
-                $q->where('nama_pelanggan', 'LIKE', '%'.$search.'%')
-                  ->orWhere('reff_id_pelanggan', 'LIKE', '%'.$search.'%')
-                  ->orWhere('alamat', 'LIKE', '%'.$search.'%')
-                  ->orWhere('no_telepon', 'LIKE', '%'.$search.'%');
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_pelanggan', 'LIKE', '%' . $search . '%')
+                    ->orWhere('reff_id_pelanggan', 'LIKE', '%' . $search . '%')
+                    ->orWhere('alamat', 'LIKE', '%' . $search . '%')
+                    ->orWhere('no_telepon', 'LIKE', '%' . $search . '%');
             });
         }
 
-        foreach (['status','progress_status','kelurahan','padukuhan','jenis_pelanggan'] as $filter) {
+        foreach (['status', 'progress_status', 'kelurahan', 'padukuhan', 'jenis_pelanggan'] as $filter) {
             if ($request->filled($filter)) {
                 $query->where($filter, $request->input($filter));
             }
@@ -561,7 +604,7 @@ class CalonPelangganController extends Controller
         $status = [];
 
         foreach ($modules as $module) {
-            $relationName = $module.'Data';
+            $relationName = $module . 'Data';
             $moduleData = $customer->$relationName;
 
             // NOTE: fallback ke status/workflow_status bila module_status tidak ada
@@ -571,8 +614,8 @@ class CalonPelangganController extends Controller
                 ?? 'not_started';
 
             $status[$module] = [
-                'status'       => $moduleStatus,
-                'can_proceed'  => $customer->canProceedToModule($module)
+                'status' => $moduleStatus,
+                'can_proceed' => $customer->canProceedToModule($module)
             ];
         }
         return $status;
@@ -633,7 +676,7 @@ class CalonPelangganController extends Controller
             }
 
             return redirect()->route('customers.show', $customer->reff_id_pelanggan)
-                           ->with('success', 'Pelanggan berhasil divalidasi');
+                ->with('success', 'Pelanggan berhasil divalidasi');
 
         } catch (Exception $e) {
             Log::error('Error validating customer', [
@@ -690,7 +733,7 @@ class CalonPelangganController extends Controller
             }
 
             return redirect()->route('customers.show', $customer->reff_id_pelanggan)
-                           ->with('success', 'Pelanggan berhasil ditolak');
+                ->with('success', 'Pelanggan berhasil ditolak');
 
         } catch (Exception $e) {
             Log::error('Error rejecting customer', [
@@ -1084,9 +1127,9 @@ class CalonPelangganController extends Controller
             if ($s = trim((string) $request->input('search', ''))) {
                 $query->where(function ($q) use ($s) {
                     $q->where('nama_pelanggan', 'like', "%{$s}%")
-                      ->orWhere('alamat', 'like', "%{$s}%")
-                      ->orWhere('reff_id_pelanggan', 'like', "%{$s}%")
-                      ->orWhere('nomor_telepon', 'like', "%{$s}%");
+                        ->orWhere('alamat', 'like', "%{$s}%")
+                        ->orWhere('reff_id_pelanggan', 'like', "%{$s}%")
+                        ->orWhere('nomor_telepon', 'like', "%{$s}%");
                 });
             }
 
@@ -1146,5 +1189,379 @@ class CalonPelangganController extends Controller
             is_dir($path) ? $this->recursiveRemoveDirectory($path) : unlink($path);
         }
         rmdir($directory);
+    }
+
+    /**
+     * Preview BA MGRT for a customer (requires SR data)
+     */
+    public function previewBaMgrt(CalonPelanggan $customer)
+    {
+        try {
+            // Removed SR data check as it's not required for BA MGRT
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $result = $pdfService->generateBaMgrt($customer);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            return response()->file($result['path'], [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $result['filename'] . '"'
+            ])->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Preview BA MGRT failed', [
+                'customer_id' => $customer->reff_id_pelanggan,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal preview BA MGRT: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download BA MGRT for a customer
+     */
+    public function downloadBaMgrt(CalonPelanggan $customer)
+    {
+        try {
+            // Removed SR data check as it's not required for BA MGRT
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $result = $pdfService->generateBaMgrt($customer);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            return response()->download($result['path'], $result['filename'])->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Download BA MGRT failed', [
+                'customer_id' => $customer->reff_id_pelanggan,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal download BA MGRT: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Preview Isometrik SR for a customer
+     */
+    public function previewIsometrikSr(CalonPelanggan $customer)
+    {
+        try {
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $result = $pdfService->generateIsometrikSr($customer);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            return response()->file($result['path'], [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $result['filename'] . '"'
+            ])->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Preview Isometrik SR failed', [
+                'customer_id' => $customer->reff_id_pelanggan,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal preview Isometrik SR: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download Isometrik SR for a customer
+     */
+    public function downloadIsometrikSr(CalonPelanggan $customer)
+    {
+        try {
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $result = $pdfService->generateIsometrikSr($customer);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            return response()->download($result['path'], $result['filename'])->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Download Isometrik SR failed', [
+                'customer_id' => $customer->reff_id_pelanggan,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal download Isometrik SR: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download multiple BA MGRT as ZIP
+     */
+    public function downloadBulkBaMgrt(Request $request)
+    {
+        try {
+            $ids = $request->input('ids', []);
+
+            if (empty($ids) || !is_array($ids)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada BA MGRT yang dipilih'
+                ], 400);
+            }
+
+            if (count($ids) > 100) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Maksimal 100 BA dapat di-download sekaligus'
+                ], 400);
+            }
+
+            $customers = CalonPelanggan::with('srData')
+                ->whereIn('reff_id_pelanggan', $ids)
+                ->get();
+
+            if ($customers->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data pelanggan tidak ditemukan'
+                ], 404);
+            }
+
+            $tempDir = storage_path('app/temp/ba_mgrt_bulk_' . uniqid());
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $generatedFiles = [];
+
+            foreach ($customers as $customer) {
+                try {
+                    $result = $pdfService->generateBaMgrt($customer);
+                    if ($result['success']) {
+                        $destPath = $tempDir . '/' . $result['filename'];
+                        copy($result['path'], $destPath);
+                        unlink($result['path']);
+                        $generatedFiles[] = $destPath;
+                    }
+                } catch (Exception $e) {
+                    Log::warning('Failed to generate BA MGRT: ' . $customer->reff_id_pelanggan, [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            if (empty($generatedFiles)) {
+                $this->recursiveRemoveDirectory($tempDir);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada BA MGRT yang berhasil digenerate. Pastikan customer memiliki data SR.'
+                ], 422);
+            }
+
+            $zip = new \ZipArchive();
+            $zipPath = storage_path('app/temp/BA_MGRT_' . date('Ymd_His') . '.zip');
+
+            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+                $this->recursiveRemoveDirectory($tempDir);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal membuat file ZIP'
+                ], 500);
+            }
+
+            foreach ($generatedFiles as $file) {
+                $zip->addFile($file, basename($file));
+            }
+            $zip->close();
+
+            $this->recursiveRemoveDirectory($tempDir);
+
+            return response()->download($zipPath)->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Bulk BA MGRT download failed', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal download bulk BA MGRT: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download multiple documents (BA Gas In and/or BA MGRT) as ZIP
+     */
+    public function downloadBulkDocuments(Request $request, BeritaAcaraService $beritaAcaraService)
+    {
+        try {
+            $ids = $request->input('ids', []);
+            $docTypes = $request->input('doc_types', ['gas_in']);
+
+            if (empty($ids) || !is_array($ids)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada customer yang dipilih'
+                ], 400);
+            }
+
+            if (count($ids) > 100) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Maksimal 100 customer dapat di-download sekaligus'
+                ], 400);
+            }
+
+            $customers = CalonPelanggan::with(['gasInData', 'srData'])
+                ->whereIn('reff_id_pelanggan', $ids)
+                ->get();
+
+            if ($customers->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data pelanggan tidak ditemukan'
+                ], 404);
+            }
+
+            $tempDir = storage_path('app/temp/documents_bulk_' . uniqid());
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $generatedFiles = [];
+
+            // Create subdirectories for each doc type
+            foreach ($docTypes as $type) {
+                $subDir = $tempDir . '/' . $type;
+                if (!file_exists($subDir)) {
+                    mkdir($subDir, 0755, true);
+                }
+            }
+
+            foreach ($customers as $customer) {
+                // Generate BA Gas In
+                if (in_array('gas_in', $docTypes)) {
+                    try {
+                        $gasIn = $customer->gasInData;
+                        if (!$gasIn) {
+                            $gasIn = new GasInData([
+                                'reff_id_pelanggan' => $customer->reff_id_pelanggan,
+                                'tanggal_gas_in' => now(),
+                                'status' => 'draft',
+                            ]);
+                            $gasIn->setRelation('calonPelanggan', $customer);
+                        }
+
+                        $result = $beritaAcaraService->generateGasInBeritaAcara($gasIn);
+                        if ($result['success']) {
+                            $filePath = $tempDir . '/gas_in/' . $result['filename'];
+                            $result['pdf']->save($filePath);
+                            $generatedFiles[] = ['path' => $filePath, 'type' => 'gas_in'];
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('Failed to generate BA Gas In: ' . $customer->reff_id_pelanggan);
+                    }
+                }
+
+                // Generate BA MGRT
+                if (in_array('mgrt', $docTypes)) {
+                    try {
+                        $result = $pdfService->generateBaMgrt($customer);
+                        if ($result['success']) {
+                            $destPath = $tempDir . '/mgrt/' . $result['filename'];
+                            copy($result['path'], $destPath);
+                            unlink($result['path']);
+                            $generatedFiles[] = ['path' => $destPath, 'type' => 'mgrt'];
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('Failed to generate BA MGRT: ' . $customer->reff_id_pelanggan);
+                    }
+                }
+
+                // Generate Isometrik SR
+                if (in_array('isometrik_sr', $docTypes)) {
+                    try {
+                        $result = $pdfService->generateIsometrikSr($customer);
+                        if ($result['success']) {
+                            $destPath = $tempDir . '/isometrik_sr/' . $result['filename'];
+                            copy($result['path'], $destPath);
+                            unlink($result['path']);
+                            $generatedFiles[] = ['path' => $destPath, 'type' => 'isometrik_sr'];
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('Failed to generate Isometrik SR: ' . $customer->reff_id_pelanggan);
+                    }
+                }
+            }
+
+            if (empty($generatedFiles)) {
+                $this->recursiveRemoveDirectory($tempDir);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada dokumen yang berhasil digenerate'
+                ], 422);
+            }
+
+            $zip = new \ZipArchive();
+            $zipName = 'Documents_' . implode('_', $docTypes) . '_' . date('Ymd_His') . '.zip';
+            $zipPath = storage_path('app/temp/' . $zipName);
+
+            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+                $this->recursiveRemoveDirectory($tempDir);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal membuat file ZIP'
+                ], 500);
+            }
+
+            foreach ($generatedFiles as $file) {
+                $relativePath = $file['type'] . '/' . basename($file['path']);
+                $zip->addFile($file['path'], $relativePath);
+            }
+            $zip->close();
+
+            $this->recursiveRemoveDirectory($tempDir);
+
+            return response()->download($zipPath, $zipName)->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Bulk documents download failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal download dokumen: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

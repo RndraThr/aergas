@@ -20,16 +20,17 @@ class SrDataController extends Controller
 {
     public function __construct(
         private ?PhotoApprovalService $photoSvc = null,
-    ) {}
+    ) {
+    }
 
     public function index(Request $r)
     {
         $q = SrData::with('calonPelanggan')
             ->withCount([
-                'photoApprovals as rejected_photos_count' => function($query) {
-                    $query->where(function($q) {
+                'photoApprovals as rejected_photos_count' => function ($query) {
+                    $query->where(function ($q) {
                         $q->whereNotNull('tracer_rejected_at')
-                          ->orWhereNotNull('cgp_rejected_at');
+                            ->orWhereNotNull('cgp_rejected_at');
                     });
                 }
             ])
@@ -37,10 +38,10 @@ class SrDataController extends Controller
 
         if ($r->filled('q')) {
             $term = trim((string) $r->get('q'));
-            $q->where(function($w) use ($term) {
-                $w->where('reff_id_pelanggan','like',"%{$term}%")
-                  ->orWhere('status','like',"%{$term}%")
-                  ->orWhere('module_status','like',"%{$term}%");
+            $q->where(function ($w) use ($term) {
+                $w->where('reff_id_pelanggan', 'like', "%{$term}%")
+                    ->orWhere('status', 'like', "%{$term}%")
+                    ->orWhere('module_status', 'like', "%{$term}%");
             });
         }
 
@@ -95,9 +96,9 @@ class SrDataController extends Controller
 
     public function edit(SrData $sr)
     {
-        $sr->load(['calonPelanggan','photoApprovals','files']);
+        $sr->load(['calonPelanggan', 'photoApprovals', 'files']);
         $photoDefs = $this->buildPhotoDefs('SR');
-        return view('sr.edit', compact('sr','photoDefs'));
+        return view('sr.edit', compact('sr', 'photoDefs'));
     }
 
     public function show(Request $r, SrData $sr)
@@ -134,23 +135,23 @@ class SrDataController extends Controller
                 'required',
                 'string',
                 'max:50',
-                Rule::exists('calon_pelanggan','reff_id_pelanggan'),
-                Rule::unique('sr_data','reff_id_pelanggan')->whereNull('deleted_at')
+                Rule::exists('calon_pelanggan', 'reff_id_pelanggan'),
+                Rule::unique('sr_data', 'reff_id_pelanggan')->whereNull('deleted_at')
             ],
-            'tanggal_pemasangan' => ['required','date'],
-            'notes' => ['nullable','string'],
+            'tanggal_pemasangan' => ['required', 'date'],
+            'notes' => ['nullable', 'string'],
         ], $materialRules), [
             'reff_id_pelanggan.unique' => 'SR untuk reff_id ini sudah ada. Tidak boleh membuat SR duplikat.'
         ]);
 
         if ($v->fails()) {
-            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         }
 
         // Double check to prevent race condition (exclude soft deleted records)
         $existingSr = SrData::where('reff_id_pelanggan', $r->reff_id_pelanggan)
-                            ->whereNull('deleted_at')
-                            ->first();
+            ->whereNull('deleted_at')
+            ->first();
         if ($existingSr) {
             return response()->json([
                 'success' => false,
@@ -168,28 +169,28 @@ class SrDataController extends Controller
         $sr = SrData::create($data);
         $this->audit('create', $sr, [], $sr->toArray());
 
-        return response()->json(['success'=>true,'data'=>$sr], 201);
+        return response()->json(['success' => true, 'data' => $sr], 201);
     }
 
     public function update(Request $r, SrData $sr)
     {
         if (!$sr->canEdit()) {
             return response()->json([
-                'success'=>false,
-                'message'=>'Tidak diizinkan untuk mengedit data ini. Status: ' . ($sr->module_status ?? $sr->status)
+                'success' => false,
+                'message' => 'Tidak diizinkan untuk mengedit data ini. Status: ' . ($sr->module_status ?? $sr->status)
             ], 422);
         }
 
         $materialRules = $sr->getMaterialValidationRules();
 
         $v = Validator::make($r->all(), array_merge([
-            'tanggal_pemasangan' => ['required','date'],
-            'notes' => ['nullable','string'],
-            'created_by' => ['nullable','integer','exists:users,id'],
+            'tanggal_pemasangan' => ['required', 'date'],
+            'notes' => ['nullable', 'string'],
+            'created_by' => ['nullable', 'integer', 'exists:users,id'],
         ], $materialRules));
 
         if ($v->fails()) {
-            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         }
 
         $old = $sr->getOriginal();
@@ -198,7 +199,7 @@ class SrDataController extends Controller
         $sr->save();
 
         $this->audit('update', $sr, $old, $sr->toArray());
-        return response()->json(['success'=>true,'data'=>$sr]);
+        return response()->json(['success' => true, 'data' => $sr]);
     }
 
     public function destroy(SrData $sr)
@@ -262,13 +263,13 @@ class SrDataController extends Controller
         try {
             $normalizedReff = strtoupper(trim($reffId));
             $sr = SrData::where('reff_id_pelanggan', $normalizedReff)
-                        ->whereNull('deleted_at')
-                        ->first();
+                ->whereNull('deleted_at')
+                ->first();
 
             if (!$sr && ctype_digit($normalizedReff)) {
-                $sr = SrData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$normalizedReff])
-                            ->whereNull('deleted_at')
-                            ->first();
+                $sr = SrData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int) $normalizedReff])
+                    ->whereNull('deleted_at')
+                    ->first();
             }
 
             if (!$sr) {
@@ -292,21 +293,22 @@ class SrDataController extends Controller
     public function precheckGeneric(Request $r)
     {
         $v = Validator::make($r->all(), [
-            'file'      => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
-            'slot_type' => ['required','string','max:100'],
-            'module'    => ['nullable','in:SR'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:35840'],
+            'slot_type' => ['required', 'string', 'max:100'],
+            'module' => ['nullable', 'in:SR'],
         ]);
-        if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+        if ($v->fails())
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
-        $module    = (string) $r->input('module', 'SR');
+        $module = (string) $r->input('module', 'SR');
         $slotInput = (string) $r->input('slot_type');
 
-        $cfgAll     = config('aergas_photos') ?: [];
-        $moduleKey  = strtoupper($module);
-        $slotCfg    = (array) (data_get($cfgAll, "modules.$moduleKey.slots.$slotInput") ?? []);
+        $cfgAll = config('aergas_photos') ?: [];
+        $moduleKey = strtoupper($module);
+        $slotCfg = (array) (data_get($cfgAll, "modules.$moduleKey.slots.$slotInput") ?? []);
 
         if (!$slotCfg) {
-            return response()->json(['success'=>false,'message'=>"Slot tidak dikenal: {$slotInput}"], 422);
+            return response()->json(['success' => false, 'message' => "Slot tidak dikenal: {$slotInput}"], 422);
         }
 
         $customPrompt = $slotCfg['prompt'] ?? null;
@@ -333,12 +335,12 @@ class SrDataController extends Controller
             return response()->json([
                 'success' => true,
                 'ai' => [
-                    'passed'     => $result['passed'],
-                    'score'      => $result['confidence'] * 100,
-                    'reason'     => $result['reason'],
-                    'messages'   => [$result['reason']],
-                    'objects'    => [],
-                    'rules'      => [$slotInput],
+                    'passed' => $result['passed'],
+                    'score' => $result['confidence'] * 100,
+                    'reason' => $result['reason'],
+                    'messages' => [$result['reason']],
+                    'objects' => [],
+                    'rules' => [$slotInput],
                     'confidence' => $result['confidence'],
                 ],
                 'message' => $result['passed']
@@ -375,12 +377,12 @@ class SrDataController extends Controller
     public function uploadDraft(Request $r, SrData $sr)
     {
         $v = Validator::make($r->all(), [
-            'file' => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
-            'slot_type' => ['required','string','max:100'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:35840'],
+            'slot_type' => ['required', 'string', 'max:100'],
         ]);
 
         if ($v->fails()) {
-            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         }
 
         $slotParam = $r->input('slot_type');
@@ -417,20 +419,21 @@ class SrDataController extends Controller
     public function uploadAndValidate(Request $r, SrData $sr)
     {
         $v = Validator::make($r->all(), [
-            'file'       => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
-            'slot_type'  => ['required','string','max:100'],
-            'ai_passed'  => ['nullable','boolean'],
-            'ai_score'   => ['nullable','numeric'],
-            'ai_reason'  => ['nullable','string'],
-            'ai_notes'   => ['nullable','array'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:35840'],
+            'slot_type' => ['required', 'string', 'max:100'],
+            'ai_passed' => ['nullable', 'boolean'],
+            'ai_score' => ['nullable', 'numeric'],
+            'ai_reason' => ['nullable', 'string'],
+            'ai_notes' => ['nullable', 'array'],
         ]);
-        if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+        if ($v->fails())
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $slotParam = (string) $r->input('slot_type');
-        $slotSlug  = Str::slug($slotParam, '_');
+        $slotSlug = Str::slug($slotParam, '_');
 
-        $ext  = strtolower($r->file('file')->getClientOriginalExtension() ?: $r->file('file')->extension());
-        $ts   = now()->format('Ymd_His');
+        $ext = strtolower($r->file('file')->getClientOriginalExtension() ?: $r->file('file')->extension());
+        $ts = now()->format('Ymd_His');
         $targetName = "{$sr->reff_id_pelanggan}_{$slotSlug}_{$ts}.{$ext}";
 
         $svc = $this->photoSvc ?? app(PhotoApprovalService::class);
@@ -443,24 +446,24 @@ class SrDataController extends Controller
             uploadedBy: Auth::id(),
             targetFileName: $targetName,
             precheck: [
-                'ai_passed'  => (bool) $r->boolean('ai_passed'),
-                'ai_score'   => $r->input('ai_score'),
-                'ai_reason'  => $r->input('ai_reason'),
-                'ai_notes'   => $r->input('ai_notes', []),
+                'ai_passed' => (bool) $r->boolean('ai_passed'),
+                'ai_score' => $r->input('ai_score'),
+                'ai_reason' => $r->input('ai_reason'),
+                'ai_notes' => $r->input('ai_notes', []),
             ]
         );
 
         $this->recalcSrStatus($sr);
 
         return response()->json([
-            'success'   => true,
-            'photo_id'  => $res['photo_id'] ?? null,
-            'filename'  => $targetName,
-            'message'   => 'Upload berhasil dengan hasil AI precheck',
+            'success' => true,
+            'photo_id' => $res['photo_id'] ?? null,
+            'filename' => $targetName,
+            'message' => 'Upload berhasil dengan hasil AI precheck',
             'ai_result' => [
                 'passed' => (bool) $r->boolean('ai_passed'),
                 'reason' => $r->input('ai_reason', 'No reason provided'),
-                'score'  => $r->input('ai_score', 0),
+                'score' => $r->input('ai_score', 0),
             ]
         ], 201);
     }
@@ -480,7 +483,7 @@ class SrDataController extends Controller
     public function approveTracer(Request $r, SrData $sr)
     {
         if (!$sr->canApproveTracer()) {
-            return response()->json(['success'=>false,'message' => 'Belum siap untuk approval tracer.'], 422);
+            return response()->json(['success' => false, 'message' => 'Belum siap untuk approval tracer.'], 422);
         }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_TRACER_APPROVED;
@@ -489,26 +492,26 @@ class SrDataController extends Controller
         $sr->tracer_notes = $r->input('notes');
         $sr->save();
         $this->audit('approve', $sr, $old, $sr->toArray());
-        return response()->json(['success'=>true,'data'=>$sr]);
+        return response()->json(['success' => true, 'data' => $sr]);
     }
 
     public function rejectTracer(Request $r, SrData $sr)
     {
         if ($sr->status !== SrData::STATUS_READY_FOR_TRACER) {
-            return response()->json(['success'=>false,'message' => 'Status tidak valid untuk reject tracer.'], 422);
+            return response()->json(['success' => false, 'message' => 'Status tidak valid untuk reject tracer.'], 422);
         }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_TRACER_REJECTED;
         $sr->tracer_notes = $r->input('notes');
         $sr->save();
         $this->audit('reject', $sr, $old, $sr->toArray());
-        return response()->json(['success'=>true,'data'=>$sr]);
+        return response()->json(['success' => true, 'data' => $sr]);
     }
 
     public function approveCgp(Request $r, SrData $sr)
     {
         if (!$sr->canApproveCgp()) {
-            return response()->json(['success'=>false,'message' => 'Belum siap untuk approval CGP.'], 422);
+            return response()->json(['success' => false, 'message' => 'Belum siap untuk approval CGP.'], 422);
         }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_CGP_APPROVED;
@@ -525,32 +528,33 @@ class SrDataController extends Controller
         }
 
         $this->audit('approve', $sr, $old, $sr->toArray());
-        return response()->json(['success'=>true,'data'=>$sr]);
+        return response()->json(['success' => true, 'data' => $sr]);
     }
 
     public function rejectCgp(Request $r, SrData $sr)
     {
         if ($sr->status !== SrData::STATUS_TRACER_APPROVED) {
-            return response()->json(['success'=>false,'message' => 'Status tidak valid untuk reject CGP.'], 422);
+            return response()->json(['success' => false, 'message' => 'Status tidak valid untuk reject CGP.'], 422);
         }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_CGP_REJECTED;
         $sr->cgp_notes = $r->input('notes');
         $sr->save();
         $this->audit('reject', $sr, $old, $sr->toArray());
-        return response()->json(['success'=>true,'data'=>$sr]);
+        return response()->json(['success' => true, 'data' => $sr]);
     }
 
     public function schedule(Request $r, SrData $sr)
     {
         if (!$sr->canSchedule()) {
-            return response()->json(['success'=>false,'message' => 'Belum bisa dijadwalkan.'], 422);
+            return response()->json(['success' => false, 'message' => 'Belum bisa dijadwalkan.'], 422);
         }
 
         $v = Validator::make($r->all(), [
-            'tanggal_pemasangan' => ['required','date'],
+            'tanggal_pemasangan' => ['required', 'date'],
         ]);
-        if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+        if ($v->fails())
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $old = $sr->getOriginal();
         $sr->fill($v->validated());
@@ -558,13 +562,13 @@ class SrDataController extends Controller
         $sr->save();
 
         $this->audit('update', $sr, $old, $sr->toArray());
-        return response()->json(['success'=>true,'data'=>$sr]);
+        return response()->json(['success' => true, 'data' => $sr]);
     }
 
     public function complete(Request $r, SrData $sr)
     {
         if (!$sr->canComplete()) {
-            return response()->json(['success'=>false,'message' => 'Belum bisa diselesaikan.'], 422);
+            return response()->json(['success' => false, 'message' => 'Belum bisa diselesaikan.'], 422);
         }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_COMPLETED;
@@ -579,22 +583,23 @@ class SrDataController extends Controller
         }
 
         $this->audit('update', $sr, $old, $sr->toArray());
-        return response()->json(['success'=>true,'data'=>$sr]);
+        return response()->json(['success' => true, 'data' => $sr]);
     }
 
     private function buildPhotoDefs(string $module): array
     {
-        $cfgAll    = config('aergas_photos') ?: [];
+        $cfgAll = config('aergas_photos') ?: [];
         $moduleKey = strtoupper((string) $module);
-        $cfgSlots  = (array) (
+        $cfgSlots = (array) (
             data_get($cfgAll, "modules.$moduleKey.slots")
-            ?? data_get($cfgAll, 'modules.'.strtolower($module).'.slots', [])
+            ?? data_get($cfgAll, 'modules.' . strtolower($module) . '.slots', [])
         );
 
         $defs = [];
         foreach ($cfgSlots as $key => $rule) {
             $accept = $rule['accept'] ?? ['image/*'];
-            if (is_string($accept)) $accept = [$accept];
+            if (is_string($accept))
+                $accept = [$accept];
 
             $checks = collect($rule['checks'] ?? [])
                 ->map(fn($c) => $c['label'] ?? $c['id'] ?? '')
@@ -638,14 +643,14 @@ class SrDataController extends Controller
             } else {
                 Log::info('audit', [
                     'action' => $action,
-                    'model'  => class_basename($model),
-                    'id'     => $model->getKey(),
-                    'old'    => $old,
-                    'new'    => $new,
+                    'model' => class_basename($model),
+                    'id' => $model->getKey(),
+                    'old' => $old,
+                    'new' => $new,
                 ]);
             }
         } catch (\Throwable $e) {
-            Log::error('audit-failed: '.$e->getMessage());
+            Log::error('audit-failed: ' . $e->getMessage());
         }
     }
 
@@ -721,14 +726,14 @@ class SrDataController extends Controller
             $cfgSlots = (array) (config('aergas_photos.modules.SR.slots') ?? []);
 
             $rejectedPhotos = $sr->photoApprovals()
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->whereNotNull('tracer_rejected_at')
-                      ->orWhereNotNull('cgp_rejected_at');
+                        ->orWhereNotNull('cgp_rejected_at');
                 })
                 ->with(['tracerUser', 'cgpUser'])
                 ->get();
 
-            $rejections = $rejectedPhotos->map(function($photo) use ($cfgSlots) {
+            $rejections = $rejectedPhotos->map(function ($photo) use ($cfgSlots) {
                 $rejectedByType = null;
                 $rejectedByName = null;
                 $reason = null;
@@ -868,6 +873,174 @@ class SrDataController extends Controller
         ];
 
         return $labels[$fieldName] ?? ucwords(str_replace('_', ' ', $fieldName));
+    }
+
+    /**
+     * Preview BA MGRT as PDF (stream for iframe)
+     */
+    public function previewBaMgrt(SrData $sr, BeritaAcaraService $beritaAcaraService)
+    {
+        try {
+            $result = $beritaAcaraService->generateMgrtBeritaAcara($sr);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            // Stream file from path with cleanup after send
+            return response()->file($result['path'], [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $result['filename'] . '"'
+            ])->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            Log::error('Preview BA MGRT failed', [
+                'sr_id' => $sr->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal preview BA MGRT: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download BA MGRT as PDF
+     */
+    public function downloadBaMgrt(SrData $sr, BeritaAcaraService $beritaAcaraService)
+    {
+        try {
+            $result = $beritaAcaraService->generateMgrtBeritaAcara($sr);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            return response()->download($result['path'], $result['filename'])->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            Log::error('Download BA MGRT failed', [
+                'sr_id' => $sr->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal download BA MGRT: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download multiple BA MGRT as ZIP
+     */
+    public function downloadBulkBaMgrt(Request $request, BeritaAcaraService $beritaAcaraService)
+    {
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'sr_ids' => ['required', 'array', 'min:1'],
+            'sr_ids.*' => ['required', 'integer', 'exists:sr_data,id'],
+        ]);
+
+        if ($v->fails()) {
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+        }
+
+        $srIds = $request->input('sr_ids');
+
+        try {
+            // Create temp directory for PDFs
+            $tempDir = storage_path('app/temp/ba_mgrt_' . time());
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $generatedFiles = [];
+            $errors = [];
+
+            foreach ($srIds as $srId) {
+                $sr = SrData::find($srId);
+                if (!$sr) {
+                    $errors[] = "SR #{$srId} tidak ditemukan";
+                    continue;
+                }
+
+                $result = $beritaAcaraService->generateMgrtBeritaAcara($sr);
+
+                if ($result['success']) {
+                    // Copy file to temp dir (original stays in generated folder for now)
+                    $destPath = $tempDir . '/' . $result['filename'];
+                    copy($result['path'], $destPath);
+                    // Delete original
+                    unlink($result['path']);
+
+                    $generatedFiles[] = [
+                        'path' => $destPath,
+                        'name' => $result['filename']
+                    ];
+                } else {
+                    $errors[] = "SR #{$srId}: " . ($result['message'] ?? 'Gagal generate');
+                }
+            }
+
+            if (empty($generatedFiles)) {
+                // Cleanup temp dir
+                if (file_exists($tempDir)) {
+                    rmdir($tempDir);
+                }
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada file yang berhasil digenerate',
+                    'errors' => $errors
+                ], 422);
+            }
+
+            // Create ZIP file
+            $zipFileName = 'BA_MGRT_Bulk_' . date('Ymd_His') . '.zip';
+            $zipPath = storage_path('app/temp/' . $zipFileName);
+
+            $zip = new \ZipArchive();
+            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+                throw new \Exception('Gagal membuat file ZIP');
+            }
+
+            foreach ($generatedFiles as $file) {
+                $zip->addFile($file['path'], $file['name']);
+            }
+            $zip->close();
+
+            // Cleanup individual PDF files
+            foreach ($generatedFiles as $file) {
+                if (file_exists($file['path'])) {
+                    unlink($file['path']);
+                }
+            }
+            if (file_exists($tempDir)) {
+                rmdir($tempDir);
+            }
+
+            // Return ZIP file for download
+            return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            Log::error('Bulk download BA MGRT failed', [
+                'sr_ids' => $srIds,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal download bulk BA MGRT: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 }
