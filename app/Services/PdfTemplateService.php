@@ -47,6 +47,11 @@ class PdfTemplateService
             // Create FPDI instance
             $pdf = new Fpdi();
 
+            // Define font path if not already defined
+            if (!defined('FPDF_FONTPATH')) {
+                define('FPDF_FONTPATH', storage_path('fonts'));
+            }
+
             // Import first page from template
             $pageCount = $pdf->setSourceFile($templateFile);
             $templateId = $pdf->importPage(1);
@@ -109,9 +114,12 @@ class PdfTemplateService
             }
 
             // Generate filename
+            // Sanitize Reff ID to remove invalid filename characters
+            $safeReffId = str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '_', $customer->reff_id_pelanggan);
             $filename = sprintf(
-                'BA_MGRT_%s_%s.pdf',
-                str_replace('.', '_', $customer->reff_id_pelanggan),
+                'BA_MGRT_%s_%s_%s.pdf',
+                str_replace('.', '_', $safeReffId),
+                $customer->id,
                 Carbon::now()->format('Ymd_His')
             );
             $outputFile = $this->outputPath . '/' . $filename;
@@ -233,9 +241,12 @@ class PdfTemplateService
             }
 
             // Generate filename
+            // Sanitize Reff ID to remove invalid filename characters
+            $safeReffId = str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '_', $customer->reff_id_pelanggan);
             $filename = sprintf(
-                'ISOMETRIK_SR_%s_%s.pdf',
-                str_replace('.', '_', $customer->reff_id_pelanggan),
+                'ISOMETRIK_SR_%s_%s_%s.pdf',
+                str_replace('.', '_', $safeReffId),
+                $customer->id,
                 Carbon::now()->format('Ymd_His')
             );
             $outputFile = $this->outputPath . '/' . $filename;
