@@ -18,7 +18,7 @@ class BeritaAcaraService
     {
         try {
             $sk->loadMissing('calonPelanggan');
-            
+
             if (!$sk->calonPelanggan) {
                 throw new \Exception('Data pelanggan tidak ditemukan');
             }
@@ -34,8 +34,9 @@ class BeritaAcaraService
 
             $pdf = Pdf::loadView('documents.berita-acara-sk', $data);
             $pdf->setPaper('A4', 'portrait');
-            
-            $filename = sprintf('BA_SK_%s_%s.pdf', 
+
+            $filename = sprintf(
+                'BA_SK_%s_%s.pdf',
                 $sk->reff_id_pelanggan,
                 Carbon::now()->format('Ymd_His')
             );
@@ -66,7 +67,7 @@ class BeritaAcaraService
     {
         try {
             $sr->loadMissing('calonPelanggan');
-            
+
             if (!$sr->calonPelanggan) {
                 throw new \Exception('Data pelanggan tidak ditemukan');
             }
@@ -82,8 +83,9 @@ class BeritaAcaraService
 
             $pdf = Pdf::loadView('documents.berita-acara-sr', $data);
             $pdf->setPaper('A4', 'portrait');
-            
-            $filename = sprintf('BA_SR_%s_%s.pdf', 
+
+            $filename = sprintf(
+                'BA_SR_%s_%s.pdf',
                 $sr->reff_id_pelanggan,
                 Carbon::now()->format('Ymd_His')
             );
@@ -114,7 +116,7 @@ class BeritaAcaraService
     {
         try {
             $gasIn->loadMissing('calonPelanggan');
-            
+
             if (!$gasIn->calonPelanggan) {
                 throw new \Exception('Data pelanggan tidak ditemukan');
             }
@@ -130,8 +132,9 @@ class BeritaAcaraService
 
             $pdf = Pdf::loadView('documents.berita-acara-gas-in', $data);
             $pdf->setPaper('A4', 'portrait');
-            
-            $filename = sprintf('BA_GasIn_%s_%s.pdf', 
+
+            $filename = sprintf(
+                'BA_GasIn_%s_%s.pdf',
                 $gasIn->reff_id_pelanggan,
                 Carbon::now()->format('Ymd_His')
             );
@@ -156,13 +159,69 @@ class BeritaAcaraService
     }
 
     /**
+     * Generate Berita Acara MGRT (Meter Gas Rumah Tangga) from SR data
+     * Uses PDF template with coordinate mapping via PdfTemplateService
+     */
+    public function generateMgrtBeritaAcara(SrData $sr): array
+    {
+        try {
+            $sr->loadMissing('calonPelanggan');
+            $customer = $sr->calonPelanggan;
+
+            if (!$customer) {
+                throw new \Exception('Data pelanggan tidak ditemukan pada SR ini');
+            }
+
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $result = $pdfService->generateBaMgrt($customer);
+
+            if (!$result['success']) {
+                return $result;
+            }
+
+            // Read the generated PDF file content for streaming
+            $pdfContent = file_get_contents($result['path']);
+
+            // Create a response that can be streamed/downloaded
+            return [
+                'success' => true,
+                'filename' => $result['filename'],
+                'path' => $result['path'],
+                'content' => $pdfContent
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Failed to generate MGRT Berita Acara', [
+                'sr_id' => $sr->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Format Reff ID with leading zeros (pad to 8 digits)
+     */
+    private function formatReffId($reffId): string
+    {
+        if (is_numeric($reffId) && strlen($reffId) < 8) {
+            return str_pad($reffId, 8, '0', STR_PAD_LEFT);
+        }
+        return $reffId ?? '-';
+    }
+
+    /**
      * Get Indonesian day name
      */
     public function getIndonesianDayName(Carbon $date): string
     {
         $days = [
             'Sunday' => 'Minggu',
-            'Monday' => 'Senin', 
+            'Monday' => 'Senin',
             'Tuesday' => 'Selasa',
             'Wednesday' => 'Rabu',
             'Thursday' => 'Kamis',
@@ -179,9 +238,18 @@ class BeritaAcaraService
     public function getIndonesianMonthName(Carbon $date): string
     {
         $months = [
-            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
-            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
-            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember'
         ];
 
         return $months[$date->month] ?? $date->format('F');
@@ -197,7 +265,8 @@ class BeritaAcaraService
             'day' => $date->format('j'),
             'month' => $this->getIndonesianMonthName($date),
             'year' => $date->format('Y'),
-            'full' => sprintf('%s %d-%d-%d', 
+            'full' => sprintf(
+                '%s %d-%d-%d',
                 $this->getIndonesianDayName($date),
                 $date->format('j'),
                 $date->format('n'),

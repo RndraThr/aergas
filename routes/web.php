@@ -238,6 +238,24 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/{customer}/berita-acara', [CalonPelangganController::class, 'downloadBeritaAcara'])
                 ->name('berita-acara');
 
+            // BA MGRT Routes (from SR data)
+            Route::get('/{customer}/ba-mgrt/preview', [CalonPelangganController::class, 'previewBaMgrt'])
+                ->name('ba-mgrt.preview');
+            Route::get('/{customer}/ba-mgrt', [CalonPelangganController::class, 'downloadBaMgrt'])
+                ->name('ba-mgrt');
+            Route::get('/download-bulk-ba-mgrt', [CalonPelangganController::class, 'downloadBulkBaMgrt'])
+                ->name('download-bulk-ba-mgrt');
+
+            // Isometrik SR Routes
+            Route::get('/{customer}/isometrik-sr/preview', [CalonPelangganController::class, 'previewIsometrikSr'])
+                ->name('isometrik-sr.preview');
+            Route::get('/{customer}/isometrik-sr', [CalonPelangganController::class, 'downloadIsometrikSr'])
+                ->name('isometrik-sr');
+
+            // Multi-Document Bulk Download
+            Route::post('/documents/bulk-download', [CalonPelangganController::class, 'downloadBulkDocuments'])
+                ->name('documents.bulk-download');
+
             Route::get('/{reffId}', [CalonPelangganController::class, 'show'])
                 ->where('reffId', '[A-Z0-9\-]+')->name('show');
         });
@@ -394,6 +412,16 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/{sr}/berita-acara', [SrDataController::class, 'generateBeritaAcara'])
                 ->whereNumber('sr')
                 ->name('berita-acara');
+
+            // BA MGRT Routes (Berita Acara Meter Gas Rumah Tangga)
+            Route::get('/{sr}/ba-mgrt/preview', [SrDataController::class, 'previewBaMgrt'])
+                ->whereNumber('sr')
+                ->name('ba-mgrt.preview');
+            Route::get('/{sr}/ba-mgrt/download', [SrDataController::class, 'downloadBaMgrt'])
+                ->whereNumber('sr')
+                ->name('ba-mgrt.download');
+            Route::post('/ba-mgrt/bulk-download', [SrDataController::class, 'downloadBulkBaMgrt'])
+                ->name('ba-mgrt.bulk');
 
             // Rejection Details
             Route::get('/{sr}/rejection-details', [SrDataController::class, 'getRejectionDetails'])
