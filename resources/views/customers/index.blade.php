@@ -108,10 +108,25 @@
 
                                     <label
                                         class="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" x-model="selectedDocTypes" value="ba_sk"
+                                            class="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 mr-3">
+                                        <span class="text-sm text-gray-700">BA SK</span>
+                                    </label>
+
+                                    <label
+                                        class="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <input type="checkbox" x-model="selectedDocTypes" value="isometrik_sk"
+                                            class="w-4 h-4 text-pink-600 rounded border-gray-300 focus:ring-pink-500 mr-3">
+                                        <span class="text-sm text-gray-700">Isometrik SK</span>
+                                    </label>
+
+                                    <label
+                                        class="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer transition-colors">
                                         <input type="checkbox" x-model="selectedDocTypes" value="isometrik_sr"
                                             class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                         <span class="text-sm text-gray-700">Isometrik SR</span>
                                     </label>
+
                                 </div>
                             </div>
                         </div>
@@ -348,12 +363,12 @@
 
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span :class="{
-                                                                'bg-green-100 text-green-800': customer.status === 'lanjut',
-                                                                'bg-blue-100 text-blue-800': customer.status === 'in_progress',
-                                                                'bg-yellow-100 text-yellow-800': customer.status === 'pending',
-                                                                'bg-red-100 text-red-800': customer.status === 'batal',
-                                                                'bg-gray-100 text-gray-800': !customer.status
-                                                            }"
+                                                                            'bg-green-100 text-green-800': customer.status === 'lanjut',
+                                                                            'bg-blue-100 text-blue-800': customer.status === 'in_progress',
+                                                                            'bg-yellow-100 text-yellow-800': customer.status === 'pending',
+                                                                            'bg-red-100 text-red-800': customer.status === 'batal',
+                                                                            'bg-gray-100 text-gray-800': !customer.status
+                                                                        }"
                                         class="inline-flex px-2 py-1 text-xs font-semibold rounded-full">
                                         <span x-text="customer.status || 'unknown'"></span>
                                     </span>
@@ -988,6 +1003,10 @@
                             return `/customers/${customerId}/ba-mgrt/preview`;
                         } else if (this.activePreviewTab === 'isometrik_sr') {
                             return `/customers/${customerId}/isometrik-sr/preview`;
+                        } else if (this.activePreviewTab === 'ba_sk') {
+                            return `/customers/${customerId}/ba-sk/preview`;
+                        } else if (this.activePreviewTab === 'isometrik_sk') {
+                            return `/customers/${customerId}/isometrik-sk/preview`;
                         }
                         return '';
                     },
@@ -1021,6 +1040,10 @@
                             window.location.href = '/customers/download-bulk-ba-mgrt?' + params.toString();
                         } else if (docType === 'isometrik_sr') {
                             this.submitBulkDownload(['isometrik_sr']);
+                        } else if (docType === 'ba_sk') {
+                            this.submitBulkDownload(['ba_sk']);
+                        } else if (docType === 'isometrik_sk') {
+                            this.submitBulkDownload(['isometrik_sk']);
                         }
                     },
 
@@ -1175,15 +1198,15 @@
 
     {{-- Download BA Modal --}}
     <div x-data="{
-                              get showModal() { return window.customersData?.showBaDownloadModal || false },
-                              get loading() { return window.customersData?.baDownloadLoading || false },
-                              get selectedIds() { return window.customersData?.selectedBaIds || [] },
-                              closeModal() { if(window.customersData) window.customersData.showBaDownloadModal = false },
-                              executeDownload() { window.customersData?.executeBaDownload() },
-                              getSelectedItems() { return window.customersData?.getSelectedBaItems() || [] },
-                              getFilename(row) { return window.customersData?.getBaFilename(row) || '' },
-                              formatDate(date) { return window.customersData?.formatDate(date) || '-' }
-                            }" x-show="showModal" x-cloak @click.self="closeModal()"
+                                          get showModal() { return window.customersData?.showBaDownloadModal || false },
+                                          get loading() { return window.customersData?.baDownloadLoading || false },
+                                          get selectedIds() { return window.customersData?.selectedBaIds || [] },
+                                          closeModal() { if(window.customersData) window.customersData.showBaDownloadModal = false },
+                                          executeDownload() { window.customersData?.executeBaDownload() },
+                                          getSelectedItems() { return window.customersData?.getSelectedBaItems() || [] },
+                                          getFilename(row) { return window.customersData?.getBaFilename(row) || '' },
+                                          formatDate(date) { return window.customersData?.formatDate(date) || '-' }
+                                        }" x-show="showModal" x-cloak @click.self="closeModal()"
         class="fixed bg-black bg-opacity-50 flex items-center justify-center p-4"
         style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 999999999 !important;">
         <div @click.stop class="bg-white rounded-xl p-6 w-full mx-4 shadow-2xl max-w-3xl"
@@ -1268,10 +1291,10 @@
 
     {{-- Loading Overlay saat Download BA --}}
     <div x-data="{
-                              get loading() { return window.customersData?.baDownloadLoading || false },
-                              get selectedIds() { return window.customersData?.selectedBaIds || [] },
-                              closeModal() { if(window.customersData) { window.customersData.baDownloadLoading = false; window.customersData.showBaDownloadModal = false; } }
-                            }" x-show="loading" x-cloak
+                                          get loading() { return window.customersData?.baDownloadLoading || false },
+                                          get selectedIds() { return window.customersData?.selectedBaIds || [] },
+                                          closeModal() { if(window.customersData) { window.customersData.baDownloadLoading = false; window.customersData.showBaDownloadModal = false; } }
+                                        }" x-show="loading" x-cloak
         class="fixed bg-black bg-opacity-75 flex items-center justify-center p-4"
         style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 999999999 !important;">
         <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl text-center"
@@ -1330,25 +1353,25 @@
 
     {{-- Tabbed Document Preview Modal --}}
     <div x-data="{
-                              get showModal() { return window.customersData?.documentPreviewModalOpen || false },
-                              get loading() { return window.customersData?.previewLoading || false },
-                              get selectedIds() { return window.customersData?.selectedBaIds || [] },
-                              get selectedDocTypes() { return window.customersData?.selectedDocTypes || [] },
-                              get activeTab() { return window.customersData?.activePreviewTab || 'gas_in' },
-                              get currentIndex() { return window.customersData?.previewCurrentIndex || 0 },
-                              get cachedCustomers() { return window.customersData?.selectedBaCustomersCache || {} },
-                              setActiveTab(tab) { if(window.customersData) { window.customersData.activePreviewTab = tab; window.customersData.previewLoading = true; } },
-                              closeModal() { if(window.customersData) window.customersData.closeDocumentPreviewModal() },
-                              getPreviewUrl() { return window.customersData?.getPreviewUrl() || '' },
-                              navigatePreview(dir) { window.customersData?.navigatePreview(dir) },
-                              goToIndex(i) { window.customersData?.goToPreviewIndex(i) },
-                              downloadTab() { window.customersData?.downloadCurrentTab() },
-                              downloadAll() { window.customersData?.downloadAllDocuments() },
-                              getCurrentCustomer() {
-                                const id = this.selectedIds[this.currentIndex];
-                                return this.cachedCustomers[id] || { reff_id_pelanggan: id, nama_pelanggan: '-' };
-                              }
-                            }" x-show="showModal" x-cloak @click.self="closeModal()"
+                                          get showModal() { return window.customersData?.documentPreviewModalOpen || false },
+                                          get loading() { return window.customersData?.previewLoading || false },
+                                          get selectedIds() { return window.customersData?.selectedBaIds || [] },
+                                          get selectedDocTypes() { return window.customersData?.selectedDocTypes || [] },
+                                          get activeTab() { return window.customersData?.activePreviewTab || 'gas_in' },
+                                          get currentIndex() { return window.customersData?.previewCurrentIndex || 0 },
+                                          get cachedCustomers() { return window.customersData?.selectedBaCustomersCache || {} },
+                                          setActiveTab(tab) { if(window.customersData) { window.customersData.activePreviewTab = tab; window.customersData.previewLoading = true; } },
+                                          closeModal() { if(window.customersData) window.customersData.closeDocumentPreviewModal() },
+                                          getPreviewUrl() { return window.customersData?.getPreviewUrl() || '' },
+                                          navigatePreview(dir) { window.customersData?.navigatePreview(dir) },
+                                          goToIndex(i) { window.customersData?.goToPreviewIndex(i) },
+                                          downloadTab() { window.customersData?.downloadCurrentTab() },
+                                          downloadAll() { window.customersData?.downloadAllDocuments() },
+                                          getCurrentCustomer() {
+                                            const id = this.selectedIds[this.currentIndex];
+                                            return this.cachedCustomers[id] || { reff_id_pelanggan: id, nama_pelanggan: '-' };
+                                          }
+                                        }" x-show="showModal" x-cloak @click.self="closeModal()"
         class="fixed bg-black bg-opacity-50 flex items-center justify-center p-4"
         style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 999999999 !important;">
         <div @click.stop class="bg-white rounded-xl w-full mx-4 shadow-2xl flex flex-col"
@@ -1377,10 +1400,20 @@
                         <button @click="setActiveTab(docType)"
                             :class="activeTab === docType ? 'bg-purple-100 text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
                             class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors">
-                            <i
-                                :class="docType === 'gas_in' ? 'fas fa-fire mr-1' : (docType === 'mgrt' ? 'fas fa-tachometer-alt mr-1' : 'fas fa-project-diagram mr-1')"></i>
-                            <span
-                                x-text="docType === 'gas_in' ? 'BA Gas In' : (docType === 'mgrt' ? 'BA MGRT' : 'Isometrik SR')"></span>
+                            <i :class="{
+                                            'fas fa-fire mr-1': docType === 'gas_in',
+                                            'fas fa-tachometer-alt mr-1': docType === 'mgrt',
+                                            'fas fa-project-diagram mr-1': docType === 'isometrik_sr',
+                                            'fas fa-file-contract mr-1': docType === 'ba_sk',
+                                            'fas fa-drafting-compass mr-1': docType === 'isometrik_sk'
+                                        }"></i>
+                            <span x-text="{
+                                            'gas_in': 'BA Gas In',
+                                            'mgrt': 'BA MGRT',
+                                            'isometrik_sr': 'Isometrik SR',
+                                            'ba_sk': 'BA SK',
+                                            'isometrik_sk': 'Isometrik SK'
+                                        }[docType]"></span>
                         </button>
                     </template>
                 </div>
@@ -1447,8 +1480,13 @@
                     <div class="flex items-center gap-3">
                         <button @click="downloadTab()"
                             class="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors">
-                            <i class="fas fa-download mr-2"></i>Download <span
-                                x-text="activeTab === 'gas_in' ? 'BA Gas In' : (activeTab === 'mgrt' ? 'BA MGRT' : 'Isometrik SR')"></span>
+                            <i class="fas fa-download mr-2"></i>Download <span x-text="{
+                                            'gas_in': 'BA Gas In',
+                                            'mgrt': 'BA MGRT',
+                                            'isometrik_sr': 'Isometrik SR',
+                                            'ba_sk': 'BA SK',
+                                            'isometrik_sk': 'Isometrik SK'
+                                        }[activeTab]"></span>
                         </button>
                         <button x-show="selectedDocTypes.length > 1" @click="downloadAll()"
                             class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">

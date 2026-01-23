@@ -1421,7 +1421,109 @@ class CalonPelangganController extends Controller
     }
 
     /**
-     * Download multiple documents (BA Gas In and/or BA MGRT) as ZIP
+     * Preview Berita Acara SK
+     */
+    public function previewBaSk(CalonPelanggan $customer)
+    {
+        try {
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $result = $pdfService->generateBaSk($customer);
+
+            if (!$result['success']) {
+                return response()->json(['message' => $result['message']], 500);
+            }
+
+            return response()->file($result['path'], [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $result['filename'] . '"'
+            ])->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Preview BA SK failed', [
+                'customer_id' => $customer->reff_id_pelanggan,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['message' => 'Gagal preview BA SK'], 500);
+        }
+    }
+
+    /**
+     * Download Berita Acara SK
+     */
+    public function downloadBaSk(CalonPelanggan $customer)
+    {
+        try {
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $result = $pdfService->generateBaSk($customer);
+
+            if (!$result['success']) {
+                return back()->with('error', $result['message']);
+            }
+
+            return response()->download($result['path'], $result['filename'])->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Download BA SK failed', [
+                'customer_id' => $customer->reff_id_pelanggan,
+                'error' => $e->getMessage()
+            ]);
+            return back()->with('error', 'Gagal download BA SK');
+        }
+    }
+
+    /**
+     * Preview Isometrik SK
+     */
+    public function previewIsometrikSk(CalonPelanggan $customer)
+    {
+        try {
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $result = $pdfService->generateIsometrikSk($customer);
+
+            if (!$result['success']) {
+                return response()->json(['message' => $result['message']], 500);
+            }
+
+            return response()->file($result['path'], [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $result['filename'] . '"'
+            ])->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Preview Isometrik SK failed', [
+                'customer_id' => $customer->reff_id_pelanggan,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['message' => 'Gagal preview Isometrik SK'], 500);
+        }
+    }
+
+    /**
+     * Download Isometrik SK
+     */
+    public function downloadIsometrikSk(CalonPelanggan $customer)
+    {
+        try {
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+            $result = $pdfService->generateIsometrikSk($customer);
+
+            if (!$result['success']) {
+                return back()->with('error', $result['message']);
+            }
+
+            return response()->download($result['path'], $result['filename'])->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Download Isometrik SK failed', [
+                'customer_id' => $customer->reff_id_pelanggan,
+                'error' => $e->getMessage()
+            ]);
+            return back()->with('error', 'Gagal download Isometrik SK');
+        }
+    }
+
+    /**
+     * Download multiple documents (BA Gas In, BA MGRT, Isometrik SR, BA SK, Isometrik SK) as ZIP
      */
     public function downloadBulkDocuments(Request $request, BeritaAcaraService $beritaAcaraService)
     {
@@ -1518,6 +1620,36 @@ class CalonPelangganController extends Controller
                         }
                     } catch (Exception $e) {
                         Log::warning('Failed to generate Isometrik SR: ' . $customer->reff_id_pelanggan);
+                    }
+                }
+
+                // Generate BA SK
+                if (in_array('ba_sk', $docTypes)) {
+                    try {
+                        $result = $pdfService->generateBaSk($customer);
+                        if ($result['success']) {
+                            $destPath = $tempDir . '/ba_sk/' . $result['filename'];
+                            copy($result['path'], $destPath);
+                            unlink($result['path']);
+                            $generatedFiles[] = ['path' => $destPath, 'type' => 'ba_sk'];
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('Failed to generate BA SK: ' . $customer->reff_id_pelanggan);
+                    }
+                }
+
+                // Generate Isometrik SK
+                if (in_array('isometrik_sk', $docTypes)) {
+                    try {
+                        $result = $pdfService->generateIsometrikSk($customer);
+                        if ($result['success']) {
+                            $destPath = $tempDir . '/isometrik_sk/' . $result['filename'];
+                            copy($result['path'], $destPath);
+                            unlink($result['path']);
+                            $generatedFiles[] = ['path' => $destPath, 'type' => 'isometrik_sk'];
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('Failed to generate Isometrik SK: ' . $customer->reff_id_pelanggan);
                     }
                 }
             }

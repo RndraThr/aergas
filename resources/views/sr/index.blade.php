@@ -12,13 +12,6 @@
         <p class="text-gray-600 mt-1">Daftar Service Request</p>
       </div>
       <div class="flex gap-2">
-        {{-- BA MGRT Selection Mode Toggle --}}
-        <button @click="toggleBaMgrtMode()"
-          :class="baMgrtMode ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700'"
-          class="px-3 py-2 rounded hover:bg-purple-200 transition-colors">
-          <i class="fas fa-file-pdf mr-1"></i>
-          <span x-text="baMgrtMode ? 'Batal Pilih BA' : 'Download BA MGRT'"></span>
-        </button>
         <button @click="fetchData()" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200">
           <i class="fas fa-sync-alt mr-1"></i>Refresh
         </button>
@@ -105,13 +98,7 @@
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            {{-- Checkbox column for BA MGRT selection --}}
-            <th x-show="baMgrtMode"
-              class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              style="width: 40px;">
-              <input type="checkbox" @click="toggleSelectAll()" :checked="isAllSelected()"
-                class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
-            </th>
+
             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reff ID</th>
             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
@@ -124,12 +111,8 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <template x-for="row in items" :key="row.id">
-            <tr class="hover:bg-gray-50" :class="{'bg-purple-50': baMgrtMode && selectedSrIds.includes(row.id)}">
-              {{-- Checkbox cell for BA MGRT selection --}}
-              <td x-show="baMgrtMode" class="px-4 py-3 text-center">
-                <input type="checkbox" :checked="selectedSrIds.includes(row.id)" @click="toggleSelection(row.id)"
-                  class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
-              </td>
+            <tr class="hover:bg-gray-50">
+
               <td class="px-4 py-3 text-sm text-gray-700" x-text="row.id"></td>
               <td class="px-4 py-3 text-sm font-medium text-blue-600">
                 <a :href="`/sr/${row.id}`" class="hover:text-blue-800" x-text="row.reff_id_pelanggan"></a>
@@ -233,142 +216,7 @@
       <x-pagination />
     </div>
 
-    {{-- BA MGRT Selection Bar - Floating at Bottom (matches BA Gas In design) --}}
-    <div x-show="baMgrtMode" x-transition:enter="transition ease-out duration-300"
-      x-transition:enter-start="opacity-0 transform translate-y-full"
-      x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200"
-      x-transition:leave-start="opacity-100 transform translate-y-0"
-      x-transition:leave-end="opacity-0 transform translate-y-full"
-      class="fixed bottom-6 left-0 right-0 lg:left-64 z-40 px-6">
-      <div class="max-w-full">
-        <div class="bg-white rounded-xl border-2 border-purple-500 shadow-2xl p-4">
-          <div class="flex items-center justify-between flex-wrap gap-3">
-            <div class="flex items-center gap-4">
-              <div class="flex items-center gap-2">
-                <i class="fas fa-check-square text-purple-600 text-xl"></i>
-                <span class="font-semibold text-purple-900">Mode Pilih BA MGRT</span>
-              </div>
-              <div class="text-sm font-medium text-purple-700 bg-purple-100 px-3 py-1.5 rounded-full">
-                <span x-text="selectedSrIds.length"></span> BA dipilih
-              </div>
-            </div>
-            <div class="flex gap-2 flex-wrap">
-              <button @click="toggleSelectAll()"
-                class="px-3 py-1.5 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors">
-                <i class="fas fa-check-double mr-1"></i>Pilih Halaman Ini
-              </button>
-              <button @click="selectedSrIds = []"
-                class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                <i class="fas fa-times mr-1"></i>Bersihkan
-              </button>
-              <button @click="openPreviewModal()" :disabled="selectedSrIds.length === 0"
-                class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                <i class="fas fa-eye mr-1"></i>Preview
-              </button>
-              <button @click="downloadBulk()" :disabled="selectedSrIds.length === 0 || downloadingBulk"
-                class="px-4 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
-                <template x-if="downloadingBulk">
-                  <span><i class="fas fa-spinner fa-spin mr-1"></i>Downloading...</span>
-                </template>
-                <template x-if="!downloadingBulk">
-                  <span><i class="fas fa-download mr-1"></i>Download <span x-text="selectedSrIds.length"></span> BA</span>
-                </template>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    {{-- BA MGRT Preview Modal --}}
-    <div x-show="previewModalOpen" x-transition
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-      @keydown.escape.window="closePreviewModal()">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-6xl h-[90vh] flex flex-col"
-        @click.away="closePreviewModal()">
-        {{-- Modal Header --}}
-        <div class="flex items-center justify-between px-4 py-3 border-b bg-purple-600 text-white rounded-t-lg">
-          <h3 class="font-semibold text-lg">
-            <i class="fas fa-file-pdf mr-2"></i>Preview Berita Acara MGRT
-          </h3>
-          <button @click="closePreviewModal()" class="p-1 hover:bg-purple-700 rounded">
-            <i class="fas fa-times text-xl"></i>
-          </button>
-        </div>
-
-        {{-- Modal Body --}}
-        <div class="flex flex-1 overflow-hidden">
-          {{-- Sidebar --}}
-          <div class="w-64 bg-gray-100 border-r overflow-y-auto">
-            <div class="p-3 border-b bg-gray-200">
-              <span class="text-sm font-medium text-gray-700">Daftar BA (<span
-                  x-text="previewItems.length"></span>)</span>
-            </div>
-            <div class="divide-y">
-              <template x-for="(item, index) in previewItems" :key="item.id">
-                <button @click="goToPreview(index)" class="w-full text-left px-3 py-2 hover:bg-gray-200 transition-colors"
-                  :class="{'bg-purple-100 border-l-4 border-purple-600': previewCurrentIndex === index}">
-                  <div class="font-medium text-sm" x-text="item.reff_id_pelanggan"></div>
-                  <div class="text-xs text-gray-500" x-text="item.calon_pelanggan?.nama_pelanggan || '-'"></div>
-                </button>
-              </template>
-            </div>
-          </div>
-
-          {{-- PDF Preview --}}
-          <div class="flex-1 flex flex-col relative">
-            {{-- Loading Overlay --}}
-            <div x-show="previewLoading" 
-                 class="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
-              <div class="text-center">
-                <div class="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent mx-auto mb-4"></div>
-                <p class="text-gray-700 font-medium">Generating PDF...</p>
-                <p class="text-sm text-gray-500 mt-1">Mohon tunggu, sedang memproses dokumen</p>
-              </div>
-            </div>
-            {{-- PDF Iframe --}}
-            <iframe :src="getCurrentPreviewUrl()" 
-                    @load="previewLoading = false"
-                    class="flex-1 w-full" 
-                    frameborder="0"></iframe>
-          </div>
-        </div>
-
-        {{-- Modal Footer --}}
-        <div class="flex items-center justify-between px-4 py-3 border-t bg-gray-100 rounded-b-lg">
-          <div class="flex items-center gap-2">
-            <button @click="navigatePreview('prev')" :disabled="previewCurrentIndex === 0"
-              class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
-              <i class="fas fa-chevron-left mr-1"></i>Prev
-            </button>
-            <span class="text-sm text-gray-600">
-              <span x-text="previewCurrentIndex + 1"></span> / <span x-text="previewItems.length"></span>
-            </span>
-            <button @click="navigatePreview('next')" :disabled="previewCurrentIndex >= previewItems.length - 1"
-              class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
-              Next<i class="fas fa-chevron-right ml-1"></i>
-            </button>
-          </div>
-          <div class="flex items-center gap-2">
-            <button @click="downloadSingle(previewItems[previewCurrentIndex]?.id)"
-              class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-              <i class="fas fa-download mr-2"></i>Download Ini
-            </button>
-            <button @click="downloadBulk()" :disabled="downloadingBulk"
-              class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50">
-              <template x-if="downloadingBulk">
-                <span><i class="fas fa-spinner fa-spin mr-2"></i>Downloading...</span>
-              </template>
-              <template x-if="!downloadingBulk">
-                <span><i class="fas fa-download mr-2"></i>Download Semua (<span
-                    x-text="selectedSrIds.length"></span>)</span>
-              </template>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   {{-- Rejection Popup --}}
   <div id="rejection-popup-container"
@@ -444,17 +292,10 @@
             draft: {{ $sr->where('module_status', 'draft')->count() ?? 0 }},
             ready: {{ $sr->where('module_status', 'tracer_review')->count() ?? 0 }},
             completed: {{ $sr->where('module_status', 'completed')->count() ?? 0 }}
-                            },
+                                },
           loading: false,
 
-          // BA MGRT Selection Mode State
-          baMgrtMode: false,
-          selectedSrIds: [],
-          previewModalOpen: false,
-          previewLoading: false,
-          previewCurrentIndex: 0,
-          previewItems: [],
-          downloadingBulk: false,
+
 
           async fetchData(resetPage = false) {
             // Auto-reset to page 1 when filters change
@@ -631,127 +472,7 @@
             }
           },
 
-          // BA MGRT Selection Mode Functions
-          toggleBaMgrtMode() {
-            this.baMgrtMode = !this.baMgrtMode;
-            if (!this.baMgrtMode) {
-              this.selectedSrIds = [];
-              this.previewModalOpen = false;
-            }
-          },
 
-          toggleSelection(id) {
-            const idx = this.selectedSrIds.indexOf(id);
-            if (idx === -1) {
-              this.selectedSrIds.push(id);
-            } else {
-              this.selectedSrIds.splice(idx, 1);
-            }
-          },
-
-          toggleSelectAll() {
-            if (this.isAllSelected()) {
-              this.selectedSrIds = [];
-            } else {
-              this.selectedSrIds = this.items.map(i => i.id);
-            }
-          },
-
-          isAllSelected() {
-            return this.items.length > 0 && this.items.every(i => this.selectedSrIds.includes(i.id));
-          },
-
-          openPreviewModal() {
-            if (this.selectedSrIds.length === 0) {
-              alert('Silakan pilih minimal 1 SR untuk preview');
-              return;
-            }
-            this.previewItems = this.items.filter(i => this.selectedSrIds.includes(i.id));
-            this.previewCurrentIndex = 0;
-            this.previewLoading = true; // Show loading while PDF generates
-            this.previewModalOpen = true;
-          },
-
-          closePreviewModal() {
-            this.previewModalOpen = false;
-            this.previewItems = [];
-            this.previewCurrentIndex = 0;
-            this.previewLoading = false;
-          },
-
-          navigatePreview(direction) {
-            if (direction === 'prev' && this.previewCurrentIndex > 0) {
-              this.previewLoading = true; // Show loading for new PDF
-              this.previewCurrentIndex--;
-            } else if (direction === 'next' && this.previewCurrentIndex < this.previewItems.length - 1) {
-              this.previewLoading = true; // Show loading for new PDF
-              this.previewCurrentIndex++;
-            }
-          },
-
-          goToPreview(index) {
-            if (index !== this.previewCurrentIndex) {
-              this.previewLoading = true; // Show loading for new PDF
-            }
-            this.previewCurrentIndex = index;
-          },
-
-          getCurrentPreviewUrl() {
-            if (this.previewItems.length === 0) return '';
-            const sr = this.previewItems[this.previewCurrentIndex];
-            return `/sr/${sr.id}/ba-mgrt/preview`;
-          },
-
-          async downloadBulk() {
-            if (this.selectedSrIds.length === 0) {
-              alert('Silakan pilih minimal 1 SR untuk download');
-              return;
-            }
-
-            this.downloadingBulk = true;
-
-            try {
-              const response = await fetch('{{ route("sr.ba-mgrt.bulk") }}', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                  'Accept': 'application/octet-stream'
-                },
-                body: JSON.stringify({ sr_ids: this.selectedSrIds })
-              });
-
-              if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || 'Download gagal');
-              }
-
-              // Download the file
-              const blob = await response.blob();
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `BA_MGRT_Bulk_${new Date().toISOString().slice(0, 10)}.zip`;
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              window.URL.revokeObjectURL(url);
-
-              // Reset selection
-              this.selectedSrIds = [];
-              this.baMgrtMode = false;
-              this.closePreviewModal();
-            } catch (err) {
-              console.error('Download error:', err);
-              alert('Gagal download: ' + err.message);
-            } finally {
-              this.downloadingBulk = false;
-            }
-          },
-
-          async downloadSingle(srId) {
-            window.open(`/sr/${srId}/ba-mgrt/download`, '_blank');
-          },
 
           init() {
             // Check if we're returning from detail page
@@ -941,18 +662,18 @@
               const badgeColor = rejection.rejected_by_type === 'tracer' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700';
 
               html += `
-                              <div class="border-l-2 ${rejection.rejected_by_type === 'tracer' ? 'border-blue-400' : 'border-orange-400'} pl-2 py-2">
-                                <div class="flex items-start justify-between mb-1">
-                                  <div class="font-medium text-xs text-gray-900">${rejection.slot_label}</div>
-                                  <span class="px-1.5 py-0.5 rounded text-xs font-medium ${badgeColor}">${rejectedBy}</span>
-                                </div>
-                                <div class="text-xs text-gray-600 mb-1">${rejection.reason || 'No reason provided'}</div>
-                                <div class="flex items-center justify-between text-xs text-gray-500">
-                                  <span>${rejection.rejected_date}</span>
-                                  ${rejection.rejected_by_name ? `<span>${rejection.rejected_by_name}</span>` : ''}
-                                </div>
-                              </div>
-                            `;
+                                  <div class="border-l-2 ${rejection.rejected_by_type === 'tracer' ? 'border-blue-400' : 'border-orange-400'} pl-2 py-2">
+                                    <div class="flex items-start justify-between mb-1">
+                                      <div class="font-medium text-xs text-gray-900">${rejection.slot_label}</div>
+                                      <span class="px-1.5 py-0.5 rounded text-xs font-medium ${badgeColor}">${rejectedBy}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-600 mb-1">${rejection.reason || 'No reason provided'}</div>
+                                    <div class="flex items-center justify-between text-xs text-gray-500">
+                                      <span>${rejection.rejected_date}</span>
+                                      ${rejection.rejected_by_name ? `<span>${rejection.rejected_by_name}</span>` : ''}
+                                    </div>
+                                  </div>
+                                `;
             });
 
             html += '</div>';
