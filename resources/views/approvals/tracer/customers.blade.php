@@ -3,528 +3,695 @@
 @section('title', 'Tracer - Customer List')
 
 @section('content')
-<div class="container mx-auto px-4 py-6" x-data="tracerCustomersData()" x-init="init()">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-900">Customer Review List</h1>
-            <p class="text-gray-600 mt-1">Pilih pelanggan untuk review foto</p>
+    <div class="container mx-auto px-4 py-6" x-data="tracerCustomersData()" x-init="init()">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Customer Review List</h1>
+                <p class="text-gray-600 mt-1">Pilih pelanggan untuk review foto</p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ route('approvals.tracer.index') }}"
+                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium">
+                    ← Kembali ke Dashboard
+                </a>
+            </div>
         </div>
-        <div class="flex space-x-3">
-            <a href="{{ route('approvals.tracer.index') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium">
-                ← Kembali ke Dashboard
-            </a>
-        </div>
-    </div>
 
-    <!-- Filters -->
-    <div class="bg-white rounded-lg shadow mb-6">
-        <div class="p-6">
-            <!-- Row 1: Search and Status -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                    <input type="text" x-model="filters.search" @input.debounce.500ms="fetchCustomers(true)"
-                           placeholder="Reff ID, Nama, atau Alamat"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <!-- Stats Cards -->
+        <!-- Stats Cards -->
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <!-- Customers Ready Card -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-md bg-blue-50 p-3">
+                                <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Pelanggan Ready</dt>
+                                <dd class="flex items-baseline">
+                                    <div class="text-2xl font-semibold text-gray-900">{{ $stats['customers_ready']['total'] }}</div>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select x-model="filters.status" @change="fetchCustomers(true)"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Semua Status</option>
-                        <option value="sk_pending">SK Pending</option>
-                        <option value="sr_pending">SR Pending</option>
-                        <option value="gas_in_pending">Gas In Pending</option>
-                    </select>
+                <div class="bg-gray-50 px-5 py-3">
+                    <div class="text-xs flex justify-between text-gray-500">
+                        <span>SK: <strong>{{ $stats['customers_ready']['sk'] }}</strong></span>
+                        <span>SR: <strong>{{ $stats['customers_ready']['sr'] }}</strong></span>
+                        <span>GI: <strong>{{ $stats['customers_ready']['gas_in'] }}</strong></span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Row 2: Date Filters -->
-            <div class="border-t pt-4">
-                <div class="flex items-center mb-3">
-                    <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
-                    <span class="text-sm font-medium text-gray-700">Filter Tanggal Lapangan</span>
-                    <span class="ml-2 text-xs text-gray-500">(Tanggal Instalasi/Pemasangan/Gas In)</span>
+            <!-- Photos Ready Card -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-md bg-green-50 p-3">
+                                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Foto Ready</dt>
+                                <dd class="flex items-baseline">
+                                    <div class="text-2xl font-semibold text-gray-900">{{ $stats['photos_ready']['total'] }}</div>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div class="bg-gray-50 px-5 py-3">
+                    <div class="text-xs flex justify-between text-gray-500">
+                        <span>SK: <strong>{{ $stats['photos_ready']['sk'] }}</strong></span>
+                        <span>SR: <strong>{{ $stats['photos_ready']['sr'] }}</strong></span>
+                        <span>GI: <strong>{{ $stats['photos_ready']['gas_in'] }}</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Approved Card -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-md bg-teal-50 p-3">
+                                <svg class="h-6 w-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Total Approved</dt>
+                                <dd class="flex items-baseline">
+                                    <div class="text-2xl font-semibold text-gray-900">{{ $stats['approved']['total'] }}</div>
+                                    <div class="ml-2 text-sm text-teal-600 font-bold">
+                                        +{{ $stats['approved']['today'] }}
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-3">
+                    <div class="text-xs text-gray-500">
+                        Total foto disetujui.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rejected Card -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-md bg-red-50 p-3">
+                                <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Total Rejected</dt>
+                                <dd class="flex items-baseline">
+                                    <div class="text-2xl font-semibold text-gray-900">{{ $stats['rejected']['total'] }}</div>
+                                    <div class="ml-2 text-sm text-red-600 font-bold">
+                                        +{{ $stats['rejected']['today'] }}
+                                    </div>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-3">
+                    <div class="text-xs flex justify-between text-gray-500">
+                        <span>By Me: <strong class="text-red-600">{{ $stats['rejected']['tracer_rejected'] }}</strong></span>
+                        <span>Fr CGP: <strong class="text-orange-600">{{ $stats['rejected']['cgp_rejected'] }}</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white rounded-lg shadow mb-6">
+            <div class="p-6">
+                <!-- Row 1: Search and Status -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
-                        <label class="block text-xs text-gray-600 mb-1">Module</label>
-                        <select x-model="filters.date_module" @change="fetchCustomers(true)"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="all">Semua Module</option>
-                            <option value="sk">SK (Instalasi)</option>
-                            <option value="sr">SR (Pemasangan)</option>
-                            <option value="gas_in">Gas In</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                        <input type="text" x-model="filters.search" @input.debounce.500ms="fetchCustomers(true)"
+                            placeholder="Reff ID, Nama, atau Alamat"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select x-model="filters.status" @change="fetchCustomers(true)"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Semua Status</option>
+                            <option value="sk_pending">SK Pending</option>
+                            <option value="sr_pending">SR Pending</option>
+                            <option value="gas_in_pending">Gas In Pending</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-xs text-gray-600 mb-1">Dari Tanggal</label>
-                        <input type="date" x-model="filters.date_from" @change="fetchCustomers(true)"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- Row 2: Date Filters -->
+                <div class="border-t pt-4">
+                    <div class="flex items-center mb-3">
+                        <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
+                        <span class="text-sm font-medium text-gray-700">Filter Tanggal Lapangan</span>
+                        <span class="ml-2 text-xs text-gray-500">(Tanggal Instalasi/Pemasangan/Gas In)</span>
                     </div>
-                    <div>
-                        <label class="block text-xs text-gray-600 mb-1">Sampai Tanggal</label>
-                        <input type="date" x-model="filters.date_to" @change="fetchCustomers(true)"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="flex items-end space-x-2">
-                        <button @click="resetDateFilter()"
-                                x-show="filters.date_from || filters.date_to"
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Module</label>
+                            <select x-model="filters.date_module" @change="fetchCustomers(true)"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="all">Semua Module</option>
+                                <option value="sk">SK (Instalasi)</option>
+                                <option value="sr">SR (Pemasangan)</option>
+                                <option value="gas_in">Gas In</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Dari Tanggal</label>
+                            <input type="date" x-model="filters.date_from" @change="fetchCustomers(true)"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Sampai Tanggal</label>
+                            <input type="date" x-model="filters.date_to" @change="fetchCustomers(true)"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex items-end space-x-2">
+                            <button @click="resetDateFilter()" x-show="filters.date_from || filters.date_to"
                                 class="w-full px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-md text-sm font-medium">
-                            <i class="fas fa-times mr-1"></i>Reset Tanggal
-                        </button>
+                                <i class="fas fa-times mr-1"></i>Reset Tanggal
+                            </button>
+                        </div>
+                        <div class="flex items-end space-x-2">
+                            <button @click="resetFilters()"
+                                class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
+                                <i class="fas fa-redo mr-1"></i>Reset Semua
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex items-end space-x-2">
-                        <button @click="resetFilters()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
-                            <i class="fas fa-redo mr-1"></i>Reset Semua
+
+                    <!-- Quick Date Filters -->
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <span class="text-xs text-gray-600 mr-2">Quick Filter:</span>
+                        <button @click="setQuickDateFilter('today')"
+                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
+                            Hari Ini
+                        </button>
+                        <button @click="setQuickDateFilter('yesterday')"
+                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
+                            Kemarin
+                        </button>
+                        <button @click="setQuickDateFilter('week')"
+                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
+                            7 Hari Terakhir
+                        </button>
+                        <button @click="setQuickDateFilter('month')"
+                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
+                            30 Hari Terakhir
+                        </button>
+                        <button @click="setQuickDateFilter('this_month')"
+                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
+                            Bulan Ini
                         </button>
                     </div>
                 </div>
-
-                <!-- Quick Date Filters -->
-                <div class="mt-3 flex flex-wrap gap-2">
-                    <span class="text-xs text-gray-600 mr-2">Quick Filter:</span>
-                    <button @click="setQuickDateFilter('today')"
-                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
-                        Hari Ini
-                    </button>
-                    <button @click="setQuickDateFilter('yesterday')"
-                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
-                        Kemarin
-                    </button>
-                    <button @click="setQuickDateFilter('week')"
-                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
-                        7 Hari Terakhir
-                    </button>
-                    <button @click="setQuickDateFilter('month')"
-                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
-                        30 Hari Terakhir
-                    </button>
-                    <button @click="setQuickDateFilter('this_month')"
-                            class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium">
-                        Bulan Ini
-                    </button>
-                </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Customer List -->
-    <div class="bg-white rounded-lg shadow">
-        <div class="p-6 border-b border-gray-200">
-            <div class="flex justify-between items-center">
-                <h2 class="text-lg font-semibold text-gray-900">Daftar Pelanggan</h2>
-                <span class="text-sm text-gray-500" x-text="pagination.total + ' pelanggan ditemukan'"></span>
-            </div>
-        </div>
-
-        <!-- Loading State -->
-        <div x-show="loading" class="p-8 text-center">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p class="text-gray-500 mt-2">Loading customers...</p>
         </div>
 
         <!-- Customer List -->
-        <div x-show="!loading && customers.length > 0" class="divide-y divide-gray-200">
-            <template x-for="customer in customers" :key="customer.reff_id_pelanggan">
-                <div class="p-6 hover:bg-gray-50">
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <div class="flex items-center space-x-4">
-                                <div>
-                                    <h3 class="text-lg font-medium text-gray-900" x-text="customer.reff_id_pelanggan"></h3>
-                                    <p class="text-sm text-gray-600" x-text="customer.nama_pelanggan"></p>
-                                    <p class="text-sm text-gray-500" x-text="customer.alamat"></p>
-                                </div>
-                            </div>
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">Daftar Pelanggan</h2>
+                    <span class="text-sm text-gray-500" x-text="pagination.total + ' pelanggan ditemukan'"></span>
+                </div>
+            </div>
 
-                            <!-- Sequential Progress -->
-                            <div class="mt-4">
-                                <div class="flex items-center space-x-6">
-                                    <!-- SK Status -->
-                                    <div class="flex items-center">
-                                        <template x-if="customer.sequential_status?.sk_completed">
-                                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                                                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                </svg>
-                                            </div>
-                                        </template>
-                                        <template x-if="customer.sequential_status?.sk_rejected && !customer.sequential_status?.sk_completed">
-                                            <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-2">
-                                                <i class="fas fa-exclamation-circle text-red-600 text-sm"></i>
-                                            </div>
-                                        </template>
-                                        <template x-if="!customer.sequential_status?.sk_completed && !customer.sequential_status?.sk_rejected">
-                                            <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mr-2">
-                                                <span class="text-yellow-600 font-bold text-xs">SK</span>
-                                            </div>
-                                        </template>
-                                        <div class="flex flex-col">
-                                            <span class="text-sm font-medium"
-                                                  :class="{
-                                                      'text-green-600': customer.sequential_status?.sk_completed,
-                                                      'text-red-600': customer.sequential_status?.sk_rejected && !customer.sequential_status?.sk_completed,
-                                                      'text-yellow-600': !customer.sequential_status?.sk_completed && !customer.sequential_status?.sk_rejected
-                                                  }">
-                                                SK
-                                                <span x-text="customer.sequential_status?.sk_completed ? 'Completed' : (customer.sequential_status?.sk_rejected ? 'Has Rejections' : 'Pending')"></span>
-                                            </span>
-                                            <span x-show="customer.sequential_status?.modules?.sk?.rejected_count > 0"
-                                                  class="text-xs text-red-500"
-                                                  x-text="customer.sequential_status?.modules?.sk?.rejected_count + ' rejected'"></span>
-                                        </div>
-                                    </div>
+            <!-- Loading State -->
+            <div x-show="loading" class="p-8 text-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="text-gray-500 mt-2">Loading customers...</p>
+            </div>
 
-                                    <!-- Arrow -->
-                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                    </svg>
-
-                                    <!-- SR Status -->
-                                    <div class="flex items-center">
-                                        <template x-if="customer.sequential_status?.sr_completed">
-                                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                                                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                </svg>
-                                            </div>
-                                        </template>
-                                        <template x-if="customer.sequential_status?.sr_rejected && !customer.sequential_status?.sr_completed">
-                                            <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-2">
-                                                <i class="fas fa-exclamation-circle text-red-600 text-sm"></i>
-                                            </div>
-                                        </template>
-                                        <template x-if="customer.sequential_status?.sr_available && !customer.sequential_status?.sr_completed && !customer.sequential_status?.sr_rejected">
-                                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                                                <span class="text-blue-600 font-bold text-xs">SR</span>
-                                            </div>
-                                        </template>
-                                        <template x-if="!customer.sequential_status?.sr_available && !customer.sequential_status?.sr_completed && !customer.sequential_status?.sr_rejected">
-                                            <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-2 relative">
-                                                <span class="text-gray-400 font-bold text-xs">SR</span>
-                                                <i class="fas fa-lock absolute -top-1 -right-1 text-xs text-red-500 bg-white rounded-full p-0.5"></i>
-                                            </div>
-                                        </template>
-                                        <div class="flex flex-col">
-                                            <span class="text-sm font-medium"
-                                                  :class="{
-                                                      'text-green-600': customer.sequential_status?.sr_completed,
-                                                      'text-red-600': customer.sequential_status?.sr_rejected && !customer.sequential_status?.sr_completed,
-                                                      'text-blue-600': customer.sequential_status?.sr_available && !customer.sequential_status?.sr_completed && !customer.sequential_status?.sr_rejected,
-                                                      'text-gray-400': !customer.sequential_status?.sr_available && !customer.sequential_status?.sr_completed && !customer.sequential_status?.sr_rejected
-                                                  }">
-                                                SR
-                                                <span x-text="customer.sequential_status?.sr_completed ? 'Completed' : (customer.sequential_status?.sr_rejected ? 'Has Rejections' : (customer.sequential_status?.sr_available ? 'Available' : 'Locked'))"></span>
-                                            </span>
-                                            <template x-if="customer.sequential_status?.modules?.sr">
-                                                <span class="text-xs"
-                                                      :class="customer.sequential_status?.modules?.sr?.rejected_count > 0 ? 'text-red-500' : 'text-gray-500'"
-                                                      x-text="customer.sequential_status?.modules?.sr?.status_text + (customer.sequential_status?.modules?.sr?.rejected_count > 0 ? ' (' + customer.sequential_status?.modules?.sr?.rejected_count + ' rejected)' : (customer.sequential_status?.modules?.sr?.pending_count > 0 ? ' (' + customer.sequential_status?.modules?.sr?.pending_count + ' pending)' : ''))"></span>
-                                            </template>
-                                        </div>
-                                    </div>
-
-                                    <!-- Arrow -->
-                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                    </svg>
-
-                                    <!-- Gas In Status -->
-                                    <div class="flex items-center">
-                                        <template x-if="customer.sequential_status?.gas_in_completed">
-                                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                                                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                </svg>
-                                            </div>
-                                        </template>
-                                        <template x-if="customer.sequential_status?.gas_in_rejected && !customer.sequential_status?.gas_in_completed">
-                                            <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-2">
-                                                <i class="fas fa-exclamation-circle text-red-600 text-sm"></i>
-                                            </div>
-                                        </template>
-                                        <template x-if="customer.sequential_status?.gas_in_available && !customer.sequential_status?.gas_in_completed && !customer.sequential_status?.gas_in_rejected">
-                                            <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mr-2">
-                                                <span class="text-orange-600 font-bold text-xs">GI</span>
-                                            </div>
-                                        </template>
-                                        <template x-if="!customer.sequential_status?.gas_in_available && !customer.sequential_status?.gas_in_completed && !customer.sequential_status?.gas_in_rejected">
-                                            <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-2 relative">
-                                                <span class="text-gray-400 font-bold text-xs">GI</span>
-                                                <i class="fas fa-lock absolute -top-1 -right-1 text-xs text-red-500 bg-white rounded-full p-0.5"></i>
-                                            </div>
-                                        </template>
-                                        <div class="flex flex-col">
-                                            <span class="text-sm font-medium"
-                                                  :class="{
-                                                      'text-green-600': customer.sequential_status?.gas_in_completed,
-                                                      'text-red-600': customer.sequential_status?.gas_in_rejected && !customer.sequential_status?.gas_in_completed,
-                                                      'text-orange-600': customer.sequential_status?.gas_in_available && !customer.sequential_status?.gas_in_completed && !customer.sequential_status?.gas_in_rejected,
-                                                      'text-gray-400': !customer.sequential_status?.gas_in_available && !customer.sequential_status?.gas_in_completed && !customer.sequential_status?.gas_in_rejected
-                                                  }">
-                                                Gas In
-                                                <span x-text="customer.sequential_status?.gas_in_completed ? 'Completed' : (customer.sequential_status?.gas_in_rejected ? 'Has Rejections' : (customer.sequential_status?.gas_in_available ? 'Available' : 'Locked'))"></span>
-                                            </span>
-                                            <template x-if="customer.sequential_status?.modules?.gas_in">
-                                                <span class="text-xs"
-                                                      :class="customer.sequential_status?.modules?.gas_in?.rejected_count > 0 ? 'text-red-500' : 'text-gray-500'"
-                                                      x-text="customer.sequential_status?.modules?.gas_in?.status_text + (customer.sequential_status?.modules?.gas_in?.rejected_count > 0 ? ' (' + customer.sequential_status?.modules?.gas_in?.rejected_count + ' rejected)' : (customer.sequential_status?.modules?.gas_in?.pending_count > 0 ? ' (' + customer.sequential_status?.modules?.gas_in?.pending_count + ' pending)' : ''))"></span>
-                                            </template>
-                                        </div>
+            <!-- Customer List -->
+            <div x-show="!loading && customers.length > 0" class="divide-y divide-gray-200">
+                <template x-for="customer in customers" :key="customer.reff_id_pelanggan">
+                    <div class="p-6 hover:bg-gray-50">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-4">
+                                    <div>
+                                        <h3 class="text-lg font-medium text-gray-900" x-text="customer.reff_id_pelanggan">
+                                        </h3>
+                                        <p class="text-sm text-gray-600" x-text="customer.nama_pelanggan"></p>
+                                        <p class="text-sm text-gray-500" x-text="customer.alamat"></p>
                                     </div>
                                 </div>
 
-                                <!-- Current Step Indicator -->
-                                <template x-if="customer.sequential_status?.current_step !== 'completed'">
-                                    <div class="mt-2">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            📍 Current Step: <span x-text="(customer.sequential_status?.current_step || '').toUpperCase()"></span>
-                                        </span>
-                                    </div>
-                                </template>
-                                <template x-if="customer.sequential_status?.current_step === 'completed'">
-                                    <div class="mt-2">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            ✅ All Steps Completed
-                                        </span>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
+                                <!-- Sequential Progress -->
+                                <div class="mt-4">
+                                    <div class="flex items-center space-x-6">
+                                        <!-- SK Status -->
+                                        <div class="flex items-center">
+                                            <template x-if="customer.sequential_status?.sk_completed">
+                                                <div
+                                                    class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                                                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
+                                            </template>
+                                            <template
+                                                x-if="customer.sequential_status?.sk_rejected && !customer.sequential_status?.sk_completed">
+                                                <div
+                                                    class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-2">
+                                                    <i class="fas fa-exclamation-circle text-red-600 text-sm"></i>
+                                                </div>
+                                            </template>
+                                            <template
+                                                x-if="!customer.sequential_status?.sk_completed && !customer.sequential_status?.sk_rejected">
+                                                <div
+                                                    class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mr-2">
+                                                    <span class="text-yellow-600 font-bold text-xs">SK</span>
+                                                </div>
+                                            </template>
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-medium" :class="{
+                                                          'text-green-600': customer.sequential_status?.sk_completed,
+                                                          'text-red-600': customer.sequential_status?.sk_rejected && !customer.sequential_status?.sk_completed,
+                                                          'text-yellow-600': !customer.sequential_status?.sk_completed && !customer.sequential_status?.sk_rejected
+                                                      }">
+                                                    SK
+                                                    <span
+                                                        x-text="customer.sequential_status?.sk_completed ? 'Completed' : (customer.sequential_status?.sk_rejected ? 'Has Rejections' : 'Pending')"></span>
+                                                </span>
+                                                <span x-show="customer.sequential_status?.modules?.sk?.rejected_count > 0"
+                                                    class="text-xs text-red-500"
+                                                    x-text="customer.sequential_status?.modules?.sk?.rejected_count + ' rejected'"></span>
+                                            </div>
+                                        </div>
 
-                        <!-- Action Button -->
-                        <div>
-                            <a :href="`/approvals/tracer/customers/${customer.reff_id_pelanggan}/photos`"
-                               @click="savePageState()"
-                               class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium inline-flex items-center">
-                                📸 Review Photos
-                                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                </svg>
-                            </a>
+                                        <!-- Arrow -->
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5l7 7-7 7"></path>
+                                        </svg>
+
+                                        <!-- SR Status -->
+                                        <div class="flex items-center">
+                                            <template x-if="customer.sequential_status?.sr_completed">
+                                                <div
+                                                    class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                                                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
+                                            </template>
+                                            <template
+                                                x-if="customer.sequential_status?.sr_rejected && !customer.sequential_status?.sr_completed">
+                                                <div
+                                                    class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-2">
+                                                    <i class="fas fa-exclamation-circle text-red-600 text-sm"></i>
+                                                </div>
+                                            </template>
+                                            <template
+                                                x-if="customer.sequential_status?.sr_available && !customer.sequential_status?.sr_completed && !customer.sequential_status?.sr_rejected">
+                                                <div
+                                                    class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                                                    <span class="text-blue-600 font-bold text-xs">SR</span>
+                                                </div>
+                                            </template>
+                                            <template
+                                                x-if="!customer.sequential_status?.sr_available && !customer.sequential_status?.sr_completed && !customer.sequential_status?.sr_rejected">
+                                                <div
+                                                    class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-2 relative">
+                                                    <span class="text-gray-400 font-bold text-xs">SR</span>
+                                                    <i
+                                                        class="fas fa-lock absolute -top-1 -right-1 text-xs text-red-500 bg-white rounded-full p-0.5"></i>
+                                                </div>
+                                            </template>
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-medium" :class="{
+                                                          'text-green-600': customer.sequential_status?.sr_completed,
+                                                          'text-red-600': customer.sequential_status?.sr_rejected && !customer.sequential_status?.sr_completed,
+                                                          'text-blue-600': customer.sequential_status?.sr_available && !customer.sequential_status?.sr_completed && !customer.sequential_status?.sr_rejected,
+                                                          'text-gray-400': !customer.sequential_status?.sr_available && !customer.sequential_status?.sr_completed && !customer.sequential_status?.sr_rejected
+                                                      }">
+                                                    SR
+                                                    <span
+                                                        x-text="customer.sequential_status?.sr_completed ? 'Completed' : (customer.sequential_status?.sr_rejected ? 'Has Rejections' : (customer.sequential_status?.sr_available ? 'Available' : 'Locked'))"></span>
+                                                </span>
+                                                <template x-if="customer.sequential_status?.modules?.sr">
+                                                    <span class="text-xs"
+                                                        :class="customer.sequential_status?.modules?.sr?.rejected_count > 0 ? 'text-red-500' : 'text-gray-500'"
+                                                        x-text="customer.sequential_status?.modules?.sr?.status_text + (customer.sequential_status?.modules?.sr?.rejected_count > 0 ? ' (' + customer.sequential_status?.modules?.sr?.rejected_count + ' rejected)' : (customer.sequential_status?.modules?.sr?.pending_count > 0 ? ' (' + customer.sequential_status?.modules?.sr?.pending_count + ' pending)' : ''))"></span>
+                                                </template>
+                                            </div>
+                                        </div>
+
+                                        <!-- Arrow -->
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5l7 7-7 7"></path>
+                                        </svg>
+
+                                        <!-- Gas In Status -->
+                                        <div class="flex items-center">
+                                            <template x-if="customer.sequential_status?.gas_in_completed">
+                                                <div
+                                                    class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                                                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
+                                            </template>
+                                            <template
+                                                x-if="customer.sequential_status?.gas_in_rejected && !customer.sequential_status?.gas_in_completed">
+                                                <div
+                                                    class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-2">
+                                                    <i class="fas fa-exclamation-circle text-red-600 text-sm"></i>
+                                                </div>
+                                            </template>
+                                            <template
+                                                x-if="customer.sequential_status?.gas_in_available && !customer.sequential_status?.gas_in_completed && !customer.sequential_status?.gas_in_rejected">
+                                                <div
+                                                    class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mr-2">
+                                                    <span class="text-orange-600 font-bold text-xs">GI</span>
+                                                </div>
+                                            </template>
+                                            <template
+                                                x-if="!customer.sequential_status?.gas_in_available && !customer.sequential_status?.gas_in_completed && !customer.sequential_status?.gas_in_rejected">
+                                                <div
+                                                    class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-2 relative">
+                                                    <span class="text-gray-400 font-bold text-xs">GI</span>
+                                                    <i
+                                                        class="fas fa-lock absolute -top-1 -right-1 text-xs text-red-500 bg-white rounded-full p-0.5"></i>
+                                                </div>
+                                            </template>
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-medium" :class="{
+                                                          'text-green-600': customer.sequential_status?.gas_in_completed,
+                                                          'text-red-600': customer.sequential_status?.gas_in_rejected && !customer.sequential_status?.gas_in_completed,
+                                                          'text-orange-600': customer.sequential_status?.gas_in_available && !customer.sequential_status?.gas_in_completed && !customer.sequential_status?.gas_in_rejected,
+                                                          'text-gray-400': !customer.sequential_status?.gas_in_available && !customer.sequential_status?.gas_in_completed && !customer.sequential_status?.gas_in_rejected
+                                                      }">
+                                                    Gas In
+                                                    <span
+                                                        x-text="customer.sequential_status?.gas_in_completed ? 'Completed' : (customer.sequential_status?.gas_in_rejected ? 'Has Rejections' : (customer.sequential_status?.gas_in_available ? 'Available' : 'Locked'))"></span>
+                                                </span>
+                                                <template x-if="customer.sequential_status?.modules?.gas_in">
+                                                    <span class="text-xs"
+                                                        :class="customer.sequential_status?.modules?.gas_in?.rejected_count > 0 ? 'text-red-500' : 'text-gray-500'"
+                                                        x-text="customer.sequential_status?.modules?.gas_in?.status_text + (customer.sequential_status?.modules?.gas_in?.rejected_count > 0 ? ' (' + customer.sequential_status?.modules?.gas_in?.rejected_count + ' rejected)' : (customer.sequential_status?.modules?.gas_in?.pending_count > 0 ? ' (' + customer.sequential_status?.modules?.gas_in?.pending_count + ' pending)' : ''))"></span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Current Step Indicator -->
+                                    <template x-if="customer.sequential_status?.current_step !== 'completed'">
+                                        <div class="mt-2">
+                                            <span
+                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                📍 Current Step: <span
+                                                    x-text="(customer.sequential_status?.current_step || '').toUpperCase()"></span>
+                                            </span>
+                                        </div>
+                                    </template>
+                                    <template x-if="customer.sequential_status?.current_step === 'completed'">
+                                        <div class="mt-2">
+                                            <span
+                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                ✅ All Steps Completed
+                                            </span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Action Button -->
+                            <div>
+                                <a :href="`/approvals/tracer/customers/${customer.reff_id_pelanggan}/photos`"
+                                    @click="savePageState()"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium inline-flex items-center">
+                                    📸 Review Photos
+                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </a>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </template>
-        </div>
+                </template>
+            </div>
 
-        <!-- Empty State -->
-        <div x-show="!loading && customers.length === 0" class="p-12 text-center">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">Tidak ada pelanggan ditemukan</h3>
-            <p class="mt-1 text-sm text-gray-500">Coba ubah filter atau kriteria pencarian Anda</p>
-        </div>
+            <!-- Empty State -->
+            <div x-show="!loading && customers.length === 0" class="p-12 text-center">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                    </path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">Tidak ada pelanggan ditemukan</h3>
+                <p class="mt-1 text-sm text-gray-500">Coba ubah filter atau kriteria pencarian Anda</p>
+            </div>
 
-        <!-- Pagination -->
-        <x-pagination />
+            <!-- Pagination -->
+            <x-pagination />
+        </div>
     </div>
-</div>
 
-@push('scripts')
-<script>
-function tracerCustomersData() {
-    return {
-        customers: @json($customers->items() ?? []),
-        pagination: {
-            current_page: @json($customers->currentPage() ?? 1),
-            last_page: @json($customers->lastPage() ?? 1),
-            per_page: @json($customers->perPage() ?? 15),
-            total: @json($customers->total() ?? 0),
-            from: @json($customers->firstItem() ?? 0),
-            to: @json($customers->lastItem() ?? 0)
-        },
-        filters: {
-            search: '{{ request("search") }}',
-            status: '{{ request("status") }}',
-            date_from: '{{ request("date_from") }}',
-            date_to: '{{ request("date_to") }}',
-            date_module: '{{ request("date_module", "all") }}'
-        },
-        loading: false,
+    @push('scripts')
+        <script>
+            function tracerCustomersData() {
+                return {
+                    customers: @json($customers->items() ?? []),
+                    pagination: {
+                        current_page: @json($customers->currentPage() ?? 1),
+                        last_page: @json($customers->lastPage() ?? 1),
+                        per_page: @json($customers->perPage() ?? 15),
+                        total: @json($customers->total() ?? 0),
+                        from: @json($customers->firstItem() ?? 0),
+                        to: @json($customers->lastItem() ?? 0)
+                    },
+                    filters: {
+                        search: '{{ request("search") }}',
+                        status: '{{ request("status") }}',
+                        date_from: '{{ request("date_from") }}',
+                        date_to: '{{ request("date_to") }}',
+                        date_module: '{{ request("date_module", "all") }}'
+                    },
+                    loading: false,
 
-        async fetchCustomers(resetPage = false) {
-            // Auto-reset pagination when filters change
-            if (resetPage) {
-                this.pagination.current_page = 1;
-            }
+                    async fetchCustomers(resetPage = false) {
+                        // Auto-reset pagination when filters change
+                        if (resetPage) {
+                            this.pagination.current_page = 1;
+                        }
 
-            this.loading = true;
+                        this.loading = true;
 
-            try {
-                const params = new URLSearchParams({
-                    search: this.filters.search,
-                    status: this.filters.status,
-                    date_from: this.filters.date_from,
-                    date_to: this.filters.date_to,
-                    date_module: this.filters.date_module,
-                    page: this.pagination.current_page,
-                    ajax: 1
-                });
+                        try {
+                            const params = new URLSearchParams({
+                                search: this.filters.search,
+                                status: this.filters.status,
+                                date_from: this.filters.date_from,
+                                date_to: this.filters.date_to,
+                                date_module: this.filters.date_module,
+                                page: this.pagination.current_page,
+                                ajax: 1
+                            });
 
-                const response = await fetch(`{{ route('approvals.tracer.customers') }}?${params}`, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    }
-                });
+                            const response = await fetch(`{{ route('approvals.tracer.customers') }}?${params}`, {
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                                }
+                            });
 
-                const data = await response.json();
+                            const data = await response.json();
 
-                if (data.success) {
-                    this.customers = data.data.data || [];
-                    this.pagination = {
-                        current_page: data.data.current_page,
-                        last_page: data.data.last_page,
-                        per_page: data.data.per_page,
-                        total: data.data.total,
-                        from: data.data.from,
-                        to: data.data.to
-                    };
+                            if (data.success) {
+                                this.customers = data.data.data || [];
+                                this.pagination = {
+                                    current_page: data.data.current_page,
+                                    last_page: data.data.last_page,
+                                    per_page: data.data.per_page,
+                                    total: data.data.total,
+                                    from: data.data.from,
+                                    to: data.data.to
+                                };
 
-                    // Smart pagination: Auto-adjust if current page exceeds last page
-                    if (this.pagination.current_page > this.pagination.last_page && this.pagination.last_page > 0) {
-                        this.pagination.current_page = this.pagination.last_page;
-                        await this.fetchCustomers(false); // Fetch again with adjusted page
+                                // Smart pagination: Auto-adjust if current page exceeds last page
+                                if (this.pagination.current_page > this.pagination.last_page && this.pagination.last_page > 0) {
+                                    this.pagination.current_page = this.pagination.last_page;
+                                    await this.fetchCustomers(false); // Fetch again with adjusted page
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error fetching customers:', error);
+                        } finally {
+                            this.loading = false;
+                        }
+                    },
+
+                    resetFilters() {
+                        this.filters = {
+                            search: '',
+                            status: '',
+                            date_from: '',
+                            date_to: '',
+                            date_module: 'all'
+                        };
+                        this.fetchCustomers(true);
+                    },
+
+                    resetDateFilter() {
+                        this.filters.date_from = '';
+                        this.filters.date_to = '';
+                        this.filters.date_module = 'all';
+                        this.fetchCustomers(true);
+                    },
+
+                    setQuickDateFilter(period) {
+                        const today = new Date();
+                        const formatDate = (date) => {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            return `${year}-${month}-${day}`;
+                        };
+
+                        switch (period) {
+                            case 'today':
+                                this.filters.date_from = formatDate(today);
+                                this.filters.date_to = formatDate(today);
+                                break;
+                            case 'yesterday':
+                                const yesterday = new Date(today);
+                                yesterday.setDate(yesterday.getDate() - 1);
+                                this.filters.date_from = formatDate(yesterday);
+                                this.filters.date_to = formatDate(yesterday);
+                                break;
+                            case 'week':
+                                const weekAgo = new Date(today);
+                                weekAgo.setDate(weekAgo.getDate() - 7);
+                                this.filters.date_from = formatDate(weekAgo);
+                                this.filters.date_to = formatDate(today);
+                                break;
+                            case 'month':
+                                const monthAgo = new Date(today);
+                                monthAgo.setDate(monthAgo.getDate() - 30);
+                                this.filters.date_from = formatDate(monthAgo);
+                                this.filters.date_to = formatDate(today);
+                                break;
+                            case 'this_month':
+                                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                                this.filters.date_from = formatDate(firstDay);
+                                this.filters.date_to = formatDate(today);
+                                break;
+                        }
+                        this.fetchCustomers(true);
+                    },
+
+                    get paginationPages() {
+                        const pages = [];
+                        const current = this.pagination.current_page;
+                        const last = this.pagination.last_page;
+
+                        let start = Math.max(1, current - 2);
+                        let end = Math.min(last, current + 2);
+
+                        for (let i = start; i <= end; i++) {
+                            pages.push(i);
+                        }
+
+                        return pages;
+                    },
+
+                    goToPage(page) {
+                        if (page >= 1 && page <= this.pagination.last_page) {
+                            this.pagination.current_page = page;
+                            this.fetchCustomers();
+                        }
+                    },
+
+                    previousPage() {
+                        if (this.pagination.current_page > 1) {
+                            this.pagination.current_page--;
+                            this.fetchCustomers();
+                        }
+                    },
+
+                    nextPage() {
+                        if (this.pagination.current_page < this.pagination.last_page) {
+                            this.pagination.current_page++;
+                            this.fetchCustomers();
+                        }
+                    },
+
+                    savePageState() {
+                        // Save current page and filters to sessionStorage
+                        const state = {
+                            page: this.pagination.current_page,
+                            filters: this.filters,
+                            timestamp: Date.now()
+                        };
+                        sessionStorage.setItem('tracerCustomersPageState', JSON.stringify(state));
+                    },
+
+                    restorePageState() {
+                        // Restore page state from sessionStorage
+                        const savedState = sessionStorage.getItem('tracerCustomersPageState');
+                        if (savedState) {
+                            const state = JSON.parse(savedState);
+                            // Only restore if saved within last 30 minutes
+                            if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                                this.pagination.current_page = state.page || 1;
+                                this.filters = state.filters || this.filters;
+                                this.fetchCustomers();
+                                // Clear the saved state after restoring
+                                sessionStorage.removeItem('tracerCustomersPageState');
+                            }
+                        }
+                    },
+
+                    init() {
+                        // Check if we're returning from detail page
+                        this.restorePageState();
                     }
                 }
-            } catch (error) {
-                console.error('Error fetching customers:', error);
-            } finally {
-                this.loading = false;
             }
-        },
-
-        resetFilters() {
-            this.filters = {
-                search: '',
-                status: '',
-                date_from: '',
-                date_to: '',
-                date_module: 'all'
-            };
-            this.fetchCustomers(true);
-        },
-
-        resetDateFilter() {
-            this.filters.date_from = '';
-            this.filters.date_to = '';
-            this.filters.date_module = 'all';
-            this.fetchCustomers(true);
-        },
-
-        setQuickDateFilter(period) {
-            const today = new Date();
-            const formatDate = (date) => {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            };
-
-            switch(period) {
-                case 'today':
-                    this.filters.date_from = formatDate(today);
-                    this.filters.date_to = formatDate(today);
-                    break;
-                case 'yesterday':
-                    const yesterday = new Date(today);
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    this.filters.date_from = formatDate(yesterday);
-                    this.filters.date_to = formatDate(yesterday);
-                    break;
-                case 'week':
-                    const weekAgo = new Date(today);
-                    weekAgo.setDate(weekAgo.getDate() - 7);
-                    this.filters.date_from = formatDate(weekAgo);
-                    this.filters.date_to = formatDate(today);
-                    break;
-                case 'month':
-                    const monthAgo = new Date(today);
-                    monthAgo.setDate(monthAgo.getDate() - 30);
-                    this.filters.date_from = formatDate(monthAgo);
-                    this.filters.date_to = formatDate(today);
-                    break;
-                case 'this_month':
-                    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-                    this.filters.date_from = formatDate(firstDay);
-                    this.filters.date_to = formatDate(today);
-                    break;
-            }
-            this.fetchCustomers(true);
-        },
-
-        get paginationPages() {
-            const pages = [];
-            const current = this.pagination.current_page;
-            const last = this.pagination.last_page;
-
-            let start = Math.max(1, current - 2);
-            let end = Math.min(last, current + 2);
-
-            for (let i = start; i <= end; i++) {
-                pages.push(i);
-            }
-
-            return pages;
-        },
-
-        goToPage(page) {
-            if (page >= 1 && page <= this.pagination.last_page) {
-                this.pagination.current_page = page;
-                this.fetchCustomers();
-            }
-        },
-
-        previousPage() {
-            if (this.pagination.current_page > 1) {
-                this.pagination.current_page--;
-                this.fetchCustomers();
-            }
-        },
-
-        nextPage() {
-            if (this.pagination.current_page < this.pagination.last_page) {
-                this.pagination.current_page++;
-                this.fetchCustomers();
-            }
-        },
-
-        savePageState() {
-            // Save current page and filters to sessionStorage
-            const state = {
-                page: this.pagination.current_page,
-                filters: this.filters,
-                timestamp: Date.now()
-            };
-            sessionStorage.setItem('tracerCustomersPageState', JSON.stringify(state));
-        },
-
-        restorePageState() {
-            // Restore page state from sessionStorage
-            const savedState = sessionStorage.getItem('tracerCustomersPageState');
-            if (savedState) {
-                const state = JSON.parse(savedState);
-                // Only restore if saved within last 30 minutes
-                if (Date.now() - state.timestamp < 30 * 60 * 1000) {
-                    this.pagination.current_page = state.page || 1;
-                    this.filters = state.filters || this.filters;
-                    this.fetchCustomers();
-                    // Clear the saved state after restoring
-                    sessionStorage.removeItem('tracerCustomersPageState');
-                }
-            }
-        },
-
-        init() {
-            // Check if we're returning from detail page
-            this.restorePageState();
-        }
-    }
-}
-</script>
-@endpush
+        </script>
+    @endpush
 @endsection

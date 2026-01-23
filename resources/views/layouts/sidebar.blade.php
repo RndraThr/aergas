@@ -364,7 +364,7 @@
                                 class="fas fa-search w-5 mr-3 text-lg {{ request()->routeIs('approvals.tracer.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                             <span class="flex-1 text-left">Tracer Review</span>
                             @php
-                                $pendingTracer = \App\Models\PhotoApproval::where('photo_status', 'tracer_pending')->count();
+                                $pendingTracer = \App\Models\PhotoApproval::whereIn('photo_status', ['tracer_pending', 'draft'])->count();
                             @endphp
                             @if($pendingTracer > 0)
                                 <span
@@ -408,7 +408,7 @@
                                 class="fas fa-clipboard-check w-5 mr-3 text-lg {{ request()->routeIs('approvals.cgp.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                             <span class="flex-1 text-left">CGP Review</span>
                             @php
-                                $pendingCgp = \App\Models\PhotoApproval::where('photo_status', 'cgp_pending')->count();
+                                $pendingCgp = \App\Models\PhotoApproval::whereIn('photo_status', ['cgp_pending', 'tracer_approved'])->count();
                             @endphp
                             @if($pendingCgp > 0)
                                 <span
@@ -456,7 +456,7 @@
                             class="fas fa-clipboard-check w-5 mr-3 text-lg {{ request()->routeIs('approvals.cgp.jalur.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                         <span class="flex-1 text-left">CGP Review - Jalur</span>
                         @php
-                            $pendingJalurCgp = \App\Models\PhotoApproval::where('photo_status', 'cgp_pending')
+                            $pendingJalurCgp = \App\Models\PhotoApproval::whereIn('photo_status', ['cgp_pending', 'tracer_approved'])
                                 ->whereIn('module_name', ['jalur_lowering', 'jalur_joint'])
                                 ->count();
                         @endphp

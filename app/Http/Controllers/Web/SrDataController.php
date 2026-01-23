@@ -519,12 +519,12 @@ class SrDataController extends Controller
         $sr->cgp_notes = $r->input('notes');
         $sr->save();
 
-        // Update customer progress_status to next module (Gas-In)
-        $customer = $sr->calonPelanggan;
-        if ($customer && $customer->progress_status === 'sr') {
-            $customer->progress_status = 'gas_in';
-            $customer->save();
-        }
+        // In Parallel Workflow, we do NOT auto-advance to Gas-In here.
+        // $customer = $sr->calonPelanggan;
+        // if ($customer && $customer->progress_status === 'sr') {
+        //     $customer->progress_status = 'gas_in';
+        //     $customer->save();
+        // }
 
         $this->audit('approve', $sr, $old, $sr->toArray());
         return response()->json(['success' => true, 'data' => $sr]);
@@ -574,11 +574,18 @@ class SrDataController extends Controller
         $sr->module_status = 'completed';
         $sr->save();
 
-        // Update customer progress_status to Gas-In (if still on SR)
+        // Check if ALL modules are completed to mark customer as DONE
         $customer = $sr->calonPelanggan;
-        if ($customer && $customer->progress_status === 'sr') {
-            $customer->progress_status = 'gas_in';
-            $customer->save();
+        if ($customer) {
+            $skDone = $customer->skData?->module_status === 'completed';
+            $srDone = $customer->srData?->module_status === 'completed';
+            $gasInDone = $customer->gasInData?->module_status === 'completed';
+
+            if ($skDone && $srDone && $gasInDone) {
+                $customer->progress_status = 'done';
+                $customer->status = 'lanjut';
+                $customer->save();
+            }
         }
 
         $this->audit('update', $sr, $old, $sr->toArray());

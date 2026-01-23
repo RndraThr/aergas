@@ -53,22 +53,31 @@ class CalonPelanggan extends Model
 
     protected $casts = [
         'tanggal_registrasi' => 'datetime',
-        'validated_at'       => 'datetime',
-        'last_login'         => 'datetime',
+        'validated_at' => 'datetime',
+        'last_login' => 'datetime',
         'coordinate_updated_at' => 'datetime',
-        'latitude'           => 'decimal:8',
-        'longitude'          => 'decimal:8',
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8',
         'progress_percentage' => 'decimal:2',    // 0.00 to 100.00 (incremental based on CGP-approved photos)
-        'status'             => 'string',        // pending | lanjut | in_progress | batal
-        'progress_status'    => 'string',        // validasi | sk | sr | gas_in | done | batal
+        'status' => 'string',        // pending | lanjut | in_progress | batal
+        'progress_status' => 'string',        // validasi | sk | sr | gas_in | done | batal
     ];
 
     /* =========================
      * RELATIONS (1:1 per modul)
      * ========================= */
-    public function skData(): HasOne { return $this->hasOne(SkData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
-    public function srData(): HasOne { return $this->hasOne(SrData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
-    public function gasInData(): HasOne { return $this->hasOne(GasInData::class, 'reff_id_pelanggan', 'reff_id_pelanggan'); }
+    public function skData(): HasOne
+    {
+        return $this->hasOne(SkData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
+    }
+    public function srData(): HasOne
+    {
+        return $this->hasOne(SrData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
+    }
+    public function gasInData(): HasOne
+    {
+        return $this->hasOne(GasInData::class, 'reff_id_pelanggan', 'reff_id_pelanggan');
+    }
 
     public function photoApprovals(): HasMany
     {
@@ -94,12 +103,13 @@ class CalonPelanggan extends Model
      * ========================= */
     public function scopeSearch($q, ?string $term)
     {
-        if (!$term) return $q;
+        if (!$term)
+            return $q;
         return $q->where(function ($qq) use ($term) {
             $qq->where('nama_pelanggan', 'like', "%{$term}%")
-               ->orWhere('reff_id_pelanggan', 'like', "%{$term}%")
-               ->orWhere('alamat', 'like', "%{$term}%")
-               ->orWhere('no_telepon', 'like', "%{$term}%");
+                ->orWhere('reff_id_pelanggan', 'like', "%{$term}%")
+                ->orWhere('alamat', 'like', "%{$term}%")
+                ->orWhere('no_telepon', 'like', "%{$term}%");
         });
     }
 
@@ -117,9 +127,9 @@ class CalonPelanggan extends Model
     public function scopeWithCoordinates($query)
     {
         return $query->whereNotNull('latitude')
-                    ->whereNotNull('longitude')
-                    ->where('latitude', '!=', 0)
-                    ->where('longitude', '!=', 0);
+            ->whereNotNull('longitude')
+            ->where('latitude', '!=', 0)
+            ->where('longitude', '!=', 0);
     }
 
     /**
@@ -148,7 +158,7 @@ class CalonPelanggan extends Model
     public function hasCoordinates(): bool
     {
         return !is_null($this->latitude) && !is_null($this->longitude)
-               && $this->latitude != 0 && $this->longitude != 0;
+            && $this->latitude != 0 && $this->longitude != 0;
     }
 
     /**
@@ -200,10 +210,28 @@ class CalonPelanggan extends Model
     }
 
     protected $fillable = [
-        'reff_id_pelanggan','nama_pelanggan','alamat','no_telepon','no_bagi','email',
-        'kelurahan','padukuhan','rt','rw','status','progress_status','jenis_pelanggan','keterangan',
-        'tanggal_registrasi','validated_at','validated_by','validation_notes',
-        'latitude','longitude','coordinate_source','coordinate_updated_at',
+        'reff_id_pelanggan',
+        'nama_pelanggan',
+        'alamat',
+        'no_telepon',
+        'no_bagi',
+        'email',
+        'kelurahan',
+        'padukuhan',
+        'rt',
+        'rw',
+        'status',
+        'progress_status',
+        'jenis_pelanggan',
+        'keterangan',
+        'tanggal_registrasi',
+        'validated_at',
+        'validated_by',
+        'validation_notes',
+        'latitude',
+        'longitude',
+        'coordinate_source',
+        'coordinate_updated_at',
     ];
 
     /* =========================
@@ -212,34 +240,30 @@ class CalonPelanggan extends Model
 
     public function getProgressPercentage(): int
     {
-        // Jika status customer sudah batal, tidak ada progress
         if ($this->status === 'batal') {
             return 0;
         }
 
-        $steps = ['validasi','sk','sr','gas_in','done'];
-        $idx = array_search($this->progress_status, $steps, true);
-        if ($idx === false) return 0;
-        $max = count($steps) - 1;
-        return (int) round(($idx / $max) * 100);
+        // Parallel Workflow Percentage Calculation
+        $totalModules = 3; // SK, SR, Gas In
+        $completed = 0;
+
+        if ($this->skData && $this->skData->module_status === 'completed')
+            $completed++;
+        if ($this->srData && $this->srData->module_status === 'completed')
+            $completed++;
+        if ($this->gasInData && $this->gasInData->module_status === 'completed')
+            $completed++;
+
+        return (int) round(($completed / $totalModules) * 100);
     }
 
     public function getNextAvailableModule(): ?string
     {
-        if ($this->status === 'batal' || $this->progress_status === 'batal') return null;
-
-        $order = ['validasi','sk','sr','gas_in','done'];
-        $pos = array_search($this->progress_status, $order, true);
-        if ($pos === false || $this->progress_status === 'done') return null;
-
-        // Naikkan kalau dependency sudah terpenuhi
-        $next = $order[$pos] === 'validasi' ? 'sk' : $order[$pos]; // dari validasi → sk
-
-        // Hard dependency minimal:
-        if ($next === 'sr' && !$this->skData?->module_status === 'completed') return null;
-        if ($next === 'gas_in' && (!($this->skData?->module_status === 'completed') || !($this->srData?->module_status === 'completed'))) return null;
-
-        return $next;
+        // In parallel workflow, "Next Available" is ambiguous.
+        // We will return null to disable the single "Next" button in UI.
+        // The UI will likely show individual buttons for each module.
+        return null;
     }
 
     /**
@@ -248,19 +272,19 @@ class CalonPelanggan extends Model
     public function getNextModuleUrl(): ?string
     {
         $nextModule = $this->getNextAvailableModule();
-        
+
         if (!$nextModule) {
             return null;
         }
 
         $moduleRoutes = [
             'sk' => '/sk/create',
-            'sr' => '/sr/create', 
+            'sr' => '/sr/create',
             'gas_in' => '/gas-in/create',
         ];
 
         $baseUrl = $moduleRoutes[$nextModule] ?? null;
-        
+
         return $baseUrl ? $baseUrl . '?reff_id=' . $this->reff_id_pelanggan : null;
     }
 

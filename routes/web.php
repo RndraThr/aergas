@@ -225,6 +225,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
         Route::middleware('role:sk,sr,gas_in,cgp,admin,super_admin,tracer')->group(function () {
             Route::get('/', [CalonPelangganController::class, 'index'])->name('index');
             Route::get('/stats/json', [CalonPelangganController::class, 'getStats'])->name('stats');
+            Route::get('/export', [CalonPelangganController::class, 'export'])->name('export');
             Route::get('/validate-reff/{reffId}', [CalonPelangganController::class, 'validateReff'])
                 ->where('reffId', '[A-Z0-9\-]+')->name('validate-reff');
 

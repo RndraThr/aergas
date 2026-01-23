@@ -17,7 +17,8 @@ class CgpApprovalController extends Controller implements HasMiddleware
         private PhotoApprovalService $photoApprovalService,
         private NotificationService $notificationService,
         private FolderOrganizationService $folderOrganizationService
-    ) {}
+    ) {
+    }
 
     public static function middleware(): array
     {
@@ -62,36 +63,36 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
             if ($status === 'sk_ready') {
                 // SK photos that need CGP attention (pending, in-progress, or waiting tracer)
-                $query->whereHas('photoApprovals', function($q) {
+                $query->whereHas('photoApprovals', function ($q) {
                     $q->where('module_name', 'sk')
-                      ->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected', 'tracer_pending']);
+                        ->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected', 'tracer_pending', 'tracer_approved']);
                 });
             } elseif ($status === 'sr_ready') {
                 // SR photos that need CGP attention (pending, in-progress, or waiting tracer)
-                $query->whereHas('photoApprovals', function($q) {
+                $query->whereHas('photoApprovals', function ($q) {
                     $q->where('module_name', 'sr')
-                      ->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected', 'tracer_pending']);
+                        ->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected', 'tracer_pending', 'tracer_approved']);
                 });
             } elseif ($status === 'gas_in_ready') {
                 // Gas In photos that need CGP attention (pending, in-progress, or waiting tracer)
-                $query->whereHas('photoApprovals', function($q) {
+                $query->whereHas('photoApprovals', function ($q) {
                     $q->where('module_name', 'gas_in')
-                      ->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected', 'tracer_pending']);
+                        ->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected', 'tracer_pending', 'tracer_approved']);
                 });
             } else {
                 // Default: show all customers with photos in CGP workflow
-                $query->whereHas('photoApprovals', function($q) {
-                    $q->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected']);
+                $query->whereHas('photoApprovals', function ($q) {
+                    $q->whereIn('photo_status', ['cgp_pending', 'cgp_approved', 'cgp_rejected', 'tracer_approved']);
                 });
             }
 
             // Search - apply search filter
             if ($request->filled('search')) {
                 $search = $request->get('search');
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('reff_id_pelanggan', 'like', "%{$search}%")
-                      ->orWhere('nama_pelanggan', 'like', "%{$search}%")
-                      ->orWhere('alamat', 'like', "%{$search}%");
+                        ->orWhere('nama_pelanggan', 'like', "%{$search}%")
+                        ->orWhere('alamat', 'like', "%{$search}%");
                 });
             }
 
@@ -114,7 +115,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
             });
 
             // Sort by priority first, then by module-specific date (chain sorting)
-            $sorted = $allCustomers->sort(function($a, $b) {
+            $sorted = $allCustomers->sort(function ($a, $b) {
                 // First priority: compare priority scores (lower score = higher priority)
                 $priorityA = $this->getPriorityScore($a->cgp_status);
                 $priorityB = $this->getPriorityScore($b->cgp_status);
@@ -168,7 +169,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
             if ($request->ajax() || $request->get('ajax')) {
                 // Transform items to include cgp_status
-                $items = $customers->getCollection()->map(function($customer) {
+                $items = $customers->getCollection()->map(function ($customer) {
                     return [
                         'reff_id_pelanggan' => $customer->reff_id_pelanggan,
                         'nama_pelanggan' => $customer->nama_pelanggan,
@@ -191,7 +192,10 @@ class CgpApprovalController extends Controller implements HasMiddleware
                 ]);
             }
 
-            return view('approvals.cgp.customers', compact('customers'));
+            // Get Dashboard Stats
+            $stats = $this->photoApprovalService->getDashboardStats('cgp');
+
+            return view('approvals.cgp.customers', compact('customers', 'stats'));
 
         } catch (Exception $e) {
             Log::error('CGP customers error', [
@@ -241,10 +245,10 @@ class CgpApprovalController extends Controller implements HasMiddleware
                     ->get()
                     ->toArray()
             ]);
-            
+
             // Get completion status for each module
             $completionStatus = [];
-            
+
             if ($customer->skData) {
                 $completionStatus['sk'] = [
                     'completion_summary' => $customer->skData->getCompletionSummary(),
@@ -252,7 +256,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
                     'missing_required' => $customer->skData->getMissingRequiredSlots(),
                 ];
             }
-            
+
             if ($customer->srData) {
                 $completionStatus['sr'] = [
                     'completion_summary' => $customer->srData->getCompletionSummary(),
@@ -260,7 +264,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
                     'missing_required' => $customer->srData->getMissingRequiredSlots(),
                 ];
             }
-            
+
             if ($customer->gasInData) {
                 $completionStatus['gas_in'] = [
                     'completion_summary' => $customer->gasInData->getCompletionSummary(),
@@ -468,12 +472,12 @@ class CgpApprovalController extends Controller implements HasMiddleware
             DB::commit();
 
             $message = $action === 'approve' ? 'Photo berhasil di-approve' : 'Photo berhasil di-reject';
-            
+
             // Check if this is jalur photos and redirect appropriately
             if (in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
                 return back()->with('success', $message);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -636,9 +640,11 @@ class CgpApprovalController extends Controller implements HasMiddleware
         }
 
         // Priority 4: In Progress (partially reviewed, needs follow-up)
-        if (($cgpStatus['sk_in_progress'] ?? false) ||
+        if (
+            ($cgpStatus['sk_in_progress'] ?? false) ||
             ($cgpStatus['sr_in_progress'] ?? false) ||
-            ($cgpStatus['gas_in_in_progress'] ?? false)) {
+            ($cgpStatus['gas_in_in_progress'] ?? false)
+        ) {
             return 4;
         }
 
@@ -669,13 +675,13 @@ class CgpApprovalController extends Controller implements HasMiddleware
     private function getCgpStatus($customer): array
     {
         // Helper function to get latest photos per field_name for a module
-        $getLatestPhotos = function($module) use ($customer) {
+        $getLatestPhotos = function ($module) use ($customer) {
             return PhotoApproval::where('reff_id_pelanggan', $customer->reff_id_pelanggan)
                 ->where('module_name', $module)
                 ->with('cgpUser') // Load CGP user for rejection info
                 ->get()
                 ->groupBy('photo_field_name')
-                ->map(function($photos) {
+                ->map(function ($photos) {
                     // Get the latest photo (highest id) for each field
                     return $photos->sortByDesc('id')->first();
                 });
@@ -849,7 +855,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
                 ->with(['tracerUser', 'cgpUser'])
                 ->get()
                 ->groupBy('photo_field_name')
-                ->map(function($photos) {
+                ->map(function ($photos) {
                     // Get the latest photo (highest id) for each field
                     return $photos->sortByDesc('id')->first();
                 });
@@ -898,7 +904,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
     private function getModuleData(string $reffId, string $module)
     {
-        return match($module) {
+        return match ($module) {
             'sk' => SkData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
             'sr' => SrData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
             'gas_in' => GasInData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
@@ -946,11 +952,11 @@ class CgpApprovalController extends Controller implements HasMiddleware
         $photoApprovals = \App\Models\PhotoApproval::where('module_record_id', $moduleData->id)
             ->where('module_name', $moduleData->getModuleName())
             ->get();
-        
+
         // Check if all required photos are approved
         $requiredPhotos = $moduleData->getRequiredPhotos();
         $approvedPhotos = $photoApprovals->where('photo_status', $approverType . '_approved')->pluck('photo_field_name')->toArray();
-        
+
         // If all required photos are approved, update the module status
         if (empty(array_diff($requiredPhotos, $approvedPhotos))) {
             if ($approverType === 'tracer') {
@@ -998,19 +1004,19 @@ class CgpApprovalController extends Controller implements HasMiddleware
             // Search by nomor joint or line number
             if ($request->filled('search')) {
                 $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->whereHas('jalurLowering', function($subQ) use ($search) {
-                        $subQ->whereHas('lineNumber', function($lineQ) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('jalurLowering', function ($subQ) use ($search) {
+                        $subQ->whereHas('lineNumber', function ($lineQ) use ($search) {
                             $lineQ->where('line_number', 'like', "%{$search}%");
                         });
-                    })->orWhereHas('jalurJoint', function($subQ) use ($search) {
+                    })->orWhereHas('jalurJoint', function ($subQ) use ($search) {
                         $subQ->where('nomor_joint', 'like', "%{$search}%");
                     });
                 });
             }
 
             $photos = $query->orderBy('uploaded_at', 'desc')
-                           ->paginate(20);
+                ->paginate(20);
 
             if ($request->ajax()) {
                 return response()->json([
@@ -1031,7 +1037,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
     {
         try {
             $originalUrl = $photoApproval->photo_url;
-            
+
             // Skip if photo URL is not a Google Drive URL
             if (!str_contains($originalUrl, 'drive.google.com') && !str_contains($originalUrl, 'googleusercontent.com')) {
                 Log::info('Skipping non-Google Drive photo move', ['photo_id' => $photoApproval->id, 'url' => $originalUrl]);
@@ -1039,7 +1045,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
             }
 
             $googleDriveService = app(\App\Services\GoogleDriveService::class);
-            
+
             // Determine module path and identifiers
             if ($photoApproval->module_name === 'jalur_lowering') {
                 $moduleType = 'jalur_lowering';
@@ -1057,7 +1063,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
             // Create ACC_CGP folder path: jalur_lowering_acc_cgp/cluster_slug/LineNumber/Date/
             $accFolderPath = "{$moduleType}_acc_cgp/{$clusterSlug}/{$identifier}/{$tanggalFolder}";
-            
+
             // Extract file ID from Google Drive URL
             $fileId = null;
             if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $originalUrl, $matches)) {
@@ -1083,13 +1089,13 @@ class CgpApprovalController extends Controller implements HasMiddleware
 
             // Copy file to ACC folder
             $newFileId = $googleDriveService->copyFileToFolder($fileId, $accFolderPath, $newFileName);
-            
+
             if ($newFileId) {
                 $newUrl = "https://drive.google.com/file/d/{$newFileId}/view";
-                
+
                 // Update photo approval with new URL
                 $photoApproval->update(['photo_url' => $newUrl]);
-                
+
                 Log::info('Photo moved to ACC_CGP folder successfully', [
                     'photo_id' => $photoApproval->id,
                     'original_url' => $originalUrl,
@@ -1097,7 +1103,7 @@ class CgpApprovalController extends Controller implements HasMiddleware
                     'acc_folder_path' => $accFolderPath
                 ]);
             }
-            
+
         } catch (\Exception $e) {
             Log::error('Failed to move photo to ACC_CGP folder', [
                 'photo_id' => $photoApproval->id,

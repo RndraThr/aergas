@@ -29,14 +29,7 @@
         </a>
       @endif
       
-      @if(auth()->user()->hasAnyRole(['admin', 'super_admin', 'tracer']))
-        <a href="{{ route('sr.berita-acara', $sr->id) }}" 
-           class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-           target="_blank">
-          <i class="fas fa-file-pdf"></i>
-          Generate Berita Acara
-        </a>
-      @endif
+
       
       <a href="javascript:void(0)" onclick="goBackWithPagination('{{ route('sr.index') }}')" class="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200">Kembali</a>
     </div>

@@ -24,7 +24,8 @@ class PhotoApprovalService
         private OpenAIService $openAIService,
         private NotificationService $notificationService,
         private ?FileUploadService $uploader = null
-    ) {}
+    ) {
+    }
 
     /* =========================================================================================
      |  ENDPOINT ORKESTRA: Upload → AI Checks → Simpan PhotoApproval → Recalc status modul
@@ -38,12 +39,12 @@ class PhotoApprovalService
         ?int $userId = null,
         array $meta = []           // ['customer_name' => '...']
     ): array {
-        $moduleKey  = strtoupper($module);
+        $moduleKey = strtoupper($module);
         $moduleSlug = strtolower($moduleKey);
-        $uid        = (int) ($userId ?? Auth::id());
+        $uid = (int) ($userId ?? Auth::id());
 
         // ---------- 1) Baca config & normalisasi slot ----------
-        $cfg     = (array) config('aergas_photos', []);
+        $cfg = (array) config('aergas_photos', []);
         $aliases = (array) ($cfg['aliases'][$moduleKey] ?? []);
         $slotKey = $aliases[$slotIncoming] ?? $slotIncoming;
 
@@ -83,12 +84,12 @@ class PhotoApprovalService
         // ---------- 4) Upload (prioritas Drive; fallback lokal) ----------
         $customerName = $meta['customer_name'] ?? $this->getCustomerName($reffId);
         $up = $uploader->uploadPhoto(
-            file:        $file,
-            reffId:      $reffId,
-            module:      $moduleKey,
-            fieldName:   $slotKey,
-            uploadedBy:  $uid,
-            customerName:$customerName
+            file: $file,
+            reffId: $reffId,
+            module: $moduleKey,
+            fieldName: $slotKey,
+            uploadedBy: $uid,
+            customerName: $customerName
         );
 
         if (!$up || empty($up['url'])) {
@@ -99,19 +100,19 @@ class PhotoApprovalService
         $pa = PhotoApproval::updateOrCreate(
             [
                 'reff_id_pelanggan' => $reffId,
-                'module_name'       => $moduleSlug,
-                'photo_field_name'  => $slotKey,
+                'module_name' => $moduleSlug,
+                'photo_field_name' => $slotKey,
             ],
             [
-                'photo_url'     => $up['url'] ?? '',
-                'storage_disk'  => $up['disk'] ?? config('filesystems.default', 'public'),
-                'storage_path'  => $up['path'] ?? '',
+                'photo_url' => $up['url'] ?? '',
+                'storage_disk' => $up['disk'] ?? config('filesystems.default', 'public'),
+                'storage_path' => $up['path'] ?? '',
                 'drive_file_id' => $up['drive_file_id'] ?? null,
-                'drive_link'    => $up['drive_link'] ?? null,
-                'uploaded_by'   => $uid,
-                'uploaded_at'   => now(),
-                'ai_status'     => 'pending',
-                'photo_status'  => 'ai_pending',
+                'drive_link' => $up['drive_link'] ?? null,
+                'uploaded_by' => $uid,
+                'uploaded_at' => now(),
+                'ai_status' => 'pending',
+                'photo_status' => 'ai_pending',
                 // Reset ALL approval fields when photo is replaced
                 'tracer_rejected_at' => null,
                 'tracer_user_id' => null,
@@ -141,29 +142,30 @@ class PhotoApprovalService
         $this->recalcModule($reffId, $moduleSlug);
 
         $this->createAuditLog($uid, 'photo_uploaded', 'PhotoApproval', $pa->id, $reffId, [
-            'module'      => $moduleKey,
-            'slot'        => $slotKey,
-            'photo_url'   => $up['url'] ?? '',
-            'drive_id'    => $up['drive_file_id'] ?? null,
+            'module' => $moduleKey,
+            'slot' => $slotKey,
+            'photo_url' => $up['url'] ?? '',
+            'drive_id' => $up['drive_file_id'] ?? null,
         ]);
 
         // Notify tracer that photo is ready for review
         try {
             $this->notificationService->notifyTracerPhotoPending($reffId, $moduleSlug);
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+        }
 
         // ---------- 9) Return payload ke controller ----------
         return [
-            'success'        => true,
-            'message'        => "Foto {$slotCfg['label']} berhasil di-upload. Menunggu review tracer.",
-            'photo_id'       => $pa->id,
-            'photo_status'   => $pa->photo_status,
-            'preview_url'    => $up['url'] ?? '',
-            'file'           => ['disk' => $up['disk'] ?? null, 'path' => $up['path'] ?? null, 'drive_file_id' => $up['drive_file_id'] ?? null],
-            'module'         => $moduleKey,
-            'reff_id'        => $reffId,
-            'slot'           => $slotKey,
-            'slot_label'     => $slotCfg['label'],
+            'success' => true,
+            'message' => "Foto {$slotCfg['label']} berhasil di-upload. Menunggu review tracer.",
+            'photo_id' => $pa->id,
+            'photo_status' => $pa->photo_status,
+            'preview_url' => $up['url'] ?? '',
+            'file' => ['disk' => $up['disk'] ?? null, 'path' => $up['path'] ?? null, 'drive_file_id' => $up['drive_file_id'] ?? null],
+            'module' => $moduleKey,
+            'reff_id' => $reffId,
+            'slot' => $slotKey,
+            'slot_label' => $slotCfg['label'],
         ];
     }
 
@@ -184,7 +186,7 @@ class PhotoApprovalService
         $slotKey = $aliases[$slotIncoming] ?? $slotIncoming;
 
         $slotCfg = $cfg['modules'][$moduleKey]['slots'][$slotKey] ?? null;
-        
+
         // Log detailed slot configuration for debugging
         Log::info('PhotoApprovalService uploadDraftOnly slot check', [
             'module' => $moduleKey,
@@ -194,7 +196,7 @@ class PhotoApprovalService
             'available_slots' => array_keys($cfg['modules'][$moduleKey]['slots'] ?? []),
             'available_aliases' => $aliases
         ]);
-        
+
         if (!$slotCfg) {
             Log::error('PhotoApprovalService slot not found', [
                 'module' => $moduleKey,
@@ -272,7 +274,7 @@ class PhotoApprovalService
                     $fs->save();
                 }
             } catch (\Throwable $e) {
-                Log::warning('file_storage update ai_status failed: '.$e->getMessage());
+                Log::warning('file_storage update ai_status failed: ' . $e->getMessage());
             }
         }
 
@@ -309,19 +311,23 @@ class PhotoApprovalService
             $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            if (!$user->isTracer() && !$user->isAdmin()) throw new Exception('Unauthorized: Only Tracer or Admin can approve photos');
-            if ($pa->photo_status !== 'tracer_pending') throw new Exception("Photo is not in tracer_pending status. Current: {$pa->photo_status}");
+            if (!$user->isTracer() && !$user->isAdmin())
+                throw new Exception('Unauthorized: Only Tracer or Admin can approve photos');
+            if ($pa->photo_status !== 'tracer_pending')
+                throw new Exception("Photo is not in tracer_pending status. Current: {$pa->photo_status}");
 
             $old = $pa->photo_status;
             $pa->update([
-                'tracer_user_id'     => $userId,
+                'tracer_user_id' => $userId,
                 'tracer_approved_at' => now(),
-                'tracer_notes'       => $notes,
-                'photo_status'       => 'cgp_pending',
+                'tracer_notes' => $notes,
+                'photo_status' => 'cgp_pending',
             ]);
 
             $this->createAuditLog($userId, 'tracer_approved', 'PhotoApproval', $pa->id, $pa->reff_id_pelanggan, [
-                'old_status' => $old, 'new_status' => 'cgp_pending', 'notes' => $notes
+                'old_status' => $old,
+                'new_status' => 'cgp_pending',
+                'notes' => $notes
             ]);
 
             // Skip notifications for jalur modules as they don't have customer association
@@ -351,20 +357,24 @@ class PhotoApprovalService
             $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            if (!$user->isTracer() && !$user->isAdmin()) throw new Exception('Unauthorized: Only Tracer or Admin can reject photos');
-            if ($pa->photo_status !== 'tracer_pending') throw new Exception("Photo is not in tracer_pending status. Current: {$pa->photo_status}");
+            if (!$user->isTracer() && !$user->isAdmin())
+                throw new Exception('Unauthorized: Only Tracer or Admin can reject photos');
+            if ($pa->photo_status !== 'tracer_pending')
+                throw new Exception("Photo is not in tracer_pending status. Current: {$pa->photo_status}");
 
             $old = $pa->photo_status;
             $pa->update([
-                'tracer_user_id'     => $userId,
+                'tracer_user_id' => $userId,
                 'tracer_approved_at' => null,
-                'tracer_notes'       => $reason,
-                'photo_status'       => 'tracer_rejected',
-                'rejection_reason'   => $reason,
+                'tracer_notes' => $reason,
+                'photo_status' => 'tracer_rejected',
+                'rejection_reason' => $reason,
             ]);
 
             $this->createAuditLog($userId, 'tracer_rejected', 'PhotoApproval', $pa->id, $pa->reff_id_pelanggan, [
-                'old_status' => $old, 'new_status' => 'tracer_rejected', 'rejection_reason' => $reason
+                'old_status' => $old,
+                'new_status' => 'tracer_rejected',
+                'rejection_reason' => $reason
             ]);
 
             $this->handlePhotoRejection($pa, $user->full_name, $reason);
@@ -390,19 +400,23 @@ class PhotoApprovalService
             $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            if (!$user->isAdminLike() && !$user->isCgp()) throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP approval');
-            if (!in_array($pa->photo_status, ['tracer_approved', 'cgp_pending'])) throw new Exception("Photo is not ready for CGP approval. Current: {$pa->photo_status}");
+            if (!$user->isAdminLike() && !$user->isCgp())
+                throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP approval');
+            if (!in_array($pa->photo_status, ['tracer_approved', 'cgp_pending']))
+                throw new Exception("Photo is not ready for CGP approval. Current: {$pa->photo_status}");
 
             $old = $pa->photo_status;
             $pa->update([
-                'cgp_user_id'     => $userId,
+                'cgp_user_id' => $userId,
                 'cgp_approved_at' => now(),
-                'cgp_notes'       => $notes,
-                'photo_status'    => 'cgp_approved',
+                'cgp_notes' => $notes,
+                'photo_status' => 'cgp_approved',
             ]);
 
             $this->createAuditLog($userId, 'cgp_approved', 'PhotoApproval', $pa->id, $pa->reff_id_pelanggan, [
-                'old_status' => $old, 'new_status' => 'cgp_approved', 'notes' => $notes
+                'old_status' => $old,
+                'new_status' => 'cgp_approved',
+                'notes' => $notes
             ]);
 
             // Skip completion check and notifications for jalur modules as they don't have customer association
@@ -446,24 +460,28 @@ class PhotoApprovalService
             $pa = PhotoApproval::findOrFail($photoApprovalId);
             $user = User::findOrFail($userId);
 
-            if (!$user->isAdminLike() && !$user->isCgp()) throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP rejection');
-            if (!in_array($pa->photo_status, ['tracer_approved', 'cgp_pending'])) throw new Exception("Photo is not ready for CGP rejection. Current: {$pa->photo_status}");
+            if (!$user->isAdminLike() && !$user->isCgp())
+                throw new Exception('Unauthorized: Only Admin/Super Admin can perform CGP rejection');
+            if (!in_array($pa->photo_status, ['tracer_approved', 'cgp_pending']))
+                throw new Exception("Photo is not ready for CGP rejection. Current: {$pa->photo_status}");
 
             $old = $pa->photo_status;
             $pa->update([
-                'cgp_user_id'     => $userId,
+                'cgp_user_id' => $userId,
                 'cgp_approved_at' => null,
                 'cgp_rejected_at' => now(),
-                'cgp_notes'       => $reason,
-                'photo_status'    => 'cgp_rejected',
-                'rejection_reason'=> $reason,
+                'cgp_notes' => $reason,
+                'photo_status' => 'cgp_rejected',
+                'rejection_reason' => $reason,
             ]);
 
             $this->createAuditLog($userId, 'cgp_rejected', 'PhotoApproval', $pa->id, $pa->reff_id_pelanggan, [
-                'old_status' => $old, 'new_status' => 'cgp_rejected', 'rejection_reason' => $reason
+                'old_status' => $old,
+                'new_status' => 'cgp_rejected',
+                'rejection_reason' => $reason
             ]);
 
-            $this->handlePhotoRejection($pa, $user->full_name.' (CGP)', $reason);
+            $this->handlePhotoRejection($pa, $user->full_name . ' (CGP)', $reason);
 
             DB::commit();
 
@@ -506,7 +524,7 @@ class PhotoApprovalService
                 ->whereIn('photo_status', ['tracer_approved', 'cgp_pending'])
                 ->get()
                 ->groupBy('photo_field_name')
-                ->map(function($photoGroup) {
+                ->map(function ($photoGroup) {
                     // Get the latest photo (highest id) for each field
                     return $photoGroup->sortByDesc('id')->first();
                 })
@@ -590,49 +608,49 @@ class PhotoApprovalService
     {
         $results = [];
         $ok = 0;
-        $notes  = $payload['notes']  ?? null;
+        $notes = $payload['notes'] ?? null;
         $reason = $payload['reason'] ?? null;
 
         foreach ($photoIds as $id) {
             try {
                 switch ($action) {
                     case 'tracer_approve':
-                        $this->approveByTracer((int)$id, $actorUserId, $notes);
-                        $results[] = ['id' => (int)$id, 'success' => true, 'message' => 'Tracer approved'];
+                        $this->approveByTracer((int) $id, $actorUserId, $notes);
+                        $results[] = ['id' => (int) $id, 'success' => true, 'message' => 'Tracer approved'];
                         $ok++;
                         break;
 
                     case 'tracer_reject':
-                        $this->rejectByTracer((int)$id, $actorUserId, (string)($reason ?: 'Rejected by Tracer'));
-                        $results[] = ['id' => (int)$id, 'success' => true, 'message' => 'Tracer rejected'];
+                        $this->rejectByTracer((int) $id, $actorUserId, (string) ($reason ?: 'Rejected by Tracer'));
+                        $results[] = ['id' => (int) $id, 'success' => true, 'message' => 'Tracer rejected'];
                         $ok++;
                         break;
 
                     case 'cgp_approve':
-                        $this->approveByCgp((int)$id, $actorUserId, $notes);
-                        $results[] = ['id' => (int)$id, 'success' => true, 'message' => 'CGP approved'];
+                        $this->approveByCgp((int) $id, $actorUserId, $notes);
+                        $results[] = ['id' => (int) $id, 'success' => true, 'message' => 'CGP approved'];
                         $ok++;
                         break;
 
                     case 'cgp_reject':
-                        $this->rejectByCgp((int)$id, $actorUserId, (string)($reason ?: 'Rejected by CGP'));
-                        $results[] = ['id' => (int)$id, 'success' => true, 'message' => 'CGP rejected'];
+                        $this->rejectByCgp((int) $id, $actorUserId, (string) ($reason ?: 'Rejected by CGP'));
+                        $results[] = ['id' => (int) $id, 'success' => true, 'message' => 'CGP rejected'];
                         $ok++;
                         break;
 
                     default:
-                        throw new Exception('Unsupported action: '.$action);
+                        throw new Exception('Unsupported action: ' . $action);
                 }
             } catch (\Throwable $e) {
-                $results[] = ['id' => (int)$id, 'success' => false, 'message' => $e->getMessage()];
+                $results[] = ['id' => (int) $id, 'success' => false, 'message' => $e->getMessage()];
             }
         }
 
         return [
-            'total'      => count($photoIds),
+            'total' => count($photoIds),
             'successful' => $ok,
-            'failed'     => count($photoIds) - $ok,
-            'results'    => $results,
+            'failed' => count($photoIds) - $ok,
+            'results' => $results,
         ];
     }
 
@@ -644,19 +662,19 @@ class PhotoApprovalService
         ?int $uploadedBy = null,
         ?string $targetFileName = null,
         array $precheck = [         // dari frontend (hasil precheck)
-            'ai_passed'  => null,   // bool
-            'ai_score'   => null,   // float|null
+            'ai_passed' => null,   // bool
+            'ai_score' => null,   // float|null
             'ai_objects' => [],     // array of string
-            'ai_notes'   => [],     // array of string
+            'ai_notes' => [],     // array of string
         ],
         array $meta = []            // ex: ['customer_name' => '...']
     ): array {
-        $moduleKey  = strtoupper($module);
+        $moduleKey = strtoupper($module);
         $moduleSlug = strtolower($moduleKey);
-        $uid        = (int) ($uploadedBy ?? Auth::id());
+        $uid = (int) ($uploadedBy ?? Auth::id());
 
         // 1) Baca config & normalisasi slot
-        $cfg     = (array) config('aergas_photos', []);
+        $cfg = (array) config('aergas_photos', []);
         $aliases = (array) ($cfg['aliases'][$moduleKey] ?? []);
         $slotKey = $aliases[$slotIncoming] ?? $slotIncoming;
 
@@ -679,8 +697,7 @@ class PhotoApprovalService
 
                 // Hapus file fisik
                 $uploader->deleteExistingPhoto($reffId, $moduleKey, $slotKey);
-            }
-            catch (\Throwable $e) {
+            } catch (\Throwable $e) {
                 Log::info('deleteExistingPhoto non-fatal', ['err' => $e->getMessage()]);
             }
         }
@@ -691,13 +708,13 @@ class PhotoApprovalService
         // ==== Penting: pastikan FileUploadService mendukung target filename ====
         // Opsi A (disarankan): tambahkan argumen opsional $options = ['target_name' => $targetFileName]
         $up = $uploader->uploadPhoto(
-            file:         $file,
-            reffId:       $reffId,
-            module:       $moduleKey,
-            fieldName:    $slotKey,
-            uploadedBy:   $uid,
+            file: $file,
+            reffId: $reffId,
+            module: $moduleKey,
+            fieldName: $slotKey,
+            uploadedBy: $uid,
             customerName: $customerName,
-            options:      ['target_name' => $targetFileName] // ← tambahkan di service uploader
+            options: ['target_name' => $targetFileName] // ← tambahkan di service uploader
         );
 
         if (!$up || empty($up['url'])) {
@@ -705,10 +722,10 @@ class PhotoApprovalService
         }
 
         // 4) Simpan/Update PhotoApproval (pakai hasil precheck dari client)
-        $aiPassed  = (bool) ($precheck['ai_passed'] ?? false);
-        $aiScore   = $precheck['ai_score'] ?? null;
-        $aiReason  = $precheck['ai_reason'] ?? 'No reason provided'; // CHANGED: from ai_objects to ai_reason
-        $aiNotes   = $precheck['ai_notes'] ?? [];
+        $aiPassed = (bool) ($precheck['ai_passed'] ?? false);
+        $aiScore = $precheck['ai_score'] ?? null;
+        $aiReason = $precheck['ai_reason'] ?? 'No reason provided'; // CHANGED: from ai_objects to ai_reason
+        $aiNotes = $precheck['ai_notes'] ?? [];
 
         // Susun struktur ai_checks minimal (boleh menyesuaikan kebutuhan)
         $aiChecks = [
@@ -721,28 +738,28 @@ class PhotoApprovalService
         ];
 
         $photoStatus = $aiPassed ? 'tracer_pending' : 'ai_rejected';
-        $rejection   = $aiPassed ? null : $aiReason;
+        $rejection = $aiPassed ? null : $aiReason;
 
         $pa = PhotoApproval::updateOrCreate(
             [
                 'reff_id_pelanggan' => $reffId,
-                'module_name'       => $moduleSlug,
-                'photo_field_name'  => $slotKey,
+                'module_name' => $moduleSlug,
+                'photo_field_name' => $slotKey,
             ],
             [
-                'photo_url'     => $up['url'] ?? '',
-                'storage_disk'  => $up['disk'] ?? config('filesystems.default','public'),
-                'storage_path'  => $up['path'] ?? '',
+                'photo_url' => $up['url'] ?? '',
+                'storage_disk' => $up['disk'] ?? config('filesystems.default', 'public'),
+                'storage_path' => $up['path'] ?? '',
                 'drive_file_id' => $up['drive_file_id'] ?? null,
-                'drive_link'    => $up['drive_link'] ?? null,
-                'uploaded_by'   => $uid,
-                'uploaded_at'   => now(),
-                'ai_status'     => $aiPassed ? 'passed' : 'failed',
-                'ai_score'      => ($aiScore ?? 0) / 100, // Store as decimal
+                'drive_link' => $up['drive_link'] ?? null,
+                'uploaded_by' => $uid,
+                'uploaded_at' => now(),
+                'ai_status' => $aiPassed ? 'passed' : 'failed',
+                'ai_score' => ($aiScore ?? 0) / 100, // Store as decimal
                 'ai_checks' => is_array($aiChecks) ? json_encode($aiChecks) : $aiChecks, // ✅ JSON string
-                'ai_notes'      => $aiReason, // CHANGED: Store reason instead of notes array
+                'ai_notes' => $aiReason, // CHANGED: Store reason instead of notes array
                 'ai_last_checked_at' => now(),
-                'photo_status'  => $photoStatus,
+                'photo_status' => $photoStatus,
                 'rejection_reason' => $rejection,
                 // Reset ALL approval fields when photo is replaced
                 'tracer_rejected_at' => null,
@@ -766,7 +783,7 @@ class PhotoApprovalService
                 }
             }
         } catch (\Throwable $e) {
-            Log::warning('file_storage update ai_status failed: '.$e->getMessage());
+            Log::warning('file_storage update ai_status failed: ' . $e->getMessage());
         }
 
         // 5) Clear module approvals when photo is re-uploaded
@@ -775,32 +792,35 @@ class PhotoApprovalService
         // 6) Recalc status modul & audit
         $this->recalcModule($reffId, $moduleSlug);
         $this->createAuditLog($uid, 'upload_saved_without_ai', 'PhotoApproval', $pa->id, $reffId, [
-            'module'      => $moduleKey,
-            'slot'        => $slotKey,
-            'from'        => 'precheck-only',
-            'ai_passed'   => $aiPassed,
-            'ai_score'    => $aiScore,
+            'module' => $moduleKey,
+            'slot' => $slotKey,
+            'from' => 'precheck-only',
+            'ai_passed' => $aiPassed,
+            'ai_score' => $aiScore,
             // 'objects'     => $aiObjects,
         ]);
 
         // Notifikasi ringan (opsional)
         if ($aiPassed) {
-            try { $this->notificationService->notifyTracerPhotoPending($reffId, $moduleSlug); } catch (\Throwable) {}
+            try {
+                $this->notificationService->notifyTracerPhotoPending($reffId, $moduleSlug);
+            } catch (\Throwable) {
+            }
         } else {
         }
 
         return [
-            'success'        => true,
-            'photo_id'       => $pa->id,
-            'ai_status'      => $pa->ai_status,
-            'ai_score'       => $pa->ai_score,
-            'ai_notes'       => $pa->ai_notes,
-            'checks'         => $pa->ai_checks,
-            'preview_url'    => $up['url'] ?? '',
-            'file'           => ['disk' => $up['disk'] ?? null, 'path' => $up['path'] ?? null, 'drive_file_id' => $up['drive_file_id'] ?? null],
-            'module'         => $moduleKey,
-            'reff_id'        => $reffId,
-            'slot'           => $slotKey,
+            'success' => true,
+            'photo_id' => $pa->id,
+            'ai_status' => $pa->ai_status,
+            'ai_score' => $pa->ai_score,
+            'ai_notes' => $pa->ai_notes,
+            'checks' => $pa->ai_checks,
+            'preview_url' => $up['url'] ?? '',
+            'file' => ['disk' => $up['disk'] ?? null, 'path' => $up['path'] ?? null, 'drive_file_id' => $up['drive_file_id'] ?? null],
+            'module' => $moduleKey,
+            'reff_id' => $reffId,
+            'slot' => $slotKey,
         ];
     }
 
@@ -811,70 +831,75 @@ class PhotoApprovalService
         $q = PhotoApproval::query();
 
         $module = $filters['module_name'] ?? $filters['module'] ?? null;
-        if (!empty($module)) $q->where('module_name', $module);
-        if (!empty($filters['status'])) $q->where('photo_status', $filters['status']);
-        if (!empty($filters['reff_id_pelanggan'])) $q->where('reff_id_pelanggan', 'like', '%'.$filters['reff_id_pelanggan'].'%');
+        if (!empty($module))
+            $q->where('module_name', $module);
+        if (!empty($filters['status']))
+            $q->where('photo_status', $filters['status']);
+        if (!empty($filters['reff_id_pelanggan']))
+            $q->where('reff_id_pelanggan', 'like', '%' . $filters['reff_id_pelanggan'] . '%');
 
         $from = !empty($filters['date_from']) ? Carbon::parse($filters['date_from'])->startOfDay() : null;
-        $to   = !empty($filters['date_to'])   ? Carbon::parse($filters['date_to'])->endOfDay()   : null;
-        if ($from) $q->where('created_at', '>=', $from);
-        if ($to)   $q->where('created_at', '<=', $to);
+        $to = !empty($filters['date_to']) ? Carbon::parse($filters['date_to'])->endOfDay() : null;
+        if ($from)
+            $q->where('created_at', '>=', $from);
+        if ($to)
+            $q->where('created_at', '<=', $to);
 
-        $total          = (clone $q)->count();
-        $pendingAi      = (clone $q)->where('photo_status', 'ai_pending')->count();
-        $tracerPending  = (clone $q)->where('photo_status', 'tracer_pending')->count();
-        $cgpPending     = (clone $q)->where('photo_status', 'cgp_pending')->count();
-        $approved       = (clone $q)->where('photo_status', 'cgp_approved')->count();
-        $rejected       = (clone $q)->whereIn('photo_status', ['ai_rejected','tracer_rejected','cgp_rejected'])->count();
-        $avgConfidence  = round((float) (clone $q)->avg('ai_score'), 2);
+        $total = (clone $q)->count();
+        $pendingAi = (clone $q)->where('photo_status', 'ai_pending')->count();
+        $tracerPending = (clone $q)->where('photo_status', 'tracer_pending')->count();
+        $cgpPending = (clone $q)->where('photo_status', 'cgp_pending')->count();
+        $approved = (clone $q)->where('photo_status', 'cgp_approved')->count();
+        $rejected = (clone $q)->whereIn('photo_status', ['ai_rejected', 'tracer_rejected', 'cgp_rejected'])->count();
+        $avgConfidence = round((float) (clone $q)->avg('ai_score'), 2);
         $todayCompleted = (clone $q)->where('photo_status', 'cgp_approved')->whereDate('cgp_approved_at', Carbon::today())->count();
 
         $byStatus = (clone $q)->select('photo_status', DB::raw('COUNT(*) as c'))
-            ->groupBy('photo_status')->pluck('c','photo_status')->toArray();
+            ->groupBy('photo_status')->pluck('c', 'photo_status')->toArray();
 
         $byModule = (clone $q)->select('module_name', DB::raw('COUNT(*) as c'))
-            ->groupBy('module_name')->pluck('c','module_name')->toArray();
+            ->groupBy('module_name')->pluck('c', 'module_name')->toArray();
 
         // SLA sederhana (bisa dihubungkan ke config)
-        $slaTracerViolation = (clone $q)->where('photo_status','tracer_pending')
-            ->where('ai_last_checked_at','<', Carbon::now()->subHours(24))->count();
+        $slaTracerViolation = (clone $q)->where('photo_status', 'tracer_pending')
+            ->where('ai_last_checked_at', '<', Carbon::now()->subHours(24))->count();
 
-        $slaTracerWarning = (clone $q)->where('photo_status','tracer_pending')
-            ->where('ai_last_checked_at','<', Carbon::now()->subHours(20))
-            ->where('ai_last_checked_at','>=', Carbon::now()->subHours(24))->count();
+        $slaTracerWarning = (clone $q)->where('photo_status', 'tracer_pending')
+            ->where('ai_last_checked_at', '<', Carbon::now()->subHours(20))
+            ->where('ai_last_checked_at', '>=', Carbon::now()->subHours(24))->count();
 
-        $slaCgpViolation = (clone $q)->where('photo_status','cgp_pending')
-            ->where('tracer_approved_at','<', Carbon::now()->subHours(48))->count();
+        $slaCgpViolation = (clone $q)->where('photo_status', 'cgp_pending')
+            ->where('tracer_approved_at', '<', Carbon::now()->subHours(48))->count();
 
-        $slaCgpWarning = (clone $q)->where('photo_status','cgp_pending')
-            ->where('tracer_approved_at','<', Carbon::now()->subHours(40))
-            ->where('tracer_approved_at','>=', Carbon::now()->subHours(48))->count();
+        $slaCgpWarning = (clone $q)->where('photo_status', 'cgp_pending')
+            ->where('tracer_approved_at', '<', Carbon::now()->subHours(40))
+            ->where('tracer_approved_at', '>=', Carbon::now()->subHours(48))->count();
 
         return [
             'summary' => [
-                'total'            => $total,
-                'pending_ai'       => $pendingAi,
-                'tracer_pending'   => $tracerPending,
-                'cgp_pending'      => $cgpPending,
-                'approved'         => $approved,
-                'rejected'         => $rejected,
-                'avg_ai_confidence'=> $avgConfidence,
-                'today_completed'  => $todayCompleted,
+                'total' => $total,
+                'pending_ai' => $pendingAi,
+                'tracer_pending' => $tracerPending,
+                'cgp_pending' => $cgpPending,
+                'approved' => $approved,
+                'rejected' => $rejected,
+                'avg_ai_confidence' => $avgConfidence,
+                'today_completed' => $todayCompleted,
             ],
             'by_status' => $byStatus,
             'by_module' => $byModule,
             'sla' => [
                 'tracer' => ['violations' => $slaTracerViolation, 'warnings' => $slaTracerWarning, 'limit_hours' => 24],
-                'cgp'    => ['violations' => $slaCgpViolation,    'warnings' => $slaCgpWarning,    'limit_hours' => 48],
+                'cgp' => ['violations' => $slaCgpViolation, 'warnings' => $slaCgpWarning, 'limit_hours' => 48],
                 'total_violations' => $slaTracerViolation + $slaCgpViolation,
-                'total_warnings'   => $slaTracerWarning  + $slaCgpWarning,
+                'total_warnings' => $slaTracerWarning + $slaCgpWarning,
             ],
             'filters_applied' => [
                 'module' => $module,
                 'status' => $filters['status'] ?? null,
                 'reff_id_pelanggan' => $filters['reff_id_pelanggan'] ?? null,
                 'date_from' => $from?->toDateString(),
-                'date_to'   => $to?->toDateString(),
+                'date_to' => $to?->toDateString(),
             ],
             'generated_at' => Carbon::now()->toIso8601String(),
         ];
@@ -972,7 +997,8 @@ class PhotoApprovalService
     {
         try {
             $class = $this->resolveModuleModelClass($moduleSlug);
-            if (!$class) return;
+            if (!$class)
+                return;
 
             $m = $class::where('reff_id_pelanggan', $reffId)->first();
             if ($m && method_exists($m, 'syncModuleStatusFromPhotos')) {
@@ -990,7 +1016,8 @@ class PhotoApprovalService
     {
         try {
             $class = $this->resolveModuleModelClass($moduleSlug);
-            if (!$class) return;
+            if (!$class)
+                return;
 
             $m = $class::find($moduleRecordId);
             if ($m && method_exists($m, 'syncModuleStatusFromPhotos')) {
@@ -1005,7 +1032,8 @@ class PhotoApprovalService
     {
         try {
             $class = $this->resolveModuleModelClass($moduleSlug);
-            if (!$class) return;
+            if (!$class)
+                return;
 
             $m = $class::where('reff_id_pelanggan', $reffId)->first();
             if ($m && method_exists($m, 'clearModuleApprovals')) {
@@ -1020,13 +1048,15 @@ class PhotoApprovalService
     {
         try {
             $class = $this->resolveModuleModelClass($moduleSlug);
-            if (!$class) return;
+            if (!$class)
+                return;
 
             $mod = $class::where('reff_id_pelanggan', $reffId)->first();
-            if (!$mod || !method_exists($mod, 'getRequiredPhotos')) return;
+            if (!$mod || !method_exists($mod, 'getRequiredPhotos'))
+                return;
 
             $required = (array) $mod->getRequiredPhotos();
-            $done     = PhotoApproval::where('reff_id_pelanggan', $reffId)
+            $done = PhotoApproval::where('reff_id_pelanggan', $reffId)
                 ->where('module_name', $moduleSlug)
                 ->where('photo_status', 'cgp_approved')
                 ->count();
@@ -1037,7 +1067,10 @@ class PhotoApprovalService
                     'module_status' => 'completed',
                     'overall_photo_status' => 'completed'
                 ]);
-                try { $this->notificationService->notifyModuleCompletion($reffId, $moduleSlug); } catch (\Throwable) {}
+                try {
+                    $this->notificationService->notifyModuleCompletion($reffId, $moduleSlug);
+                } catch (\Throwable) {
+                }
                 $this->updateCustomerProgress($reffId, $moduleSlug);
             }
         } catch (Exception $e) {
@@ -1049,7 +1082,8 @@ class PhotoApprovalService
     {
         try {
             $c = CalonPelanggan::find($reffId);
-            if (!$c) return;
+            if (!$c)
+                return;
 
             $next = [
                 'sk' => 'sr',
@@ -1071,30 +1105,35 @@ class PhotoApprovalService
     private function resolveModuleModelClass(string $moduleSlug): ?string
     {
         return match (strtolower($moduleSlug)) {
-            'sk'               => SkData::class,
-            'sr'               => SrData::class,
-            'gas_in'           => GasInData::class,
-            'jalur_lowering'   => \App\Models\JalurLoweringData::class,
-            'jalur_joint'      => \App\Models\JalurJointData::class,
-            default            => null,
+            'sk' => SkData::class,
+            'sr' => SrData::class,
+            'gas_in' => GasInData::class,
+            'jalur_lowering' => \App\Models\JalurLoweringData::class,
+            'jalur_joint' => \App\Models\JalurJointData::class,
+            default => null,
         };
     }
 
     private function createAuditLog(
-        ?int $userId, string $action, string $modelType, ?int $modelId, ?string $reffId, array $data = []
+        ?int $userId,
+        string $action,
+        string $modelType,
+        ?int $modelId,
+        ?string $reffId,
+        array $data = []
     ): void {
         try {
             AuditLog::create([
-                'user_id'           => $userId,
-                'action'            => $action,
-                'model_type'        => $modelType,
-                'model_id'          => $modelId,
+                'user_id' => $userId,
+                'action' => $action,
+                'model_type' => $modelType,
+                'model_id' => $modelId,
                 'reff_id_pelanggan' => $reffId,
-                'old_values'        => $data['old_values'] ?? null,
-                'new_values'        => $data,
-                'ip_address'        => request()->ip(),
-                'user_agent'        => request()->userAgent(),
-                'description'       => ucwords(str_replace('_', ' ', $action)),
+                'old_values' => $data['old_values'] ?? null,
+                'new_values' => $data,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'description' => ucwords(str_replace('_', ' ', $action)),
             ]);
         } catch (\Throwable) {
             // non-fatal
@@ -1157,7 +1196,7 @@ class PhotoApprovalService
         // Run AI validation for non-jalur modules
         try {
             $ai = $this->runAiValidationWithPrompt($photoUrl, $photoField, $moduleKey);
-            
+
             // Update PhotoApproval with AI result
             $photoStatus = $ai['status'] === 'passed' ? 'tracer_pending' : 'ai_rejected';
             $pa->update([
@@ -1331,7 +1370,7 @@ class PhotoApprovalService
             }
 
             $oldStatus = $photo->photo_status;
-            
+
             $photo->update([
                 'tracer_user_id' => $tracerId,
                 'tracer_approved_at' => null,
@@ -1697,7 +1736,7 @@ class PhotoApprovalService
     private function getModuleDataByReffAndType(string $reffId, string $module)
     {
         try {
-            return match(strtolower($module)) {
+            return match (strtolower($module)) {
                 'sk' => \App\Models\SkData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
                 'sr' => \App\Models\SrData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
                 'gas_in' => \App\Models\GasInData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
@@ -1716,11 +1755,11 @@ class PhotoApprovalService
     {
         // This is a placeholder for actual AI analysis
         // You would integrate with your OpenAI service or other AI provider
-        
+
         try {
             // Get analysis prompt for this photo type
             $customPrompt = $this->getAnalysisPrompt($photo->photo_field_name, $photo->module_name);
-            
+
             // Call OpenAI service with correct method
             $result = $this->openAIService->validatePhotoWithPrompt(
                 $photo->photo_url,
@@ -1906,5 +1945,134 @@ class PhotoApprovalService
                 'message' => $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Get Dashboard Stats for Tracer & CGP
+     */
+    public function getDashboardStats(string $role = 'tracer'): array
+    {
+        $stats = [
+            'customers_ready' => [
+                'total' => 0,
+                'sk' => 0,
+                'sr' => 0,
+                'gas_in' => 0
+            ],
+            'photos_ready' => [
+                'total' => 0,
+                'sk' => 0,
+                'sr' => 0,
+                'gas_in' => 0
+            ],
+            'approved' => [
+                'total' => 0,
+                'today' => 0
+            ],
+            'rejected' => [
+                'total' => 0,
+                'today' => 0,
+                'tracer_rejected' => 0, // Total breakdown
+                'cgp_rejected' => 0     // Total breakdown
+            ]
+        ];
+
+        $today = \Carbon\Carbon::today();
+
+        if ($role === 'tracer') {
+            // 1. Photos Ready (Tracer Pending + Draft)
+            $photosReady = PhotoApproval::select('module_name', DB::raw('count(*) as total'))
+                ->whereIn('photo_status', ['tracer_pending', 'draft'])
+                ->groupBy('module_name')
+                ->pluck('total', 'module_name')
+                ->toArray();
+
+            $stats['photos_ready']['sk'] = $photosReady['sk'] ?? 0;
+            $stats['photos_ready']['sr'] = $photosReady['sr'] ?? 0;
+            $stats['photos_ready']['gas_in'] = $photosReady['gas_in'] ?? 0;
+            $stats['photos_ready']['total'] = array_sum($stats['photos_ready']);
+
+            // 2. Customers Ready
+            $customersReady = PhotoApproval::select('module_name', DB::raw('count(distinct reff_id_pelanggan) as total'))
+                ->whereIn('photo_status', ['tracer_pending', 'draft'])
+                ->groupBy('module_name')
+                ->pluck('total', 'module_name')
+                ->toArray();
+
+            $stats['customers_ready']['sk'] = $customersReady['sk'] ?? 0;
+            $stats['customers_ready']['sr'] = $customersReady['sr'] ?? 0;
+            $stats['customers_ready']['gas_in'] = $customersReady['gas_in'] ?? 0;
+
+            // Fix: Total should be distinct customers across ALL modules, not sum of per-module counts
+            $stats['customers_ready']['total'] = PhotoApproval::whereIn('photo_status', ['tracer_pending', 'draft'])
+                ->distinct('reff_id_pelanggan')
+                ->count('reff_id_pelanggan');
+
+            // 3. Approved Stats (Tracer Approved)
+            $stats['approved']['total'] = PhotoApproval::whereNotNull('tracer_approved_at')->count();
+            $stats['approved']['today'] = PhotoApproval::whereDate('tracer_approved_at', $today)->count();
+
+            // 4. Rejected Stats
+            $stats['rejected']['tracer_rejected'] = PhotoApproval::where('photo_status', 'tracer_rejected')->count();
+            $stats['rejected']['cgp_rejected'] = PhotoApproval::where('photo_status', 'cgp_rejected')->count();
+            $stats['rejected']['total'] = $stats['rejected']['tracer_rejected'] + $stats['rejected']['cgp_rejected'];
+
+            // Rejected Today (Approximation using updated_at/cgp_rejected_at)
+            $stats['rejected']['today'] = PhotoApproval::where(function ($q) use ($today) {
+                $q->where(function ($sub) use ($today) {
+                    $sub->where('photo_status', 'tracer_rejected')
+                        ->whereDate('updated_at', $today);
+                })->orWhere(function ($sub) use ($today) {
+                    $sub->where('photo_status', 'cgp_rejected')
+                        ->whereDate('cgp_rejected_at', $today);
+                });
+            })->count();
+
+        } elseif ($role === 'cgp') {
+            // CGP sees cgp_pending AND tracer_approved
+            $cgpStatuses = ['cgp_pending', 'tracer_approved'];
+
+            // 1. Photos Ready
+            $photosReady = PhotoApproval::select('module_name', DB::raw('count(*) as total'))
+                ->whereIn('photo_status', $cgpStatuses)
+                ->groupBy('module_name')
+                ->pluck('total', 'module_name')
+                ->toArray();
+
+            $stats['photos_ready']['sk'] = $photosReady['sk'] ?? 0;
+            $stats['photos_ready']['sr'] = $photosReady['sr'] ?? 0;
+            $stats['photos_ready']['gas_in'] = $photosReady['gas_in'] ?? 0;
+            $stats['photos_ready']['total'] = array_sum($stats['photos_ready']);
+
+            // 2. Customers Ready
+            $customersReady = PhotoApproval::select('module_name', DB::raw('count(distinct reff_id_pelanggan) as total'))
+                ->whereIn('photo_status', $cgpStatuses)
+                ->groupBy('module_name')
+                ->pluck('total', 'module_name')
+                ->toArray();
+
+            $stats['customers_ready']['sk'] = $customersReady['sk'] ?? 0;
+            $stats['customers_ready']['sr'] = $customersReady['sr'] ?? 0;
+            $stats['customers_ready']['gas_in'] = $customersReady['gas_in'] ?? 0;
+
+            // Fix: Total should be distinct customers across ALL modules
+            $stats['customers_ready']['total'] = PhotoApproval::whereIn('photo_status', $cgpStatuses)
+                ->distinct('reff_id_pelanggan')
+                ->count('reff_id_pelanggan');
+
+            // 3. Approved Stats (CGP Approved)
+            $stats['approved']['total'] = PhotoApproval::where('photo_status', 'cgp_approved')->count();
+            $stats['approved']['today'] = PhotoApproval::where('photo_status', 'cgp_approved')
+                ->whereDate('cgp_approved_at', $today)
+                ->count();
+
+            // 4. Rejected Stats (CGP Rejected)
+            $stats['rejected']['total'] = PhotoApproval::where('photo_status', 'cgp_rejected')->count();
+            $stats['rejected']['today'] = PhotoApproval::where('photo_status', 'cgp_rejected')
+                ->whereDate('cgp_rejected_at', $today)
+                ->count();
+        }
+
+        return $stats;
     }
 }

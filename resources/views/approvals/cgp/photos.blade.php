@@ -463,9 +463,8 @@
         // Module always available if data exists
         $moduleAvailable = true;
 
-        // Locked logic: SR locked until SK complete, Gas In locked until SR complete
-        $isLocked = ($module === 'sr' && !$cgpStatus['sk_completed']) ||
-                    ($module === 'gas_in' && !$cgpStatus['sr_completed']);
+        // Locked logic: Removed for parallel workflow
+        $isLocked = false;
 
         // foto + urut
         $modulePhotos = collect($photos[$module] ?? [])->sortBy(function($p) use ($orderIndex) {

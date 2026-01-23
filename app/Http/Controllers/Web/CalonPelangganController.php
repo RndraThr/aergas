@@ -27,13 +27,16 @@ class CalonPelangganController extends Controller
 {
     private NotificationService $notificationService;
     private ReportService $reportService;
+    private \App\Services\ComprehensiveExportService $exportService;
 
     public function __construct(
         NotificationService $notificationService,
-        ReportService $reportService
+        ReportService $reportService,
+        \App\Services\ComprehensiveExportService $exportService
     ) {
         $this->notificationService = $notificationService;
         $this->reportService = $reportService;
+        $this->exportService = $exportService;
     }
 
     /**
@@ -43,7 +46,7 @@ class CalonPelangganController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = CalonPelanggan::with(['validatedBy:id,name', 'gasInData']);
+            $query = CalonPelanggan::with(['validatedBy:id,name', 'skData:id,reff_id_pelanggan,module_status', 'srData:id,reff_id_pelanggan,module_status', 'gasInData:id,reff_id_pelanggan,module_status']);
 
             // Filters
             if ($s = trim((string) $request->input('search', ''))) {
@@ -759,6 +762,56 @@ class CalonPelangganController extends Controller
         $allowedColumns = $import->getAllowedColumns();
 
         return view('imports.calon-pelanggan-bulk', compact('allowedColumns'));
+    }
+
+    /**
+     * Export Customer Data (Comprehensive Format)
+     */
+    public function export(Request $request)
+    {
+        try {
+            // Re-use the existing logic to build the query from filters
+            $query = CalonPelanggan::with([
+                'validatedBy:id,name',
+                'skData.photoApprovals',
+                'srData.photoApprovals',
+                'gasInData.photoApprovals',
+                'photoApprovals.tracerUser',
+                'photoApprovals.cgpUser',
+            ]);
+
+            // Apply Filters (same as index, extracted to helper method)
+            $this->applyFilters($query, $request);
+
+            // Get all results (no pagination)
+            $customers = $query->latest('tanggal_registrasi')->get();
+
+            if ($customers->isEmpty()) {
+                return back()->with('error', 'Tidak ada data pelanggan yang sesuai filter untuk diexport.');
+            }
+
+            // Generate Spreadsheet using the shared service
+            $spreadsheet = $this->exportService->generateSpreadsheet($customers);
+            $filename = 'Export_Pelanggan_' . now()->format('Y-m-d_His') . '.xlsx';
+
+            // Download Logic
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $temp_file = tempnam(sys_get_temp_dir(), 'excel');
+            $writer->save($temp_file);
+
+            return response()->download($temp_file, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'max-age=0',
+            ])->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            Log::error('Export customers failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+            return back()->with('error', 'Gagal export data: ' . $e->getMessage());
+        }
     }
 
     /**
