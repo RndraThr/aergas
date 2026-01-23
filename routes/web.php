@@ -252,6 +252,18 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/{customer}/isometrik-sr', [CalonPelangganController::class, 'downloadIsometrikSr'])
                 ->name('isometrik-sr');
 
+            // BA SK Routes
+            Route::get('/{customer}/ba-sk/preview', [CalonPelangganController::class, 'previewBaSk'])
+                ->name('ba-sk.preview');
+            Route::get('/{customer}/ba-sk', [CalonPelangganController::class, 'downloadBaSk'])
+                ->name('ba-sk');
+
+            // Isometrik SK Routes
+            Route::get('/{customer}/isometrik-sk/preview', [CalonPelangganController::class, 'previewIsometrikSk'])
+                ->name('isometrik-sk.preview');
+            Route::get('/{customer}/isometrik-sk', [CalonPelangganController::class, 'downloadIsometrikSk'])
+                ->name('isometrik-sk');
+
             // Multi-Document Bulk Download
             Route::post('/documents/bulk-download', [CalonPelangganController::class, 'downloadBulkDocuments'])
                 ->name('documents.bulk-download');
@@ -408,20 +420,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 ->whereNumber('sr')
                 ->name('complete');
 
-            // Generate Berita Acara
-            Route::get('/{sr}/berita-acara', [SrDataController::class, 'generateBeritaAcara'])
-                ->whereNumber('sr')
-                ->name('berita-acara');
 
-            // BA MGRT Routes (Berita Acara Meter Gas Rumah Tangga)
-            Route::get('/{sr}/ba-mgrt/preview', [SrDataController::class, 'previewBaMgrt'])
-                ->whereNumber('sr')
-                ->name('ba-mgrt.preview');
-            Route::get('/{sr}/ba-mgrt/download', [SrDataController::class, 'downloadBaMgrt'])
-                ->whereNumber('sr')
-                ->name('ba-mgrt.download');
-            Route::post('/ba-mgrt/bulk-download', [SrDataController::class, 'downloadBulkBaMgrt'])
-                ->name('ba-mgrt.bulk');
 
             // Rejection Details
             Route::get('/{sr}/rejection-details', [SrDataController::class, 'getRejectionDetails'])
