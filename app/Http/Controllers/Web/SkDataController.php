@@ -20,16 +20,17 @@ class SkDataController extends Controller
 {
     public function __construct(
         private ?PhotoApprovalService $photoSvc = null,
-    ) {}
+    ) {
+    }
 
     public function index(Request $r)
     {
         $q = SkData::with('calonPelanggan')
             ->withCount([
-                'photoApprovals as rejected_photos_count' => function($query) {
-                    $query->where(function($q) {
+                'photoApprovals as rejected_photos_count' => function ($query) {
+                    $query->where(function ($q) {
                         $q->whereNotNull('tracer_rejected_at')
-                          ->orWhereNotNull('cgp_rejected_at');
+                            ->orWhereNotNull('cgp_rejected_at');
                     });
                 }
             ])
@@ -37,10 +38,10 @@ class SkDataController extends Controller
 
         if ($r->filled('q')) {
             $term = trim((string) $r->get('q'));
-            $q->where(function($w) use ($term) {
-                $w->where('reff_id_pelanggan','like',"%{$term}%")
-                  ->orWhere('status','like',"%{$term}%")
-                  ->orWhere('module_status','like',"%{$term}%");
+            $q->where(function ($w) use ($term) {
+                $w->where('reff_id_pelanggan', 'like', "%{$term}%")
+                    ->orWhere('status', 'like', "%{$term}%")
+                    ->orWhere('module_status', 'like', "%{$term}%");
             });
         }
 
@@ -70,7 +71,7 @@ class SkDataController extends Controller
             $uploadedCount = $skItem->photoApprovals->count();
 
             // Count corrupt/broken photos (uploaded but file is missing/corrupt)
-            $corruptCount = $skItem->photoApprovals->filter(function($photo) {
+            $corruptCount = $skItem->photoApprovals->filter(function ($photo) {
                 return empty($photo->photo_url) || empty($photo->storage_path) || empty($photo->drive_file_id);
             })->count();
 
@@ -109,9 +110,9 @@ class SkDataController extends Controller
 
     public function edit(SkData $sk)
     {
-        $sk->load(['calonPelanggan','photoApprovals','files']);
+        $sk->load(['calonPelanggan', 'photoApprovals', 'files']);
         $photoDefs = $this->buildPhotoDefs('SK');
-        return view('sk.edit', compact('sk','photoDefs'));
+        return view('sk.edit', compact('sk', 'photoDefs'));
     }
 
     public function show(Request $r, SkData $sk)
@@ -148,23 +149,23 @@ class SkDataController extends Controller
                 'required',
                 'string',
                 'max:50',
-                Rule::exists('calon_pelanggan','reff_id_pelanggan'),
-                Rule::unique('sk_data','reff_id_pelanggan')->whereNull('deleted_at')
+                Rule::exists('calon_pelanggan', 'reff_id_pelanggan'),
+                Rule::unique('sk_data', 'reff_id_pelanggan')->whereNull('deleted_at')
             ],
-            'tanggal_instalasi' => ['required','date'],
-            'notes' => ['nullable','string'],
+            'tanggal_instalasi' => ['required', 'date'],
+            'notes' => ['nullable', 'string'],
         ], $materialRules), [
             'reff_id_pelanggan.unique' => 'SK untuk reff_id ini sudah ada. Tidak boleh membuat SK duplikat.'
         ]);
 
         if ($v->fails()) {
-            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         }
 
         // Double check to prevent race condition (exclude soft deleted records)
         $existingSk = SkData::where('reff_id_pelanggan', $r->reff_id_pelanggan)
-                            ->whereNull('deleted_at')
-                            ->first();
+            ->whereNull('deleted_at')
+            ->first();
         if ($existingSk) {
             return response()->json([
                 'success' => false,
@@ -182,28 +183,28 @@ class SkDataController extends Controller
         $sk = SkData::create($data);
         $this->audit('create', $sk, [], $sk->toArray());
 
-        return response()->json(['success'=>true,'data'=>$sk], 201);
+        return response()->json(['success' => true, 'data' => $sk], 201);
     }
 
     public function update(Request $r, SkData $sk)
     {
         if (!$sk->canEdit()) {
             return response()->json([
-                'success'=>false,
-                'message'=>'Tidak diizinkan untuk mengedit data ini. Status: ' . ($sk->module_status ?? $sk->status)
+                'success' => false,
+                'message' => 'Tidak diizinkan untuk mengedit data ini. Status: ' . ($sk->module_status ?? $sk->status)
             ], 422);
         }
 
         $materialRules = $sk->getMaterialValidationRules();
 
         $v = Validator::make($r->all(), array_merge([
-            'tanggal_instalasi' => ['required','date'],
-            'notes' => ['nullable','string'],
-            'created_by' => ['nullable','integer','exists:users,id'],
+            'tanggal_instalasi' => ['required', 'date'],
+            'notes' => ['nullable', 'string'],
+            'created_by' => ['nullable', 'integer', 'exists:users,id'],
         ], $materialRules));
 
         if ($v->fails()) {
-            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         }
 
         $old = $sk->getOriginal();
@@ -212,7 +213,7 @@ class SkDataController extends Controller
         $sk->save();
 
         $this->audit('update', $sk, $old, $sk->toArray());
-        return response()->json(['success'=>true,'data'=>$sk]);
+        return response()->json(['success' => true, 'data' => $sk]);
     }
 
     public function destroy(SkData $sk)
@@ -276,13 +277,13 @@ class SkDataController extends Controller
         try {
             $normalizedReff = strtoupper(trim($reffId));
             $sk = SkData::where('reff_id_pelanggan', $normalizedReff)
-                        ->whereNull('deleted_at')
-                        ->first();
+                ->whereNull('deleted_at')
+                ->first();
 
             if (!$sk && ctype_digit($normalizedReff)) {
-                $sk = SkData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int)$normalizedReff])
-                            ->whereNull('deleted_at')
-                            ->first();
+                $sk = SkData::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int) $normalizedReff])
+                    ->whereNull('deleted_at')
+                    ->first();
             }
 
             if (!$sk) {
@@ -306,21 +307,22 @@ class SkDataController extends Controller
     public function precheckGeneric(Request $r)
     {
         $v = Validator::make($r->all(), [
-            'file'      => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
-            'slot_type' => ['required','string','max:100'],
-            'module'    => ['nullable','in:SK'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:35840'],
+            'slot_type' => ['required', 'string', 'max:100'],
+            'module' => ['nullable', 'in:SK'],
         ]);
-        if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+        if ($v->fails())
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
-        $module    = (string) $r->input('module', 'SK');
+        $module = (string) $r->input('module', 'SK');
         $slotInput = (string) $r->input('slot_type');
 
-        $cfgAll     = config('aergas_photos') ?: [];
-        $moduleKey  = strtoupper($module);
-        $slotCfg    = (array) (data_get($cfgAll, "modules.$moduleKey.slots.$slotInput") ?? []);
+        $cfgAll = config('aergas_photos') ?: [];
+        $moduleKey = strtoupper($module);
+        $slotCfg = (array) (data_get($cfgAll, "modules.$moduleKey.slots.$slotInput") ?? []);
 
         if (!$slotCfg) {
-            return response()->json(['success'=>false,'message'=>"Slot tidak dikenal: {$slotInput}"], 422);
+            return response()->json(['success' => false, 'message' => "Slot tidak dikenal: {$slotInput}"], 422);
         }
 
         $customPrompt = $slotCfg['prompt'] ?? null;
@@ -347,12 +349,12 @@ class SkDataController extends Controller
             return response()->json([
                 'success' => true,
                 'ai' => [
-                    'passed'     => $result['passed'],
-                    'score'      => $result['confidence'] * 100,
-                    'reason'     => $result['reason'],
-                    'messages'   => [$result['reason']],
-                    'objects'    => [],
-                    'rules'      => [$slotInput],
+                    'passed' => $result['passed'],
+                    'score' => $result['confidence'] * 100,
+                    'reason' => $result['reason'],
+                    'messages' => [$result['reason']],
+                    'objects' => [],
+                    'rules' => [$slotInput],
                     'confidence' => $result['confidence'],
                 ],
                 'message' => $result['passed']
@@ -389,20 +391,21 @@ class SkDataController extends Controller
     public function uploadAndValidate(Request $r, SkData $sk)
     {
         $v = Validator::make($r->all(), [
-            'file'       => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
-            'slot_type'  => ['required','string','max:100'],
-            'ai_passed'  => ['nullable','boolean'],
-            'ai_score'   => ['nullable','numeric'],
-            'ai_reason'  => ['nullable','string'],
-            'ai_notes'   => ['nullable','array'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:35840'],
+            'slot_type' => ['required', 'string', 'max:100'],
+            'ai_passed' => ['nullable', 'boolean'],
+            'ai_score' => ['nullable', 'numeric'],
+            'ai_reason' => ['nullable', 'string'],
+            'ai_notes' => ['nullable', 'array'],
         ]);
-        if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+        if ($v->fails())
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $slotParam = (string) $r->input('slot_type');
-        $slotSlug  = Str::slug($slotParam, '_');
+        $slotSlug = Str::slug($slotParam, '_');
 
-        $ext  = strtolower($r->file('file')->getClientOriginalExtension() ?: $r->file('file')->extension());
-        $ts   = now()->format('Ymd_His');
+        $ext = strtolower($r->file('file')->getClientOriginalExtension() ?: $r->file('file')->extension());
+        $ts = now()->format('Ymd_His');
         $targetName = "{$sk->reff_id_pelanggan}_{$slotSlug}_{$ts}.{$ext}";
 
         $svc = $this->photoSvc ?? app(PhotoApprovalService::class);
@@ -421,10 +424,10 @@ class SkDataController extends Controller
             uploadedBy: Auth::id(),
             targetFileName: $targetName,
             precheck: [
-                'ai_passed'  => (bool) $r->boolean('ai_passed'),
-                'ai_score'   => $r->input('ai_score'),
-                'ai_reason'  => $r->input('ai_reason'),
-                'ai_notes'   => $r->input('ai_notes', []),
+                'ai_passed' => (bool) $r->boolean('ai_passed'),
+                'ai_score' => $r->input('ai_score'),
+                'ai_reason' => $r->input('ai_reason'),
+                'ai_notes' => $r->input('ai_notes', []),
             ],
             meta: $meta // TAMBAH parameter meta
         );
@@ -432,14 +435,14 @@ class SkDataController extends Controller
         $this->recalcSkStatus($sk);
 
         return response()->json([
-            'success'   => true,
-            'photo_id'  => $res['photo_id'] ?? null,
-            'filename'  => $targetName,
-            'message'   => 'Upload berhasil, foto lama telah diganti', // UBAH pesan
+            'success' => true,
+            'photo_id' => $res['photo_id'] ?? null,
+            'filename' => $targetName,
+            'message' => 'Upload berhasil, foto lama telah diganti', // UBAH pesan
             'ai_result' => [
                 'passed' => (bool) $r->boolean('ai_passed'),
                 'reason' => $r->input('ai_reason', 'No reason provided'),
-                'score'  => $r->input('ai_score', 0),
+                'score' => $r->input('ai_score', 0),
             ]
         ], 201);
     }
@@ -459,8 +462,8 @@ class SkDataController extends Controller
         ]);
 
         $v = Validator::make($r->all(), [
-            'file' => ['required','file','mimes:jpg,jpeg,png,webp,pdf','max:35840'],
-            'slot_type' => ['required','string','max:100'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:35840'],
+            'slot_type' => ['required', 'string', 'max:100'],
         ]);
 
         if ($v->fails()) {
@@ -469,7 +472,7 @@ class SkDataController extends Controller
                 'reff_id' => $sk->reff_id_pelanggan,
                 'errors' => $v->errors()->toArray()
             ]);
-            return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
         }
 
         $slotParam = $r->input('slot_type');
@@ -555,7 +558,7 @@ class SkDataController extends Controller
     public function approveTracer(Request $r, SkData $sk)
     {
         if (!$sk->canApproveTracer()) {
-            return response()->json(['success'=>false,'message' => 'Belum siap untuk approval tracer.'], 422);
+            return response()->json(['success' => false, 'message' => 'Belum siap untuk approval tracer.'], 422);
         }
         $old = $sk->getOriginal();
         $sk->status = SkData::STATUS_TRACER_APPROVED;
@@ -564,26 +567,26 @@ class SkDataController extends Controller
         $sk->tracer_notes = $r->input('notes');
         $sk->save();
         $this->audit('approve', $sk, $old, $sk->toArray());
-        return response()->json(['success'=>true,'data'=>$sk]);
+        return response()->json(['success' => true, 'data' => $sk]);
     }
 
     public function rejectTracer(Request $r, SkData $sk)
     {
         if ($sk->status !== SkData::STATUS_READY_FOR_TRACER) {
-            return response()->json(['success'=>false,'message' => 'Status tidak valid untuk reject tracer.'], 422);
+            return response()->json(['success' => false, 'message' => 'Status tidak valid untuk reject tracer.'], 422);
         }
         $old = $sk->getOriginal();
         $sk->status = SkData::STATUS_TRACER_REJECTED;
         $sk->tracer_notes = $r->input('notes');
         $sk->save();
         $this->audit('reject', $sk, $old, $sk->toArray());
-        return response()->json(['success'=>true,'data'=>$sk]);
+        return response()->json(['success' => true, 'data' => $sk]);
     }
 
     public function approveCgp(Request $r, SkData $sk)
     {
         if (!$sk->canApproveCgp()) {
-            return response()->json(['success'=>false,'message' => 'Belum siap untuk approval CGP.'], 422);
+            return response()->json(['success' => false, 'message' => 'Belum siap untuk approval CGP.'], 422);
         }
         $old = $sk->getOriginal();
         $sk->status = SkData::STATUS_CGP_APPROVED;
@@ -592,78 +595,88 @@ class SkDataController extends Controller
         $sk->cgp_notes = $r->input('notes');
         $sk->save();
 
-        // Update customer progress_status to next module (SR)
-        $customer = $sk->calonPelanggan;
-        if ($customer && $customer->progress_status === 'sk') {
-            $customer->progress_status = 'sr';
-            $customer->save();
-        }
+        // In Parallel Workflow, we do NOT auto-advance to SR here.
+        // Users can start SR independently.
+        // $customer = $sk->calonPelanggan;
+        // if ($customer && $customer->progress_status === 'sk') {
+        //     $customer->progress_status = 'sr';
+        //     $customer->save();
+        // }
 
         $this->audit('approve', $sk, $old, $sk->toArray());
-        return response()->json(['success'=>true,'data'=>$sk]);
+        return response()->json(['success' => true, 'data' => $sk]);
     }
 
     public function rejectCgp(Request $r, SkData $sk)
     {
         if ($sk->status !== SkData::STATUS_TRACER_APPROVED) {
-            return response()->json(['success'=>false,'message' => 'Status tidak valid untuk reject CGP.'], 422);
+            return response()->json(['success' => false, 'message' => 'Status tidak valid untuk reject CGP.'], 422);
         }
         $old = $sk->getOriginal();
         $sk->status = SkData::STATUS_CGP_REJECTED;
         $sk->cgp_notes = $r->input('notes');
         $sk->save();
         $this->audit('reject', $sk, $old, $sk->toArray());
-        return response()->json(['success'=>true,'data'=>$sk]);
+        return response()->json(['success' => true, 'data' => $sk]);
     }
 
     public function schedule(Request $r, SkData $sk)
     {
         if (!$sk->canSchedule()) {
-            return response()->json(['success'=>false,'message' => 'Belum bisa dijadwalkan.'], 422);
+            return response()->json(['success' => false, 'message' => 'Belum bisa dijadwalkan.'], 422);
         }
 
         $v = Validator::make($r->all(), [
-            'tanggal_instalasi' => ['required','date'],
-            'nomor_sk'          => ['nullable','string','max:100','unique:sk_data,nomor_sk'],
+            'tanggal_instalasi' => ['required', 'date'],
+            'nomor_sk' => ['nullable', 'string', 'max:100', 'unique:sk_data,nomor_sk'],
         ]);
-        if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
+        if ($v->fails())
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
 
         $old = $sk->getOriginal();
         $sk->fill($v->validated());
-        if (!$sk->nomor_sk) $sk->nomor_sk = $this->makeNomor('SK');
+        if (!$sk->nomor_sk)
+            $sk->nomor_sk = $this->makeNomor('SK');
         $sk->status = SkData::STATUS_SCHEDULED;
         $sk->save();
 
         $this->audit('update', $sk, $old, $sk->toArray());
-        return response()->json(['success'=>true,'data'=>$sk]);
+        return response()->json(['success' => true, 'data' => $sk]);
     }
 
     public function complete(Request $r, SkData $sk)
     {
         if (!$sk->canComplete()) {
-            return response()->json(['success'=>false,'message' => 'Belum bisa diselesaikan.'], 422);
+            return response()->json(['success' => false, 'message' => 'Belum bisa diselesaikan.'], 422);
         }
         $old = $sk->getOriginal();
         $sk->status = SkData::STATUS_COMPLETED;
         $sk->module_status = 'completed';
         $sk->save();
 
-        // Update customer progress_status to SR (if still on SK)
+        // Check if ALL modules are completed to mark customer as DONE
         $customer = $sk->calonPelanggan;
-        if ($customer && $customer->progress_status === 'sk') {
-            $customer->progress_status = 'sr';
-            $customer->save();
+        if ($customer) {
+            $skDone = $customer->skData?->module_status === 'completed';
+            $srDone = $customer->srData?->module_status === 'completed';
+            $gasInDone = $customer->gasInData?->module_status === 'completed';
+
+            if ($skDone && $srDone && $gasInDone) {
+                $customer->progress_status = 'done';
+                $customer->status = 'lanjut';
+                $customer->save();
+            }
         }
 
         $this->audit('update', $sk, $old, $sk->toArray());
-        return response()->json(['success'=>true,'data'=>$sk]);
+        return response()->json(['success' => true, 'data' => $sk]);
     }
 
     public function generateBeritaAcara(SkData $sk, BeritaAcaraService $beritaAcaraService)
     {
         try {
             $result = $beritaAcaraService->generateSkBeritaAcara($sk);
-            
+
             if (!$result['success']) {
                 return response()->json([
                     'success' => false,
@@ -688,17 +701,18 @@ class SkDataController extends Controller
 
     private function buildPhotoDefs(string $module): array
     {
-        $cfgAll    = config('aergas_photos') ?: [];
+        $cfgAll = config('aergas_photos') ?: [];
         $moduleKey = strtoupper((string) $module);
-        $cfgSlots  = (array) (
+        $cfgSlots = (array) (
             data_get($cfgAll, "modules.$moduleKey.slots")
-            ?? data_get($cfgAll, 'modules.'.strtolower($module).'.slots', [])
+            ?? data_get($cfgAll, 'modules.' . strtolower($module) . '.slots', [])
         );
 
         $defs = [];
         foreach ($cfgSlots as $key => $rule) {
             $accept = $rule['accept'] ?? ['image/*'];
-            if (is_string($accept)) $accept = [$accept];
+            if (is_string($accept))
+                $accept = [$accept];
 
             $checks = collect($rule['checks'] ?? [])
                 ->map(fn($c) => $c['label'] ?? $c['id'] ?? '')
@@ -747,14 +761,14 @@ class SkDataController extends Controller
             } else {
                 Log::info('audit', [
                     'action' => $action,
-                    'model'  => class_basename($model),
-                    'id'     => $model->getKey(),
-                    'old'    => $old,
-                    'new'    => $new,
+                    'model' => class_basename($model),
+                    'id' => $model->getKey(),
+                    'old' => $old,
+                    'new' => $new,
                 ]);
             }
         } catch (\Throwable $e) {
-            Log::error('audit-failed: '.$e->getMessage());
+            Log::error('audit-failed: ' . $e->getMessage());
         }
     }
 
@@ -803,14 +817,14 @@ class SkDataController extends Controller
             $cfgSlots = (array) (config('aergas_photos.modules.SK.slots') ?? []);
 
             $rejectedPhotos = $sk->photoApprovals()
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->whereNotNull('tracer_rejected_at')
-                      ->orWhereNotNull('cgp_rejected_at');
+                        ->orWhereNotNull('cgp_rejected_at');
                 })
                 ->with(['tracerUser', 'cgpUser'])
                 ->get();
 
-            $rejections = $rejectedPhotos->map(function($photo) use ($cfgSlots) {
+            $rejections = $rejectedPhotos->map(function ($photo) use ($cfgSlots) {
                 $rejectedByType = null;
                 $rejectedByName = null;
                 $reason = null;

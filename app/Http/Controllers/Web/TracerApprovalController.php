@@ -16,7 +16,8 @@ class TracerApprovalController extends Controller implements HasMiddleware
     public function __construct(
         private PhotoApprovalService $photoApprovalService,
         private NotificationService $notificationService
-    ) {}
+    ) {
+    }
 
     public static function middleware(): array
     {
@@ -66,57 +67,57 @@ class TracerApprovalController extends Controller implements HasMiddleware
 
             if ($status === 'sk_pending') {
                 // Customers with SK photos pending tracer approval OR SK data without photos
-                $query->where(function($q) {
-                    $q->whereHas('photoApprovals', function($photoQ) {
+                $query->where(function ($q) {
+                    $q->whereHas('photoApprovals', function ($photoQ) {
                         $photoQ->where('module_name', 'sk')
-                              ->where('photo_status', 'tracer_pending');
+                            ->where('photo_status', 'tracer_pending');
                     })->orWhereHas('skData');
                 });
             } elseif ($status === 'sr_pending') {
                 // SR Pending: SK must be completed (cgp_review or completed) AND SR has pending photos
-                $query->whereHas('skData', function($skQ) {
+                $query->whereHas('skData', function ($skQ) {
                     // SK harus sudah di-approve tracer (minimal cgp_review)
                     $skQ->whereIn('module_status', ['cgp_review', 'completed']);
-                })->where(function($q) {
+                })->where(function ($q) {
                     // DAN SR ada foto pending atau ada data SR
-                    $q->whereHas('photoApprovals', function($photoQ) {
+                    $q->whereHas('photoApprovals', function ($photoQ) {
                         $photoQ->where('module_name', 'sr')
-                              ->where('photo_status', 'tracer_pending');
+                            ->where('photo_status', 'tracer_pending');
                     })->orWhereHas('srData');
                 });
             } elseif ($status === 'gas_in_pending') {
                 // Gas In Pending: SK AND SR must be completed AND Gas In has pending photos
-                $query->whereHas('skData', function($skQ) {
+                $query->whereHas('skData', function ($skQ) {
                     // SK harus sudah di-approve tracer (minimal cgp_review)
                     $skQ->whereIn('module_status', ['cgp_review', 'completed']);
-                })->whereHas('srData', function($srQ) {
+                })->whereHas('srData', function ($srQ) {
                     // SR harus sudah di-approve tracer (minimal cgp_review)
                     $srQ->whereIn('module_status', ['cgp_review', 'completed']);
-                })->where(function($q) {
+                })->where(function ($q) {
                     // DAN Gas In ada foto pending atau ada data Gas In
-                    $q->whereHas('photoApprovals', function($photoQ) {
+                    $q->whereHas('photoApprovals', function ($photoQ) {
                         $photoQ->where('module_name', 'gas_in')
-                              ->where('photo_status', 'tracer_pending');
+                            ->where('photo_status', 'tracer_pending');
                     })->orWhereHas('gasInData');
                 });
             } else {
                 // Default: show customers that have photos pending tracer approval OR have any module data
-                $query->where(function($q) {
-                    $q->whereHas('photoApprovals', function($photoQ) {
+                $query->where(function ($q) {
+                    $q->whereHas('photoApprovals', function ($photoQ) {
                         $photoQ->where('photo_status', 'tracer_pending');
                     })->orWhereHas('skData')
-                      ->orWhereHas('srData')
-                      ->orWhereHas('gasInData');
+                        ->orWhereHas('srData')
+                        ->orWhereHas('gasInData');
                 });
             }
 
             // Search
             if ($request->filled('search')) {
                 $search = $request->get('search');
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('reff_id_pelanggan', 'like', "%{$search}%")
-                      ->orWhere('nama_pelanggan', 'like', "%{$search}%")
-                      ->orWhere('alamat', 'like', "%{$search}%");
+                        ->orWhere('nama_pelanggan', 'like', "%{$search}%")
+                        ->orWhere('alamat', 'like', "%{$search}%");
                 });
             }
 
@@ -139,7 +140,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
 
             if ($request->ajax() || $request->get('ajax')) {
                 // Transform items to include sequential_status
-                $items = $customers->getCollection()->map(function($customer) {
+                $items = $customers->getCollection()->map(function ($customer) {
                     return [
                         'reff_id_pelanggan' => $customer->reff_id_pelanggan,
                         'nama_pelanggan' => $customer->nama_pelanggan,
@@ -162,7 +163,10 @@ class TracerApprovalController extends Controller implements HasMiddleware
                 ]);
             }
 
-            return view('approvals.tracer.customers', compact('customers'));
+            // Get Dashboard Stats
+            $stats = $this->photoApprovalService->getDashboardStats('tracer');
+
+            return view('approvals.tracer.customers', compact('customers', 'stats'));
 
         } catch (Exception $e) {
             Log::error('Tracer customers error', [
@@ -305,12 +309,12 @@ class TracerApprovalController extends Controller implements HasMiddleware
             DB::commit();
 
             $message = $action === 'approve' ? 'Photo berhasil di-approve' : 'Photo berhasil di-reject';
-            
+
             // Check if this is jalur photos and redirect appropriately
             if (in_array($photoApproval->module_name, ['jalur_lowering', 'jalur_joint'])) {
                 return back()->with('success', $message);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -369,7 +373,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
             $uploadedFile = $request->file('new_photo');
 
             // Determine module data for proper storage
-            $moduleData = match($photoApproval->module_name) {
+            $moduleData = match ($photoApproval->module_name) {
                 'sk' => SkData::where('reff_id_pelanggan', $photoApproval->reff_id_pelanggan)->first(),
                 'sr' => SrData::where('reff_id_pelanggan', $photoApproval->reff_id_pelanggan)->first(),
                 'gas_in' => GasInData::where('reff_id_pelanggan', $photoApproval->reff_id_pelanggan)->first(),
@@ -563,33 +567,33 @@ class TracerApprovalController extends Controller implements HasMiddleware
     {
         if ($dateModule === 'all') {
             // Filter untuk semua module - customer muncul jika salah satu module ada dalam range tanggal
-            $query->where(function($q) use ($dateFrom, $dateTo) {
+            $query->where(function ($q) use ($dateFrom, $dateTo) {
                 // SK: tanggal_instalasi
-                $q->orWhereHas('skData', function($skQ) use ($dateFrom, $dateTo) {
+                $q->orWhereHas('skData', function ($skQ) use ($dateFrom, $dateTo) {
                     $skQ->whereBetween('tanggal_instalasi', [$dateFrom, $dateTo]);
                 })
-                // SR: tanggal_pemasangan
-                ->orWhereHas('srData', function($srQ) use ($dateFrom, $dateTo) {
-                    $srQ->whereBetween('tanggal_pemasangan', [$dateFrom, $dateTo]);
-                })
-                // Gas In: tanggal_gas_in
-                ->orWhereHas('gasInData', function($gasInQ) use ($dateFrom, $dateTo) {
-                    $gasInQ->whereBetween('tanggal_gas_in', [$dateFrom, $dateTo]);
-                });
+                    // SR: tanggal_pemasangan
+                    ->orWhereHas('srData', function ($srQ) use ($dateFrom, $dateTo) {
+                        $srQ->whereBetween('tanggal_pemasangan', [$dateFrom, $dateTo]);
+                    })
+                    // Gas In: tanggal_gas_in
+                    ->orWhereHas('gasInData', function ($gasInQ) use ($dateFrom, $dateTo) {
+                        $gasInQ->whereBetween('tanggal_gas_in', [$dateFrom, $dateTo]);
+                    });
             });
         } elseif ($dateModule === 'sk') {
             // Filter hanya SK berdasarkan tanggal_instalasi
-            $query->whereHas('skData', function($skQ) use ($dateFrom, $dateTo) {
+            $query->whereHas('skData', function ($skQ) use ($dateFrom, $dateTo) {
                 $skQ->whereBetween('tanggal_instalasi', [$dateFrom, $dateTo]);
             });
         } elseif ($dateModule === 'sr') {
             // Filter hanya SR berdasarkan tanggal_pemasangan
-            $query->whereHas('srData', function($srQ) use ($dateFrom, $dateTo) {
+            $query->whereHas('srData', function ($srQ) use ($dateFrom, $dateTo) {
                 $srQ->whereBetween('tanggal_pemasangan', [$dateFrom, $dateTo]);
             });
         } elseif ($dateModule === 'gas_in') {
             // Filter hanya Gas In berdasarkan tanggal_gas_in
-            $query->whereHas('gasInData', function($gasInQ) use ($dateFrom, $dateTo) {
+            $query->whereHas('gasInData', function ($gasInQ) use ($dateFrom, $dateTo) {
                 $gasInQ->whereBetween('tanggal_gas_in', [$dateFrom, $dateTo]);
             });
         }
@@ -624,17 +628,17 @@ class TracerApprovalController extends Controller implements HasMiddleware
     private function getSequentialStatus($customer): array
     {
         $status = [
-            'current_step' => 'sk',
+            'current_step' => 'parallel',
             'sk_completed' => false,
             'sk_locked' => false,
             'sk_rejected' => false,
-            'sr_available' => false,
+            'sr_available' => true, // Always available in parallel
             'sr_completed' => false,
-            'sr_locked' => true,
+            'sr_locked' => false, // Never locked
             'sr_rejected' => false,
-            'gas_in_available' => false,
+            'gas_in_available' => true, // Always available in parallel
             'gas_in_completed' => false,
-            'gas_in_locked' => true,
+            'gas_in_locked' => false, // Never locked
             'gas_in_rejected' => false,
         ];
 
@@ -643,56 +647,35 @@ class TracerApprovalController extends Controller implements HasMiddleware
             $skData = $customer->skData;
             if ($skData) {
                 $status['sk_rejected'] = $skData->module_status === 'rejected';
-
                 // SK completed only if module_status is cgp_review or completed
                 if (in_array($skData->module_status, ['cgp_review', 'completed'])) {
                     $status['sk_completed'] = true;
-                    $status['current_step'] = 'sr';
-                    $status['sr_available'] = true;
-                    $status['sr_locked'] = false;
-                } elseif ($skData->module_status === 'rejected') {
-                    $status['current_step'] = 'sk';
-                } else {
-                    $status['current_step'] = 'sk';
                 }
             }
 
-            // Check SR photos - use module status from database
-            if ($status['sr_available']) {
-                $srData = $customer->srData;
-                if ($srData) {
-                    $status['sr_rejected'] = $srData->module_status === 'rejected';
-
-                    // SR completed only if module_status is cgp_review or completed
-                    if (in_array($srData->module_status, ['cgp_review', 'completed'])) {
-                        $status['sr_completed'] = true;
-                        $status['current_step'] = 'gas_in';
-                        $status['gas_in_available'] = true;
-                        $status['gas_in_locked'] = false;
-                    } elseif ($srData->module_status === 'rejected') {
-                        $status['current_step'] = 'sr';
-                    } else {
-                        $status['current_step'] = 'sr';
-                    }
+            // Check SR photos - Independent
+            $srData = $customer->srData;
+            if ($srData) {
+                $status['sr_rejected'] = $srData->module_status === 'rejected';
+                // SR completed only if module_status is cgp_review or completed
+                if (in_array($srData->module_status, ['cgp_review', 'completed'])) {
+                    $status['sr_completed'] = true;
                 }
             }
 
-            // Check Gas In photos - use module status from database
-            if ($status['gas_in_available']) {
-                $gasInData = $customer->gasInData;
-                if ($gasInData) {
-                    $status['gas_in_rejected'] = $gasInData->module_status === 'rejected';
-
-                    // Gas In completed only if module_status is cgp_review or completed
-                    if (in_array($gasInData->module_status, ['cgp_review', 'completed'])) {
-                        $status['gas_in_completed'] = true;
-                        $status['current_step'] = 'completed';
-                    } elseif ($gasInData->module_status === 'rejected') {
-                        $status['current_step'] = 'gas_in';
-                    } else {
-                        $status['current_step'] = 'gas_in';
-                    }
+            // Check Gas In photos - Independent
+            $gasInData = $customer->gasInData;
+            if ($gasInData) {
+                $status['gas_in_rejected'] = $gasInData->module_status === 'rejected';
+                // Gas In completed only if module_status is cgp_review or completed
+                if (in_array($gasInData->module_status, ['cgp_review', 'completed'])) {
+                    $status['gas_in_completed'] = true;
                 }
+            }
+
+            // Determine if everything is completed
+            if ($status['sk_completed'] && $status['sr_completed'] && $status['gas_in_completed']) {
+                $status['current_step'] = 'completed';
             }
 
             // Add module-specific status info
@@ -765,7 +748,7 @@ class TracerApprovalController extends Controller implements HasMiddleware
             'status_text' => $this->getModuleStatusText($hasData, $hasPhotos, $photoStatus)
         ];
     }
-    
+
     private function getModuleStatusText($hasData, $hasPhotos, $photoStatus): string
     {
         if (!$hasData) {
@@ -879,21 +862,18 @@ class TracerApprovalController extends Controller implements HasMiddleware
     private function canApproveModule(string $reffId, string $module): bool
     {
         $customer = CalonPelanggan::where('reff_id_pelanggan', $reffId)->first();
-        if (!$customer) return false;
+        if (!$customer)
+            return false;
 
         $sequential = $this->getSequentialStatus($customer);
 
-        return match($module) {
-            'sk' => true, // SK always can be approved
-            'sr' => $sequential['sk_completed'],
-            'gas_in' => $sequential['sr_completed'],
-            default => false
-        };
+        // Parallel workflow: All modules can be approved independently
+        return true;
     }
 
     private function getModuleData(string $reffId, string $module)
     {
-        return match($module) {
+        return match ($module) {
             'sk' => SkData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
             'sr' => SrData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
             'gas_in' => GasInData::where('reff_id_pelanggan', $reffId)->whereNull('deleted_at')->first(),
@@ -937,11 +917,11 @@ class TracerApprovalController extends Controller implements HasMiddleware
         $photoApprovals = \App\Models\PhotoApproval::where('module_record_id', $moduleData->id)
             ->where('module_name', $moduleData->getModuleName())
             ->get();
-        
+
         // Check if all required photos are approved
         $requiredPhotos = $moduleData->getRequiredPhotos();
         $approvedPhotos = $photoApprovals->where('photo_status', $approverType . '_approved')->pluck('photo_field_name')->toArray();
-        
+
         // If all required photos are approved, update the module status
         if (empty(array_diff($requiredPhotos, $approvedPhotos))) {
             if ($approverType === 'tracer') {
@@ -994,19 +974,19 @@ class TracerApprovalController extends Controller implements HasMiddleware
             // Search by nomor joint or line number
             if ($request->filled('search')) {
                 $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->whereHas('jalurLowering', function($subQ) use ($search) {
-                        $subQ->whereHas('lineNumber', function($lineQ) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('jalurLowering', function ($subQ) use ($search) {
+                        $subQ->whereHas('lineNumber', function ($lineQ) use ($search) {
                             $lineQ->where('line_number', 'like', "%{$search}%");
                         });
-                    })->orWhereHas('jalurJoint', function($subQ) use ($search) {
+                    })->orWhereHas('jalurJoint', function ($subQ) use ($search) {
                         $subQ->where('nomor_joint', 'like', "%{$search}%");
                     });
                 });
             }
 
             $photos = $query->orderBy('uploaded_at', 'desc')
-                           ->paginate(20);
+                ->paginate(20);
 
             if ($request->ajax()) {
                 return response()->json([
