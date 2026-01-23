@@ -254,7 +254,8 @@ class ComprehensiveExportService
 
         return [
             // Customer Info
-            $customer->reff_id_pelanggan,
+            // Prepend 00 to match original format
+            '00' . $customer->reff_id_pelanggan,
             $customer->nama_pelanggan,
             $customer->alamat,
             $customer->no_telepon,
