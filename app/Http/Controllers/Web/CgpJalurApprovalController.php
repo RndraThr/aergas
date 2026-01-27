@@ -73,17 +73,27 @@ class CgpJalurApprovalController extends Controller implements HasMiddleware
                 });
             }
 
+            // Calculate overall stats
+            $stats = [
+                'total_clusters' => $clusters->total(),
+                'pending_photos' => $clusters->sum(fn($c) => $c->approval_stats['pending_photos']),
+                'approved_photos' => $clusters->sum(fn($c) => $c->approval_stats['approved_photos']),
+                'rejected_photos' => $clusters->sum(fn($c) => $c->approval_stats['rejected_photos']),
+            ];
+
             if ($request->ajax() || $request->input('ajax')) {
                 return response()->json([
                     'success' => true,
-                    'data' => $clusters
+                    'data' => $clusters,
+                    'stats' => $stats
                 ]);
             }
 
             return view('approvals.cgp.jalur.clusters', [
                 'clusters' => $clusters,
                 'search' => $search,
-                'filter' => $filter
+                'filter' => $filter,
+                'stats' => $stats,
             ]);
 
         } catch (Exception $e) {

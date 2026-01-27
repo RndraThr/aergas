@@ -59,9 +59,9 @@ class TracerJalurApprovalController extends Controller
         // Calculate overall stats
         $stats = [
             'total_clusters' => $clusters->total(),
-            'pending_review' => $clusters->filter(fn($c) => $c->approval_stats['pending_photos'] > 0)->count(),
             'pending_photos' => $clusters->sum(fn($c) => $c->approval_stats['pending_photos']),
-            'approved_photos' => $clusters->sum(fn($c) => $c->approval_stats['approved_photos'])
+            'approved_photos' => $clusters->sum(fn($c) => $c->approval_stats['approved_photos']),
+            'rejected_photos' => $clusters->sum(fn($c) => $c->approval_stats['rejected_photos']),
         ];
 
         // AJAX request - return JSON
@@ -77,6 +77,7 @@ class TracerJalurApprovalController extends Controller
             'clusters' => $clusters,
             'search' => $search,
             'filter' => $filter,
+            'stats' => $stats,
         ]);
     }
 
