@@ -811,9 +811,10 @@ class JalurLoweringController extends Controller
 
     public function destroy(JalurLoweringData $lowering)
     {
-        if (!in_array($lowering->status_laporan, ['draft'])) {
-            return back()->with('error', 'Hanya data lowering dengan status draft yang dapat dihapus.');
-        }
+        // Validasi status dihapus sesuai request: tombol hapus selalu aktif
+        // if (!in_array($lowering->status_laporan, ['draft'])) {
+        //    return back()->with('error', 'Hanya data lowering dengan status draft yang dapat dihapus.');
+        // }    }
 
         try {
             DB::beginTransaction();

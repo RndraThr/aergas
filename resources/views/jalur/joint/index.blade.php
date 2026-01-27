@@ -214,7 +214,6 @@
                                                 </svg>
                                             </a>
                                         @endif
-                                        @if($joint->status_laporan === 'draft')
                                             <form method="POST" action="{{ route('jalur.joint.destroy', $joint) }}" class="inline"
                                                 onsubmit="return confirm('Yakin ingin menghapus data joint ini?')">
                                                 @csrf
@@ -227,7 +226,6 @@
                                                     </svg>
                                                 </button>
                                             </form>
-                                        @endif
                                     </div>
                                 </td>
                             </tr>

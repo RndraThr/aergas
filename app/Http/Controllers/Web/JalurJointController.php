@@ -660,10 +660,7 @@ class JalurJointController extends Controller
 
     public function destroy(JalurJointData $joint)
     {
-        if (!in_array($joint->status_laporan, ['draft'])) {
-            return back()->with('error', 'Hanya data joint dengan status draft yang dapat dihapus.');
-        }
-
+        // Validasi status dihapus sesuai request: tombol hapus selalu aktif
         try {
             DB::beginTransaction();
 
