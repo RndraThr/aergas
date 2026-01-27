@@ -149,7 +149,9 @@ class CalonPelanggan extends Model
             return false;
         }
 
-        return $this->getNextAvailableModule() === $module;
+        // In Parallel Workflow, allow access to standard modules
+        // Validation (isValidated) is already checked before this method in middleware
+        return in_array(strtolower($module), ['sk', 'sr', 'gas_in', 'gasin']);
     }
 
     /**

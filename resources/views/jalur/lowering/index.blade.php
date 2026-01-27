@@ -208,7 +208,6 @@
                                             </svg>
                                         </a>
                                     @endif
-                                    @if($lowering->status_laporan === 'draft')
                                         <form method="POST" action="{{ route('jalur.lowering.destroy', $lowering) }}" class="inline"
                                               onsubmit="return confirm('Yakin ingin menghapus data lowering ini?')">
                                             @csrf
@@ -219,7 +218,6 @@
                                                 </svg>
                                             </button>
                                         </form>
-                                    @endif
                                 </div>
                             </td>
                         </tr>
