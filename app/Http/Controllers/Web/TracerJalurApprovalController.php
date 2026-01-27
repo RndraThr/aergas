@@ -259,7 +259,28 @@ class TracerJalurApprovalController extends Controller
             'pending_items' => $sortedItems->filter(fn($l) => $l->approval_stats['status'] === 'pending')->count(),
             'approved_items' => $sortedItems->filter(fn($l) => $l->approval_stats['status'] === 'approved')->count(),
             'rejected_items' => $sortedItems->filter(fn($l) => $l->approval_stats['status'] === 'rejected')->count(),
-            'no_evidence_items' => $sortedItems->filter(fn($l) => $l->approval_stats['total_photos'] === 0)->count()
+            'no_evidence_items' => $sortedItems->filter(fn($l) => $l->approval_stats['total_photos'] === 0)->count(),
+            // Added photo-level stats
+            'total_photos' => $sortedItems->sum(fn($i) => $i->approval_stats['total_photos']),
+            'approved_photos' => $sortedItems->sum(fn($i) => $i->approval_stats['approved_photos']),
+            'pending_photos' => $sortedItems->sum(fn($i) => $i->approval_stats['pending_photos']),
+            'rejected_photos' => $sortedItems->sum(fn($i) => $i->approval_stats['rejected_photos']),
+
+            // Breakdown stats
+            'breakdown' => [
+                'pending_photos' => [
+                    'line' => $sortedItems->where('item_type', 'line')->sum(fn($i) => $i->approval_stats['pending_photos']),
+                    'joint' => $sortedItems->where('item_type', 'joint')->sum(fn($i) => $i->approval_stats['pending_photos']),
+                ],
+                'approved_photos' => [
+                    'line' => $sortedItems->where('item_type', 'line')->sum(fn($i) => $i->approval_stats['approved_photos']),
+                    'joint' => $sortedItems->where('item_type', 'joint')->sum(fn($i) => $i->approval_stats['approved_photos']),
+                ],
+                'rejected_photos' => [
+                    'line' => $sortedItems->where('item_type', 'line')->sum(fn($i) => $i->approval_stats['rejected_photos']),
+                    'joint' => $sortedItems->where('item_type', 'joint')->sum(fn($i) => $i->approval_stats['rejected_photos']),
+                ],
+            ],
         ];
 
         // AJAX request - return JSON
