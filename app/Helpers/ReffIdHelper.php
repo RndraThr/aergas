@@ -2,6 +2,9 @@
 
 namespace App\Helpers;
 
+use App\Models\CalonPelanggan;
+use App\Models\SkData;
+
 /**
  * Helper class for normalizing Reff ID Pelanggan
  * Ensures consistent format across imports and manual entry
@@ -33,7 +36,7 @@ class ReffIdHelper
         }
 
         // Trim whitespace
-        $str = trim((string)$reffId);
+        $str = trim((string) $reffId);
 
         // Return null if empty string
         if ($str === '') {
@@ -67,5 +70,53 @@ class ReffIdHelper
 
         // Must contain only alphanumeric characters after normalization
         return $normalized !== null && preg_match('/^[A-Z0-9]+$/', $normalized);
+    }
+
+    /**
+     * Find the original/canonical ID as stored in DB
+     * mimicking the smart search logic from CalonPelangganController
+     *
+     * @param string|null $reffId
+     * @return string|null The actual ID in DB or null if not found
+     */
+    public static function findOriginalId(?string $reffId): ?string
+    {
+        if (!$reffId)
+            return null;
+
+        $id = strtoupper(trim($reffId));
+
+        // 1. Strict search
+        $cp = CalonPelanggan::where('reff_id_pelanggan', $id)->first();
+        if ($cp) {
+            return $cp->reff_id_pelanggan;
+        }
+
+        // 2. Fallback: check unpadded numeric
+        if (ctype_digit($id)) {
+            $cp = CalonPelanggan::whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int) $id])->first();
+            if ($cp) {
+                return $cp->reff_id_pelanggan;
+            }
+        }
+
+        // 3. Fallback: Check SK relations
+        $sk = SkData::with('calonPelanggan')
+            ->where('reff_id_pelanggan', $id)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (!$sk && ctype_digit($id)) {
+            $sk = SkData::with('calonPelanggan')
+                ->whereRaw('CAST(reff_id_pelanggan AS UNSIGNED) = ?', [(int) $id])
+                ->whereNull('deleted_at')
+                ->first();
+        }
+
+        if ($sk && $sk->calonPelanggan) {
+            return $sk->calonPelanggan->reff_id_pelanggan;
+        }
+
+        return null;
     }
 }

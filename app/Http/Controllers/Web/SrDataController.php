@@ -113,13 +113,20 @@ class SrDataController extends Controller
 
     public function store(Request $r)
     {
-        // Normalize reff_id_pelanggan (uppercase + auto-pad to 8 digits if numeric)
+        // Use smart lookup to find the actual ID in DB (e.g. "308" instead of forcing "00000308")
+        // This matches frontend validateReff logic
+        $inputReff = $r->input('reff_id_pelanggan');
+        $originalId = ReffIdHelper::findOriginalId($inputReff);
+
+        // Use found ID or fall back to standard normalization
+        $finalReffId = $originalId ?? ReffIdHelper::normalize($inputReff);
+
         $r->merge([
-            'reff_id_pelanggan' => ReffIdHelper::normalize($r->input('reff_id_pelanggan')),
+            'reff_id_pelanggan' => $finalReffId,
         ]);
 
-        // Check if customer status is batal
-        $customer = \App\Models\CalonPelanggan::where('reff_id_pelanggan', $r->reff_id_pelanggan)->first();
+        // Check if customer status is batal (using the resolved ID)
+        $customer = \App\Models\CalonPelanggan::where('reff_id_pelanggan', $finalReffId)->first();
         if ($customer && $customer->status === 'batal') {
             return response()->json([
                 'success' => false,
