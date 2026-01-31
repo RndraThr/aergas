@@ -410,10 +410,40 @@ class JalurExportService
 
         $photo = $moduleData->photoApprovals->firstWhere('photo_field_name', $photoFieldName);
 
-        if (!$photo || !$photo->drive_file_id) {
+        if (!$photo) {
             return '-';
         }
 
-        return "https://drive.google.com/file/d/{$photo->drive_file_id}/view";
+        // 1. If we have a direct drive_link, usage that (preferred for Drive files)
+        if (!empty($photo->drive_link)) {
+            // If it's already a view link, return it
+            if (str_contains($photo->drive_link, 'drive.google.com') || str_contains($photo->drive_link, 'docs.google.com')) {
+                return $photo->drive_link;
+            }
+        }
+
+        // 2. If we have a photo_url
+        if (!empty($photo->photo_url)) {
+            // Check if it's a Google Drive URL
+            if (str_contains($photo->photo_url, 'drive.google.com') || str_contains($photo->photo_url, 'docs.google.com')) {
+                return $photo->photo_url;
+            }
+
+            // Check if it's a local storage path
+            if (!str_contains($photo->photo_url, 'http')) {
+                // Return full asset URL for local files
+                // Assuming standard storage link: http://domain.com/storage/path/to/file.jpg
+                return asset('storage/' . ltrim($photo->photo_url, '/'));
+            }
+
+            return $photo->photo_url;
+        }
+
+        // 3. Fallback: Check for legacy/magic drive_file_id (if it exists on model)
+        if (!empty($photo->drive_file_id)) {
+            return "https://drive.google.com/file/d/{$photo->drive_file_id}/view";
+        }
+
+        return '-';
     }
 }
