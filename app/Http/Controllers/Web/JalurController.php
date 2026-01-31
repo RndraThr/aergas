@@ -10,8 +10,18 @@ use App\Models\JalurLoweringData;
 use App\Models\JalurJointData;
 use Illuminate\Http\Request;
 
+use App\Services\JalurExportService;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
 class JalurController extends Controller
 {
+    private JalurExportService $exportService;
+
+    public function __construct(JalurExportService $exportService)
+    {
+        $this->exportService = $exportService;
+    }
+
     public function index()
     {
         $stats = [
@@ -309,8 +319,18 @@ class JalurController extends Controller
     {
         $lineNumbers = JalurLineNumber::with([
             'cluster',
-            'loweringData'
+            'loweringData.photoApprovals' // Load photos for export
         ])->get();
+
+        if ($export === 'excel') {
+            // Eager load relations for jointData for performance optimization
+            // Since jointData is accessed via accessor which runs a query, we iterate to load relations on the resulting collection
+            foreach ($lineNumbers as $line) {
+                // Access jointData to trigger the query, then load its relations
+                $line->jointData->load(['fittingType', 'photoApprovals']);
+            }
+            return $this->exportComprehensiveToExcel($lineNumbers);
+        }
 
         $data = $lineNumbers->map(function ($line) {
             // Calculate lowering totals
@@ -404,25 +424,24 @@ class JalurController extends Controller
             'total_mc100' => $lineNumbers->sum('actual_mc100'),
         ];
 
-        if ($export === 'excel') {
-            return $this->exportComprehensiveToExcel($data, $totals);
-        }
-
         return response()->json([
             'data' => $data,
             'totals' => $totals
         ]);
     }
 
-    private function exportComprehensiveToExcel($data, $totals)
+    private function exportComprehensiveToExcel($lineNumbers)
     {
-        // For now, return JSON with export flag
-        // Later can implement actual Excel export using Laravel Excel
-        return response()->json([
-            'data' => $data,
-            'totals' => $totals,
-            'export_type' => 'excel',
-            'filename' => 'laporan_lengkap_jalur_' . date('Y_m_d') . '.json'
+        $spreadsheet = $this->exportService->generateSpreadsheet($lineNumbers);
+        $filename = 'Laporan_Lengkap_Jalur_' . date('Y_m_d_His') . '.xlsx';
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+        return new StreamedResponse(function () use ($writer) {
+            $writer->save('php://output');
+        }, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
 }
