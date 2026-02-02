@@ -268,6 +268,8 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             // Multi-Document Bulk Download
             Route::post('/documents/bulk-download', [CalonPelangganController::class, 'downloadBulkDocuments'])
                 ->name('documents.bulk-download');
+            Route::post('/documents/bulk-download-merged', [CalonPelangganController::class, 'downloadBulkDocumentsMerged'])
+                ->name('documents.bulk-download-merged');
 
             Route::get('/{reffId}', [CalonPelangganController::class, 'show'])
                 ->where('reffId', '[A-Z0-9\-]+')->name('show');
