@@ -6,10 +6,12 @@ use App\Models\CalonPelanggan;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
+use Maatwebsite\Excel\Concerns\SkipsOnFailure;
+use Maatwebsite\Excel\Validators\Failure;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
-class CalonPelangganBulkImport implements ToModel, WithHeadingRow, WithValidation
+class CalonPelangganBulkImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFailure
 {
     protected $updated = 0;
     protected $skipped = 0;
@@ -47,13 +49,16 @@ class CalonPelangganBulkImport implements ToModel, WithHeadingRow, WithValidatio
     }
 
     /**
-    * @param array $row
-    *
-    * @return \Illuminate\Database\Eloquent\Model|null
-    */
+     * @param array $row
+     *
+     * @return \Illuminate\Database\Eloquent\Model|null
+     */
     public function model(array $row)
     {
         $this->currentRow++;
+
+        // Sanitize row data - convert numeric to string, remove quote prefix
+        $row = $this->sanitizeRow($row);
 
         // Get reff_id from the row (required for lookup)
         $reffId = $row['reff_id'] ?? null;
@@ -121,9 +126,11 @@ class CalonPelangganBulkImport implements ToModel, WithHeadingRow, WithValidatio
         // Update customer if there's data to update
         if (!empty($dataToUpdate)) {
             // Special handling for coordinate updates
-            if ((isset($dataToUpdate['latitude']) || isset($dataToUpdate['longitude'])) &&
+            if (
+                (isset($dataToUpdate['latitude']) || isset($dataToUpdate['longitude'])) &&
                 ($customer->latitude !== ($dataToUpdate['latitude'] ?? $customer->latitude) ||
-                 $customer->longitude !== ($dataToUpdate['longitude'] ?? $customer->longitude))) {
+                    $customer->longitude !== ($dataToUpdate['longitude'] ?? $customer->longitude))
+            ) {
                 $dataToUpdate['coordinate_updated_at'] = now();
                 if (!isset($dataToUpdate['coordinate_source'])) {
                     $dataToUpdate['coordinate_source'] = 'excel_import';
@@ -193,6 +200,73 @@ class CalonPelangganBulkImport implements ToModel, WithHeadingRow, WithValidatio
         }
 
         return null; // Return null because we're updating, not creating
+    }
+
+    /**
+     * Sanitize row data from Excel
+     * - Convert numeric values to strings for fields like no_telepon, rt, rw, etc.
+     * - Remove leading single quote (') that Excel uses for text formatting
+     */
+    protected function sanitizeRow(array $data): array
+    {
+        // Fields that should always be treated as strings even if Excel reads them as numbers
+        $stringFields = [
+            'no_telepon',
+            'no_bagi',
+            'rt',
+            'rw',
+            'nama_pelanggan',
+            'alamat',
+            'kelurahan',
+            'padukuhan',
+            'keterangan',
+            'email',
+            'reff_id'
+        ];
+
+        foreach ($data as $key => $value) {
+            // Skip null values
+            if ($value === null) {
+                continue;
+            }
+
+            // Convert to string if needed for string fields
+            if (in_array($key, $stringFields)) {
+                // Convert numeric to string
+                if (is_numeric($value) || is_int($value) || is_float($value)) {
+                    $value = (string) $value;
+                }
+
+                // Convert to string if not already
+                if (!is_string($value)) {
+                    $value = (string) $value;
+                }
+            }
+
+            // Remove leading single quote (') that Excel adds for text formatting
+            // This applies to all string values
+            if (is_string($value) && strlen($value) > 0 && $value[0] === "'") {
+                $value = substr($value, 1);
+            }
+
+            // Trim whitespace from all string values
+            if (is_string($value)) {
+                $value = trim($value);
+            }
+
+            $data[$key] = $value;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Called by maatwebsite/excel BEFORE validation rules are applied
+     * This ensures data is sanitized before validation
+     */
+    public function prepareForValidation($data, $index)
+    {
+        return $this->sanitizeRow($data);
     }
 
     public function rules(): array
@@ -277,5 +351,25 @@ class CalonPelangganBulkImport implements ToModel, WithHeadingRow, WithValidatio
             'errors' => $this->errors,
             'force_update' => $this->forceUpdate,
         ];
+    }
+
+    /**
+     * Handle validation failures - skip the row and log the error
+     * This prevents validation exceptions from stopping the entire import
+     */
+    public function onFailure(Failure ...$failures)
+    {
+        foreach ($failures as $failure) {
+            $this->skipped++;
+            $errorMessage = "Baris {$failure->row()}: " . implode(', ', $failure->errors());
+            $this->errors[] = $errorMessage;
+
+            Log::warning('Import validation failure', [
+                'row' => $failure->row(),
+                'attribute' => $failure->attribute(),
+                'errors' => $failure->errors(),
+                'values' => $failure->values()
+            ]);
+        }
     }
 }
