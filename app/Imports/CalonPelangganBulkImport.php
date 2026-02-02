@@ -73,8 +73,40 @@ class CalonPelangganBulkImport implements ToModel, WithHeadingRow, WithValidatio
             return null;
         }
 
-        // Find customer by reff_id
+        // Normalize reff_id - ensure it's a clean string
+        // Remove any invisible characters, trim whitespace, convert to uppercase for consistent matching
+        $reffId = trim((string) $reffId);
+        $reffId = preg_replace('/[\x00-\x1F\x7F]/u', '', $reffId); // Remove control characters
+        $reffId = preg_replace('/\xC2\xA0/', ' ', $reffId); // Replace non-breaking space with regular space
+        $reffId = preg_replace('/\s+/', ' ', $reffId); // Normalize multiple spaces
+        $reffId = trim($reffId);
+
+        // Log for debugging in dry run mode
+        if ($this->dryRun && $this->currentRow <= 3) {
+            Log::info('Import reff_id debug', [
+                'row' => $this->currentRow,
+                'original_reff_id' => $row['reff_id'],
+                'normalized_reff_id' => $reffId,
+                'reff_id_type' => gettype($row['reff_id']),
+                'reff_id_length' => strlen($reffId),
+                'reff_id_hex' => bin2hex($reffId)
+            ]);
+        }
+
+        // Find customer by reff_id - try exact match first, then trimmed match
         $customer = CalonPelanggan::where('reff_id_pelanggan', $reffId)->first();
+
+        // If not found, try with LIKE for partial match (handles format differences)
+        if (!$customer) {
+            $customer = CalonPelanggan::where('reff_id_pelanggan', 'LIKE', '%' . $reffId . '%')->first();
+
+            if ($customer && $this->dryRun) {
+                Log::info('Import found customer with LIKE match', [
+                    'excel_reff_id' => $reffId,
+                    'db_reff_id' => $customer->reff_id_pelanggan
+                ]);
+            }
+        }
 
         if (!$customer) {
             $this->skipped++;
