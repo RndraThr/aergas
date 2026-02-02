@@ -1749,4 +1749,207 @@ class CalonPelangganController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Download multiple documents merged into PDF files
+     * - Single doc type: Returns 1 merged PDF with all customers
+     * - Multiple doc types: Returns ZIP with separate merged PDFs per doc type
+     */
+    public function downloadBulkDocumentsMerged(Request $request, BeritaAcaraService $beritaAcaraService)
+    {
+        try {
+            $ids = $request->input('ids', []);
+            $docTypes = $request->input('doc_types', ['gas_in']);
+
+            if (empty($ids) || !is_array($ids)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada customer yang dipilih'
+                ], 400);
+            }
+
+            if (count($ids) > 100) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Maksimal 100 customer dapat di-download sekaligus'
+                ], 400);
+            }
+
+            $customers = CalonPelanggan::with(['gasInData', 'srData'])
+                ->whereIn('reff_id_pelanggan', $ids)
+                ->get()
+                ->sortBy(function ($customer) use ($ids) {
+                    return array_search($customer->reff_id_pelanggan, $ids);
+                });
+
+            if ($customers->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data pelanggan tidak ditemukan'
+                ], 404);
+            }
+
+            $tempDir = storage_path('app/temp/documents_merge_' . uniqid());
+            $pdfService = app(\App\Services\PdfTemplateService::class);
+
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $docTypeNames = [
+                'gas_in' => 'BA_Gas_In',
+                'mgrt' => 'BA_MGRT',
+                'isometrik_sr' => 'Isometrik_SR',
+                'ba_sk' => 'BA_SK',
+                'isometrik_sk' => 'Isometrik_SK'
+            ];
+
+            $mergedFiles = []; // Store merged PDF paths per doc type
+
+            // Generate and merge PDFs per document type
+            foreach ($docTypes as $docType) {
+                $pdfFilesForType = [];
+
+                // Generate individual PDFs for all customers for this doc type
+                foreach ($customers as $customer) {
+                    $result = null;
+
+                    try {
+                        switch ($docType) {
+                            case 'gas_in':
+                                $gasIn = $customer->gasInData;
+                                if (!$gasIn) {
+                                    $gasIn = new GasInData([
+                                        'reff_id_pelanggan' => $customer->reff_id_pelanggan,
+                                        'tanggal_gas_in' => now(),
+                                        'status' => 'draft',
+                                    ]);
+                                    $gasIn->setRelation('calonPelanggan', $customer);
+                                }
+                                $baResult = $beritaAcaraService->generateGasInBeritaAcara($gasIn);
+                                if ($baResult['success']) {
+                                    $filePath = $tempDir . '/gas_in_' . $customer->reff_id_pelanggan . '.pdf';
+                                    $baResult['pdf']->save($filePath);
+                                    $pdfFilesForType[] = $filePath;
+                                }
+                                break;
+
+                            case 'mgrt':
+                                $result = $pdfService->generateBaMgrt($customer);
+                                break;
+
+                            case 'isometrik_sr':
+                                $result = $pdfService->generateIsometrikSr($customer);
+                                break;
+
+                            case 'ba_sk':
+                                $result = $pdfService->generateBaSk($customer);
+                                break;
+
+                            case 'isometrik_sk':
+                                $result = $pdfService->generateIsometrikSk($customer);
+                                break;
+                        }
+
+                        if ($result && $result['success'] && isset($result['path'])) {
+                            $pdfFilesForType[] = $result['path'];
+                        }
+                    } catch (Exception $e) {
+                        Log::warning('Failed to generate PDF for merge: ' . $customer->reff_id_pelanggan . ' - ' . $docType, [
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+
+                // Merge all PDFs for this doc type into one
+                if (!empty($pdfFilesForType)) {
+                    $mergedPdf = new \setasign\Fpdi\Fpdi();
+
+                    foreach ($pdfFilesForType as $pdfFile) {
+                        try {
+                            $pageCount = $mergedPdf->setSourceFile($pdfFile);
+                            for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                                $templateId = $mergedPdf->importPage($pageNo);
+                                $size = $mergedPdf->getTemplateSize($templateId);
+                                $mergedPdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                                $mergedPdf->useTemplate($templateId);
+                            }
+                        } catch (Exception $e) {
+                            Log::warning('Failed to merge PDF page', [
+                                'file' => $pdfFile,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    }
+
+                    // Save merged PDF for this doc type
+                    $mergedFilename = ($docTypeNames[$docType] ?? 'Documents') . '_Merged_' . date('Ymd_His') . '.pdf';
+                    $mergedPath = $tempDir . '/' . $mergedFilename;
+                    $mergedPdf->Output($mergedPath, 'F');
+                    $mergedFiles[$docType] = [
+                        'path' => $mergedPath,
+                        'filename' => $mergedFilename
+                    ];
+
+                    // Cleanup individual PDFs for this type
+                    foreach ($pdfFilesForType as $pdfFile) {
+                        if (file_exists($pdfFile)) {
+                            @unlink($pdfFile);
+                        }
+                    }
+                }
+            }
+
+            if (empty($mergedFiles)) {
+                $this->recursiveRemoveDirectory($tempDir);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada dokumen yang berhasil digenerate'
+                ], 422);
+            }
+
+            // Single doc type: return the merged PDF directly
+            if (count($mergedFiles) === 1) {
+                $file = array_values($mergedFiles)[0];
+                return response()->download($file['path'], $file['filename'])->deleteFileAfterSend(true);
+            }
+
+            // Multiple doc types: create ZIP containing all merged PDFs
+            $zipFilename = 'Documents_Merged_' . date('Ymd_His') . '.zip';
+            $zipPath = storage_path('app/temp/' . $zipFilename);
+
+            $zip = new \ZipArchive();
+            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+                throw new Exception('Could not create ZIP file');
+            }
+
+            foreach ($mergedFiles as $docType => $file) {
+                $zip->addFile($file['path'], $file['filename']);
+            }
+
+            $zip->close();
+
+            // Cleanup merged PDFs
+            foreach ($mergedFiles as $file) {
+                if (file_exists($file['path'])) {
+                    @unlink($file['path']);
+                }
+            }
+            $this->recursiveRemoveDirectory($tempDir);
+
+            return response()->download($zipPath, $zipFilename)->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            Log::error('Bulk documents merged download failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal download dokumen: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
+
