@@ -81,6 +81,7 @@ return [
         'sheet_name_joint' => env('GOOGLE_SHEETS_SHEET_NAME_JOINT', 'Joint Data'),
         'sync_mode' => env('GOOGLE_SHEETS_SYNC_MODE', 'realtime'), // realtime or batch
         'batch_interval_minutes' => env('GOOGLE_SHEETS_BATCH_INTERVAL', 30),
+        'sheet_name_calon_pelanggan' => env('GOOGLE_SHEETS_SHEET_NAME_CALON_PELANGGAN', 'Pilot KSM'),
     ],
 
     'aergas' => [

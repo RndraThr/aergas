@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', 'Data Calon Pelanggan - AERGAS')
 @section('page-title', 'Data Calon Pelanggan')
@@ -21,6 +21,12 @@
                         <i class="fas" :class="baSelectionMode ? 'fa-times' : 'fa-file-pdf'"></i>
                         <span x-text="baSelectionMode ? 'Batal' : 'Download Dokumen'"></span>
                     </button>
+
+                    <a href="#" @click.prevent="openSyncModal()"
+                        class="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-cog"></i>
+                        <span>Konfigurasi</span>
+                    </a>
 
                     <button @click="exportData()"
                         class="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
@@ -362,13 +368,14 @@
                                 </td>
 
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span :class="{
-                                                                                            'bg-green-100 text-green-800': customer.status === 'lanjut',
-                                                                                            'bg-blue-100 text-blue-800': customer.status === 'in_progress',
-                                                                                            'bg-yellow-100 text-yellow-800': customer.status === 'pending',
-                                                                                            'bg-red-100 text-red-800': customer.status === 'batal',
-                                                                                            'bg-gray-100 text-gray-800': !customer.status
-                                                                                        }"
+                                    <span
+                                        :class="{
+                                                                                                                                                    'bg-green-100 text-green-800': customer.status === 'lanjut',
+                                                                                                                                                    'bg-blue-100 text-blue-800': customer.status === 'in_progress',
+                                                                                                                                                    'bg-yellow-100 text-yellow-800': customer.status === 'pending',
+                                                                                                                                                    'bg-red-100 text-red-800': customer.status === 'batal',
+                                                                                                                                                    'bg-gray-100 text-gray-800': !customer.status
+                                                                                                                                                }"
                                         class="inline-flex px-2 py-1 text-xs font-semibold rounded-full">
                                         <span x-text="customer.status || 'unknown'"></span>
                                     </span>
@@ -380,10 +387,10 @@
                                         <div class="flex items-center text-xs">
                                             <span class="w-12 font-medium text-gray-500">SK:</span>
                                             <span class="px-2 py-0.5 rounded-full font-semibold" :class="{
-                                                            'bg-green-100 text-green-800': customer.sk_data?.module_status === 'completed',
-                                                            'bg-yellow-100 text-yellow-800': customer.sk_data && customer.sk_data?.module_status !== 'completed',
-                                                            'bg-gray-100 text-gray-500': !customer.sk_data
-                                                        }"
+                                                                                                                    'bg-green-100 text-green-800': customer.sk_data?.module_status === 'completed',
+                                                                                                                    'bg-yellow-100 text-yellow-800': customer.sk_data && customer.sk_data?.module_status !== 'completed',
+                                                                                                                    'bg-gray-100 text-gray-500': !customer.sk_data
+                                                                                                                }"
                                                 x-text="customer.sk_data?.module_status === 'completed' ? 'Done' : (customer.sk_data ? 'Draft' : '-')">
                                             </span>
                                         </div>
@@ -392,10 +399,10 @@
                                         <div class="flex items-center text-xs">
                                             <span class="w-12 font-medium text-gray-500">SR:</span>
                                             <span class="px-2 py-0.5 rounded-full font-semibold" :class="{
-                                                            'bg-green-100 text-green-800': customer.sr_data?.module_status === 'completed',
-                                                            'bg-yellow-100 text-yellow-800': customer.sr_data && customer.sr_data?.module_status !== 'completed',
-                                                            'bg-gray-100 text-gray-500': !customer.sr_data
-                                                        }"
+                                                                                                                    'bg-green-100 text-green-800': customer.sr_data?.module_status === 'completed',
+                                                                                                                    'bg-yellow-100 text-yellow-800': customer.sr_data && customer.sr_data?.module_status !== 'completed',
+                                                                                                                    'bg-gray-100 text-gray-500': !customer.sr_data
+                                                                                                                }"
                                                 x-text="customer.sr_data?.module_status === 'completed' ? 'Done' : (customer.sr_data ? 'Draft' : '-')">
                                             </span>
                                         </div>
@@ -404,10 +411,10 @@
                                         <div class="flex items-center text-xs">
                                             <span class="w-12 font-medium text-gray-500">Gas In:</span>
                                             <span class="px-2 py-0.5 rounded-full font-semibold" :class="{
-                                                            'bg-green-100 text-green-800': customer.gas_in_data?.module_status === 'completed',
-                                                            'bg-yellow-100 text-yellow-800': customer.gas_in_data && customer.gas_in_data?.module_status !== 'completed',
-                                                            'bg-gray-100 text-gray-500': !customer.gas_in_data
-                                                        }"
+                                                                                                                    'bg-green-100 text-green-800': customer.gas_in_data?.module_status === 'completed',
+                                                                                                                    'bg-yellow-100 text-yellow-800': customer.gas_in_data && customer.gas_in_data?.module_status !== 'completed',
+                                                                                                                    'bg-gray-100 text-gray-500': !customer.gas_in_data
+                                                                                                                }"
                                                 x-text="customer.gas_in_data?.module_status === 'completed' ? 'Done' : (customer.gas_in_data ? 'Draft' : '-')">
                                             </span>
                                         </div>
@@ -1240,6 +1247,82 @@
                     initPaginationState() {
                         // Check if we're returning from detail page
                         this.restorePageState();
+                    },
+
+                    // --- SYNC LOGIC ---
+                    showSyncModal: false,
+                    syncLoading: false,
+                    syncData: { new: [], updated: [], unchanged: [] },
+
+                    openSyncModal() {
+                        this.showSyncModal = true;
+                        this.syncLoading = true;
+                        this.syncData = { new: [], updated: [], unchanged: [] };
+
+                        fetch('{{ route("customers.sync-preview") }}')
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.error) throw new Error(data.error);
+                                this.syncData = data;
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                Swal.fire('Error', 'Gagal memuat data sync: ' + error.message, 'error');
+                                this.showSyncModal = false;
+                            })
+                            .finally(() => {
+                                this.syncLoading = false;
+                            });
+                    },
+
+                    confirmSyncProcess() {
+                        const hasChanges = this.syncData.new.length > 0 || this.syncData.updated.length > 0 || (this.syncData.deleted?.length || 0) > 0 || (this.syncData.reff_id_changed?.length || 0) > 0;
+                        if (!hasChanges) return;
+
+                        let message = `Anda akan:\n`;
+                        if (this.syncData.new.length > 0) message += `- Menambah ${this.syncData.new.length} data baru\n`;
+                        if (this.syncData.updated.length > 0) message += `- Mengupdate ${this.syncData.updated.length} data\n`;
+                        if ((this.syncData.reff_id_changed?.length || 0) > 0) message += `- Migrasi ${this.syncData.reff_id_changed.length} Reff ID\n`;
+                        if ((this.syncData.deleted?.length || 0) > 0) message += `- Menghapus ${this.syncData.deleted.length} data\n`;
+                        message += `\nLanjutkan?`;
+
+                        const confirmed = confirm(message);
+                        if (confirmed) {
+                            const form = document.getElementById('syncProcessForm');
+                            const allData = [...this.syncData.new, ...this.syncData.updated.map(u => u.data)];
+
+                            // Clear previous inputs if any
+                            form.querySelectorAll('input[name="sync_data[]"], input[name="delete_data[]"], input[name="reff_id_change_data[]"]').forEach(el => el.remove());
+
+                            // Add sync data
+                            allData.forEach(item => {
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = 'sync_data[]';
+                                input.value = JSON.stringify(item);
+                                form.appendChild(input);
+                            });
+
+                            // Add delete data (reff_ids only)
+                            (this.syncData.deleted || []).forEach(item => {
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = 'delete_data[]';
+                                input.value = item.reff_id_pelanggan;
+                                form.appendChild(input);
+                            });
+
+                            // Add reff_id change data
+                            (this.syncData.reff_id_changed || []).forEach(item => {
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = 'reff_id_change_data[]';
+                                input.value = JSON.stringify(item);
+                                form.appendChild(input);
+                            });
+
+                            form.submit();
+                        }
                     }
                 }
             }
@@ -1250,15 +1333,16 @@
 
     {{-- Download BA Modal --}}
     <div x-data="{
-                                                          get showModal() { return window.customersData?.showBaDownloadModal || false },
-                                                          get loading() { return window.customersData?.baDownloadLoading || false },
-                                                          get selectedIds() { return window.customersData?.selectedBaIds || [] },
-                                                          closeModal() { if(window.customersData) window.customersData.showBaDownloadModal = false },
-                                                          executeDownload() { window.customersData?.executeBaDownload() },
-                                                          getSelectedItems() { return window.customersData?.getSelectedBaItems() || [] },
-                                                          getFilename(row) { return window.customersData?.getBaFilename(row) || '' },
-                                                          formatDate(date) { return window.customersData?.formatDate(date) || '-' }
-                                                        }" x-show="showModal" x-cloak @click.self="closeModal()"
+                                                                                                                  get showModal() { return window.customersData?.showBaDownloadModal || false },
+                                                                                                                  get loading() { return window.customersData?.baDownloadLoading || false },
+                                                                                                                  get selectedIds() { return window.customersData?.selectedBaIds || [] },
+                                                                                                                  closeModal() { if(window.customersData) window.customersData.showBaDownloadModal = false },
+                                                                                                                  executeDownload() { window.customersData?.executeBaDownload() },
+                                                                                                                  getSelectedItems() { return window.customersData?.getSelectedBaItems() || [] },
+                                                                                                                  getFilename(row) { return window.customersData?.getBaFilename(row) || '' },
+                                                                                                                  formatDate(date) { return window.customersData?.formatDate(date) || '-' }
+                                                                                                                }"
+        x-show="showModal" x-cloak @click.self="closeModal()"
         class="fixed bg-black bg-opacity-50 flex items-center justify-center p-4"
         style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 999999999 !important;">
         <div @click.stop class="bg-white rounded-xl p-6 w-full mx-4 shadow-2xl max-w-3xl"
@@ -1343,11 +1427,11 @@
 
     {{-- Loading Overlay saat Download BA --}}
     <div x-data="{
-                                                          get loading() { return window.customersData?.baDownloadLoading || false },
-                                                          get selectedIds() { return window.customersData?.selectedBaIds || [] },
-                                                          closeModal() { if(window.customersData) { window.customersData.baDownloadLoading = false; window.customersData.showBaDownloadModal = false; } }
-                                                        }" x-show="loading" x-cloak
-        class="fixed bg-black bg-opacity-75 flex items-center justify-center p-4"
+                                                                                                                  get loading() { return window.customersData?.baDownloadLoading || false },
+                                                                                                                  get selectedIds() { return window.customersData?.selectedBaIds || [] },
+                                                                                                                  closeModal() { if(window.customersData) { window.customersData.baDownloadLoading = false; window.customersData.showBaDownloadModal = false; } }
+                                                                                                                }"
+        x-show="loading" x-cloak class="fixed bg-black bg-opacity-75 flex items-center justify-center p-4"
         style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 999999999 !important;">
         <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl text-center"
             style="position: relative; z-index: 1000000000 !important;">
@@ -1405,27 +1489,28 @@
 
     {{-- Tabbed Document Preview Modal --}}
     <div x-data="{
-                                                          get showModal() { return window.customersData?.documentPreviewModalOpen || false },
-                                                          get loading() { return window.customersData?.previewLoading || false },
-                                                          get selectedIds() { return window.customersData?.selectedBaIds || [] },
-                                                          get selectedDocTypes() { return window.customersData?.selectedDocTypes || [] },
-                                                          get activeTab() { return window.customersData?.activePreviewTab || 'gas_in' },
-                                                          get currentIndex() { return window.customersData?.previewCurrentIndex || 0 },
-                                                          get cachedCustomers() { return window.customersData?.selectedBaCustomersCache || {} },
-                                                          get mergeToSinglePdf() { return window.customersData?.mergeToSinglePdf || false },
-                                                          set mergeToSinglePdf(val) { if(window.customersData) window.customersData.mergeToSinglePdf = val; },
-                                                          setActiveTab(tab) { if(window.customersData) { window.customersData.activePreviewTab = tab; window.customersData.previewLoading = true; } },
-                                                          closeModal() { if(window.customersData) window.customersData.closeDocumentPreviewModal() },
-                                                          getPreviewUrl() { return window.customersData?.getPreviewUrl() || '' },
-                                                          navigatePreview(dir) { window.customersData?.navigatePreview(dir) },
-                                                          goToIndex(i) { window.customersData?.goToPreviewIndex(i) },
-                                                          downloadTab() { window.customersData?.downloadCurrentTab() },
-                                                          downloadAll() { window.customersData?.downloadAllDocuments() },
-                                                          getCurrentCustomer() {
-                                                            const id = this.selectedIds[this.currentIndex];
-                                                            return this.cachedCustomers[id] || { reff_id_pelanggan: id, nama_pelanggan: '-' };
-                                                          }
-                                                        }" x-show="showModal" x-cloak @click.self="closeModal()"
+                                                                                                                  get showModal() { return window.customersData?.documentPreviewModalOpen || false },
+                                                                                                                  get loading() { return window.customersData?.previewLoading || false },
+                                                                                                                  get selectedIds() { return window.customersData?.selectedBaIds || [] },
+                                                                                                                  get selectedDocTypes() { return window.customersData?.selectedDocTypes || [] },
+                                                                                                                  get activeTab() { return window.customersData?.activePreviewTab || 'gas_in' },
+                                                                                                                  get currentIndex() { return window.customersData?.previewCurrentIndex || 0 },
+                                                                                                                  get cachedCustomers() { return window.customersData?.selectedBaCustomersCache || {} },
+                                                                                                                  get mergeToSinglePdf() { return window.customersData?.mergeToSinglePdf || false },
+                                                                                                                  set mergeToSinglePdf(val) { if(window.customersData) window.customersData.mergeToSinglePdf = val; },
+                                                                                                                  setActiveTab(tab) { if(window.customersData) { window.customersData.activePreviewTab = tab; window.customersData.previewLoading = true; } },
+                                                                                                                  closeModal() { if(window.customersData) window.customersData.closeDocumentPreviewModal() },
+                                                                                                                  getPreviewUrl() { return window.customersData?.getPreviewUrl() || '' },
+                                                                                                                  navigatePreview(dir) { window.customersData?.navigatePreview(dir) },
+                                                                                                                  goToIndex(i) { window.customersData?.goToPreviewIndex(i) },
+                                                                                                                  downloadTab() { window.customersData?.downloadCurrentTab() },
+                                                                                                                  downloadAll() { window.customersData?.downloadAllDocuments() },
+                                                                                                                  getCurrentCustomer() {
+                                                                                                                    const id = this.selectedIds[this.currentIndex];
+                                                                                                                    return this.cachedCustomers[id] || { reff_id_pelanggan: id, nama_pelanggan: '-' };
+                                                                                                                  }
+                                                                                                                }"
+        x-show="showModal" x-cloak @click.self="closeModal()"
         class="fixed bg-black bg-opacity-50 flex items-center justify-center p-4"
         style="display: none; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 999999999 !important;">
         <div @click.stop class="bg-white rounded-xl w-full mx-4 shadow-2xl flex flex-col"
@@ -1455,19 +1540,20 @@
                             :class="activeTab === docType ? 'bg-purple-100 text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
                             class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors">
                             <i :class="{
-                                                            'fas fa-fire mr-1': docType === 'gas_in',
-                                                            'fas fa-tachometer-alt mr-1': docType === 'mgrt',
-                                                            'fas fa-project-diagram mr-1': docType === 'isometrik_sr',
-                                                            'fas fa-file-contract mr-1': docType === 'ba_sk',
-                                                            'fas fa-drafting-compass mr-1': docType === 'isometrik_sk'
-                                                        }"></i>
-                            <span x-text="{
-                                                            'gas_in': 'BA Gas In',
-                                                            'mgrt': 'BA MGRT',
-                                                            'isometrik_sr': 'Isometrik SR',
-                                                            'ba_sk': 'BA SK',
-                                                            'isometrik_sk': 'Isometrik SK'
-                                                        }[docType]"></span>
+                                                                                                                    'fas fa-fire mr-1': docType === 'gas_in',
+                                                                                                                    'fas fa-tachometer-alt mr-1': docType === 'mgrt',
+                                                                                                                    'fas fa-project-diagram mr-1': docType === 'isometrik_sr',
+                                                                                                                    'fas fa-file-contract mr-1': docType === 'ba_sk',
+                                                                                                                    'fas fa-drafting-compass mr-1': docType === 'isometrik_sk'
+                                                                                                                }"></i>
+                            <span
+                                x-text="{
+                                                                                                                    'gas_in': 'BA Gas In',
+                                                                                                                    'mgrt': 'BA MGRT',
+                                                                                                                    'isometrik_sr': 'Isometrik SR',
+                                                                                                                    'ba_sk': 'BA SK',
+                                                                                                                    'isometrik_sk': 'Isometrik SK'
+                                                                                                                }[docType]"></span>
                         </button>
                     </template>
                 </div>
@@ -1541,13 +1627,14 @@
 
                         <button @click="downloadTab()"
                             class="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors">
-                            <i class="fas fa-download mr-2"></i>Download <span x-text="{
-                                                            'gas_in': 'BA Gas In',
-                                                            'mgrt': 'BA MGRT',
-                                                            'isometrik_sr': 'Isometrik SR',
-                                                            'ba_sk': 'BA SK',
-                                                            'isometrik_sk': 'Isometrik SK'
-                                                        }[activeTab]"></span>
+                            <i class="fas fa-download mr-2"></i>Download <span
+                                x-text="{
+                                                                                                                    'gas_in': 'BA Gas In',
+                                                                                                                    'mgrt': 'BA MGRT',
+                                                                                                                    'isometrik_sr': 'Isometrik SR',
+                                                                                                                    'ba_sk': 'BA SK',
+                                                                                                                    'isometrik_sk': 'Isometrik SK'
+                                                                                                                }[activeTab]"></span>
                         </button>
                         <button x-show="selectedDocTypes.length > 1" @click="downloadAll()"
                             class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
@@ -1559,4 +1646,350 @@
         </div>
     </div>
 
+    <!-- Sync Preview Modal -->
+    <div x-data="{
+                                                    get showSyncModal() { return window.customersData?.showSyncModal || false },
+                                                    set showSyncModal(val) { if(window.customersData) window.customersData.showSyncModal = val },
+                                                    get syncLoading() { return window.customersData?.syncLoading || false },
+                                                    get syncData() { return window.customersData?.syncData || { new: [], updated: [], unchanged: [], deleted: [], deleted_with_progress: [], reff_id_changed: [] } },
+                                                    activeTab: 'new',
+                                                    closeModal() { this.showSyncModal = false },
+                                                    confirmSync() { if(window.customersData) window.customersData.confirmSyncProcess() }
+                                                }" x-show="showSyncModal" class="fixed inset-0 z-50 overflow-hidden"
+        style="display: none;" x-cloak>
+        <div class="flex items-center justify-center min-h-screen">
+            <div class="fixed inset-0 bg-gray-500 opacity-75" @click="closeModal()"></div>
+            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-6xl mx-4 max-h-[90vh] flex flex-col">
+                <!-- Header -->
+                <div class="px-6 py-4 border-b flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-gray-900">Preview Data Synchronization</h3>
+                    <button @click="closeModal()" class="text-gray-400 hover:text-gray-600"><i
+                            class="fas fa-times text-xl"></i></button>
+                </div>
+
+                <!-- Loading -->
+                <div x-show="syncLoading" class="p-10 text-center flex-1">
+                    <i class="fas fa-spinner fa-spin text-4xl text-blue-600"></i>
+                    <p class="mt-4 text-gray-600">Mengambil data dari Google Sheet...</p>
+                </div>
+
+                <!-- Content -->
+                <div x-show="!syncLoading" class="flex-1 flex flex-col overflow-hidden">
+                    <!-- Stats Cards -->
+                    <div class="px-6 py-4 grid grid-cols-6 gap-2">
+                        <button @click="activeTab = 'new'" :class="activeTab === 'new' ? 'ring-2 ring-green-500' : ''"
+                            class="bg-green-50 p-2 rounded-lg border border-green-200 text-left hover:bg-green-100 transition">
+                            <div class="text-green-800 font-semibold text-xs">Data Baru</div>
+                            <div class="text-lg font-bold text-green-900" x-text="syncData.new.length">0</div>
+                        </button>
+                        <button @click="activeTab = 'updated'"
+                            :class="activeTab === 'updated' ? 'ring-2 ring-blue-500' : ''"
+                            class="bg-blue-50 p-2 rounded-lg border border-blue-200 text-left hover:bg-blue-100 transition">
+                            <div class="text-blue-800 font-semibold text-xs">Update</div>
+                            <div class="text-lg font-bold text-blue-900" x-text="syncData.updated.length">0</div>
+                        </button>
+                        <button @click="activeTab = 'reff_changed'"
+                            :class="activeTab === 'reff_changed' ? 'ring-2 ring-purple-500' : ''"
+                            class="bg-purple-50 p-2 rounded-lg border border-purple-200 text-left hover:bg-purple-100 transition">
+                            <div class="text-purple-800 font-semibold text-xs">ID Berubah</div>
+                            <div class="text-lg font-bold text-purple-900" x-text="(syncData.reff_id_changed?.length || 0)">
+                                0</div>
+                        </button>
+                        <button @click="activeTab = 'unchanged'"
+                            :class="activeTab === 'unchanged' ? 'ring-2 ring-gray-500' : ''"
+                            class="bg-gray-50 p-2 rounded-lg border border-gray-200 text-left hover:bg-gray-100 transition">
+                            <div class="text-gray-800 font-semibold text-xs">Tidak Berubah</div>
+                            <div class="text-lg font-bold text-gray-900" x-text="syncData.unchanged.length">0</div>
+                        </button>
+                        <button @click="activeTab = 'deleted'" :class="activeTab === 'deleted' ? 'ring-2 ring-red-500' : ''"
+                            class="bg-red-50 p-2 rounded-lg border border-red-200 text-left hover:bg-red-100 transition">
+                            <div class="text-red-800 font-semibold text-xs">Dihapus</div>
+                            <div class="text-lg font-bold text-red-900" x-text="(syncData.deleted?.length || 0)">0</div>
+                        </button>
+                        <button @click="activeTab = 'warning'"
+                            :class="activeTab === 'warning' ? 'ring-2 ring-yellow-500' : ''"
+                            class="bg-yellow-50 p-2 rounded-lg border border-yellow-200 text-left hover:bg-yellow-100 transition">
+                            <div class="text-yellow-800 font-semibold text-xs">⚠️ Warning</div>
+                            <div class="text-lg font-bold text-yellow-900"
+                                x-text="(syncData.deleted_with_progress?.length || 0)">0</div>
+                        </button>
+                    </div>
+
+                    <!-- Tables Container -->
+                    <div class="flex-1 overflow-auto px-6 pb-4">
+                        <!-- New Data Table -->
+                        <div x-show="activeTab === 'new'" class="overflow-auto max-h-[400px]">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-green-100 sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">No</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Reff ID
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Nama
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Alamat
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">No.
+                                            Telepon</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                                            Kelurahan</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">RT/RW
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <template x-for="(item, idx) in syncData.new" :key="idx">
+                                        <tr class="hover:bg-green-50">
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="idx + 1"></td>
+                                            <td class="px-3 py-2 text-sm font-medium text-gray-900"
+                                                x-text="item.reff_id_pelanggan || '-'"></td>
+                                            <td class="px-3 py-2 text-sm text-gray-900" x-text="item.nama_pelanggan || '-'">
+                                            </td>
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="item.alamat || '-'"></td>
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="item.no_telepon || '-'">
+                                            </td>
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="item.kelurahan || '-'"></td>
+                                            <td class="px-3 py-2 text-sm text-gray-500"
+                                                x-text="(item.rt || '-') + '/' + (item.rw || '-')"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div x-show="syncData.new.length === 0" class="text-center py-8 text-gray-500">Tidak ada data
+                                baru</div>
+                        </div>
+
+                        <!-- Updated Data Table -->
+                        <div x-show="activeTab === 'updated'" class="overflow-auto max-h-[400px]">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-blue-100 sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">No</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Reff ID
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Nama
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">
+                                            Perubahan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <template x-for="(item, idx) in syncData.updated" :key="idx">
+                                        <tr class="hover:bg-blue-50">
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="idx + 1"></td>
+                                            <td class="px-3 py-2 text-sm font-medium text-gray-900"
+                                                x-text="item.data?.reff_id_pelanggan || '-'"></td>
+                                            <td class="px-3 py-2 text-sm text-gray-900"
+                                                x-text="item.data?.nama_pelanggan || '-'"></td>
+                                            <td class="px-3 py-2 text-sm">
+                                                <template x-for="(diff, field) in item.differences" :key="field">
+                                                    <div class="mb-1">
+                                                        <span class="font-semibold text-gray-700" x-text="field"></span>:
+                                                        <span class="text-red-500 line-through"
+                                                            x-text="diff.old || '(kosong)'"></span>
+                                                        <i class="fas fa-arrow-right text-gray-400 mx-1"></i>
+                                                        <span class="text-green-600 font-bold"
+                                                            x-text="diff.new || '(kosong)'"></span>
+                                                    </div>
+                                                </template>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div x-show="syncData.updated.length === 0" class="text-center py-8 text-gray-500">Tidak ada
+                                data yang diupdate</div>
+                        </div>
+
+                        <!-- Reff ID Changed Table -->
+                        <div x-show="activeTab === 'reff_changed'" class="overflow-auto max-h-[400px]">
+                            <div class="bg-purple-100 p-3 rounded-lg mb-4 text-sm text-purple-800">
+                                <i class="fas fa-exchange-alt mr-2"></i>
+                                Data berikut terdeteksi memiliki <strong>perubahan Reff ID</strong> berdasarkan kecocokan
+                                nama pelanggan.
+                                Saat sync, sistem akan memperbarui Reff ID tanpa menghapus progress yang sudah ada.
+                            </div>
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-purple-100 sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">No</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Nama
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Reff ID
+                                            Lama</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Reff ID
+                                            Baru</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Progress
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <template x-for="(item, idx) in (syncData.reff_id_changed || [])" :key="idx">
+                                        <tr class="hover:bg-purple-50">
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="idx + 1"></td>
+                                            <td class="px-3 py-2 text-sm font-medium text-gray-900"
+                                                x-text="item.nama_pelanggan || '-'"></td>
+                                            <td class="px-3 py-2 text-sm">
+                                                <span class="text-red-500 line-through" x-text="item.old_reff_id"></span>
+                                            </td>
+                                            <td class="px-3 py-2 text-sm">
+                                                <span class="text-green-600 font-bold" x-text="item.new_reff_id"></span>
+                                            </td>
+                                            <td class="px-3 py-2 text-sm">
+                                                <span class="px-2 py-1 rounded text-xs"
+                                                    :class="item.has_progress ? 'bg-yellow-200 font-semibold' : 'bg-gray-100'"
+                                                    x-text="item.progress_status || 'validasi'"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div x-show="(syncData.reff_id_changed?.length || 0) === 0"
+                                class="text-center py-8 text-gray-500">Tidak ada perubahan Reff ID</div>
+                        </div>
+
+                        <!-- Unchanged Data Table -->
+                        <div x-show="activeTab === 'unchanged'" class="overflow-auto max-h-[400px]">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-100 sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">No</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Reff ID
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Nama
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Alamat
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">No.
+                                            Telepon</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <template x-for="(item, idx) in syncData.unchanged" :key="idx">
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="idx + 1"></td>
+                                            <td class="px-3 py-2 text-sm font-medium text-gray-900"
+                                                x-text="item.reff_id_pelanggan || '-'"></td>
+                                            <td class="px-3 py-2 text-sm text-gray-900" x-text="item.nama_pelanggan || '-'">
+                                            </td>
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="item.alamat || '-'"></td>
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="item.no_telepon || '-'">
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div x-show="syncData.unchanged.length === 0" class="text-center py-8 text-gray-500">Tidak ada
+                                data yang sama</div>
+                        </div>
+                        <!-- Deleted Data Table (Safe to Delete) -->
+                        <div x-show="activeTab === 'deleted'" class="overflow-auto max-h-[400px]">
+                            <div class="bg-red-100 p-3 rounded-lg mb-4 text-sm text-red-800">
+                                <i class="fas fa-trash-alt mr-2"></i>
+                                Data berikut ada di database tapi tidak ada di Google Sheet. Data ini aman untuk dihapus
+                                karena belum ada progress.
+                            </div>
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-red-100 sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">No</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Reff ID
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Nama
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Alamat
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Status
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <template x-for="(item, idx) in (syncData.deleted || [])" :key="idx">
+                                        <tr class="hover:bg-red-50">
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="idx + 1"></td>
+                                            <td class="px-3 py-2 text-sm font-medium text-gray-900"
+                                                x-text="item.reff_id_pelanggan || '-'"></td>
+                                            <td class="px-3 py-2 text-sm text-gray-900" x-text="item.nama_pelanggan || '-'">
+                                            </td>
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="item.alamat || '-'"></td>
+                                            <td class="px-3 py-2 text-sm">
+                                                <span class="px-2 py-1 bg-gray-100 rounded text-xs"
+                                                    x-text="item.progress_status || '-'"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div x-show="(syncData.deleted?.length || 0) === 0" class="text-center py-8 text-gray-500">Tidak
+                                ada data yang dihapus</div>
+                        </div>
+
+                        <!-- Warning: Deleted but has Progress -->
+                        <div x-show="activeTab === 'warning'" class="overflow-auto max-h-[400px]">
+                            <div class="bg-yellow-100 p-3 rounded-lg mb-4 text-sm text-yellow-800">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                <strong>Perhatian!</strong> Data berikut tidak ada di Google Sheet TAPI sudah memiliki
+                                progress (SK/SR/GasIn).
+                                Data ini <strong>TIDAK AKAN DIHAPUS</strong> otomatis. Silakan periksa secara manual.
+                            </div>
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-yellow-100 sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">No</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Reff ID
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Nama
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Alamat
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Progress
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <template x-for="(item, idx) in (syncData.deleted_with_progress || [])" :key="idx">
+                                        <tr class="hover:bg-yellow-50">
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="idx + 1"></td>
+                                            <td class="px-3 py-2 text-sm font-medium text-gray-900"
+                                                x-text="item.reff_id_pelanggan || '-'"></td>
+                                            <td class="px-3 py-2 text-sm text-gray-900" x-text="item.nama_pelanggan || '-'">
+                                            </td>
+                                            <td class="px-3 py-2 text-sm text-gray-500" x-text="item.alamat || '-'"></td>
+                                            <td class="px-3 py-2 text-sm">
+                                                <span class="px-2 py-1 bg-yellow-200 rounded text-xs font-semibold"
+                                                    x-text="item.progress_status || '-'"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div x-show="(syncData.deleted_with_progress?.length || 0) === 0"
+                                class="text-center py-8 text-gray-500">Tidak ada warning</div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="px-6 py-4 border-t bg-gray-50 flex justify-between items-center">
+                        <div class="text-sm text-gray-500">
+                            Total: <span
+                                x-text="syncData.new.length + syncData.updated.length + syncData.unchanged.length"></span>
+                            data
+                        </div>
+                        <div class="flex gap-3">
+                            <button type="button" @click="closeModal()"
+                                class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Tutup</button>
+                            <form id="syncProcessForm" action="{{ route('customers.sync-process') }}" method="POST">
+                                @csrf
+                                <button type="button" @click="confirmSync()"
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    :disabled="syncData.new.length === 0 && syncData.updated.length === 0&& (syncData.deleted?.length || 0) === 0&& (syncData.reff_id_changed?.length || 0) === 0">
+                                                    <i class="fas fa-sync mr-2"></i>Simpan & Sync
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 @endsection

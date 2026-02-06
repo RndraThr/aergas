@@ -1951,5 +1951,265 @@ class CalonPelangganController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Show preview of Google Sheet Sync
+     */
+    public function syncPreview(\App\Services\GoogleSheetsService $sheetsService)
+    {
+        try {
+            $sheetData = $sheetsService->getCalonPelangganData();
+
+            // Fetch all existing customers Keyed by Reff ID
+            $existingCustomers = CalonPelanggan::all()->keyBy('reff_id_pelanggan');
+
+            // Also create a map by nama_pelanggan for reff_id change detection
+            $existingByName = CalonPelanggan::all()->keyBy(function ($item) {
+                return strtolower(trim($item->nama_pelanggan ?? ''));
+            });
+
+            $new = [];
+            $updated = [];
+            $unchanged = [];
+            $deleted = [];
+            $deletedWithProgress = [];
+            $reffIdChanged = [];
+
+            // Track which reff_ids are in the sheet
+            $sheetReffIds = [];
+            // Track names in sheet for reff_id change detection
+            $sheetNames = [];
+
+            foreach ($sheetData as $row) {
+                $reffId = $row['reff_id_pelanggan'] ?? null;
+
+                if (!$reffId)
+                    continue;
+
+                $sheetReffIds[] = $reffId;
+                $sheetNames[strtolower(trim($row['nama_pelanggan'] ?? ''))] = $row;
+
+                if (isset($existingCustomers[$reffId])) {
+                    $customer = $existingCustomers[$reffId];
+                    $differences = [];
+
+                    // Compare fields
+                    $fieldsToCheck = ['nama_pelanggan', 'alamat', 'no_telepon', 'no_ktp', 'kota_kabupaten', 'kecamatan', 'kelurahan', 'padukuhan', 'rt', 'rw', 'jenis_pelanggan', 'keterangan'];
+
+                    foreach ($fieldsToCheck as $field) {
+                        $sheetVal = trim($row[$field] ?? '');
+                        $dbVal = trim($customer->$field ?? '');
+
+                        // Skip if sheet value is empty (don't overwrite with empty)
+                        if ($sheetVal === '')
+                            continue;
+
+                        // Detect difference: either values differ OR db is empty but sheet has value
+                        $sheetLower = strtolower($sheetVal);
+                        $dbLower = strtolower($dbVal);
+
+                        if ($sheetLower !== $dbLower) {
+                            $differences[$field] = ['old' => $dbVal ?: '(kosong)', 'new' => $sheetVal];
+                        }
+                    }
+
+                    if (!empty($differences)) {
+                        $updated[] = [
+                            'data' => $row,
+                            'differences' => $differences
+                        ];
+                    } else {
+                        $unchanged[] = $row;
+                    }
+                } else {
+                    $new[] = $row;
+                }
+            }
+
+            // Detect deleted: customers in DB but NOT in sheet
+            foreach ($existingCustomers as $reffId => $customer) {
+                if (!in_array($reffId, $sheetReffIds)) {
+                    $customerName = strtolower(trim($customer->nama_pelanggan ?? ''));
+
+                    // Check if this customer's name exists in sheet with different reff_id
+                    // This indicates a reff_id change
+                    if (!empty($customerName) && isset($sheetNames[$customerName])) {
+                        $newSheetData = $sheetNames[$customerName];
+                        $newReffId = $newSheetData['reff_id_pelanggan'];
+
+                        // Only consider as reff_id change if the new reff_id is actually new (not already in DB)
+                        if (!isset($existingCustomers[$newReffId])) {
+                            // Check if customer has progress
+                            $hasProgress = $customer->progress_status !== 'validasi'
+                                || $customer->skData()->exists()
+                                || $customer->srData()->exists()
+                                || $customer->gasInData()->exists();
+
+                            $reffIdChanged[] = [
+                                'old_reff_id' => $reffId,
+                                'new_reff_id' => $newReffId,
+                                'nama_pelanggan' => $customer->nama_pelanggan,
+                                'alamat' => $customer->alamat,
+                                'progress_status' => $customer->progress_status,
+                                'has_progress' => $hasProgress,
+                                'new_data' => $newSheetData
+                            ];
+
+                            // Remove from new array since it's a reff_id change, not truly new
+                            $new = array_filter($new, function ($item) use ($newReffId) {
+                                return ($item['reff_id_pelanggan'] ?? '') !== $newReffId;
+                            });
+                            $new = array_values($new); // Re-index
+
+                            continue; // Don't add to deleted
+                        }
+                    }
+
+                    // Regular deleted case
+                    $hasProgress = $customer->progress_status !== 'validasi'
+                        || $customer->skData()->exists()
+                        || $customer->srData()->exists()
+                        || $customer->gasInData()->exists();
+
+                    $customerData = [
+                        'reff_id_pelanggan' => $customer->reff_id_pelanggan,
+                        'nama_pelanggan' => $customer->nama_pelanggan,
+                        'alamat' => $customer->alamat,
+                        'progress_status' => $customer->progress_status,
+                        'has_progress' => $hasProgress
+                    ];
+
+                    if ($hasProgress) {
+                        $deletedWithProgress[] = $customerData;
+                    } else {
+                        $deleted[] = $customerData;
+                    }
+                }
+            }
+
+            return response()->json([
+                'new' => $new,
+                'updated' => $updated,
+                'unchanged' => $unchanged,
+                'deleted' => $deleted,
+                'deleted_with_progress' => $deletedWithProgress,
+                'reff_id_changed' => $reffIdChanged
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to fetch sync preview: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Process Sync (Save Data)
+     */
+    public function syncProcess(Request $request)
+    {
+        try {
+            $dataToSync = $request->input('sync_data', []);
+            $dataToDelete = $request->input('delete_data', []);
+            $reffIdChanges = $request->input('reff_id_change_data', []);
+            $countNew = 0;
+            $countUpdated = 0;
+            $countDeleted = 0;
+            $countReffIdChanged = 0;
+
+            // Process reff_id changes first (migrate old reff_id to new)
+            foreach ($reffIdChanges as $change) {
+                $change = json_decode($change, true);
+                if (!$change || !isset($change['old_reff_id']) || !isset($change['new_reff_id']))
+                    continue;
+
+                $oldReffId = $change['old_reff_id'];
+                $newReffId = $change['new_reff_id'];
+                $newData = $change['new_data'] ?? [];
+
+                $customer = CalonPelanggan::where('reff_id_pelanggan', $oldReffId)->first();
+                if ($customer) {
+                    // Update reff_id and other fields from sheet
+                    $customer->reff_id_pelanggan = $newReffId;
+
+                    // Update other fields from new sheet data
+                    $fieldsToUpdate = ['nama_pelanggan', 'alamat', 'no_telepon', 'no_ktp', 'kota_kabupaten', 'kecamatan', 'kelurahan', 'padukuhan', 'rt', 'rw', 'jenis_pelanggan', 'keterangan'];
+                    foreach ($fieldsToUpdate as $field) {
+                        if (isset($newData[$field]) && $newData[$field] !== '') {
+                            $customer->$field = $newData[$field];
+                        }
+                    }
+
+                    $customer->save();
+                    $countReffIdChanged++;
+
+                    \Log::info("Reff ID migrated: {$oldReffId} -> {$newReffId} for {$customer->nama_pelanggan}");
+                }
+            }
+
+            // Process new and updated data
+            foreach ($dataToSync as $item) {
+                $item = json_decode($item, true);
+                if (!$item || !isset($item['reff_id_pelanggan']))
+                    continue;
+
+                $reffId = $item['reff_id_pelanggan'];
+
+                // Allow empty fields to be null
+                $data = array_map(function ($val) {
+                    return $val === '' ? null : $val;
+                }, $item);
+
+                // Set defaults
+                if (!isset($data['status']))
+                    $data['status'] = 'lanjut';
+                if (!isset($data['progress_status']))
+                    $data['progress_status'] = 'validasi';
+
+                // Now that $fillable includes no_ktp, kota_kabupaten, kecamatan,
+                // updateOrCreate properly handles all fields
+                $customer = CalonPelanggan::updateOrCreate(
+                    ['reff_id_pelanggan' => $reffId],
+                    $data
+                );
+
+                if ($customer->wasRecentlyCreated) {
+                    $countNew++;
+                } else {
+                    $countUpdated++;
+                }
+            }
+
+            // Process deletions (only safe ones - no progress)
+            foreach ($dataToDelete as $reffId) {
+                $customer = CalonPelanggan::where('reff_id_pelanggan', $reffId)->first();
+                if ($customer) {
+                    // Double-check: only delete if no progress
+                    $hasProgress = $customer->progress_status !== 'validasi'
+                        || $customer->skData()->exists()
+                        || $customer->srData()->exists()
+                        || $customer->gasInData()->exists();
+
+                    if (!$hasProgress) {
+                        $customer->delete();
+                        $countDeleted++;
+                    }
+                }
+            }
+
+            $message = "Sync completed.";
+            if ($countNew > 0)
+                $message .= " New: {$countNew}";
+            if ($countUpdated > 0)
+                $message .= " Updated: {$countUpdated}";
+            if ($countReffIdChanged > 0)
+                $message .= " Reff ID Changed: {$countReffIdChanged}";
+            if ($countDeleted > 0)
+                $message .= " Deleted: {$countDeleted}";
+
+            return redirect()->route('customers.index')->with('success', $message);
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Sync failed: ' . $e->getMessage());
+        }
+    }
 }
 

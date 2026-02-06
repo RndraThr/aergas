@@ -216,9 +216,12 @@ class CalonPelanggan extends Model
         'nama_pelanggan',
         'alamat',
         'no_telepon',
+        'no_ktp',           // Added for Google Sheets sync
         'no_bagi',
         'email',
         'kelurahan',
+        'kota_kabupaten',   // Added for Google Sheets sync
+        'kecamatan',        // Added for Google Sheets sync
         'padukuhan',
         'rt',
         'rw',

@@ -226,6 +226,11 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/', [CalonPelangganController::class, 'index'])->name('index');
             Route::get('/stats/json', [CalonPelangganController::class, 'getStats'])->name('stats');
             Route::get('/export', [CalonPelangganController::class, 'export'])->name('export');
+
+            // Sync Routes
+            Route::get('/sync-preview', [CalonPelangganController::class, 'syncPreview'])->name('sync-preview');
+            Route::post('/sync-process', [CalonPelangganController::class, 'syncProcess'])->name('sync-process');
+
             Route::get('/validate-reff/{reffId}', [CalonPelangganController::class, 'validateReff'])
                 ->where('reffId', '[A-Z0-9\-]+')->name('validate-reff');
 

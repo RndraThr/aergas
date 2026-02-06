@@ -701,4 +701,119 @@ class GoogleSheetsService
         }
         return 'Coupler';
     }
+
+    public function getCalonPelangganData(): array
+    {
+        try {
+            $sheetName = config('services.google_sheets.sheet_name_calon_pelanggan', 'Pilot KSM');
+            Log::info("Fetching Calon Pelanggan data from sheet: {$sheetName}");
+
+            // Read all data
+            $response = $this->service->spreadsheets_values->get($this->spreadsheetId, "{$sheetName}!A:Z");
+            $rows = $response->getValues();
+
+            if (empty($rows)) {
+                Log::warning("Google Sheet returned empty rows");
+                return [];
+            }
+
+            Log::info("Google Sheet returned " . count($rows) . " rows (including header)");
+            Log::info("Raw first row: " . json_encode($rows[0] ?? []));
+            Log::info("Raw second row: " . json_encode($rows[1] ?? []));
+            Log::info("Raw third row (should be headers): " . json_encode($rows[2] ?? []));
+
+            // Skip row 1 (empty row before title)
+            array_shift($rows);
+
+            // Skip row 2 (merged title row: "DATA CALON PELANGGAN")
+            array_shift($rows);
+
+            // Extract headers (row 3 - actual column headers: No, Area, Nama, etc.)
+            $rawHeaders = array_shift($rows);
+            if (empty($rawHeaders)) {
+                Log::warning("Header row is empty");
+                return [];
+            }
+
+            $headers = array_map(function ($h) {
+                // Normalize: lowercase, trim, and replace newlines with space
+                $normalized = strtolower(trim($h ?? ''));
+                $normalized = preg_replace('/[\r\n]+/', ' ', $normalized);
+                return $normalized;
+            }, $rawHeaders);
+
+            // Skip filter row (row 4 with counts like "140")
+            array_shift($rows);
+
+            // Simple Mapping: Header Label => DB Column
+            // Headers are normalized: lowercase, trimmed, newlines replaced with spaces
+            $mapping = [
+                // Primary columns from sheet - 'id reff' is the actual customer ID
+                'id reff' => 'reff_id_pelanggan',
+                'nama' => 'nama_pelanggan',
+                'nomor kartu identitas' => 'no_ktp',
+                'nomor kartu' => 'no_ktp',
+                'nomor ponsel' => 'no_telepon',
+                'alamat' => 'alamat',
+                'rt' => 'rt',
+                'rw' => 'rw',
+                'id kota/kabupaten' => 'kota_kabupaten',
+                'id kecamatan' => 'kecamatan',
+                'id kelurahan' => 'kelurahan',
+                'padukuhan' => 'padukuhan',
+                'jenis pelanggan' => 'jenis_pelanggan',
+                'penetrasi / pengembangan' => 'jenis_pelanggan',
+                'keterangan' => 'keterangan',
+                'email' => 'email',
+                // Legacy/alternate mappings
+                'reff id' => 'reff_id_pelanggan',
+                'reff_id' => 'reff_id_pelanggan',
+                'id' => 'reff_id_pelanggan',
+                'nama pelanggan' => 'nama_pelanggan',
+                'no telepon' => 'no_telepon',
+                'telepon' => 'no_telepon',
+                'no hp' => 'no_telepon',
+                'kelurahan' => 'kelurahan',
+                'kecamatan' => 'kecamatan',
+                'kota' => 'kota_kabupaten',
+                'kabupaten' => 'kota_kabupaten',
+                'jenis' => 'jenis_pelanggan'
+            ];
+
+            // Build index map: DB Column => Index in Row
+            $colIndexMap = [];
+            foreach ($headers as $index => $header) {
+                if (isset($mapping[$header])) {
+                    $colIndexMap[$mapping[$header]] = $index;
+                }
+            }
+
+            Log::info("Sheet headers: " . json_encode($headers));
+            Log::info("Mapped columns: " . json_encode($colIndexMap));
+
+            // Process Rows
+            $data = [];
+            foreach ($rows as $row) {
+                // Skip empty rows
+                if (empty($row))
+                    continue;
+
+                $item = [];
+                foreach ($colIndexMap as $dbCol => $index) {
+                    $item[$dbCol] = $row[$index] ?? null;
+                }
+
+                // Basic validation: Must have Reff ID or Name
+                if (!empty($item['reff_id_pelanggan']) || !empty($item['nama_pelanggan'])) {
+                    $data[] = $item;
+                }
+            }
+
+            return $data;
+
+        } catch (\Exception $e) {
+            Log::error("Failed to fetch Calon Pelanggan data: " . $e->getMessage());
+            return [];
+        }
+    }
 }
