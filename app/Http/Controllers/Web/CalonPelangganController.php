@@ -2138,6 +2138,11 @@ class CalonPelangganController extends Controller
                         }
                     }
 
+                    // Normalize jenis_pelanggan to valid ENUM value
+                    if ($customer->jenis_pelanggan) {
+                        $customer->jenis_pelanggan = $this->normalizeJenisPelanggan($customer->jenis_pelanggan);
+                    }
+
                     $customer->save();
                     $countReffIdChanged++;
 
@@ -2157,6 +2162,11 @@ class CalonPelangganController extends Controller
                 $data = array_map(function ($val) {
                     return $val === '' ? null : $val;
                 }, $item);
+
+                // Normalize jenis_pelanggan to valid ENUM value
+                if (isset($data['jenis_pelanggan']) && $data['jenis_pelanggan']) {
+                    $data['jenis_pelanggan'] = $this->normalizeJenisPelanggan($data['jenis_pelanggan']);
+                }
 
                 // Set defaults
                 if (!isset($data['status']))
@@ -2210,6 +2220,28 @@ class CalonPelangganController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', 'Sync failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Normalize jenis_pelanggan value from Google Sheet to valid ENUM value.
+     */
+    private function normalizeJenisPelanggan(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        $mapping = [
+            'pengembangan' => 'pengembangan',
+            'penetrasi' => 'penetrasi',
+            'on the spot penetrasi' => 'on_the_spot_penetrasi',
+            'on the spot pengembangan' => 'on_the_spot_pengembangan',
+            'on_the_spot_penetrasi' => 'on_the_spot_penetrasi',
+            'on_the_spot_pengembangan' => 'on_the_spot_pengembangan',
+            // Handle combined/alternate format from Google Sheet
+            'pengembangan (penetrasi)' => 'penetrasi',
+            'penetrasi (pengembangan)' => 'pengembangan',
+        ];
+
+        return $mapping[$normalized] ?? 'pengembangan';
     }
 }
 
