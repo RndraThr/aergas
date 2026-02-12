@@ -218,476 +218,476 @@
 
 
 
-  {{-- Rejection Popup --}}
-  <div id="rejection-popup-container"
-    class="hidden fixed w-96 bg-white border border-red-200 rounded-lg shadow-xl z-[9999] max-h-96 overflow-y-auto"
-    onmouseenter="keepPopupOpen(window.currentSrId)" onmouseleave="hideRejectionPopup(window.currentSrId)">
-    <div class="sticky top-0 bg-red-50 px-3 py-2 border-b border-red-200">
-      <h3 class="text-xs font-semibold text-red-800">Rejection Details</h3>
+    {{-- Rejection Popup --}}
+    <div id="rejection-popup-container"
+      class="hidden fixed w-96 bg-white border border-red-200 rounded-lg shadow-xl z-[9999] max-h-96 overflow-y-auto"
+      onmouseenter="keepPopupOpen(window.currentSrId)" onmouseleave="hideRejectionPopup(window.currentSrId)">
+      <div class="sticky top-0 bg-red-50 px-3 py-2 border-b border-red-200">
+        <h3 class="text-xs font-semibold text-red-800">Rejection Details</h3>
+      </div>
+      <div id="rejection-popup-content" class="p-3">
+        <!-- Content loaded via JS -->
+      </div>
     </div>
-    <div id="rejection-popup-content" class="p-3">
-      <!-- Content loaded via JS -->
-    </div>
-  </div>
 
-  {{-- Delete Modal (unchanged, kept for consistency) --}}
-  <div id="deleteModal"
-    class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center transition-opacity duration-300">
-    <div id="deleteModalContent"
-      class="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 scale-95 opacity-0">
-      <div class="flex items-center mb-4">
-        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
-          <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+    {{-- Delete Modal (unchanged, kept for consistency) --}}
+    <div id="deleteModal"
+      class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center transition-opacity duration-300">
+      <div id="deleteModalContent"
+        class="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 scale-95 opacity-0">
+        <div class="flex items-center mb-4">
+          <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+            <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">Konfirmasi Hapus</h3>
+            <p class="text-sm text-gray-600">Tindakan ini tidak dapat dibatalkan</p>
+          </div>
         </div>
-        <div>
-          <h3 class="text-lg font-semibold text-gray-900">Konfirmasi Hapus</h3>
-          <p class="text-sm text-gray-600">Tindakan ini tidak dapat dibatalkan</p>
+
+        <div class="mb-6">
+          <p class="text-gray-700">
+            Apakah Anda yakin ingin menghapus SR dengan Reff ID:
+            <span id="deleteReffId" class="font-semibold text-red-600"></span>?
+          </p>
+          <p class="text-sm text-gray-500 mt-2">
+            Semua data terkait termasuk foto dan approval history akan terhapus permanent.
+          </p>
+        </div>
+
+        <div class="flex gap-3">
+          <button onclick="closeDeleteModal()"
+            class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+            <i class="fas fa-times mr-2"></i>Batal
+          </button>
+          <button id="deleteButton" onclick="executeDelete()"
+            class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+            <i class="fas fa-trash mr-2"></i>Hapus
+          </button>
         </div>
       </div>
-
-      <div class="mb-6">
-        <p class="text-gray-700">
-          Apakah Anda yakin ingin menghapus SR dengan Reff ID:
-          <span id="deleteReffId" class="font-semibold text-red-600"></span>?
-        </p>
-        <p class="text-sm text-gray-500 mt-2">
-          Semua data terkait termasuk foto dan approval history akan terhapus permanent.
-        </p>
-      </div>
-
-      <div class="flex gap-3">
-        <button onclick="closeDeleteModal()"
-          class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-          <i class="fas fa-times mr-2"></i>Batal
-        </button>
-        <button id="deleteButton" onclick="executeDelete()"
-          class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-          <i class="fas fa-trash mr-2"></i>Hapus
-        </button>
-      </div>
     </div>
-  </div>
 
-  @push('scripts')
-    <script>
-      function srIndexData() {
-        return {
-          items: @json($sr->items() ?? []),
-          pagination: {
-            current_page: @json($sr->currentPage() ?? 1),
-            last_page: @json($sr->lastPage() ?? 1),
-            per_page: @json($sr->perPage() ?? 15),
-            total: @json($sr->total() ?? 0),
-            from: @json($sr->firstItem() ?? 0),
-            to: @json($sr->lastItem() ?? 0)
-          },
-          filters: {
-            q: '{{ request("q") }}',
-            module_status: '{{ request("module_status") }}',
-            tanggal_dari: '{{ request("tanggal_dari") }}',
-            tanggal_sampai: '{{ request("tanggal_sampai") }}'
-          },
-          stats: {
-            total: {{ $sr->total() ?? 0 }},
-            draft: {{ $sr->where('module_status', 'draft')->count() ?? 0 }},
-            ready: {{ $sr->where('module_status', 'tracer_review')->count() ?? 0 }},
-            completed: {{ $sr->where('module_status', 'completed')->count() ?? 0 }}
-                                },
-          loading: false,
-
+    @push('scripts')
+      <script>
+        function srIndexData() {
+          return {
+            items: @json($sr->items() ?? []),
+            pagination: {
+              current_page: @json($sr->currentPage() ?? 1),
+              last_page: @json($sr->lastPage() ?? 1),
+              per_page: @json($sr->perPage() ?? 15),
+              total: @json($sr->total() ?? 0),
+              from: @json($sr->firstItem() ?? 0),
+              to: @json($sr->lastItem() ?? 0)
+            },
+            filters: {
+              q: '{{ request("q") }}',
+              module_status: '{{ request("module_status") }}',
+              tanggal_dari: '{{ request("tanggal_dari") }}',
+              tanggal_sampai: '{{ request("tanggal_sampai") }}'
+            },
+            stats: {
+              total: {{ $stats['total'] ?? 0 }},
+              draft: {{ $stats['draft'] ?? 0 }},
+              ready: {{ $stats['ready'] ?? 0 }},
+              completed: {{ $stats['completed'] ?? 0 }}
+                                    },
+            loading: false,
 
 
-          async fetchData(resetPage = false) {
-            // Auto-reset to page 1 when filters change
-            if (resetPage) {
-              this.pagination.current_page = 1;
-            }
 
-            this.loading = true;
-
-            try {
-              const params = new URLSearchParams({
-                q: this.filters.q,
-                module_status: this.filters.module_status,
-                tanggal_dari: this.filters.tanggal_dari,
-                tanggal_sampai: this.filters.tanggal_sampai,
-                page: this.pagination.current_page,
-                ajax: 1
-              });
-
-              const response = await fetch(`{{ route('sr.index') }}?${params}`, {
-                headers: {
-                  'Accept': 'application/json',
-                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                }
-              });
-
-              const data = await response.json();
-
-              if (data.success) {
-                this.items = data.data.data || [];
-                this.pagination = {
-                  current_page: data.data.current_page,
-                  last_page: data.data.last_page,
-                  per_page: data.data.per_page,
-                  total: data.data.total,
-                  from: data.data.from,
-                  to: data.data.to
-                };
-                this.stats = data.stats || this.stats;
-
-                // Smart pagination: if current page > last page, auto-adjust
-                if (this.pagination.current_page > this.pagination.last_page && this.pagination.last_page > 0) {
-                  this.pagination.current_page = this.pagination.last_page;
-                  this.fetchData(); // Re-fetch with adjusted page
-                  return;
-                }
+            async fetchData(resetPage = false) {
+              // Auto-reset to page 1 when filters change
+              if (resetPage) {
+                this.pagination.current_page = 1;
               }
-            } catch (error) {
-              console.error('Error fetching SR data:', error);
-            } finally {
-              this.loading = false;
-            }
-          },
 
-          resetFilters() {
-            this.filters = {
-              q: '',
-              module_status: '',
-              tanggal_dari: '',
-              tanggal_sampai: ''
-            };
-            this.fetchData(true);
-          },
+              this.loading = true;
 
-          resetDateFilter() {
-            this.filters.tanggal_dari = '';
-            this.filters.tanggal_sampai = '';
-            this.fetchData(true);
-          },
+              try {
+                const params = new URLSearchParams({
+                  q: this.filters.q,
+                  module_status: this.filters.module_status,
+                  tanggal_dari: this.filters.tanggal_dari,
+                  tanggal_sampai: this.filters.tanggal_sampai,
+                  page: this.pagination.current_page,
+                  ajax: 1
+                });
 
-          formatDate(date) {
-            if (!date) return '-';
-            const d = new Date(date);
-            return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-          },
+                const response = await fetch(`{{ route('sr.index') }}?${params}`, {
+                  headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                  }
+                });
 
-          getStatusClass(status) {
-            const classes = {
-              'not_started': 'bg-gray-100 text-gray-700',
-              'draft': 'bg-gray-100 text-gray-700',
-              'ai_validation': 'bg-purple-100 text-purple-800',
-              'tracer_review': 'bg-blue-100 text-blue-800',
-              'cgp_review': 'bg-yellow-100 text-yellow-800',
-              'completed': 'bg-green-100 text-green-800',
-              'rejected': 'bg-red-100 text-red-800'
-            };
-            return classes[status] || 'bg-gray-100 text-gray-700';
-          },
+                const data = await response.json();
 
-          getStatusText(status) {
-            const statusMap = {
-              'not_started': 'Not Started',
-              'draft': 'Draft',
-              'ai_validation': 'AI Validation',
-              'tracer_review': 'Tracer Review',
-              'cgp_review': 'CGP Review',
-              'completed': 'Completed',
-              'rejected': 'Rejected'
-            };
-            return statusMap[status] || status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-          },
+                if (data.success) {
+                  this.items = data.data.data || [];
+                  this.pagination = {
+                    current_page: data.data.current_page,
+                    last_page: data.data.last_page,
+                    per_page: data.data.per_page,
+                    total: data.data.total,
+                    from: data.data.from,
+                    to: data.data.to
+                  };
+                  this.stats = data.stats || this.stats;
 
-          canEdit(row) {
-            const displayStatus = row.module_status || row.status;
-            return ['draft', 'ai_validation', 'tracer_review', 'rejected'].includes(displayStatus);
-          },
+                  // Smart pagination: if current page > last page, auto-adjust
+                  if (this.pagination.current_page > this.pagination.last_page && this.pagination.last_page > 0) {
+                    this.pagination.current_page = this.pagination.last_page;
+                    this.fetchData(); // Re-fetch with adjusted page
+                    return;
+                  }
+                }
+              } catch (error) {
+                console.error('Error fetching SR data:', error);
+              } finally {
+                this.loading = false;
+              }
+            },
 
-          confirmDelete(id, reffId) {
-            window.deleteId = id;
-            document.getElementById('deleteReffId').textContent = reffId;
-            showDeleteModal();
-          },
+            resetFilters() {
+              this.filters = {
+                q: '',
+                module_status: '',
+                tanggal_dari: '',
+                tanggal_sampai: ''
+              };
+              this.fetchData(true);
+            },
 
-          // Pagination methods
-          get paginationPages() {
-            const pages = [];
-            const current = this.pagination.current_page;
-            const last = this.pagination.last_page;
+            resetDateFilter() {
+              this.filters.tanggal_dari = '';
+              this.filters.tanggal_sampai = '';
+              this.fetchData(true);
+            },
 
-            let start = Math.max(1, current - 2);
-            let end = Math.min(last, current + 2);
+            formatDate(date) {
+              if (!date) return '-';
+              const d = new Date(date);
+              return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            },
 
-            for (let i = start; i <= end; i++) {
-              pages.push(i);
-            }
+            getStatusClass(status) {
+              const classes = {
+                'not_started': 'bg-gray-100 text-gray-700',
+                'draft': 'bg-gray-100 text-gray-700',
+                'ai_validation': 'bg-purple-100 text-purple-800',
+                'tracer_review': 'bg-blue-100 text-blue-800',
+                'cgp_review': 'bg-yellow-100 text-yellow-800',
+                'completed': 'bg-green-100 text-green-800',
+                'rejected': 'bg-red-100 text-red-800'
+              };
+              return classes[status] || 'bg-gray-100 text-gray-700';
+            },
 
-            return pages;
-          },
+            getStatusText(status) {
+              const statusMap = {
+                'not_started': 'Not Started',
+                'draft': 'Draft',
+                'ai_validation': 'AI Validation',
+                'tracer_review': 'Tracer Review',
+                'cgp_review': 'CGP Review',
+                'completed': 'Completed',
+                'rejected': 'Rejected'
+              };
+              return statusMap[status] || status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            },
 
-          goToPage(page) {
-            if (page >= 1 && page <= this.pagination.last_page) {
-              this.pagination.current_page = page;
-              this.fetchData();
-            }
-          },
+            canEdit(row) {
+              const displayStatus = row.module_status || row.status;
+              return ['draft', 'ai_validation', 'tracer_review', 'rejected'].includes(displayStatus);
+            },
 
-          previousPage() {
-            if (this.pagination.current_page > 1) {
-              this.pagination.current_page--;
-              this.fetchData();
-            }
-          },
+            confirmDelete(id, reffId) {
+              window.deleteId = id;
+              document.getElementById('deleteReffId').textContent = reffId;
+              showDeleteModal();
+            },
 
-          nextPage() {
-            if (this.pagination.current_page < this.pagination.last_page) {
-              this.pagination.current_page++;
-              this.fetchData();
-            }
-          },
+            // Pagination methods
+            get paginationPages() {
+              const pages = [];
+              const current = this.pagination.current_page;
+              const last = this.pagination.last_page;
 
-          savePageState() {
-            // Save current page and filters to sessionStorage
-            const state = {
-              page: this.pagination.current_page,
-              filters: this.filters,
-              timestamp: Date.now()
-            };
-            sessionStorage.setItem('srIndexPageState', JSON.stringify(state));
-          },
+              let start = Math.max(1, current - 2);
+              let end = Math.min(last, current + 2);
 
-          restorePageState() {
-            // Restore page state from sessionStorage
-            const savedState = sessionStorage.getItem('srIndexPageState');
-            if (savedState) {
-              const state = JSON.parse(savedState);
-              // Only restore if saved within last 30 minutes
-              if (Date.now() - state.timestamp < 30 * 60 * 1000) {
-                this.pagination.current_page = state.page || 1;
-                this.filters = state.filters || this.filters;
+              for (let i = start; i <= end; i++) {
+                pages.push(i);
+              }
+
+              return pages;
+            },
+
+            goToPage(page) {
+              if (page >= 1 && page <= this.pagination.last_page) {
+                this.pagination.current_page = page;
                 this.fetchData();
-                // Clear the saved state after restoring
-                sessionStorage.removeItem('srIndexPageState');
               }
+            },
+
+            previousPage() {
+              if (this.pagination.current_page > 1) {
+                this.pagination.current_page--;
+                this.fetchData();
+              }
+            },
+
+            nextPage() {
+              if (this.pagination.current_page < this.pagination.last_page) {
+                this.pagination.current_page++;
+                this.fetchData();
+              }
+            },
+
+            savePageState() {
+              // Save current page and filters to sessionStorage
+              const state = {
+                page: this.pagination.current_page,
+                filters: this.filters,
+                timestamp: Date.now()
+              };
+              sessionStorage.setItem('srIndexPageState', JSON.stringify(state));
+            },
+
+            restorePageState() {
+              // Restore page state from sessionStorage
+              const savedState = sessionStorage.getItem('srIndexPageState');
+              if (savedState) {
+                const state = JSON.parse(savedState);
+                // Only restore if saved within last 30 minutes
+                if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                  this.pagination.current_page = state.page || 1;
+                  this.filters = state.filters || this.filters;
+                  this.fetchData();
+                  // Clear the saved state after restoring
+                  sessionStorage.removeItem('srIndexPageState');
+                }
+              }
+            },
+
+
+
+            init() {
+              // Check if we're returning from detail page
+              this.restorePageState();
             }
-          },
-
-
-
-          init() {
-            // Check if we're returning from detail page
-            this.restorePageState();
           }
         }
-      }
 
-      // Delete modal functions (kept from original)
-      let deleteId = null;
-      let isDeleting = false;
+        // Delete modal functions (kept from original)
+        let deleteId = null;
+        let isDeleting = false;
 
-      function showDeleteModal() {
-        const modal = document.getElementById('deleteModal');
-        const modalContent = document.getElementById('deleteModalContent');
-        modal.classList.remove('hidden');
-        setTimeout(() => {
-          modalContent.classList.remove('scale-95', 'opacity-0');
-          modalContent.classList.add('scale-100', 'opacity-100');
-        }, 10);
-      }
-
-      function closeDeleteModal() {
-        if (isDeleting) return;
-        const modal = document.getElementById('deleteModal');
-        const modalContent = document.getElementById('deleteModalContent');
-        modalContent.classList.remove('scale-100', 'opacity-100');
-        modalContent.classList.add('scale-95', 'opacity-0');
-        setTimeout(() => {
-          modal.classList.add('hidden');
-          window.deleteId = null;
-        }, 300);
-      }
-
-      async function executeDelete() {
-        if (!window.deleteId || isDeleting) return;
-
-        isDeleting = true;
-        const deleteButton = document.getElementById('deleteButton');
-        const originalContent = deleteButton.innerHTML;
-
-        deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menghapus...';
-        deleteButton.disabled = true;
-
-        try {
-          const response = await fetch(`/sr/${window.deleteId}`, {
-            method: 'DELETE',
-            headers: {
-              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-            }
-          });
-
-          const result = await response.json();
-
-          if (result.success) {
-            closeDeleteModal();
-            // Trigger Alpine.js to refetch data
-            Alpine.store('refreshSk', true);
-            setTimeout(() => location.reload(), 500);
-          } else {
-            throw new Error('Delete failed');
-          }
-        } catch (error) {
-          console.error('Delete error:', error);
-          deleteButton.innerHTML = originalContent;
-          deleteButton.disabled = false;
-          alert('Terjadi kesalahan saat menghapus data. Silakan coba lagi.');
-        } finally {
-          isDeleting = false;
-        }
-      }
-
-      // Close modal handlers
-      document.getElementById('deleteModal')?.addEventListener('click', function (e) {
-        if (e.target === this && !isDeleting) {
-          closeDeleteModal();
-        }
-      });
-
-      document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && !isDeleting) {
-          closeDeleteModal();
-        }
-      });
-
-      // Rejection Details Hover Popup
-      const loadedRejections = new Set();
-      const hideTimers = {};
-      window.currentSrId = null;
-
-      function showRejectionPopup(srId, triggerElement) {
-        // Clear any existing timer
-        if (hideTimers[srId]) {
-          clearTimeout(hideTimers[srId]);
-          delete hideTimers[srId];
+        function showDeleteModal() {
+          const modal = document.getElementById('deleteModal');
+          const modalContent = document.getElementById('deleteModalContent');
+          modal.classList.remove('hidden');
+          setTimeout(() => {
+            modalContent.classList.remove('scale-95', 'opacity-0');
+            modalContent.classList.add('scale-100', 'opacity-100');
+          }, 10);
         }
 
-        const popup = document.getElementById('rejection-popup-container');
-        const contentEl = document.getElementById('rejection-popup-content');
-
-        if (!popup) return;
-
-        // Store current SR ID globally
-        window.currentSrId = srId;
-
-        // Get trigger position
-        const triggerRect = triggerElement.getBoundingClientRect();
-        const popupHeight = 400;
-        const viewportHeight = window.innerHeight;
-        const viewportWidth = window.innerWidth;
-
-        // Calculate horizontal position (position to the right of trigger)
-        let leftPos = triggerRect.right + 8; // 8px spacing from trigger
-        // Ensure popup doesn't overflow right edge
-        if (leftPos + 384 > viewportWidth) {
-          leftPos = triggerRect.left - 384 - 8; // Show on left side if no space on right
+        function closeDeleteModal() {
+          if (isDeleting) return;
+          const modal = document.getElementById('deleteModal');
+          const modalContent = document.getElementById('deleteModalContent');
+          modalContent.classList.remove('scale-100', 'opacity-100');
+          modalContent.classList.add('scale-95', 'opacity-0');
+          setTimeout(() => {
+            modal.classList.add('hidden');
+            window.deleteId = null;
+          }, 300);
         }
 
-        // Calculate vertical position (align with trigger top)
-        let topPos = triggerRect.top;
+        async function executeDelete() {
+          if (!window.deleteId || isDeleting) return;
 
-        // Adjust if popup would overflow bottom
-        if (topPos + popupHeight > viewportHeight) {
-          topPos = viewportHeight - popupHeight - 20;
-        }
+          isDeleting = true;
+          const deleteButton = document.getElementById('deleteButton');
+          const originalContent = deleteButton.innerHTML;
 
-        // Adjust if popup would overflow top
-        if (topPos < 20) {
-          topPos = 20;
-        }
+          deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menghapus...';
+          deleteButton.disabled = true;
 
-        // Position popup
-        popup.style.left = `${leftPos}px`;
-        popup.style.top = `${topPos}px`;
-        popup.classList.remove('hidden');
-
-        // Load data if not loaded yet
-        if (!loadedRejections.has(srId)) {
-          // Reset content
-          contentEl.innerHTML = '<div class="flex items-center justify-center py-4 text-xs text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
-          loadRejectionPopup(srId);
-        }
-      }
-
-      function hideRejectionPopup(srId) {
-        // Set timer specific to this popup
-        hideTimers[srId] = setTimeout(() => {
-          const popup = document.getElementById('rejection-popup-container');
-          if (popup && window.currentSrId === srId) {
-            popup.classList.add('hidden');
-            window.currentSrId = null;
-          }
-          delete hideTimers[srId];
-        }, 200);
-      }
-
-      function keepPopupOpen(srId) {
-        if (hideTimers[srId]) {
-          clearTimeout(hideTimers[srId]);
-          delete hideTimers[srId];
-        }
-      }
-
-      async function loadRejectionPopup(srId) {
-        const contentDiv = document.getElementById('rejection-popup-content');
-        if (!contentDiv) return;
-
-        try {
-          const response = await fetch(`/sr/${srId}/rejection-details`, {
-            headers: {
-              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-              'Accept': 'application/json',
-            }
-          });
-
-          if (!response.ok) throw new Error('Failed to load rejection details');
-
-          const data = await response.json();
-
-          if (data.success && data.rejections && data.rejections.length > 0) {
-            let html = '<div class="space-y-2">';
-
-            data.rejections.forEach((rejection) => {
-              const rejectedBy = rejection.rejected_by_type === 'tracer' ? 'Tracer' : 'CGP';
-              const badgeColor = rejection.rejected_by_type === 'tracer' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700';
-
-              html += `
-                                  <div class="border-l-2 ${rejection.rejected_by_type === 'tracer' ? 'border-blue-400' : 'border-orange-400'} pl-2 py-2">
-                                    <div class="flex items-start justify-between mb-1">
-                                      <div class="font-medium text-xs text-gray-900">${rejection.slot_label}</div>
-                                      <span class="px-1.5 py-0.5 rounded text-xs font-medium ${badgeColor}">${rejectedBy}</span>
-                                    </div>
-                                    <div class="text-xs text-gray-600 mb-1">${rejection.reason || 'No reason provided'}</div>
-                                    <div class="flex items-center justify-between text-xs text-gray-500">
-                                      <span>${rejection.rejected_date}</span>
-                                      ${rejection.rejected_by_name ? `<span>${rejection.rejected_by_name}</span>` : ''}
-                                    </div>
-                                  </div>
-                                `;
+          try {
+            const response = await fetch(`/sr/${window.deleteId}`, {
+              method: 'DELETE',
+              headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+              }
             });
 
-            html += '</div>';
-            contentDiv.innerHTML = html;
-            loadedRejections.add(srId);
-          } else {
-            contentDiv.innerHTML = '<div class="text-xs text-gray-500 text-center py-2">No rejections found</div>';
+            const result = await response.json();
+
+            if (result.success) {
+              closeDeleteModal();
+              // Trigger Alpine.js to refetch data
+              Alpine.store('refreshSk', true);
+              setTimeout(() => location.reload(), 500);
+            } else {
+              throw new Error('Delete failed');
+            }
+          } catch (error) {
+            console.error('Delete error:', error);
+            deleteButton.innerHTML = originalContent;
+            deleteButton.disabled = false;
+            alert('Terjadi kesalahan saat menghapus data. Silakan coba lagi.');
+          } finally {
+            isDeleting = false;
           }
-        } catch (error) {
-          console.error('Error loading rejection details:', error);
-          contentDiv.innerHTML = '<div class="text-xs text-red-500 text-center py-2">Failed to load</div>';
         }
-      }
-    </script>
-  @endpush
+
+        // Close modal handlers
+        document.getElementById('deleteModal')?.addEventListener('click', function (e) {
+          if (e.target === this && !isDeleting) {
+            closeDeleteModal();
+          }
+        });
+
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && !isDeleting) {
+            closeDeleteModal();
+          }
+        });
+
+        // Rejection Details Hover Popup
+        const loadedRejections = new Set();
+        const hideTimers = {};
+        window.currentSrId = null;
+
+        function showRejectionPopup(srId, triggerElement) {
+          // Clear any existing timer
+          if (hideTimers[srId]) {
+            clearTimeout(hideTimers[srId]);
+            delete hideTimers[srId];
+          }
+
+          const popup = document.getElementById('rejection-popup-container');
+          const contentEl = document.getElementById('rejection-popup-content');
+
+          if (!popup) return;
+
+          // Store current SR ID globally
+          window.currentSrId = srId;
+
+          // Get trigger position
+          const triggerRect = triggerElement.getBoundingClientRect();
+          const popupHeight = 400;
+          const viewportHeight = window.innerHeight;
+          const viewportWidth = window.innerWidth;
+
+          // Calculate horizontal position (position to the right of trigger)
+          let leftPos = triggerRect.right + 8; // 8px spacing from trigger
+          // Ensure popup doesn't overflow right edge
+          if (leftPos + 384 > viewportWidth) {
+            leftPos = triggerRect.left - 384 - 8; // Show on left side if no space on right
+          }
+
+          // Calculate vertical position (align with trigger top)
+          let topPos = triggerRect.top;
+
+          // Adjust if popup would overflow bottom
+          if (topPos + popupHeight > viewportHeight) {
+            topPos = viewportHeight - popupHeight - 20;
+          }
+
+          // Adjust if popup would overflow top
+          if (topPos < 20) {
+            topPos = 20;
+          }
+
+          // Position popup
+          popup.style.left = `${leftPos}px`;
+          popup.style.top = `${topPos}px`;
+          popup.classList.remove('hidden');
+
+          // Load data if not loaded yet
+          if (!loadedRejections.has(srId)) {
+            // Reset content
+            contentEl.innerHTML = '<div class="flex items-center justify-center py-4 text-xs text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
+            loadRejectionPopup(srId);
+          }
+        }
+
+        function hideRejectionPopup(srId) {
+          // Set timer specific to this popup
+          hideTimers[srId] = setTimeout(() => {
+            const popup = document.getElementById('rejection-popup-container');
+            if (popup && window.currentSrId === srId) {
+              popup.classList.add('hidden');
+              window.currentSrId = null;
+            }
+            delete hideTimers[srId];
+          }, 200);
+        }
+
+        function keepPopupOpen(srId) {
+          if (hideTimers[srId]) {
+            clearTimeout(hideTimers[srId]);
+            delete hideTimers[srId];
+          }
+        }
+
+        async function loadRejectionPopup(srId) {
+          const contentDiv = document.getElementById('rejection-popup-content');
+          if (!contentDiv) return;
+
+          try {
+            const response = await fetch(`/sr/${srId}/rejection-details`, {
+              headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+              }
+            });
+
+            if (!response.ok) throw new Error('Failed to load rejection details');
+
+            const data = await response.json();
+
+            if (data.success && data.rejections && data.rejections.length > 0) {
+              let html = '<div class="space-y-2">';
+
+              data.rejections.forEach((rejection) => {
+                const rejectedBy = rejection.rejected_by_type === 'tracer' ? 'Tracer' : 'CGP';
+                const badgeColor = rejection.rejected_by_type === 'tracer' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700';
+
+                html += `
+                                      <div class="border-l-2 ${rejection.rejected_by_type === 'tracer' ? 'border-blue-400' : 'border-orange-400'} pl-2 py-2">
+                                        <div class="flex items-start justify-between mb-1">
+                                          <div class="font-medium text-xs text-gray-900">${rejection.slot_label}</div>
+                                          <span class="px-1.5 py-0.5 rounded text-xs font-medium ${badgeColor}">${rejectedBy}</span>
+                                        </div>
+                                        <div class="text-xs text-gray-600 mb-1">${rejection.reason || 'No reason provided'}</div>
+                                        <div class="flex items-center justify-between text-xs text-gray-500">
+                                          <span>${rejection.rejected_date}</span>
+                                          ${rejection.rejected_by_name ? `<span>${rejection.rejected_by_name}</span>` : ''}
+                                        </div>
+                                      </div>
+                                    `;
+              });
+
+              html += '</div>';
+              contentDiv.innerHTML = html;
+              loadedRejections.add(srId);
+            } else {
+              contentDiv.innerHTML = '<div class="text-xs text-gray-500 text-center py-2">No rejections found</div>';
+            }
+          } catch (error) {
+            console.error('Error loading rejection details:', error);
+            contentDiv.innerHTML = '<div class="text-xs text-red-500 text-center py-2">Failed to load</div>';
+          }
+        }
+      </script>
+    @endpush
 
 @endsection

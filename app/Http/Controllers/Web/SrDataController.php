@@ -84,7 +84,15 @@ class SrDataController extends Controller
             ]);
         }
 
-        return view('sr.index', compact('sr'));
+        // Calculate stats for initial page load (same logic as AJAX path)
+        $stats = [
+            'total' => $sr->total(),
+            'draft' => SrData::where('module_status', 'draft')->count(),
+            'ready' => SrData::where('module_status', 'tracer_review')->count(),
+            'completed' => SrData::where('module_status', 'completed')->count(),
+        ];
+
+        return view('sr.index', compact('sr', 'stats'));
     }
 
     public function create()

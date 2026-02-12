@@ -84,7 +84,15 @@ class GasInDataController extends Controller
             ]);
         }
 
-        return view('gas-in.index', compact('gasIn'));
+        // Calculate stats for initial page load (same logic as AJAX path)
+        $stats = [
+            'total' => $gasIn->total(),
+            'draft' => GasInData::where('module_status', 'draft')->count(),
+            'ready' => GasInData::where('module_status', 'tracer_review')->count(),
+            'completed' => GasInData::where('module_status', 'completed')->count(),
+        ];
+
+        return view('gas-in.index', compact('gasIn', 'stats'));
     }
 
     public function create()
