@@ -99,7 +99,15 @@ class SkDataController extends Controller
             ]);
         }
 
-        return view('sk.index', compact('sk'));
+        // Calculate stats for initial page load (same logic as AJAX path)
+    $stats = [
+        'total' => $sk->total(),
+        'draft' => SkData::where('module_status', 'draft')->count(),
+        'ready' => SkData::where('module_status', 'tracer_review')->count(),
+        'completed' => SkData::where('module_status', 'completed')->count(),
+    ];
+
+    return view('sk.index', compact('sk', 'stats'));
     }
 
     public function create()
