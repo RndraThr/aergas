@@ -301,9 +301,14 @@
                                         </div>
                                     @elseif($photo->photo_url && !empty(trim($photo->photo_url)))
                                         @php
-                                            // Extract Google Drive file ID and use direct URL
                                             $imageUrl = $photo->photo_url;
                                             $fileId = null;
+                                            $isPdf = false;
+
+                                            // Check for PDF extension
+                                            if (str_contains(strtolower($imageUrl), '.pdf')) {
+                                                $isPdf = true;
+                                            }
 
                                             if (str_contains($imageUrl, 'drive.google.com')) {
                                                 // Extract file ID from various Google Drive URL formats
@@ -316,19 +321,41 @@
                                                 }
 
                                                 // Use Google's high-quality image URL (lh3.googleusercontent.com)
-                                                if ($fileId) {
+                                                if ($fileId && !$isPdf) {
                                                     $imageUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
+                                                } elseif ($fileId && $isPdf) {
+                                                    // For PDF, use preview link
+                                                    $imageUrl = "https://drive.google.com/file/d/{$fileId}/preview";
                                                 }
                                             }
                                         @endphp
-                                        <img src="{{ $imageUrl }}"
-                                             alt="{{ $photo->photo_field_name }}"
-                                             class="photo-preview w-full h-48 object-cover"
-                                             onclick="openPhotoModal('{{ $imageUrl }}')"
-                                             data-file-id="{{ $fileId }}"
-                                             data-original-url="{{ $photo->photo_url }}"
-                                             onerror="tryAlternativeUrls(this)"
-                                             loading="lazy">
+                                        
+                                        @if($isPdf)
+                                            <div class="relative group h-48">
+                                                <iframe src="{{ $imageUrl }}" 
+                                                        class="w-full h-full object-cover pointer-events-none"
+                                                        scrolling="no"></iframe>
+                                                
+                                                <!-- Overlay for click -->
+                                                <div class="absolute inset-0 bg-transparent cursor-pointer group-hover:bg-black group-hover:bg-opacity-10 transition-colors"
+                                                     onclick="openPhotoModal('{{ $imageUrl }}', true)">
+                                                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <span class="bg-red-600 text-white text-xs px-2 py-1 rounded shadow">
+                                                            <i class="fas fa-file-pdf mr-1"></i> PDF
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <img src="{{ $imageUrl }}"
+                                                 alt="{{ $photo->photo_field_name }}"
+                                                 class="photo-preview w-full h-48 object-cover"
+                                                 onclick="openPhotoModal('{{ $imageUrl }}')"
+                                                 data-file-id="{{ $fileId }}"
+                                                 data-original-url="{{ $photo->photo_url }}"
+                                                 onerror="tryAlternativeUrls(this)"
+                                                 loading="lazy">
+                                        @endif
                                     @else
                                         <div class="flex flex-col items-center justify-center h-48 text-gray-400">
                                             <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -618,7 +645,8 @@
             <i class="fas fa-times"></i>
         </button>
     </div>
-    <img id="modalPhoto" src="" alt="">
+    <img id="modalPhoto" src="" alt="" style="display: none;">
+    <iframe id="modalPdf" src="" style="display: none; width: 100%; height: 100%; border: none;"></iframe>
 </div>
 
 <!-- Replace Photo Modal -->
@@ -818,10 +846,43 @@ let isDragging = false;
 let startX, startY, translateX = 0, translateY = 0;
 
 // Photo modal functions
-function openPhotoModal(src) {
+function openPhotoModal(src, isPdf = false) {
     const img = document.getElementById('modalPhoto');
-    img.src = src;
-    document.getElementById('photoModal').style.display = 'block';
+    const pdf = document.getElementById('modalPdf');
+    
+    // Auto-detect if not explicitly passed
+    if (!isPdf && (src.toLowerCase().includes('.pdf') || src.includes('/preview'))) {
+        isPdf = true;
+    }
+
+    const modal = document.getElementById('photoModal');
+    modal.style.display = 'block';
+
+    if (isPdf) {
+        img.style.display = 'none';
+        pdf.src = src;
+        pdf.style.display = 'block';
+        // Hide zoom controls for PDF
+        document.querySelector('.photo-modal-controls').style.display = 'none';
+        
+        // Add close button specific for PDF if needed, or ensure global close works
+        // The global close button is within .photo-modal-controls, so we might need to separate it
+        // Let's just hide the zoom buttons but keep the close button
+        document.getElementById('zoomInBtn').style.display = 'none';
+        document.getElementById('zoomOutBtn').style.display = 'none';
+        document.getElementById('resetZoomBtn').style.display = 'none';
+        document.querySelector('.photo-modal-controls').style.display = 'flex';
+    } else {
+        pdf.style.display = 'none';
+        img.src = src;
+        img.style.display = 'block';
+        
+        // Show zoom controls for Image
+        document.getElementById('zoomInBtn').style.display = 'flex';
+        document.getElementById('zoomOutBtn').style.display = 'flex';
+        document.getElementById('resetZoomBtn').style.display = 'flex';
+        document.querySelector('.photo-modal-controls').style.display = 'flex';
+    }
 
     // Reset zoom
     zoomLevel = 1;
@@ -834,6 +895,8 @@ function openPhotoModal(src) {
 function closePhotoModal(event) {
     if (event) event.stopPropagation();
     document.getElementById('photoModal').style.display = 'none';
+    const pdf = document.getElementById('modalPdf');
+    pdf.src = ''; // Stop video/iframe loading
 
     // Reset state
     zoomLevel = 1;
