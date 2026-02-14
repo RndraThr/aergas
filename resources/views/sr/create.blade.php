@@ -291,14 +291,11 @@
               <!-- Preview PDF -->
               <template x-if="previews[ph.field] && isPdf(ph.field)">
                 <div class="relative">
-                  <div
-                    class="w-full h-40 bg-red-50 border border-red-200 rounded flex flex-col items-center justify-center text-red-600">
-                    <i class="fas fa-file-pdf text-3xl mb-2"></i>
-                    <span class="text-sm font-medium" x-text="pickedFiles[ph.field]?.name || 'PDF File'"></span>
-                  </div>
+                  <iframe :src="pdfBlobUrls[ph.field]" class="w-full h-40 rounded border shadow-sm bg-white"
+                    style="pointer-events: none;"></iframe>
                   <button type="button" @click.stop="previewPdf(ph.field)"
                     class="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded text-xs hover:bg-blue-600">
-                    <i class="fas fa-external-link-alt"></i>
+                    <i class="fas fa-eye"></i>
                   </button>
                   <button type="button" @click.stop="clearPick(ph.field)"
                     class="absolute top-2 left-2 bg-red-500 text-white p-1 rounded text-xs hover:bg-red-600">
@@ -384,29 +381,36 @@
     </form>
 
     <!-- Preview Modal -->
-    <div x-show="showPreviewModal" x-transition:enter="transition ease-out duration-300"
-      x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-      x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
-      x-transition:leave-end="opacity-0"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click="closePreviewModal()"
-      @keydown.escape.window="closePreviewModal()">
+    <template x-teleport="body">
+      <div x-show="showPreviewModal" x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-75"
+        @click="closePreviewModal()" @keydown.escape.window="closePreviewModal()">
 
-      <div class="max-w-4xl max-h-full p-4" @click.stop>
-        <div class="relative">
-          <img :src="previewImageSrc" :alt="previewImageLabel"
-            class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl">
+        <div class="max-w-5xl w-full max-h-full p-4" @click.stop>
+          <div class="relative">
+            <template x-if="!previewIsPdf">
+              <img :src="previewImageSrc" :alt="previewImageLabel"
+                class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl mx-auto">
+            </template>
+            <template x-if="previewIsPdf">
+              <iframe :src="previewPdfSrc" class="w-full rounded-lg shadow-2xl bg-white" style="height: 80vh;"></iframe>
+            </template>
 
-          <button type="button" @click="closePreviewModal()"
-            class="absolute top-4 right-4 bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-75 transition-all">
-            <i class="fas fa-times text-lg"></i>
-          </button>
-        </div>
+            <button type="button" @click="closePreviewModal()"
+              class="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all z-10">
+              <i class="fas fa-times text-lg"></i>
+            </button>
+          </div>
 
-        <div class="text-center mt-4 text-white">
-          <p class="text-lg font-medium" x-text="previewImageLabel"></p>
+          <div class="text-center mt-4 text-white">
+            <p class="text-lg font-medium" x-text="previewImageLabel"></p>
+          </div>
         </div>
       </div>
-    </div>
+    </template>
   </div>
 @endsection
 
@@ -446,6 +450,7 @@
 
         pickedFiles: {},
         previews: {},
+        pdfBlobUrls: {},
         isPdfMap: {},
         uploadStatuses: {},
         dragStates: {},
@@ -499,6 +504,10 @@
         },
 
         clearPick(field) {
+          if (this.pdfBlobUrls[field]) {
+            URL.revokeObjectURL(this.pdfBlobUrls[field]);
+            delete this.pdfBlobUrls[field];
+          }
           this.pickedFiles[field] = null;
           this.previews[field] = null;
           this.isPdfMap[field] = false;
@@ -510,11 +519,14 @@
         showPreviewModal: false,
         previewImageSrc: '',
         previewImageLabel: '',
+        previewIsPdf: false,
+        previewPdfSrc: '',
 
         previewImage(field) {
           if (this.previews[field] && !this.isPdf(field)) {
             this.previewImageSrc = this.previews[field];
             this.previewImageLabel = this.photoDefs.find(p => p.field === field)?.label || field;
+            this.previewIsPdf = false;
             this.showPreviewModal = true;
             document.body.style.overflow = 'hidden';
           }
@@ -522,6 +534,8 @@
 
         closePreviewModal() {
           this.showPreviewModal = false;
+          this.previewIsPdf = false;
+          this.previewPdfSrc = '';
           document.body.style.overflow = '';
         },
 
@@ -563,10 +577,13 @@
         },
 
         previewPdf(field) {
-          const file = this.pickedFiles[field];
-          if (file && file.type === 'application/pdf') {
-            const url = URL.createObjectURL(file);
-            window.open(url, '_blank');
+          const blobUrl = this.pdfBlobUrls[field];
+          if (blobUrl) {
+            this.previewPdfSrc = blobUrl;
+            this.previewImageLabel = this.photoDefs.find(p => p.field === field)?.label || field;
+            this.previewIsPdf = true;
+            this.showPreviewModal = true;
+            document.body.style.overflow = 'hidden';
           }
         },
 
@@ -641,6 +658,8 @@
             };
             reader.readAsDataURL(file);
           } else {
+            if (this.pdfBlobUrls[field]) URL.revokeObjectURL(this.pdfBlobUrls[field]);
+            this.pdfBlobUrls[field] = URL.createObjectURL(file);
             this.previews[field] = 'pdf-placeholder';
           }
 
