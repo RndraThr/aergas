@@ -51,16 +51,16 @@
         <div>
           <div class="text-xs text-gray-500">Status</div>
           <span class="px-2 py-0.5 rounded text-xs
-            @class([
-              'bg-gray-100 text-gray-700' => $sk->status === 'draft',
-              'bg-blue-100 text-blue-800' => $sk->status === 'ready_for_tracer',
-              'bg-yellow-100 text-yellow-800' => $sk->status === 'scheduled',
-              'bg-purple-100 text-purple-800' => $sk->status === 'tracer_approved',
-              'bg-amber-100 text-amber-800' => $sk->status === 'cgp_approved',
-              'bg-red-100 text-red-800' => str_contains($sk->status, 'rejected'),
-              'bg-green-100 text-green-800' => $sk->status === 'completed',
-            ])
-          ">{{ strtoupper($sk->status) }}</span>
+                @class([
+                  'bg-gray-100 text-gray-700' => $sk->status === 'draft',
+                  'bg-blue-100 text-blue-800' => $sk->status === 'ready_for_tracer',
+                  'bg-yellow-100 text-yellow-800' => $sk->status === 'scheduled',
+                  'bg-purple-100 text-purple-800' => $sk->status === 'tracer_approved',
+                  'bg-amber-100 text-amber-800' => $sk->status === 'cgp_approved',
+                  'bg-red-100 text-red-800' => str_contains($sk->status, 'rejected'),
+                  'bg-green-100 text-green-800' => $sk->status === 'completed',
+                ])
+              ">{{ strtoupper($sk->status) }}</span>
         </div>
       </div>
     </div>
@@ -162,17 +162,18 @@
               <div class="h-32 flex items-center justify-center bg-gray-50 rounded border-dashed border text-gray-400">Tidak
                 ada file</div>
             </template>
-            <template x-if="preview && !isPdf">
-              <img :src="preview" class="h-32 w-full object-cover rounded">
-            </template>
-            <template x-if="isPdf && pdfBlobUrl">
+            <template x-if="preview">
               <div class="relative">
-                <iframe :src="pdfBlobUrl" class="h-32 w-full rounded border bg-white"
-                  style="pointer-events: none;"></iframe>
-                <button type="button" @click.stop="window.open(pdfBlobUrl, '_blank')"
+                <img :src="preview" class="h-32 w-full object-cover rounded">
+                <template x-if="isPdf">
+                  <span class="absolute bottom-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded shadow z-10">
+                    <i class="fas fa-file-pdf mr-1"></i>PDF
+                  </span>
+                </template>
+                <button type="button" @click.stop="openPreview()"
                   class="absolute top-1 right-1 bg-blue-500 text-white p-1 rounded text-xs hover:bg-blue-600"
-                  title="Buka PDF fullscreen">
-                  <i class="fas fa-expand"></i>
+                  title="Preview">
+                  <i class="fas fa-eye"></i>
                 </button>
               </div>
             </template>
@@ -197,7 +198,7 @@
             </div>
 
             <div class="text-xs mt-2" :class="statusMsg?.includes('✓') ? 'text-green-600' :
-                          statusMsg?.includes('✗') ? 'text-red-600' : 'text-gray-500'" x-text="statusMsg"></div>
+                                  statusMsg?.includes('✗') ? 'text-red-600' : 'text-gray-500'" x-text="statusMsg"></div>
           </div>
         @endforeach
       </div>
@@ -217,11 +218,62 @@
         </div>
       </div>
     </div>
+
+    <!-- Preview Modal -->
+    <template x-teleport="body">
+      <div x-show="$store.previewModal.show" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-75"
+        @click="$store.previewModal.close()" @keydown.escape.window="$store.previewModal.close()">
+
+        <div class="max-w-5xl w-full max-h-full p-4 flex flex-col items-center" @click.stop>
+          <div class="relative inline-block">
+            <img :src="$store.previewModal.src" :alt="$store.previewModal.label"
+              class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl">
+
+            <button type="button" @click="$store.previewModal.close()"
+              class="absolute -top-3 -right-3 w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full hover:bg-red-600 transition-all z-10 shadow-lg">
+              <i class="fas fa-times text-sm"></i>
+            </button>
+          </div>
+
+          <div class="text-center mt-4 text-white">
+            <p class="text-lg font-medium" x-text="$store.previewModal.label"></p>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 @endsection
 
 @push('scripts')
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <script>
+    // Preview modal store
+    document.addEventListener('alpine:init', () => {
+      Alpine.store('previewModal', {
+        show: false,
+        src: '',
+        label: '',
+        open(src, label) {
+          this.src = src;
+          this.label = label;
+          this.show = true;
+          document.body.style.overflow = 'hidden';
+        },
+        close() {
+          this.show = false;
+          document.body.style.overflow = '';
+        }
+      });
+    });
     function skEdit() {
       return {
         createdBy: @json($sk->created_by ?? ''),
@@ -346,10 +398,38 @@
           } else {
             if (this.pdfBlobUrl) URL.revokeObjectURL(this.pdfBlobUrl);
             this.pdfBlobUrl = URL.createObjectURL(f);
-            this.preview = 'pdf';
+            this.generatePdfThumbnail(f);
           }
 
           this.statusMsg = 'File siap untuk diupload';
+        },
+
+        async generatePdfThumbnail(file) {
+          try {
+            if (typeof pdfjsLib === 'undefined') {
+              this.preview = 'pdf-placeholder';
+              return;
+            }
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            this.preview = canvas.toDataURL('image/png');
+          } catch (e) {
+            console.warn('PDF thumbnail generation failed:', e);
+            this.preview = 'pdf-placeholder';
+          }
+        },
+
+        openPreview() {
+          if (this.preview) {
+            Alpine.store('previewModal').open(this.preview, slot);
+          }
         },
 
         clearPick() {

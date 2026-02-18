@@ -305,8 +305,9 @@
                                             $fileId = null;
                                             $isPdf = false;
 
-                                            // Check for PDF extension
-                                            if (str_contains(strtolower($imageUrl), '.pdf')) {
+                                            // Check for PDF extension or mime type
+                                            $mimeType = $photo->mime_type ?? '';
+                                            if (stripos($mimeType, 'pdf') !== false || str_contains(strtolower($imageUrl), '.pdf')) {
                                                 $isPdf = true;
                                             }
 
@@ -320,30 +321,40 @@
                                                     $fileId = $matches[1];
                                                 }
 
-                                                // Use Google's high-quality image URL (lh3.googleusercontent.com)
-                                                if ($fileId && !$isPdf) {
-                                                    $imageUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
-                                                } elseif ($fileId && $isPdf) {
-                                                    // For PDF, use preview link
-                                                    $imageUrl = "https://drive.google.com/file/d/{$fileId}/preview";
+                                                // Use Google's high-quality image URL (lh3.googleusercontent.com) for Images
+                                                // Use Drive thumbnail for PDFs (because lh3 fails for PDFs)
+                                                if ($fileId) {
+                                                    if (!$isPdf) {
+                                                        $imageUrl = "https://lh3.googleusercontent.com/d/{$fileId}";
+                                                    } else {
+                                                        $imageUrl = "https://drive.google.com/thumbnail?id={$fileId}&sz=w1000";
+                                                    }
                                                 }
                                             }
                                         @endphp
                                         
                                         @if($isPdf)
+                                            @php
+                                                $pdfThumbnailUrl = $fileId ? "https://drive.google.com/thumbnail?id={$fileId}&sz=w400" : $imageUrl;
+                                            @endphp
                                             <div class="relative group h-48">
-                                                <iframe src="{{ $imageUrl }}" 
-                                                        class="w-full h-full object-cover pointer-events-none"
-                                                        scrolling="no"></iframe>
-                                                
-                                                <!-- Overlay for click -->
-                                                <div class="absolute inset-0 bg-transparent cursor-pointer group-hover:bg-black group-hover:bg-opacity-10 transition-colors"
-                                                     onclick="openPhotoModal('{{ $imageUrl }}', true)">
-                                                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <span class="bg-red-600 text-white text-xs px-2 py-1 rounded shadow">
-                                                            <i class="fas fa-file-pdf mr-1"></i> PDF
-                                                        </span>
-                                                    </div>
+                                                <img src="{{ $pdfThumbnailUrl }}"
+                                                     alt="{{ $photo->photo_field_name }}"
+                                                     class="photo-preview w-full h-48 object-cover"
+                                                     onclick="openPhotoModal('{{ $pdfThumbnailUrl }}')"
+                                                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.querySelector('.pdf-error-fallback').style.display='flex';"
+                                                     loading="lazy">
+
+                                                <span class="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded shadow z-10">
+                                                    <i class="fas fa-file-pdf mr-1"></i>PDF
+                                                </span>
+
+                                                <div class="pdf-error-fallback w-full h-48 bg-gray-100 rounded border-2 border-dashed border-gray-300 flex-col items-center justify-center text-gray-500 hidden">
+                                                    <i class="fas fa-file-pdf text-3xl mb-2 text-red-400"></i>
+                                                    <p class="text-xs text-center mb-2">PDF tidak dapat dimuat</p>
+                                                    <a href="{{ $photo->photo_url }}" target="_blank" class="text-xs text-blue-600 hover:underline">
+                                                        Buka di tab baru
+                                                    </a>
                                                 </div>
                                             </div>
                                         @else
@@ -353,7 +364,8 @@
                                                  onclick="openPhotoModal('{{ $imageUrl }}')"
                                                  data-file-id="{{ $fileId }}"
                                                  data-original-url="{{ $photo->photo_url }}"
-                                                 onerror="tryAlternativeUrls(this)"
+                                                 referrerpolicy="no-referrer"
+                                                 onerror="this.onerror=null; this.src='https://drive.google.com/thumbnail?id={{ $fileId }}&sz=w1000';"
                                                  loading="lazy">
                                         @endif
                                     @else
@@ -849,40 +861,21 @@ let startX, startY, translateX = 0, translateY = 0;
 function openPhotoModal(src, isPdf = false) {
     const img = document.getElementById('modalPhoto');
     const pdf = document.getElementById('modalPdf');
-    
-    // Auto-detect if not explicitly passed
-    if (!isPdf && (src.toLowerCase().includes('.pdf') || src.includes('/preview'))) {
-        isPdf = true;
-    }
 
     const modal = document.getElementById('photoModal');
     modal.style.display = 'block';
 
-    if (isPdf) {
-        img.style.display = 'none';
-        pdf.src = src;
-        pdf.style.display = 'block';
-        // Hide zoom controls for PDF
-        document.querySelector('.photo-modal-controls').style.display = 'none';
-        
-        // Add close button specific for PDF if needed, or ensure global close works
-        // The global close button is within .photo-modal-controls, so we might need to separate it
-        // Let's just hide the zoom buttons but keep the close button
-        document.getElementById('zoomInBtn').style.display = 'none';
-        document.getElementById('zoomOutBtn').style.display = 'none';
-        document.getElementById('resetZoomBtn').style.display = 'none';
-        document.querySelector('.photo-modal-controls').style.display = 'flex';
-    } else {
-        pdf.style.display = 'none';
-        img.src = src;
-        img.style.display = 'block';
-        
-        // Show zoom controls for Image
-        document.getElementById('zoomInBtn').style.display = 'flex';
-        document.getElementById('zoomOutBtn').style.display = 'flex';
-        document.getElementById('resetZoomBtn').style.display = 'flex';
-        document.querySelector('.photo-modal-controls').style.display = 'flex';
-    }
+    // Always show as image (thumbnail for PDFs, same as show pages)
+    pdf.style.display = 'none';
+    pdf.src = '';
+    img.src = src;
+    img.style.display = 'block';
+
+    // Show zoom controls
+    document.getElementById('zoomInBtn').style.display = 'flex';
+    document.getElementById('zoomOutBtn').style.display = 'flex';
+    document.getElementById('resetZoomBtn').style.display = 'flex';
+    document.querySelector('.photo-modal-controls').style.display = 'flex';
 
     // Reset zoom
     zoomLevel = 1;
