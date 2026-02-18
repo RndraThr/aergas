@@ -96,27 +96,27 @@
           <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status</div>
           <div>
             <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium
-                  @class([
-                    'bg-gray-100 text-gray-700 border border-gray-200' => $sk->status === 'draft',
-                    'bg-blue-100 text-blue-800 border border-blue-200' => $sk->status === 'ready_for_tracer',
-                    'bg-yellow-100 text-yellow-800 border border-yellow-200' => $sk->status === 'approved_scheduled',
-                    'bg-purple-100 text-purple-800 border border-purple-200' => $sk->status === 'tracer_approved',
-                    'bg-amber-100 text-amber-800 border border-amber-200' => $sk->status === 'cgp_approved',
-                    'bg-red-100 text-red-800 border border-red-200' => str_contains($sk->status, 'rejected'),
-                    'bg-green-100 text-green-800 border border-green-200' => $sk->status === 'completed',
-                  ])
-                ">
+                          @class([
+                            'bg-gray-100 text-gray-700 border border-gray-200' => $sk->status === 'draft',
+                            'bg-blue-100 text-blue-800 border border-blue-200' => $sk->status === 'ready_for_tracer',
+                            'bg-yellow-100 text-yellow-800 border border-yellow-200' => $sk->status === 'approved_scheduled',
+                            'bg-purple-100 text-purple-800 border border-purple-200' => $sk->status === 'tracer_approved',
+                            'bg-amber-100 text-amber-800 border border-amber-200' => $sk->status === 'cgp_approved',
+                            'bg-red-100 text-red-800 border border-red-200' => str_contains($sk->status, 'rejected'),
+                            'bg-green-100 text-green-800 border border-green-200' => $sk->status === 'completed',
+                          ])
+                        ">
               <div class="w-2 h-2 rounded-full mr-2
-                    @class([
-                      'bg-gray-400' => $sk->status === 'draft',
-                      'bg-blue-500' => $sk->status === 'ready_for_tracer',
-                      'bg-yellow-500' => $sk->status === 'approved_scheduled',
-                      'bg-purple-500' => $sk->status === 'tracer_approved',
-                      'bg-amber-500' => $sk->status === 'cgp_approved',
-                      'bg-red-500' => str_contains($sk->status, 'rejected'),
-                      'bg-green-500' => $sk->status === 'completed',
-                    ])
-                  "></div>
+                            @class([
+                              'bg-gray-400' => $sk->status === 'draft',
+                              'bg-blue-500' => $sk->status === 'ready_for_tracer',
+                              'bg-yellow-500' => $sk->status === 'approved_scheduled',
+                              'bg-purple-500' => $sk->status === 'tracer_approved',
+                              'bg-amber-500' => $sk->status === 'cgp_approved',
+                              'bg-red-500' => str_contains($sk->status, 'rejected'),
+                              'bg-green-500' => $sk->status === 'completed',
+                            ])
+                          "></div>
               {{ ucwords(str_replace('_', ' ', $sk->status)) }}
             </span>
           </div>
@@ -409,13 +409,13 @@
               <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status Customer</div>
               <div class="font-medium">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                            @class([
-                              'bg-green-100 text-green-800' => $sk->calonPelanggan->status === 'lanjut',
-                              'bg-yellow-100 text-yellow-800' => $sk->calonPelanggan->status === 'pending',
-                              'bg-gray-100 text-gray-800' => $sk->calonPelanggan->status === 'menunda',
-                              'bg-red-100 text-red-800' => $sk->calonPelanggan->status === 'batal',
-                            ])
-                          ">
+                                            @class([
+                                              'bg-green-100 text-green-800' => $sk->calonPelanggan->status === 'lanjut',
+                                              'bg-yellow-100 text-yellow-800' => $sk->calonPelanggan->status === 'pending',
+                                              'bg-gray-100 text-gray-800' => $sk->calonPelanggan->status === 'menunda',
+                                              'bg-red-100 text-red-800' => $sk->calonPelanggan->status === 'batal',
+                                            ])
+                                          ">
                   {{ ucfirst($sk->calonPelanggan->status) }}
                 </span>
               </div>
@@ -424,15 +424,15 @@
               <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Progress Status</div>
               <div class="font-medium">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                            @class([
-                              'bg-green-100 text-green-800' => $sk->calonPelanggan->progress_status === 'done',
-                              'bg-blue-100 text-blue-800' => $sk->calonPelanggan->progress_status === 'gas_in',
-                              'bg-purple-100 text-purple-800' => $sk->calonPelanggan->progress_status === 'sr',
-                              'bg-orange-100 text-orange-800' => $sk->calonPelanggan->progress_status === 'sk',
-                              'bg-yellow-100 text-yellow-800' => $sk->calonPelanggan->progress_status === 'validasi',
-                              'bg-gray-100 text-gray-800' => in_array($sk->calonPelanggan->progress_status, ['pending', 'batal']),
-                            ])
-                          ">
+                                            @class([
+                                              'bg-green-100 text-green-800' => $sk->calonPelanggan->progress_status === 'done',
+                                              'bg-blue-100 text-blue-800' => $sk->calonPelanggan->progress_status === 'gas_in',
+                                              'bg-purple-100 text-purple-800' => $sk->calonPelanggan->progress_status === 'sr',
+                                              'bg-orange-100 text-orange-800' => $sk->calonPelanggan->progress_status === 'sk',
+                                              'bg-yellow-100 text-yellow-800' => $sk->calonPelanggan->progress_status === 'validasi',
+                                              'bg-gray-100 text-gray-800' => in_array($sk->calonPelanggan->progress_status, ['pending', 'batal']),
+                                            ])
+                                          ">
                   {{ ucwords(str_replace('_', ' ', $sk->calonPelanggan->progress_status)) }}
                 </span>
               </div>
@@ -649,7 +649,7 @@
                   <div class="relative group photo-clickable" style="cursor: zoom-in;" data-photo-url="{{ $photoUrl }}"
                     data-photo-title="{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}">
                     <img src="{{ $photoUrl }}" class="w-full h-48 object-cover rounded border hover:opacity-90 transition-opacity"
-                      alt="Photo {{ $pa->photo_field_name }}" loading="lazy"
+                      alt="Photo {{ $pa->photo_field_name }}" loading="lazy" referrerpolicy="no-referrer"
                       onerror="this.onerror=null; this.src='{{ $originalUrl }}'; if(this.onerror) this.style.display='none'; this.nextElementSibling.style.display='block';">
 
                     <div
@@ -669,32 +669,36 @@
                 @else
                   @php
                     $pdfEmbedUrl = $originalUrl;
+                    $pdfThumbnailUrl = '';
                     if (strpos($originalUrl, 'drive.google.com') !== false && preg_match('/\/file\/d\/([a-zA-Z0-9-_]+)/', $originalUrl, $gdMatches)) {
                       $pdfEmbedUrl = "https://drive.google.com/file/d/{$gdMatches[1]}/preview";
+                      $pdfThumbnailUrl = "https://drive.google.com/thumbnail?id={$gdMatches[1]}&sz=w400";
                     }
                   @endphp
-                  <div class="relative group">
-                    <iframe src="{{ $pdfEmbedUrl }}" class="w-full h-48 rounded border bg-white" style="pointer-events: none;"
-                      loading="lazy"></iframe>
+                  <div class="relative group photo-clickable" style="cursor: zoom-in;" data-photo-url="{{ $pdfEmbedUrl }}"
+                    data-photo-is-pdf="true" data-photo-title="{{ $slotLabels[$pa->photo_field_name] ?? $pa->photo_field_name }}">
+                    <img src="{{ $pdfThumbnailUrl ?: $photoUrl }}"
+                      class="w-full h-48 object-cover rounded border hover:opacity-90 transition-opacity"
+                      alt="PDF {{ $pa->photo_field_name }}" loading="lazy"
+                      onerror="this.onerror=null; this.style.display='none'; this.parentElement.querySelector('.pdf-error-fallback').style.display='flex';">
+
+                    <span class="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded shadow z-10">
+                      <i class="fas fa-file-pdf mr-1"></i>PDF
+                    </span>
+
                     <div
-                      class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded flex items-center justify-center">
-                      <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                        <button type="button" onclick="openPdfFullscreen('{{ $pdfEmbedUrl }}')"
-                          class="bg-blue-600 text-white px-3 py-1.5 rounded text-xs hover:bg-blue-700 shadow">
-                          <i class="fas fa-expand mr-1"></i>Fullscreen
-                        </button>
-                        <a href="{{ $originalUrl }}" target="_blank"
-                          class="bg-gray-600 text-white px-3 py-1.5 rounded text-xs hover:bg-gray-700 shadow">
-                          <i class="fas fa-external-link-alt mr-1"></i>Tab Baru
-                        </a>
-                      </div>
+                      class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
+                      <i class="fas fa-search-plus text-white text-xl"></i>
                     </div>
-                  </div>
-                  <div class="text-center mt-1">
-                    <a href="{{ $originalUrl }}" target="_blank"
-                      class="text-xs text-gray-500 hover:text-blue-600 hover:underline">
-                      <i class="fas fa-external-link-alt mr-1"></i>PDF tidak tampil? Buka di tab baru
-                    </a>
+
+                    <div
+                      class="pdf-error-fallback w-full h-48 bg-gray-100 rounded border-2 border-dashed border-gray-300 flex-col items-center justify-center text-gray-500 hidden">
+                      <i class="fas fa-file-pdf text-3xl mb-2 text-red-400"></i>
+                      <p class="text-xs text-center mb-2">PDF tidak dapat dimuat</p>
+                      <a href="{{ $originalUrl }}" target="_blank" class="text-xs text-blue-600 hover:underline">
+                        Buka di tab baru
+                      </a>
+                    </div>
                   </div>
                 @endif
               @elseif(!$isUploaded)
@@ -805,7 +809,7 @@
         <i class="fas fa-times"></i>
       </button>
     </div>
-    <img id="modalImage" src="" alt=""
+    <img id="modalImage" src="" alt="" referrerpolicy="no-referrer"
       style="max-width: 90%; max-height: 90%; margin: auto; display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); cursor: zoom-in;">
   </div>
   <style>
@@ -1204,11 +1208,11 @@
       const overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:1rem;';
       overlay.innerHTML = `
-            <div style="position:relative;width:100%;max-width:1200px;height:90vh;">
-              <iframe src="${pdfUrl}" style="width:100%;height:100%;border-radius:8px;background:white;" allowfullscreen></iframe>
-              <button onclick="this.closest('div').parentElement.remove();document.body.style.overflow=''" 
-                      style="position:absolute;top:-12px;right:-12px;background:#333;color:white;border:none;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
-            </div>`;
+                    <div style="position:relative;width:100%;max-width:1200px;height:90vh;">
+                      <iframe src="${pdfUrl}" style="width:100%;height:100%;border-radius:8px;background:white;" allowfullscreen></iframe>
+                      <button onclick="this.closest('div').parentElement.remove();document.body.style.overflow=''" 
+                              style="position:absolute;top:-12px;right:-12px;background:#333;color:white;border:none;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+                    </div>`;
       overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); document.body.style.overflow = ''; } });
       document.body.style.overflow = 'hidden';
       document.body.appendChild(overlay);

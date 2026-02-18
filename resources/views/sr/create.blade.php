@@ -272,28 +272,17 @@
                 <p class="text-xs text-gray-500" x-text="`Accept: ${acceptString(ph.accept)}`"></p>
               </div>
 
-              <!-- Preview Image -->
-              <template x-if="previews[ph.field] && !isPdf(ph.field)">
+              <!-- Preview (Image or PDF thumbnail) -->
+              <template x-if="previews[ph.field]">
                 <div class="relative">
                   <img :src="previews[ph.field]" :alt="ph.label"
                     class="w-full h-40 object-cover rounded border shadow-sm">
-                  <button type="button" @click.stop="previewImage(ph.field)"
-                    class="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded text-xs hover:bg-blue-600">
-                    <i class="fas fa-eye"></i>
-                  </button>
-                  <button type="button" @click.stop="clearPick(ph.field)"
-                    class="absolute top-2 left-2 bg-red-500 text-white p-1 rounded text-xs hover:bg-red-600">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </template>
-
-              <!-- Preview PDF -->
-              <template x-if="previews[ph.field] && isPdf(ph.field)">
-                <div class="relative">
-                  <iframe :src="pdfBlobUrls[ph.field]" class="w-full h-40 rounded border shadow-sm bg-white"
-                    style="pointer-events: none;"></iframe>
-                  <button type="button" @click.stop="previewPdf(ph.field)"
+                  <template x-if="isPdf(ph.field)">
+                    <span class="absolute bottom-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded shadow z-10">
+                      <i class="fas fa-file-pdf mr-1"></i>PDF
+                    </span>
+                  </template>
+                  <button type="button" @click.stop="isPdf(ph.field) ? previewPdf(ph.field) : previewImage(ph.field)"
                     class="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded text-xs hover:bg-blue-600">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -389,19 +378,19 @@
         class="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-75"
         @click="closePreviewModal()" @keydown.escape.window="closePreviewModal()">
 
-        <div class="max-w-5xl w-full max-h-full p-4" @click.stop>
-          <div class="relative">
+        <div class="max-w-5xl w-full max-h-full p-4 flex flex-col items-center" @click.stop>
+          <div class="relative inline-block">
             <template x-if="!previewIsPdf">
               <img :src="previewImageSrc" :alt="previewImageLabel"
-                class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl mx-auto">
+                class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl">
             </template>
             <template x-if="previewIsPdf">
               <iframe :src="previewPdfSrc" class="w-full rounded-lg shadow-2xl bg-white" style="height: 80vh;"></iframe>
             </template>
 
             <button type="button" @click="closePreviewModal()"
-              class="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all z-10">
-              <i class="fas fa-times text-lg"></i>
+              class="absolute -top-3 -right-3 w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full hover:bg-red-600 transition-all z-10 shadow-lg">
+              <i class="fas fa-times text-sm"></i>
             </button>
           </div>
 
@@ -415,6 +404,12 @@
 @endsection
 
 @push('scripts')
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
   <script>
     function srCreate() {
       return {
@@ -467,6 +462,28 @@
 
         isPdf(field) {
           return !!this.isPdfMap[field];
+        },
+
+        async generatePdfThumbnail(file, field) {
+          try {
+            if (typeof pdfjsLib === 'undefined') {
+              this.previews[field] = 'pdf-placeholder';
+              return;
+            }
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            this.previews[field] = canvas.toDataURL('image/png');
+          } catch (e) {
+            console.warn('PDF thumbnail generation failed:', e);
+            this.previews[field] = 'pdf-placeholder';
+          }
         },
 
         reffMsgClass() {
@@ -577,11 +594,10 @@
         },
 
         previewPdf(field) {
-          const blobUrl = this.pdfBlobUrls[field];
-          if (blobUrl) {
-            this.previewPdfSrc = blobUrl;
+          if (this.previews[field]) {
+            this.previewImageSrc = this.previews[field];
             this.previewImageLabel = this.photoDefs.find(p => p.field === field)?.label || field;
-            this.previewIsPdf = true;
+            this.previewIsPdf = false;
             this.showPreviewModal = true;
             document.body.style.overflow = 'hidden';
           }
@@ -660,7 +676,7 @@
           } else {
             if (this.pdfBlobUrls[field]) URL.revokeObjectURL(this.pdfBlobUrls[field]);
             this.pdfBlobUrls[field] = URL.createObjectURL(file);
-            this.previews[field] = 'pdf-placeholder';
+            this.generatePdfThumbnail(file, field);
           }
 
           this.uploadStatuses[field] = 'File siap untuk diupload';
@@ -715,7 +731,9 @@
             reader.onload = () => this.previews[field] = reader.result;
             reader.readAsDataURL(file);
           } else {
-            this.previews[field] = null;
+            if (this.pdfBlobUrls[field]) URL.revokeObjectURL(this.pdfBlobUrls[field]);
+            this.pdfBlobUrls[field] = URL.createObjectURL(file);
+            this.generatePdfThumbnail(file, field);
           }
 
           this.uploadStatuses[field] = 'File siap untuk diupload';
