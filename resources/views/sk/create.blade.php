@@ -24,7 +24,7 @@
         ['field' => 'pneumatic_finish', 'label' => 'Foto Pneumatic FINISH SK', 'accept' => ['image/*']],
         ['field' => 'valve', 'label' => 'Foto Valve SK', 'accept' => ['image/*']],
         ['field' => 'isometrik_scan', 'label' => 'Scan Isometrik SK (TTD lengkap)', 'accept' => ['image/*', 'application/pdf']],
-        ['field' => 'berita_acara', 'label' => 'Berita Acara', 'accept' => ['image/*']],
+        ['field' => 'berita_acara', 'label' => 'Berita Acara', 'accept' => ['image/*', 'application/pdf']],
       ];
     }
 
@@ -283,11 +283,11 @@
             <div
               class="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 hover:bg-gray-100 cursor-pointer min-h-[250px]"
               :class="[
-                                  dragStates[ph.field] ? 'border-blue-400 bg-blue-50 scale-105' : '',
-                                  (photoDefs.length % 2 === 1 && i === photoDefs.length - 1)
-                                    ? 'md:col-span-2 md:justify-self-center md:w-[calc(50%-0.75rem)]'
-                                    : ''
-                                ]" @click="openFileDialog(ph.field)" @dragover.prevent="setDragging(ph.field, true)"
+                                    dragStates[ph.field] ? 'border-blue-400 bg-blue-50 scale-105' : '',
+                                    (photoDefs.length % 2 === 1 && i === photoDefs.length - 1)
+                                      ? 'md:col-span-2 md:justify-self-center md:w-[calc(50%-0.75rem)]'
+                                      : ''
+                                  ]" @click="openFileDialog(ph.field)" @dragover.prevent="setDragging(ph.field, true)"
               @dragleave.prevent="setDragging(ph.field, false)" @drop.prevent="handleDrop($event, ph.field)">
 
               <!-- Hidden file input -->
