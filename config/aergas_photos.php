@@ -5,7 +5,7 @@ return [
     // File upload limits
     'limits' => [
         'max_bytes' => (int) env('PHOTO_MAX_SIZE_BYTES', 35840 * 1024), // 35MB
-        'allowed_mime_types' => ['image/jpeg','image/png','image/jpg','image/webp','application/pdf'],
+        'allowed_mime_types' => ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf'],
     ],
 
     // File naming pattern
@@ -16,8 +16,8 @@ return [
     // AI Validation thresholds
     'ai_thresholds' => [
         'auto_pass_score' => 85,    // Score >= 85% = auto pass
-        'warning_score'   => 70,    // Score 70-84% = warning (masih bisa submit)
-        'reject_score'    => 50,    // Score < 50% = strong warning (tetap bisa submit tapi perlu review)
+        'warning_score' => 70,    // Score 70-84% = warning (masih bisa submit)
+        'reject_score' => 50,    // Score < 50% = strong warning (tetap bisa submit tapi perlu review)
     ],
 
     // Approval settings
@@ -134,7 +134,7 @@ return [
                 ],
                 'berita_acara' => [
                     'label' => 'Scan Berita Acara',
-                    'accept' => ['image/*'],
+                    'accept' => ['image/*', 'application/pdf'],
                     'required' => true,
                     'prompt' => 'Analisis dokumen berita acara dengan penilaian SKOR (0-100):
 
@@ -159,9 +159,9 @@ return [
 
             'score_messages' => [
                 'excellent' => 'Foto sangat baik dan memenuhi semua kriteria',
-                'good'      => 'Foto baik dan dapat diterima',
-                'warning'   => 'Foto dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
-                'poor'      => 'Foto masih dapat diproses namun sangat disarankan untuk diperbaiki',
+                'good' => 'Foto baik dan dapat diterima',
+                'warning' => 'Foto dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
+                'poor' => 'Foto masih dapat diproses namun sangat disarankan untuk diperbaiki',
             ]
         ],
 
@@ -310,9 +310,9 @@ return [
 
             'score_messages' => [
                 'excellent' => 'Foto sangat baik dan memenuhi semua kriteria SR',
-                'good'      => 'Foto baik dan dapat diterima untuk SR',
-                'warning'   => 'Foto dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
-                'poor'      => 'Foto masih dapat diproses namun sangat disarankan untuk diperbaiki',
+                'good' => 'Foto baik dan dapat diterima untuk SR',
+                'warning' => 'Foto dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
+                'poor' => 'Foto masih dapat diproses namun sangat disarankan untuk diperbaiki',
             ]
         ],
 
@@ -422,9 +422,9 @@ return [
 
             'score_messages' => [
                 'excellent' => 'Foto sangat baik dan memenuhi semua kriteria Gas In',
-                'good'      => 'Foto baik dan dapat diterima untuk Gas In',
-                'warning'   => 'Foto dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
-                'poor'      => 'Foto masih dapat diproses namun sangat disarankan untuk diperbaiki',
+                'good' => 'Foto baik dan dapat diterima untuk Gas In',
+                'warning' => 'Foto dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
+                'poor' => 'Foto masih dapat diproses namun sangat disarankan untuk diperbaiki',
             ]
         ],
 
@@ -484,9 +484,9 @@ return [
 
             'score_messages' => [
                 'excellent' => 'Foto evidence lowering sangat baik dan memenuhi semua kriteria',
-                'good'      => 'Foto evidence lowering baik dan dapat diterima',
-                'warning'   => 'Foto evidence dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
-                'poor'      => 'Foto evidence masih dapat diproses namun sangat disarankan untuk diperbaiki',
+                'good' => 'Foto evidence lowering baik dan dapat diterima',
+                'warning' => 'Foto evidence dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
+                'poor' => 'Foto evidence masih dapat diproses namun sangat disarankan untuk diperbaiki',
             ]
         ],
 
@@ -523,9 +523,9 @@ return [
 
             'score_messages' => [
                 'excellent' => 'Foto evidence joint sangat baik dan memenuhi semua kriteria',
-                'good'      => 'Foto evidence joint baik dan dapat diterima',
-                'warning'   => 'Foto evidence dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
-                'poor'      => 'Foto evidence masih dapat diproses namun sangat disarankan untuk diperbaiki',
+                'good' => 'Foto evidence joint baik dan dapat diterima',
+                'warning' => 'Foto evidence dapat diterima namun ada beberapa elemen yang perlu diperbaiki',
+                'poor' => 'Foto evidence masih dapat diproses namun sangat disarankan untuk diperbaiki',
             ]
         ],
 
