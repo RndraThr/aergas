@@ -319,7 +319,8 @@
                 <tr>
                     <td class="info-label">Tanggal Pemasangan</td>
                     <td class="info-value">{{ $tanggal_indonesia['day'] }} {{ $tanggal_indonesia['month'] }}
-                        {{ $tanggal_indonesia['year'] }}</td>
+                        {{ $tanggal_indonesia['year'] }}
+                    </td>
                 </tr>
             </table>
         </div>
@@ -381,7 +382,7 @@
     <div class="footer-wrapper">
         <div class="footer-text">
             Terima kasih atas kepercayaan Saudara kepada kami,<br>
-            <span class="footer-company">PT Perusahaan Gas Negara Tbk.</span>
+            <span class="footer-company">PT Perusahaan Gas Negara (Persero) Tbk.</span>
         </div>
     </div>
 </body>
