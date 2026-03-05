@@ -364,11 +364,17 @@
                                 class="fas fa-search w-5 mr-3 text-lg {{ request()->routeIs('approvals.tracer.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                             <span class="flex-1 text-left">Tracer Review</span>
                             @php
-                                $pendingTracer = \App\Models\PhotoApproval::whereIn('photo_status', ['tracer_pending', 'draft'])->count();
+                                $pendingTracerCust = \App\Models\PhotoApproval::whereIn('photo_status', ['tracer_pending', 'draft'])
+                                    ->whereNotIn('module_name', ['jalur_lowering', 'jalur_joint'])
+                                    ->count();
+                                $pendingTracerJalur = \App\Models\PhotoApproval::whereIn('photo_status', ['tracer_pending', 'draft'])
+                                    ->whereIn('module_name', ['jalur_lowering', 'jalur_joint'])
+                                    ->count();
+                                $pendingTracerTotal = $pendingTracerCust + $pendingTracerJalur;
                             @endphp
-                            @if($pendingTracer > 0)
+                            @if($pendingTracerTotal > 0)
                                 <span
-                                    class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mr-2">{{ $pendingTracer }}</span>
+                                    class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mr-2">{{ $pendingTracerTotal }}</span>
                             @endif
                             <svg class="w-5 h-5 transition-transform duration-200" :class="{ 'rotate-180': tracerOpen }"
                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -387,12 +393,20 @@
                             <a href="{{ route('approvals.tracer.customers') }}"
                                 class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.tracer.customers') || request()->routeIs('approvals.tracer.customer-photos') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                                 <i class="fas fa-users w-5 mr-3 text-sm"></i>
-                                Calon Pelanggan (SK, SR, Gas In)
+                                <span class="flex-1">Calon Pelanggan (SK, SR, Gas In)</span>
+                                @if(isset($pendingTracerCust) && $pendingTracerCust > 0)
+                                    <span
+                                        class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full ml-auto">{{ $pendingTracerCust }}</span>
+                                @endif
                             </a>
                             <a href="{{ route('approvals.tracer.jalur.clusters') }}"
                                 class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.tracer.jalur.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                                 <i class="fas fa-road w-5 mr-3 text-sm"></i>
-                                Jalur (Lowering, Joint)
+                                <span class="flex-1">Jalur (Lowering, Joint)</span>
+                                @if(isset($pendingTracerJalur) && $pendingTracerJalur > 0)
+                                    <span
+                                        class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full ml-auto">{{ $pendingTracerJalur }}</span>
+                                @endif
                             </a>
                         </div>
                     </div>
@@ -408,11 +422,17 @@
                                 class="fas fa-clipboard-check w-5 mr-3 text-lg {{ request()->routeIs('approvals.cgp.*') ? 'text-aergas-orange' : 'text-gray-400 group-hover:text-gray-600' }}"></i>
                             <span class="flex-1 text-left">CGP Review</span>
                             @php
-                                $pendingCgp = \App\Models\PhotoApproval::whereIn('photo_status', ['cgp_pending', 'tracer_approved'])->count();
+                                $pendingCgpCust = \App\Models\PhotoApproval::whereIn('photo_status', ['cgp_pending', 'tracer_approved'])
+                                    ->whereNotIn('module_name', ['jalur_lowering', 'jalur_joint'])
+                                    ->count();
+                                $pendingCgpJalur = \App\Models\PhotoApproval::whereIn('photo_status', ['cgp_pending', 'tracer_approved'])
+                                    ->whereIn('module_name', ['jalur_lowering', 'jalur_joint'])
+                                    ->count();
+                                $pendingCgpTotal = $pendingCgpCust + $pendingCgpJalur;
                             @endphp
-                            @if($pendingCgp > 0)
+                            @if($pendingCgpTotal > 0)
                                 <span
-                                    class="bg-green-500 text-white text-xs px-2 py-1 rounded-full mr-2">{{ $pendingCgp }}</span>
+                                    class="bg-green-500 text-white text-xs px-2 py-1 rounded-full mr-2">{{ $pendingCgpTotal }}</span>
                             @endif
                             <svg class="w-5 h-5 transition-transform duration-200" :class="{ 'rotate-180': cgpOpen }"
                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -431,12 +451,20 @@
                             <a href="{{ route('approvals.cgp.customers') }}"
                                 class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.cgp.customers') || request()->routeIs('approvals.cgp.customer-photos') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                                 <i class="fas fa-users w-5 mr-3 text-sm"></i>
-                                Calon Pelanggan (SK, SR, Gas In)
+                                <span class="flex-1">Calon Pelanggan (SK, SR, Gas In)</span>
+                                @if(isset($pendingCgpCust) && $pendingCgpCust > 0)
+                                    <span
+                                        class="bg-green-500 text-white text-xs px-2 py-1 rounded-full ml-auto">{{ $pendingCgpCust }}</span>
+                                @endif
                             </a>
                             <a href="{{ route('approvals.cgp.jalur.clusters') }}"
                                 class="flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200 {{ request()->routeIs('approvals.cgp.jalur.*') ? 'text-aergas-orange bg-aergas-orange/10' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                                 <i class="fas fa-road w-5 mr-3 text-sm"></i>
-                                Jalur (Lowering, Joint)
+                                <span class="flex-1">Jalur (Lowering, Joint)</span>
+                                @if(isset($pendingCgpJalur) && $pendingCgpJalur > 0)
+                                    <span
+                                        class="bg-green-500 text-white text-xs px-2 py-1 rounded-full ml-auto">{{ $pendingCgpJalur }}</span>
+                                @endif
                             </a>
                         </div>
                     </div>
