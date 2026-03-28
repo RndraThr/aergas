@@ -218,15 +218,18 @@
 
 
 
-    {{-- Rejection Popup --}}
+    {{-- Rejection Popup Container (Fixed Position) --}}
     <div id="rejection-popup-container"
       class="hidden fixed w-96 bg-white border border-red-200 rounded-lg shadow-xl z-[9999] max-h-96 overflow-y-auto"
       onmouseenter="keepPopupOpen(window.currentSrId)" onmouseleave="hideRejectionPopup(window.currentSrId)">
-      <div class="sticky top-0 bg-red-50 px-3 py-2 border-b border-red-200">
-        <h3 class="text-xs font-semibold text-red-800">Rejection Details</h3>
+      <div class="p-3 bg-red-50 border-b border-red-200 flex items-center gap-2">
+        <i class="fas fa-exclamation-circle text-red-600"></i>
+        <span class="font-semibold text-sm text-gray-900" id="rejection-popup-title">Rejection(s)</span>
       </div>
-      <div id="rejection-popup-content" class="p-3">
-        <!-- Content loaded via JS -->
+      <div class="p-3" id="rejection-popup-content">
+        <div class="flex items-center justify-center py-4 text-xs text-gray-500">
+          <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+        </div>
       </div>
     </div>
 
@@ -566,57 +569,69 @@
         window.currentSrId = null;
 
         function showRejectionPopup(srId, triggerElement) {
-          // Clear any existing timer
           if (hideTimers[srId]) {
             clearTimeout(hideTimers[srId]);
             delete hideTimers[srId];
           }
 
           const popup = document.getElementById('rejection-popup-container');
-          const contentEl = document.getElementById('rejection-popup-content');
-
           if (!popup) return;
 
-          // Store current SR ID globally
           window.currentSrId = srId;
 
-          // Get trigger position
+          // --- KUNCI PERBAIKAN: Ukur tinggi popup yang sebenarnya ---
+          // 1. Hapus kelas 'hidden' agar bisa diukur, tapi sembunyikan dengan cara lain
+          popup.classList.remove('hidden');
+          popup.style.visibility = 'hidden'; // Buat tidak terlihat tapi tetap memakan ruang
+          popup.style.top = '-9999px';      // Pindahkan ke luar layar sementara
+
+          // 2. Ambil tinggi sebenarnya setelah konten dimuat (atau dari cache)
+          const actualPopupHeight = popup.offsetHeight;
+
+          // 3. Kembalikan style, kita sudah dapat ukurannya
+          popup.style.visibility = '';
+          popup.style.top = '';
+          popup.classList.add('hidden'); // Sembunyikan lagi sebelum diposisikan
+
+          // Ambil info posisi dan ukuran yang dibutuhkan
           const triggerRect = triggerElement.getBoundingClientRect();
-          const popupHeight = 400;
-          const viewportHeight = window.innerHeight;
+          const popupWidth = popup.offsetWidth;
           const viewportWidth = window.innerWidth;
+          const viewportHeight = window.innerHeight;
+          const spacing = 12; // Jarak popup dari ikon
 
-          // Calculate horizontal position (position to the right of trigger)
-          let leftPos = triggerRect.right + 8; // 8px spacing from trigger
-          // Ensure popup doesn't overflow right edge
-          if (leftPos + 384 > viewportWidth) {
-            leftPos = triggerRect.left - 384 - 8; // Show on left side if no space on right
+          // --- LOGIKA POSISI FINAL ---
+
+          // 1. Tentukan Posisi Horizontal
+          let leftPos = triggerRect.right + spacing;
+          if (leftPos + popupWidth > viewportWidth - spacing) {
+            leftPos = triggerRect.left - popupWidth - spacing;
           }
 
-          // Calculate vertical position (align with trigger top)
-          let topPos = triggerRect.top;
+          // 2. Tentukan Posisi Vertikal (dengan tinggi yang akurat)
+          let topPos = triggerRect.top; // Default: Buka ke bawah (sejajar atas)
 
-          // Adjust if popup would overflow bottom
-          if (topPos + popupHeight > viewportHeight) {
-            topPos = viewportHeight - popupHeight - 20;
+          // Cek apakah mentok bawah, menggunakan TINGGI SEBENARNYA
+          if (topPos + actualPopupHeight > viewportHeight - spacing) {
+            // Jika mentok: Buka ke atas (sejajarkan bagian bawah popup dengan bagian bawah ikon)
+            topPos = triggerRect.bottom - actualPopupHeight;
           }
 
-          // Adjust if popup would overflow top
-          if (topPos < 20) {
-            topPos = 20;
+          // Koreksi akhir agar tidak keluar dari atas layar
+          if (topPos < spacing) {
+            topPos = spacing;
           }
 
-          // Position popup
+          // Terapkan posisi dan tampilkan popup
           popup.style.left = `${leftPos}px`;
           popup.style.top = `${topPos}px`;
           popup.classList.remove('hidden');
 
-          // Load data if not loaded yet
-          if (!loadedRejections.has(srId)) {
-            // Reset content
-            contentEl.innerHTML = '<div class="flex items-center justify-center py-4 text-xs text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
-            loadRejectionPopup(srId);
-          }
+          // Muat data
+          const contentEl = document.getElementById('rejection-popup-content');
+          contentEl.innerHTML = '<div class="flex items-center justify-center py-4 text-xs text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
+          loadedRejections.delete(srId);
+          loadRejectionPopup(srId);
         }
 
         function hideRejectionPopup(srId) {
@@ -654,6 +669,9 @@
 
             const data = await response.json();
 
+            // Prevent race condition: only update if we are still hovering on this item
+            if (window.currentSrId !== srId) return;
+
             if (data.success && data.rejections && data.rejections.length > 0) {
               let html = '<div class="space-y-2">';
 
@@ -684,6 +702,7 @@
             }
           } catch (error) {
             console.error('Error loading rejection details:', error);
+            if (window.currentSrId !== srId) return;
             contentDiv.innerHTML = '<div class="text-xs text-red-500 text-center py-2">Failed to load</div>';
           }
         }

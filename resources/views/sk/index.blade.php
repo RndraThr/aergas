@@ -683,6 +683,9 @@
 
           const data = await response.json();
 
+          // Prevent race condition: only update if we are still hovering on this item
+          if (window.currentSkId !== skId) return;
+
           if (data.success && data.rejections && data.rejections.length > 0) {
             let html = '<div class="space-y-2">';
 
@@ -713,6 +716,7 @@
           }
         } catch (error) {
           console.error('Error loading rejection details:', error);
+          if (window.currentSkId !== skId) return;
           contentDiv.innerHTML = '<div class="text-xs text-red-500 text-center py-2">Failed to load</div>';
         }
       }
