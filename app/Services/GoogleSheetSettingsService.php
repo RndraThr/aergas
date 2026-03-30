@@ -66,7 +66,7 @@ class GoogleSheetSettingsService
     {
         $this->updateSettings([
             'last_synced_at' => now()->toDateTimeString(),
-            'status_message' => 'Sinkronisasi otomatis berhasil (' . now()->format('H:i') . ')'
+            'status_message' => 'Sinkronisasi otomatis berhasil (' . now()->timezone('Asia/Jakarta')->format('H:i') . ' WIB)'
         ]);
     }
 
@@ -76,7 +76,7 @@ class GoogleSheetSettingsService
     public function markSyncFailed(string $error): void
     {
         $this->updateSettings([
-            'status_message' => 'Gagal: ' . substr($error, 0, 50)
+            'status_message' => 'Gagal (' . now()->timezone('Asia/Jakarta')->format('H:i') . ' WIB): ' . substr($error, 0, 50)
         ]);
     }
 
@@ -90,6 +90,8 @@ class GoogleSheetSettingsService
             'sheet_name' => config('services.google_sheets.range') ? explode('!', config('services.google_sheets.range'))[0] : 'Recap AERGAS',
             'start_row' => 5,
             'auto_sync_enabled' => false,
+            'sync_mode' => 'interval',
+            'sync_time' => '00:00',
             'sync_interval_minutes' => 60,
             'last_synced_at' => null,
             'status_message' => 'Belum pernah sinkronisasi otomatis'
