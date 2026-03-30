@@ -46,17 +46,19 @@ class AutoSyncGoogleSheets extends Command
 
         if ($syncMode === 'daily') {
             $targetTime = $settings['sync_time'] ?? '00:00';
-            $currentTime = now()->timezone('Asia/Jakarta')->format('H:i');
+            $now = now()->timezone('Asia/Jakarta');
             
-            // Match the strict string '15:24' to '15:24'. 
-            // The cron triggers precisely every real-word minute boundary automatically keeping this exact.
-            if ($currentTime !== $targetTime) {
+            // 1. Is it too early in the day?
+            if ($now->format('H:i') < $targetTime) {
                 return 0; // Skip
             }
 
-            // Fallback safety to prevent absolute redundant triggering within identical 60-seconds tick
-            if ($lastSynced && $lastSynced->timezone('Asia/Jakarta')->format('Y-m-d H:i') === now()->timezone('Asia/Jakarta')->format('Y-m-d H:i')) {
-                return 0; // Already shot during this exact minute frame
+            // 2. We reached the target time. Did we already sync today *after* that target?
+            if ($lastSynced) {
+                $lastSyncedJkt = $lastSynced->copy()->timezone('Asia/Jakarta');
+                if ($lastSyncedJkt->isSameDay($now) && $lastSyncedJkt->format('H:i') >= $targetTime) {
+                    return 0; // Already synced today exactly on schedule
+                }
             }
         } else {
             // Standard Interval Mode logic
