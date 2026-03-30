@@ -217,6 +217,15 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                     return view('info.phpinfo');
                 });
             });
+
+            // Google Sheets Sync Routes
+            Route::prefix('sync-sheets')
+                ->name('sync-sheets.')
+                ->group(function () {
+                Route::get('/', [\App\Http\Controllers\Web\SystemToSheetSyncController::class, 'index'])->name('index');
+                Route::post('/update-settings', [\App\Http\Controllers\Web\SystemToSheetSyncController::class, 'updateSettings'])->name('settings.update');
+                Route::post('/sync', [\App\Http\Controllers\Web\SystemToSheetSyncController::class, 'sync'])->name('sync');
+            });
         });
 
     // Customer Routes
