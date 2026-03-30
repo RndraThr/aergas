@@ -180,33 +180,60 @@
                             <!-- Automation Settings -->
                             <h3 class="text-sm font-bold text-gray-700 mb-4"><i class="fas fa-robot mr-2"></i> Pengaturan Otomatisasi (Cron Job)</h3>
                             
-                            <div class="bg-gray-50 p-5 rounded-lg border border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                <!-- Auto Sync Toggle -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-3">
-                                        Status Auto-Sync Background
-                                    </label>
-                                    <label class="inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" name="auto_sync_enabled" class="sr-only peer" {{ ($settings['auto_sync_enabled'] ?? false) ? 'checked' : '' }}>
-                                        <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                        <span class="ms-3 text-sm font-semibold text-gray-700 peer-checked:text-blue-600">Terjadwal Aktif</span>
-                                    </label>
-                                </div>
+                            <!-- Toggle On/Off -->
+                            <div class="mb-5">
+                                <label class="block text-sm font-medium text-gray-700 mb-3">
+                                    Status Auto-Sync Background
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="auto_sync_enabled" class="sr-only peer" {{ ($settings['auto_sync_enabled'] ?? false) ? 'checked' : '' }}>
+                                    <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    <span class="ms-3 text-sm font-semibold text-gray-700 peer-checked:text-blue-600">Scheduler Sistem Aktif</span>
+                                </label>
+                            </div>
 
-                                <!-- Interval -->
+                            <!-- Advanced Modes -->
+                            <div class="bg-gray-50 p-5 rounded-lg border border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                
+                                <!-- Mode Selector -->
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                                        Durasi Delay / Peluang Tembak (Menit)
+                                        Mode Target Dieksekusi
+                                    </label>
+                                    <div class="relative">
+                                        <select name="sync_mode" id="sync_mode" class="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all text-sm font-semibold text-gray-700">
+                                            <option value="interval" {{ ($settings['sync_mode'] ?? 'interval') === 'interval' ? 'selected' : '' }}>Secara Berulang (Interval)</option>
+                                            <option value="daily" {{ ($settings['sync_mode'] ?? 'interval') === 'daily' ? 'selected' : '' }}>Satu Kali Sehari (Waktu Tetap)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Dynamic Input Field 1: Interval -->
+                                <div id="interval_wrapper" class="{{ ($settings['sync_mode'] ?? 'interval') === 'interval' ? '' : 'hidden' }}">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Durasi Delay Per Eksekusi
                                     </label>
                                     <div class="relative">
                                         <input type="number" name="sync_interval_minutes" value="{{ $settings['sync_interval_minutes'] ?? 60 }}" required min="1"
                                             class="w-full pl-4 pr-16 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm text-right">
                                         <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                                            <span class="text-gray-500 text-sm">Menit</span>
+                                            <span class="text-gray-500 text-sm font-medium">Menit</span>
                                         </div>
                                     </div>
-                                    <p class="mt-1 text-xs text-gray-500 text-right">Misal: 60 untuk dieksekusi setiap kurang lebih 1 jam.</p>
                                 </div>
+
+                                <!-- Dynamic Input Field 2: Daily Time -->
+                                <div id="time_wrapper" class="{{ ($settings['sync_mode'] ?? 'interval') === 'daily' ? '' : 'hidden' }}">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Pada Jam Berapa Tepatnya?
+                                    </label>
+                                    <div class="relative">
+                                        <input type="time" name="sync_time" value="{{ $settings['sync_time'] ?? '00:00' }}" required
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm">
+                                    </div>
+                                    <p class="text-xs text-blue-500 mt-1"><i class="fas fa-info-circle"></i> Mengikuti Waktu Indonesia Barat (WIB)</p>
+                                </div>
+
                             </div>
 
                             <!-- Action Button always at bottom -->
@@ -251,6 +278,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Loading Overlay Trigger
             const form = document.getElementById('syncForm');
             const overlay = document.getElementById('loadingOverlay');
 
@@ -266,6 +294,23 @@
                             btn.disabled = true;
                         }
                         setTimeout(() => this.submit(), 50);
+                    }
+                });
+            }
+
+            // Sync Mode Toggle Logic
+            const syncModeSelect = document.getElementById('sync_mode');
+            const intervalWrapper = document.getElementById('interval_wrapper');
+            const timeWrapper = document.getElementById('time_wrapper');
+
+            if (syncModeSelect) {
+                syncModeSelect.addEventListener('change', function() {
+                    if (this.value === 'daily') {
+                        intervalWrapper.classList.add('hidden');
+                        timeWrapper.classList.remove('hidden');
+                    } else {
+                        timeWrapper.classList.add('hidden');
+                        intervalWrapper.classList.remove('hidden');
                     }
                 });
             }

@@ -39,6 +39,8 @@ class SystemToSheetSyncController extends Controller
             'spreadsheet_id' => 'required|string',
             'sheet_name' => 'required|string',
             'start_row' => 'required|integer|min:2',
+            'sync_mode' => 'required|in:interval,daily',
+            'sync_time' => 'required|string',
             'sync_interval_minutes' => 'required|integer|min:1',
             'auto_sync_enabled' => 'nullable'
         ]);
@@ -47,6 +49,8 @@ class SystemToSheetSyncController extends Controller
             'spreadsheet_id' => $request->input('spreadsheet_id'),
             'sheet_name' => $request->input('sheet_name'),
             'start_row' => (int) $request->input('start_row'),
+            'sync_mode' => $request->input('sync_mode'),
+            'sync_time' => $request->input('sync_time'),
             'sync_interval_minutes' => $request->input('sync_interval_minutes'),
             'auto_sync_enabled' => $request->has('auto_sync_enabled')
         ]);

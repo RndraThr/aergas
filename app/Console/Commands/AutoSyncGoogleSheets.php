@@ -40,13 +40,30 @@ class AutoSyncGoogleSheets extends Command
             return 0; // Silently skip
         }
 
-        // 2. Check if Interval has passed
+        // 2. Check Timing Strategy
+        $syncMode = $settings['sync_mode'] ?? 'interval';
         $lastSynced = $settings['last_synced_at'] ? Carbon::parse($settings['last_synced_at']) : null;
-        $intervalMinutes = (int) ($settings['sync_interval_minutes'] ?? 60);
 
-        if ($lastSynced && $lastSynced->copy()->addMinutes($intervalMinutes)->isFuture()) {
-            $this->info("Bypassed: Interval timeout wait");
-            return 0; // Skip, not enough time has passed
+        if ($syncMode === 'daily') {
+            $targetTime = $settings['sync_time'] ?? '00:00';
+            $currentTime = now()->timezone('Asia/Jakarta')->format('H:i');
+            
+            // Match the strict string '15:24' to '15:24'. 
+            // The cron triggers precisely every real-word minute boundary automatically keeping this exact.
+            if ($currentTime !== $targetTime) {
+                return 0; // Skip
+            }
+
+            // Fallback safety to prevent absolute redundant triggering within identical 60-seconds tick
+            if ($lastSynced && $lastSynced->timezone('Asia/Jakarta')->format('Y-m-d H:i') === now()->timezone('Asia/Jakarta')->format('Y-m-d H:i')) {
+                return 0; // Already shot during this exact minute frame
+            }
+        } else {
+            // Standard Interval Mode logic
+            $intervalMinutes = (int) ($settings['sync_interval_minutes'] ?? 60);
+            if ($lastSynced && $lastSynced->copy()->startOfMinute()->addMinutes($intervalMinutes)->isFuture()) {
+                return 0; // Skip, not enough time has passed
+            }
         }
 
         $this->info("Starting auto-sync to Sheets...");
