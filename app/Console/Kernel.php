@@ -39,6 +39,11 @@ class Kernel extends ConsoleKernel
                 ->daily()
                 ->at('01:00')
                 ->withoutOverlapping();
+
+        // Google Sheets Auto Sync
+        $schedule->command('sheets:auto-sync')
+                ->everyMinute()
+                ->withoutOverlapping();
     }
 
     /**
