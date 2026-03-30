@@ -50,6 +50,7 @@ class AutoSyncGoogleSheets extends Command
             
             // 1. Is it too early in the day?
             if ($now->format('H:i') < $targetTime) {
+                $this->info("Bypassed: Daily Sync is scheduled later at {$targetTime} (Server time: {$now->format('H:i')} WIB)");
                 return 0; // Skip
             }
 
@@ -57,6 +58,7 @@ class AutoSyncGoogleSheets extends Command
             if ($lastSynced) {
                 $lastSyncedJkt = $lastSynced->copy()->timezone('Asia/Jakarta');
                 if ($lastSyncedJkt->isSameDay($now) && $lastSyncedJkt->format('H:i') >= $targetTime) {
+                    $this->info("Bypassed: Daily Sync already executed today at {$lastSyncedJkt->format('H:i')} WIB (Target: {$targetTime} WIB)");
                     return 0; // Already synced today exactly on schedule
                 }
             }
