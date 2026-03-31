@@ -1994,7 +1994,7 @@ class CalonPelangganController extends Controller
                     $differences = [];
 
                     // Compare fields
-                    $fieldsToCheck = ['nama_pelanggan', 'alamat', 'no_telepon', 'no_ktp', 'kota_kabupaten', 'kecamatan', 'kelurahan', 'padukuhan', 'rt', 'rw', 'jenis_pelanggan', 'keterangan'];
+                    $fieldsToCheck = ['nama_pelanggan', 'alamat', 'no_telepon', 'no_ktp', 'no_bagi', 'kota_kabupaten', 'kecamatan', 'kelurahan', 'padukuhan', 'rt', 'rw', 'jenis_pelanggan', 'keterangan'];
 
                     foreach ($fieldsToCheck as $field) {
                         $sheetVal = trim($row[$field] ?? '');
@@ -2131,7 +2131,7 @@ class CalonPelangganController extends Controller
                     $customer->reff_id_pelanggan = $newReffId;
 
                     // Update other fields from new sheet data
-                    $fieldsToUpdate = ['nama_pelanggan', 'alamat', 'no_telepon', 'no_ktp', 'kota_kabupaten', 'kecamatan', 'kelurahan', 'padukuhan', 'rt', 'rw', 'jenis_pelanggan', 'keterangan'];
+                    $fieldsToUpdate = ['nama_pelanggan', 'alamat', 'no_telepon', 'no_ktp', 'no_bagi', 'kota_kabupaten', 'kecamatan', 'kelurahan', 'padukuhan', 'rt', 'rw', 'jenis_pelanggan', 'keterangan'];
                     foreach ($fieldsToUpdate as $field) {
                         if (isset($newData[$field]) && $newData[$field] !== '') {
                             $customer->$field = $newData[$field];
