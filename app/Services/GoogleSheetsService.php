@@ -765,6 +765,7 @@ class GoogleSheetsService
                 'penetrasi / pengembangan' => 'jenis_pelanggan',
                 'keterangan' => 'keterangan',
                 'email' => 'email',
+                'no dokumen bbg' => 'no_bagi',
                 // Legacy/alternate mappings
                 'reff id' => 'reff_id_pelanggan',
                 'reff_id' => 'reff_id_pelanggan',
