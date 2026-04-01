@@ -75,6 +75,7 @@ class SrDataController extends Controller
                 'draft' => $allSr->where('module_status', 'draft')->count(),
                 'ready' => $allSr->where('module_status', 'tracer_review')->count(),
                 'completed' => $allSr->where('module_status', 'completed')->count(),
+                'rejected' => $allSr->where('module_status', 'rejected')->count(),
             ];
 
             return response()->json([
@@ -90,6 +91,7 @@ class SrDataController extends Controller
             'draft' => SrData::where('module_status', 'draft')->count(),
             'ready' => SrData::where('module_status', 'tracer_review')->count(),
             'completed' => SrData::where('module_status', 'completed')->count(),
+            'rejected' => SrData::where('module_status', 'rejected')->count(),
         ];
 
         return view('sr.index', compact('sr', 'stats'));
@@ -516,6 +518,7 @@ class SrDataController extends Controller
         }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_TRACER_REJECTED;
+        $sr->module_status = 'rejected';
         $sr->tracer_notes = $r->input('notes');
         $sr->save();
         $this->audit('reject', $sr, $old, $sr->toArray());
@@ -552,6 +555,7 @@ class SrDataController extends Controller
         }
         $old = $sr->getOriginal();
         $sr->status = SrData::STATUS_CGP_REJECTED;
+        $sr->module_status = 'rejected';
         $sr->cgp_notes = $r->input('notes');
         $sr->save();
         $this->audit('reject', $sr, $old, $sr->toArray());

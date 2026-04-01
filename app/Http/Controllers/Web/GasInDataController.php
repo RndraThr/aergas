@@ -75,6 +75,7 @@ class GasInDataController extends Controller
                 'draft' => $allGasIn->where('module_status', 'draft')->count(),
                 'ready' => $allGasIn->where('module_status', 'tracer_review')->count(),
                 'completed' => $allGasIn->where('module_status', 'completed')->count(),
+                'rejected' => $allGasIn->where('module_status', 'rejected')->count(),
             ];
 
             return response()->json([
@@ -90,6 +91,7 @@ class GasInDataController extends Controller
             'draft' => GasInData::where('module_status', 'draft')->count(),
             'ready' => GasInData::where('module_status', 'tracer_review')->count(),
             'completed' => GasInData::where('module_status', 'completed')->count(),
+            'rejected' => GasInData::where('module_status', 'rejected')->count(),
         ];
 
         return view('gas-in.index', compact('gasIn', 'stats'));
@@ -474,6 +476,7 @@ class GasInDataController extends Controller
         }
         $old = $gasIn->getOriginal();
         $gasIn->status = GasInData::STATUS_TRACER_REJECTED;
+        $gasIn->module_status = 'rejected';
         $gasIn->tracer_notes = $r->input('notes');
         $gasIn->save();
         $this->audit('reject', $gasIn, $old, $gasIn->toArray());
@@ -511,6 +514,7 @@ class GasInDataController extends Controller
         }
         $old = $gasIn->getOriginal();
         $gasIn->status = GasInData::STATUS_CGP_REJECTED;
+        $gasIn->module_status = 'rejected';
         $gasIn->cgp_notes = $r->input('notes');
         $gasIn->save();
         $this->audit('reject', $gasIn, $old, $gasIn->toArray());

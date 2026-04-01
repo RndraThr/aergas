@@ -1993,7 +1993,9 @@ class PhotoApprovalService
             $stats['photos_ready']['total'] = array_sum($stats['photos_ready']);
 
             // 2. Customers Ready
+            $customerModules = ['sk', 'sr', 'gas_in'];
             $customersReady = PhotoApproval::select('module_name', DB::raw('count(distinct reff_id_pelanggan) as total'))
+                ->whereIn('module_name', $customerModules)
                 ->whereIn('photo_status', ['tracer_pending', 'draft'])
                 ->groupBy('module_name')
                 ->pluck('total', 'module_name')
@@ -2004,36 +2006,48 @@ class PhotoApprovalService
             $stats['customers_ready']['gas_in'] = $customersReady['gas_in'] ?? 0;
 
             // Fix: Total should be distinct customers across ALL modules, not sum of per-module counts
-            $stats['customers_ready']['total'] = PhotoApproval::whereIn('photo_status', ['tracer_pending', 'draft'])
+            $stats['customers_ready']['total'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->whereIn('photo_status', ['tracer_pending', 'draft'])
                 ->distinct('reff_id_pelanggan')
                 ->count('reff_id_pelanggan');
 
             // 3. Approved Stats (Tracer Approved)
-            $stats['approved']['total'] = PhotoApproval::whereNotNull('tracer_approved_at')->count();
-            $stats['approved']['today'] = PhotoApproval::whereDate('tracer_approved_at', $today)->count();
+            $stats['approved']['total'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->whereNotNull('tracer_approved_at')
+                ->count();
+            $stats['approved']['today'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->whereDate('tracer_approved_at', $today)
+                ->count();
 
             // 4. Rejected Stats
-            $stats['rejected']['tracer_rejected'] = PhotoApproval::where('photo_status', 'tracer_rejected')->count();
-            $stats['rejected']['cgp_rejected'] = PhotoApproval::where('photo_status', 'cgp_rejected')->count();
+            $stats['rejected']['tracer_rejected'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->where('photo_status', 'tracer_rejected')
+                ->count();
+            $stats['rejected']['cgp_rejected'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->where('photo_status', 'cgp_rejected')
+                ->count();
             $stats['rejected']['total'] = $stats['rejected']['tracer_rejected'] + $stats['rejected']['cgp_rejected'];
 
             // Rejected Today (Approximation using updated_at/cgp_rejected_at)
-            $stats['rejected']['today'] = PhotoApproval::where(function ($q) use ($today) {
-                $q->where(function ($sub) use ($today) {
-                    $sub->where('photo_status', 'tracer_rejected')
-                        ->whereDate('updated_at', $today);
-                })->orWhere(function ($sub) use ($today) {
-                    $sub->where('photo_status', 'cgp_rejected')
-                        ->whereDate('cgp_rejected_at', $today);
-                });
-            })->count();
+            $stats['rejected']['today'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->where(function ($q) use ($today) {
+                    $q->where(function ($sub) use ($today) {
+                        $sub->where('photo_status', 'tracer_rejected')
+                            ->whereDate('updated_at', $today);
+                    })->orWhere(function ($sub) use ($today) {
+                        $sub->where('photo_status', 'cgp_rejected')
+                            ->whereDate('cgp_rejected_at', $today);
+                    });
+                })->count();
 
         } elseif ($role === 'cgp') {
             // CGP sees cgp_pending AND tracer_approved
             $cgpStatuses = ['cgp_pending', 'tracer_approved'];
+            $customerModules = ['sk', 'sr', 'gas_in'];
 
             // 1. Photos Ready
             $photosReady = PhotoApproval::select('module_name', DB::raw('count(*) as total'))
+                ->whereIn('module_name', $customerModules)
                 ->whereIn('photo_status', $cgpStatuses)
                 ->groupBy('module_name')
                 ->pluck('total', 'module_name')
@@ -2046,6 +2060,7 @@ class PhotoApprovalService
 
             // 2. Customers Ready
             $customersReady = PhotoApproval::select('module_name', DB::raw('count(distinct reff_id_pelanggan) as total'))
+                ->whereIn('module_name', $customerModules)
                 ->whereIn('photo_status', $cgpStatuses)
                 ->groupBy('module_name')
                 ->pluck('total', 'module_name')
@@ -2056,19 +2071,26 @@ class PhotoApprovalService
             $stats['customers_ready']['gas_in'] = $customersReady['gas_in'] ?? 0;
 
             // Fix: Total should be distinct customers across ALL modules
-            $stats['customers_ready']['total'] = PhotoApproval::whereIn('photo_status', $cgpStatuses)
+            $stats['customers_ready']['total'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->whereIn('photo_status', $cgpStatuses)
                 ->distinct('reff_id_pelanggan')
                 ->count('reff_id_pelanggan');
 
             // 3. Approved Stats (CGP Approved)
-            $stats['approved']['total'] = PhotoApproval::where('photo_status', 'cgp_approved')->count();
-            $stats['approved']['today'] = PhotoApproval::where('photo_status', 'cgp_approved')
+            $stats['approved']['total'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->where('photo_status', 'cgp_approved')
+                ->count();
+            $stats['approved']['today'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->where('photo_status', 'cgp_approved')
                 ->whereDate('cgp_approved_at', $today)
                 ->count();
 
             // 4. Rejected Stats (CGP Rejected)
-            $stats['rejected']['total'] = PhotoApproval::where('photo_status', 'cgp_rejected')->count();
-            $stats['rejected']['today'] = PhotoApproval::where('photo_status', 'cgp_rejected')
+            $stats['rejected']['total'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->where('photo_status', 'cgp_rejected')
+                ->count();
+            $stats['rejected']['today'] = PhotoApproval::whereIn('module_name', $customerModules)
+                ->where('photo_status', 'cgp_rejected')
                 ->whereDate('cgp_rejected_at', $today)
                 ->count();
         }

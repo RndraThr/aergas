@@ -23,7 +23,8 @@
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <!-- Customers Ready Card -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-lg transition-all border-b-4 border-blue-500"
+                @click="setFilter('')">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -45,15 +46,15 @@
                 </div>
                 <div class="bg-gray-50 px-5 py-3">
                     <div class="text-xs flex justify-between text-gray-500">
-                        <span>SK: <strong>{{ $stats['customers_ready']['sk'] }}</strong></span>
-                        <span>SR: <strong>{{ $stats['customers_ready']['sr'] }}</strong></span>
-                        <span>GI: <strong>{{ $stats['customers_ready']['gas_in'] }}</strong></span>
+                        <span class="hover:text-blue-600 hover:font-bold transition-all px-1 py-0.5 rounded" @click.stop="setFilter('sk_pending')">SK: <strong>{{ $stats['customers_ready']['sk'] }}</strong></span>
+                        <span class="hover:text-blue-600 hover:font-bold transition-all px-1 py-0.5 rounded" @click.stop="setFilter('sr_pending')">SR: <strong>{{ $stats['customers_ready']['sr'] }}</strong></span>
+                        <span class="hover:text-blue-600 hover:font-bold transition-all px-1 py-0.5 rounded" @click.stop="setFilter('gas_in_pending')">GI: <strong>{{ $stats['customers_ready']['gas_in'] }}</strong></span>
                     </div>
                 </div>
             </div>
 
             <!-- Photos Ready Card -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg border-b-4 border-green-500">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -83,7 +84,7 @@
             </div>
 
             <!-- Approved Card -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg border-b-4 border-teal-500">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -114,7 +115,8 @@
             </div>
 
             <!-- Rejected Card -->
-            <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-lg transition-all border-b-4 border-red-500"
+                @click="setFilter('rejected')">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -165,6 +167,7 @@
                             <option value="sk_pending">SK Pending</option>
                             <option value="sr_pending">SR Pending</option>
                             <option value="gas_in_pending">Gas In Pending</option>
+                            <option value="rejected">Rejected</option>
                         </select>
                     </div>
                 </div>
@@ -512,6 +515,11 @@
                         date_module: '{{ request("date_module", "all") }}'
                     },
                     loading: false,
+                    
+                    setFilter(status) {
+                        this.filters.status = status;
+                        this.fetchCustomers(true);
+                    },
 
                     async fetchCustomers(resetPage = false) {
                         // Auto-reset pagination when filters change
