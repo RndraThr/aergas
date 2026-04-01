@@ -194,10 +194,13 @@ class TracerJalurApprovalController extends Controller
         // Apply filters BEFORE sorting
         if ($filter !== 'all') {
             $allItems = $allItems->filter(function ($item) use ($filter) {
+                // Filter berdasarkan jumlah foto per-status (bukan status level item)
+                // Sehingga item dengan campuran status (misal: rejected + pending)
+                // akan muncul di kedua filter "pending" DAN "rejected"
                 return match ($filter) {
-                    'pending' => $item->approval_stats['status'] === 'pending',
-                    'approved' => $item->approval_stats['status'] === 'approved',
-                    'rejected' => $item->approval_stats['status'] === 'rejected',
+                    'pending' => $item->approval_stats['pending_photos'] > 0,
+                    'approved' => $item->approval_stats['approved_photos'] > 0 && $item->approval_stats['pending_photos'] === 0 && $item->approval_stats['rejected_photos'] === 0,
+                    'rejected' => $item->approval_stats['rejected_photos'] > 0,
                     'no_evidence' => $item->approval_stats['total_photos'] === 0,
                     default => true
                 };
