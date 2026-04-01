@@ -89,7 +89,7 @@
     </div>
 
     {{-- Stats Cards --}}
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
       <div class="bg-white p-4 rounded-lg card-shadow">
         <div class="text-2xl font-bold text-blue-600" x-text="stats.total"></div>
         <div class="text-sm text-gray-600">Total Gas In</div>
@@ -105,6 +105,10 @@
       <div class="bg-white p-4 rounded-lg card-shadow">
         <div class="text-2xl font-bold text-green-600" x-text="stats.completed"></div>
         <div class="text-sm text-gray-600">Completed</div>
+      </div>
+      <div class="bg-white p-4 rounded-lg card-shadow">
+        <div class="text-2xl font-bold text-red-600" x-text="stats.rejected"></div>
+        <div class="text-sm text-gray-600">Rejected</div>
       </div>
     </div>
 
@@ -653,7 +657,8 @@
             total: {{ $stats['total'] ?? 0 }},
             draft: {{ $stats['draft'] ?? 0 }},
             ready: {{ $stats['ready'] ?? 0 }},
-            completed: {{ $stats['completed'] ?? 0 }}
+            completed: {{ $stats['completed'] ?? 0 }},
+            rejected: {{ $stats['rejected'] ?? 0 }}
             },
           loading: false,
           showDownloadModal: false,

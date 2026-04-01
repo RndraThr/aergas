@@ -648,8 +648,11 @@ class GoogleSheetsService
             ];
 
             foreach ($joints as $joint) {
-                $type = $this->normalizeJointType($joint->jenis_fitting);
-                $diameter = $joint->lineNumber->diameter ?? '63';
+                $fittingName = $joint->fittingType?->nama_fitting ?? $joint->jenis_fitting ?? '';
+                $type = $this->normalizeJointType($fittingName);
+                
+                // Get diameter from line number or joint diameter field
+                $diameter = $joint->lineNumber->diameter ?? $joint->diameter ?? '63';
                 if ($diameter != '180')
                     $diameter = '63';
 
@@ -692,14 +695,14 @@ class GoogleSheetsService
             'Dop' => 'End Cap',
         ];
 
-        if (isset($map[$dbType]))
-            return $map[$dbType];
+        if (!$dbType)
+            return null;
 
         foreach ($map as $key => $val) {
             if (stripos($dbType, $key) !== false)
                 return $val;
         }
-        return 'Coupler';
+        return null;
     }
 
     public function getCalonPelangganData(): array

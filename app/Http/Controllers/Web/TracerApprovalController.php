@@ -100,6 +100,11 @@ class TracerApprovalController extends Controller implements HasMiddleware
                             ->where('photo_status', 'tracer_pending');
                     })->orWhereHas('gasInData');
                 });
+            } elseif ($status === 'rejected') {
+                // Customers with any photos rejected by tracer or cgp
+                $query->whereHas('photoApprovals', function ($photoQ) {
+                    $photoQ->whereIn('photo_status', ['tracer_rejected', 'cgp_rejected']);
+                });
             } else {
                 // Default: show customers that have photos pending tracer approval OR have any module data
                 $query->where(function ($q) {

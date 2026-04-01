@@ -156,15 +156,21 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
                     throw new \Exception("Fitting Type dengan code '{$fittingTypeCode}' tidak ditemukan di database");
                 }
             } else {
-                // Use default fitting type for diameter 180 (e.g., 'CP' for Coupler)
-                // Or create a special 'GENERIC' fitting type
-                $fittingType = JalurFittingType::where('code_fitting', 'CP')->first();
-                if (!$fittingType) {
-                    throw new \Exception("Untuk diameter 180, fitting type default 'CP' tidak ditemukan. Tambahkan kolom 'fitting_type' di Excel atau buat fitting type 'CP' di database.");
+                // Check if BF - if so, allow NULL fitting type (pipe-to-pipe)
+                $tipePenyambungan = strtoupper(trim($data['tipe_penyambungan'] ?? ''));
+                if ($tipePenyambungan === 'BF') {
+                    $fittingType = null;
+                } else {
+                    // Use default fitting type for diameter 180 (e.g., 'CP' for Coupler)
+                    // Or create a special 'GENERIC' fitting type
+                    $fittingType = JalurFittingType::where('code_fitting', 'CP')->first();
+                    if (!$fittingType) {
+                        throw new \Exception("Untuk diameter 180, fitting type default 'CP' tidak ditemukan. Tambahkan kolom 'fitting_type' di Excel atau buat fitting type 'CP' di database.");
+                    }
                 }
             }
             // Reset fittingCode for later use
-            $fittingCode = $fittingType->code_fitting;
+            $fittingCode = $fittingType ? $fittingType->code_fitting : 'DIAMETER_180';
         } else {
             // Standard format: fitting type is part of joint number
             $fittingType = JalurFittingType::where('code_fitting', $fittingCode)->first();
@@ -229,7 +235,7 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
         if ($lineFrom && $lineTo) {
             if ($lineFrom->diameter != $lineTo->diameter) {
                 // Validate fitting type is Reducer (RD) or allow with warning
-                if (strpos($fittingType->code_fitting, 'RD') === false) {
+                if ($fittingType && strpos($fittingType->code_fitting, 'RD') === false) {
                     // Not a Reducer but diameters differ.
                     // Allow it but log warning
                     Log::warning("Joint {$jointNumber} connects different diameters ({$lineFrom->diameter} vs {$lineTo->diameter}) but fitting type is {$fittingType->code_fitting} (not RD).");
@@ -238,7 +244,7 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
         }
 
         // 9. Validate Equal Tee (TE) - optional 3rd line
-        if ($fittingType->code_fitting === 'TE' && !empty($jointLineOptional)) {
+        if ($fittingType && $fittingType->code_fitting === 'TE' && !empty($jointLineOptional)) {
             // Validate joint_line_optional only if provided (skip validation if "EXISTING")
             if (strtoupper($jointLineOptional) !== 'EXISTING') {
                 $lineOptional = JalurLineNumber::where('line_number', $jointLineOptional)
@@ -302,7 +308,7 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
                 // Record exists - apply Smart Update logic
                 $updateResult = $this->smartUpdateJoint($existingJoint, [
                     'cluster_id' => $cluster->id,
-                    'fitting_type_id' => $fittingType->id,
+                    'fitting_type_id' => $fittingType?->id,
                     'joint_code' => $jointCode,
                     'tanggal_joint' => $tanggalJoint,
                     'joint_line_from' => $jointLineFrom,
@@ -325,7 +331,7 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
                 $joint = JalurJointData::create([
                     'nomor_joint' => $jointNumber,
                     'cluster_id' => $cluster->id,
-                    'fitting_type_id' => $fittingType->id,
+                    'fitting_type_id' => $fittingType?->id,
                     'joint_code' => $jointCode,
                     'tanggal_joint' => $tanggalJoint,
                     'joint_line_from' => $jointLineFrom,

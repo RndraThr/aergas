@@ -90,6 +90,7 @@ class SkDataController extends Controller
                 'draft' => $allSk->where('module_status', 'draft')->count(),
                 'ready' => $allSk->where('module_status', 'tracer_review')->count(),
                 'completed' => $allSk->where('module_status', 'completed')->count(),
+                'rejected' => $allSk->where('module_status', 'rejected')->count(),
             ];
 
             return response()->json([
@@ -100,12 +101,13 @@ class SkDataController extends Controller
         }
 
         // Calculate stats for initial page load (same logic as AJAX path)
-    $stats = [
-        'total' => $sk->total(),
-        'draft' => SkData::where('module_status', 'draft')->count(),
-        'ready' => SkData::where('module_status', 'tracer_review')->count(),
-        'completed' => SkData::where('module_status', 'completed')->count(),
-    ];
+        $stats = [
+            'total' => $sk->total(),
+            'draft' => SkData::where('module_status', 'draft')->count(),
+            'ready' => SkData::where('module_status', 'tracer_review')->count(),
+            'completed' => SkData::where('module_status', 'completed')->count(),
+            'rejected' => SkData::where('module_status', 'rejected')->count(),
+        ];
 
     return view('sk.index', compact('sk', 'stats'));
     }
@@ -592,6 +594,7 @@ class SkDataController extends Controller
         }
         $old = $sk->getOriginal();
         $sk->status = SkData::STATUS_TRACER_REJECTED;
+        $sk->module_status = 'rejected';
         $sk->tracer_notes = $r->input('notes');
         $sk->save();
         $this->audit('reject', $sk, $old, $sk->toArray());
@@ -629,6 +632,7 @@ class SkDataController extends Controller
         }
         $old = $sk->getOriginal();
         $sk->status = SkData::STATUS_CGP_REJECTED;
+        $sk->module_status = 'rejected';
         $sk->cgp_notes = $r->input('notes');
         $sk->save();
         $this->audit('reject', $sk, $old, $sk->toArray());
