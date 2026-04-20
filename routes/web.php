@@ -704,6 +704,12 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                         ->name('execute');
                 });
 
+                // Duplicate resolution
+                Route::get('/duplicates', [JalurLoweringImportController::class, 'duplicates'])
+                    ->name('duplicates');
+                Route::post('/duplicates/resolve', [JalurLoweringImportController::class, 'resolveDuplicates'])
+                    ->name('duplicates.resolve');
+
                 // API endpoints - Also before {lowering} parameter routes
                 Route::get('/api/line-numbers', [JalurLoweringController::class, 'getLineNumbers'])
                     ->name('api.line-numbers');
