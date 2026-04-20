@@ -9,12 +9,20 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Import Data Lowering</h1>
             <p class="text-gray-600">Import data lowering dari file Excel</p>
         </div>
-        <a href="{{ route('jalur.lowering.index') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-            </svg>
-            Kembali ke Daftar
-        </a>
+        <div class="flex gap-2">
+            <a href="{{ route('jalur.lowering.duplicates') }}" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/>
+                </svg>
+                Cek Duplikat
+            </a>
+            <a href="{{ route('jalur.lowering.index') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Kembali ke Daftar
+            </a>
+        </div>
     </div>
 
     {{-- Success/Error Messages --}}
@@ -27,37 +35,19 @@
                 <span>{{ session('success') }}</span>
             </div>
 
-            @if(session('import_results'))
-                @php $results = session('import_results'); @endphp
+            @if(session('import_summary'))
+                @php $s = session('import_summary'); @endphp
                 <div class="mt-4 pl-8">
                     <p class="font-semibold">Hasil Import:</p>
-                    <ul class="list-disc list-inside mt-2">
-                        <li>Berhasil: {{ $results['success'] }} baris</li>
-                        @if($results['skipped'] > 0)
-                            <li>Dilewati: {{ $results['skipped'] }} baris</li>
-                        @endif
-                        @if(!empty($results['failed']))
-                            <li class="text-red-600">Gagal: {{ count($results['failed']) }} baris</li>
-                        @endif
+                    <ul class="list-disc list-inside mt-2 text-sm">
+                        @if($s['new'] > 0) <li>🟢 NEW: {{ $s['new'] }} data</li> @endif
+                        @if($s['update'] > 0) <li>🔵 UPDATE: {{ $s['update'] }} data</li> @endif
+                        @if($s['recall'] > 0) <li class="text-red-700">🔴 RECALL: {{ $s['recall'] }} data (approved → draft)</li> @endif
+                        @if($s['skip_no_change'] > 0) <li>🟡 Skip (no change): {{ $s['skip_no_change'] }}</li> @endif
+                        @if($s['skip_approved'] > 0) <li>🟠 Skip (approved protected): {{ $s['skip_approved'] }}</li> @endif
+                        @if($s['duplicate_in_file'] > 0) <li>🟣 Duplicate in file: {{ $s['duplicate_in_file'] }}</li> @endif
+                        @if($s['error'] > 0) <li class="text-red-600">⚫ Error: {{ $s['error'] }}</li> @endif
                     </ul>
-
-                    @if(!empty($results['failed']))
-                        <div class="mt-4 bg-white border border-red-300 rounded p-4">
-                            <p class="font-semibold text-red-700 mb-2">Detail Error:</p>
-                            <div class="max-h-64 overflow-y-auto">
-                                @foreach($results['failed'] as $failure)
-                                    <div class="mb-3 pb-3 border-b border-gray-200 last:border-0">
-                                        <p class="text-sm font-medium">Baris {{ $failure['row'] }}:</p>
-                                        <ul class="list-disc list-inside text-sm text-red-600 ml-4">
-                                            @foreach($failure['errors'] as $error)
-                                                <li>{{ $error }}</li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
                 </div>
             @endif
         </div>
@@ -84,6 +74,9 @@
         </h2>
         <ol class="list-decimal list-inside space-y-2 text-blue-900">
             <li>Download template Excel dengan klik tombol "Download Template" di bawah</li>
+            <li>Alur: Upload file → <strong>Preview</strong> (tinjau perubahan) → <strong>Commit</strong> (simpan ke DB)</li>
+            <li>Deteksi duplikat pakai kombinasi <strong>6 field</strong>: Line Number + Tanggal + Tipe Bongkaran + Lowering + Bongkaran + Kedalaman. Jadi 2 pekerjaan berbeda di line & tanggal sama (dengan nilai lowering/bongkaran/kedalaman beda) tetap dianggap 2 record valid.</li>
+            <li>Mode <strong>Force Update</strong>: default OFF (hanya isi field yang masih kosong). ON = timpa semua, dan record yang sudah approved akan di-recall ke draft + butuh re-approval.</li>
             <li>Isi data sesuai kolom yang disediakan:
                 <ul class="list-disc list-inside ml-6 mt-1 space-y-1 text-sm">
                     <li><strong>diameter:</strong> 63, 90, atau 180</li>
@@ -121,7 +114,7 @@
     <div class="bg-white rounded-lg shadow p-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">2. Upload File Excel</h3>
 
-        <form action="{{ route('jalur.lowering.import.execute') }}" method="POST" enctype="multipart/form-data" id="importForm">
+        <form action="{{ route('jalur.lowering.import.preview') }}" method="POST" enctype="multipart/form-data" id="importForm">
             @csrf
 
             <div class="mb-6">
@@ -146,23 +139,48 @@
                 @enderror
             </div>
 
+            <div class="mb-6 border-t border-gray-200 pt-4 space-y-4">
+                <label class="flex items-start gap-3 cursor-pointer group">
+                    <input type="checkbox" name="force_update" value="1" class="mt-1 h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded">
+                    <div class="flex-1">
+                        <div class="text-sm font-semibold text-gray-900 group-hover:text-orange-700 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            Force Update (Timpa Field Non-Kosong pada Record Draft)
+                        </div>
+                        <div class="text-xs text-gray-600 mt-1">
+                            <strong>Default (OFF):</strong> Hanya isi field yang masih <strong>kosong</strong> di DB.<br>
+                            <strong>Aktif (ON):</strong> Timpa semua field dari Excel <strong>hanya untuk record berstatus draft</strong>. Record approved tidak terpengaruh.
+                        </div>
+                    </div>
+                </label>
+
+                <label class="flex items-start gap-3 cursor-pointer group">
+                    <input type="checkbox" name="allow_recall" value="1" class="mt-1 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
+                    <div class="flex-1">
+                        <div class="text-sm font-semibold text-gray-900 group-hover:text-red-700 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/>
+                            </svg>
+                            Allow Recall (Izinkan Recall Record Approved)
+                        </div>
+                        <div class="text-xs text-gray-600 mt-1">
+                            <strong>Default (OFF):</strong> Record approved (<code>acc_tracer</code>/<code>acc_cgp</code>) <strong>tidak pernah disentuh</strong> — masuk kategori SKIP.<br>
+                            <strong>Aktif (ON):</strong> Record approved yang berubah akan di-<em>recall</em> ke status <code>draft</code>, foto direset → butuh re-approval ulang dari Tracer & CGP.
+                        </div>
+                    </div>
+                </label>
+            </div>
+
             <div class="flex gap-4">
                 <button type="submit"
-                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                    </svg>
-                    Import Data
-                </button>
-
-                <button type="button"
-                        onclick="previewImport()"
                         class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-md flex items-center">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                     </svg>
-                    Preview Dulu (Validasi Tanpa Import)
+                    Preview Import
                 </button>
             </div>
         </form>
@@ -221,33 +239,6 @@ function hideLoading() {
     overlay.classList.remove('flex');
 }
 
-// Flag to track if preview is being triggered
-let isPreviewMode = false;
-
-// Preview function
-function previewImport() {
-    const form = document.getElementById('importForm');
-    const fileInput = document.getElementById('file-upload');
-
-    if (!fileInput.files.length) {
-        alert('Silakan pilih file Excel terlebih dahulu');
-        return;
-    }
-
-    // Set preview flag
-    isPreviewMode = true;
-
-    // Show loading
-    showLoading('Memvalidasi Data...', 'Mohon tunggu, sedang melakukan preview validasi data.');
-
-    // Change form action to preview route
-    form.action = "{{ route('jalur.lowering.import.preview') }}";
-
-    // Submit form
-    form.submit();
-}
-
-// Handle form submit for direct import
 document.getElementById('importForm').addEventListener('submit', function(e) {
     const fileInput = document.getElementById('file-upload');
 
@@ -257,10 +248,7 @@ document.getElementById('importForm').addEventListener('submit', function(e) {
         return;
     }
 
-    // Show loading for direct import (not preview)
-    if (!isPreviewMode) {
-        showLoading('Mengimport Data...', 'Mohon tunggu, sedang mengimport data lowering ke database.');
-    }
+    showLoading('Memvalidasi Data...', 'Sedang memproses file untuk preview.');
 });
 </script>
 @endsection
