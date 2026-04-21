@@ -14,183 +14,146 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
 {
-    private bool $dryRun;
-    private array $results = [];
+    private bool   $dryRun;
+    private bool   $forceUpdate;
+    private bool   $allowRecall;
+    private array  $results    = [];
     private string $filePath;
-    private array $hyperlinks = [];
-    private array $rowMapping = []; // Maps joint_number+date to actual Excel row
+    private array  $hyperlinks = [];
+    private array  $rowMapping = [];    // "joint_number|date" => excel_row
+    private array  $seenInFile = [];    // joint_number => first_row (duplicate guard)
+
     private GoogleDriveService $googleDriveService;
 
-    public function __construct(bool $dryRun = false, string $filePath = '')
+    /**
+     * @param bool   $dryRun      true = preview only, no DB writes
+     * @param string $filePath    absolute path to the uploaded Excel file
+     * @param bool   $forceUpdate true = overwrite existing draft fields; false = fill empty only
+     * @param bool   $allowRecall true = approved/rejected records with krusial changes get recalled to draft
+     */
+    public function __construct(bool $dryRun = false, string $filePath = '', bool $forceUpdate = false, bool $allowRecall = false)
     {
-        $this->dryRun = $dryRun;
-        $this->filePath = $filePath;
+        $this->dryRun      = $dryRun;
+        $this->filePath    = $filePath;
+        $this->forceUpdate = $forceUpdate;
+        $this->allowRecall = $allowRecall;
+
         $this->googleDriveService = app(GoogleDriveService::class);
 
-        // Extract all hyperlinks from Excel file
         if ($filePath && file_exists($filePath)) {
             $this->extractAllHyperlinks();
         }
     }
 
-    public function collection(Collection $rows)
+    // ──────────────────────────────────────────────────────────────────────
+    //  MAIN COLLECTION LOOP
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function collection(Collection $rows): void
     {
         foreach ($rows as $index => $data) {
+            // Default row number (before mapping is resolved)
+            $excelRowNumber = $index + 2;
+
             try {
-                // Skip empty rows
+                // Skip rows with no joint_number
                 if (empty($data['joint_number']) || trim($data['joint_number']) === '') {
                     continue;
                 }
 
-                // Get actual Excel row number from rowMapping
-                $jointNumber = $data['joint_number'] ?? null;
+                $jointNumber = trim($data['joint_number']);
+
+                // Resolve accurate Excel row via pre-built mapping
                 $tanggal = $data['tanggal_joint'] ?? null;
-
-                // Default to old method if mapping not available
-                $excelRowNumber = $index + 2;
-
                 if ($jointNumber && $tanggal) {
-                    // Convert tanggal to Y-m-d format if needed
-                    if (is_numeric($tanggal)) {
-                        try {
-                            $tanggal = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($tanggal)->format('Y-m-d');
-                        } catch (\Exception $e) {
-                            // Keep original if conversion fails
-                        }
-                    }
+                    $tanggalStr = is_numeric($tanggal)
+                        ? $this->excelDateToString($tanggal)
+                        : (string) $tanggal;
 
-                    $mappingKey = $jointNumber . '|' . $tanggal;
-                    if (isset($this->rowMapping[$mappingKey])) {
-                        $excelRowNumber = $this->rowMapping[$mappingKey];
-                        Log::info("Using mapped row number for joint", [
-                            'collection_index' => $index,
-                            'joint_number' => $jointNumber,
-                            'tanggal' => $tanggal,
-                            'actual_excel_row' => $excelRowNumber
-                        ]);
+                    $mapKey = $jointNumber . '|' . $tanggalStr;
+                    if (isset($this->rowMapping[$mapKey])) {
+                        $excelRowNumber = $this->rowMapping[$mapKey];
                     }
                 }
 
-                $result = $this->processRow($data, $excelRowNumber);
-                $this->results[] = $result;
+                // ── Duplicate within file ─────────────────────────────────
+                // Key: joint_number + tanggal + joint_line_from + joint_line_to
+                $lineFrom  = trim($data['joint_line_from'] ?? '');
+                $lineTo    = trim($data['joint_line_to']   ?? '');
+                $dupKey    = implode('|', [$jointNumber, $tanggalStr ?? '', $lineFrom, $lineTo]);
+
+                if (isset($this->seenInFile[$dupKey])) {
+                    $this->results[] = [
+                        'row'       => $excelRowNumber,
+                        'status'    => 'duplicate_in_file',
+                        'data'      => ['joint_number' => $jointNumber],
+                        'message'   => "Duplikat dalam file — kombinasi joint '{$jointNumber}' + tanggal + line from/to sudah ada di baris {$this->seenInFile[$dupKey]}",
+                        'first_row' => $this->seenInFile[$dupKey],
+                    ];
+                    continue;
+                }
+                $this->seenInFile[$dupKey] = $excelRowNumber;
+
+                $this->results[] = $this->processRow($data, $excelRowNumber);
 
             } catch (\Exception $e) {
                 $this->results[] = [
-                    'row' => $excelRowNumber ?? $index + 2,
-                    'status' => 'error',
-                    'data' => $data->toArray(),
+                    'row'     => $excelRowNumber,
+                    'status'  => 'error',
+                    'data'    => ['joint_number' => $data['joint_number'] ?? '-'],
                     'message' => $e->getMessage(),
                 ];
 
-                Log::error('Joint import error', [
-                    'row' => $excelRowNumber,
-                    'data' => $data->toArray(),
-                    'error' => $e->getMessage()
+                Log::error('Joint import row error', [
+                    'row'   => $excelRowNumber,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
     }
 
-    private function processRow(Collection $data, int $excelRowNumber): array
+    // ──────────────────────────────────────────────────────────────────────
+    //  ROW PROCESSING
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function processRow(Collection $data, int $row): array
     {
         // 1. Parse joint_number
         $jointNumber = trim($data['joint_number']);
         $parsed = $this->parseJointNumber($jointNumber);
 
         if (!$parsed) {
-            throw new \Exception("Format joint number tidak valid. Format yang benar: {CLUSTER}-{FITTING}{CODE} (Contoh: KRG-CP001) atau {FITTING}.{CODE} untuk diameter 180 (Contoh: BF.05)");
+            throw new \Exception(
+                "Format joint number tidak valid. "
+                . "Format 1: {CLUSTER}-{FITTING}{CODE} (mis. KRG-CP001). "
+                . "Format 2 (dia.180): {TIPE}.{KODE} (mis. BF.05)"
+            );
         }
 
         [$clusterCode, $fittingCode, $jointCode] = $parsed;
 
-        // 2. Validate Cluster
-        // If cluster code is 'NONE', get cluster from Excel 'cluster' column or line_number
-        if ($clusterCode === 'NONE') {
-            // Priority 1: Check explicit cluster column from Excel
-            if (!empty($data['cluster'])) {
-                $clusterCode = trim($data['cluster']);
-            }
-
-            // Priority 2: If still NONE, try to get cluster from line numbers
-            if ($clusterCode === 'NONE') {
-                $lineFrom = trim($data['joint_line_from'] ?? '');
-                $lineTo = trim($data['joint_line_to'] ?? '');
-
-                // Regex: Start with digits, separator, capture Cluster (alphanumeric + hyphen + space), separator, LN followed by digits, End. Case insensitive.
-                // Updated to support hyphens in cluster code (e.g. PK-SAR)
-                $regex = '/^\d+\s*-\s*([A-Za-z0-9\-\s]+?)\s*-\s*LN\d+$/i';
-
-                if (preg_match($regex, $lineFrom, $lineMatches)) {
-                    $clusterCode = strtoupper(trim($lineMatches[1]));
-                } elseif (preg_match($regex, $lineTo, $lineMatches)) {
-                    $clusterCode = strtoupper(trim($lineMatches[1]));
-                } else {
-                    throw new \Exception("Gagal mendeteksi Cluster. \nJoint: {$jointNumber}. \nLine From: '{$lineFrom}'. \nLine To: '{$lineTo}'. \nPastikan format Line benar: {DIAMETER}-{CLUSTER}-LN{NUMBER} (Contoh: 180-KRG-LN001), atau isi kolom 'Cluster' di Excel.");
-                }
-            }
-        }
-
+        // 2. Resolve cluster
+        $clusterCode = $this->resolveClusterCode($clusterCode, $data);
         $cluster = JalurCluster::where('code_cluster', $clusterCode)->first();
         if (!$cluster) {
             throw new \Exception("Cluster dengan code '{$clusterCode}' tidak ditemukan di database");
         }
 
-        // 3. Validate Fitting Type
-        // For diameter 180 format (DIAMETER_180 marker), use a default fitting type
-        if ($fittingCode === 'DIAMETER_180') {
-            // For diameter 180, fitting type is not part of joint number
-            // Use a generic/default fitting type or get from Excel if available
-            // Check if there's a fitting type column in Excel
-            $fittingTypeCode = !empty($data['fitting_type']) ? trim($data['fitting_type']) : null;
+        // 3. Resolve fitting type
+        $fittingType = $this->resolveFittingType($fittingCode, $data);
+        // After resolution, normalise fittingCode
+        $fittingCode = $fittingType ? $fittingType->code_fitting : 'BF';
 
-            if ($fittingTypeCode) {
-                // Try to get fitting type from Excel column
-                $fittingType = JalurFittingType::where('code_fitting', $fittingTypeCode)->first();
-                if (!$fittingType) {
-                    throw new \Exception("Fitting Type dengan code '{$fittingTypeCode}' tidak ditemukan di database");
-                }
-            } else {
-                // Check if BF - if so, allow NULL fitting type (pipe-to-pipe)
-                $tipePenyambungan = strtoupper(trim($data['tipe_penyambungan'] ?? ''));
-                if ($tipePenyambungan === 'BF') {
-                    $fittingType = null;
-                } else {
-                    // Use default fitting type for diameter 180 (e.g., 'CP' for Coupler)
-                    // Or create a special 'GENERIC' fitting type
-                    $fittingType = JalurFittingType::where('code_fitting', 'CP')->first();
-                    if (!$fittingType) {
-                        throw new \Exception("Untuk diameter 180, fitting type default 'CP' tidak ditemukan. Tambahkan kolom 'fitting_type' di Excel atau buat fitting type 'CP' di database.");
-                    }
-                }
-            }
-            // Reset fittingCode for later use
-            $fittingCode = $fittingType ? $fittingType->code_fitting : 'DIAMETER_180';
-        } else {
-            // Standard format: fitting type is part of joint number
-            $fittingType = JalurFittingType::where('code_fitting', $fittingCode)->first();
-            if (!$fittingType) {
-                throw new \Exception("Fitting Type dengan code '{$fittingCode}' tidak ditemukan di database");
-            }
-        }
-
-        // 4. Validate required fields
+        // 4. Required-field validation
         $this->validateRequiredFields($data);
 
         // 5. Convert tanggal_joint
-        $tanggalJoint = $data['tanggal_joint'];
-        if (is_numeric($tanggalJoint) && $tanggalJoint > 0) {
-            try {
-                $tanggalJoint = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($tanggalJoint)->format('Y-m-d');
-            } catch (\Exception $e) {
-                Log::warning("Failed to convert Excel date", ['value' => $tanggalJoint, 'row' => $excelRowNumber]);
-            }
-        }
+        $tanggalJoint = $this->parseTanggal($data['tanggal_joint']);
 
         // 6. Validate diameter
         $diameter = (string) $data['diameter'];
@@ -198,539 +161,616 @@ class JalurJointImport implements ToCollection, WithHeadingRow, WithChunkReading
             throw new \Exception("Diameter tidak valid. Pilihan: 63, 90, 110, 160, 180, 200");
         }
 
-        // 7. Validate Line Numbers
-        $jointLineFrom = trim($data['joint_line_from']);
-        $jointLineTo = trim($data['joint_line_to']);
+        // 7. Validate line numbers
+        $jointLineFrom     = trim($data['joint_line_from']);
+        $jointLineTo       = trim($data['joint_line_to']);
         $jointLineOptional = !empty($data['joint_line_optional']) ? trim($data['joint_line_optional']) : null;
 
-        // Validate joint_line_from (skip validation if "EXISTING")
-        if (strtoupper($jointLineFrom) !== 'EXISTING') {
-            $lineFrom = JalurLineNumber::where('line_number', $jointLineFrom)
-                ->where('cluster_id', $cluster->id)
-                // Removed diameter check to allow Reducer/Cross-diameter joints
-                ->first();
+        $lineFrom = $this->validateLine($jointLineFrom, $cluster, 'joint_line_from');
+        $lineTo   = $this->validateLine($jointLineTo,   $cluster, 'joint_line_to');
 
-            if (!$lineFrom) {
-                throw new \Exception("Line '{$jointLineFrom}' tidak ditemukan di cluster {$cluster->nama_cluster}. Pastikan Line Number benar.");
-            }
-        } else {
-            $lineFrom = null; // Mark as null/existing
-        }
-
-        // Validate joint_line_to (skip validation if "EXISTING")
-        if (strtoupper($jointLineTo) !== 'EXISTING') {
-            $lineTo = JalurLineNumber::where('line_number', $jointLineTo)
-                ->where('cluster_id', $cluster->id)
-                // Removed diameter check
-                ->first();
-
-            if (!$lineTo) {
-                throw new \Exception("Line '{$jointLineTo}' tidak ditemukan di cluster {$cluster->nama_cluster}. Pastikan Line Number benar.");
-            }
-        } else {
-            $lineTo = null;
-        }
-
-        // Check for Reducer logic (Different Diameters)
-        if ($lineFrom && $lineTo) {
-            if ($lineFrom->diameter != $lineTo->diameter) {
-                // Validate fitting type is Reducer (RD) or allow with warning
-                if ($fittingType && strpos($fittingType->code_fitting, 'RD') === false) {
-                    // Not a Reducer but diameters differ.
-                    // Allow it but log warning
-                    Log::warning("Joint {$jointNumber} connects different diameters ({$lineFrom->diameter} vs {$lineTo->diameter}) but fitting type is {$fittingType->code_fitting} (not RD).");
-                }
+        // Cross-diameter warning
+        if ($lineFrom && $lineTo && $lineFrom->diameter != $lineTo->diameter) {
+            if ($fittingType && stripos($fittingType->code_fitting, 'RD') === false) {
+                Log::warning("Joint {$jointNumber}: diameter berbeda ({$lineFrom->diameter} vs {$lineTo->diameter}) tapi fitting bukan RD ({$fittingType->code_fitting})");
             }
         }
 
-        // 9. Validate Equal Tee (TE) - optional 3rd line
+        // Equal Tee optional line
         if ($fittingType && $fittingType->code_fitting === 'TE' && !empty($jointLineOptional)) {
-            // Validate joint_line_optional only if provided (skip validation if "EXISTING")
-            if (strtoupper($jointLineOptional) !== 'EXISTING') {
-                $lineOptional = JalurLineNumber::where('line_number', $jointLineOptional)
-                    ->where('cluster_id', $cluster->id)
-                    // Removed diameter check
-                    ->first();
-
-                if (!$lineOptional) {
-                    throw new \Exception("Line '{$jointLineOptional}' tidak ditemukan di cluster {$cluster->nama_cluster}.");
-                }
-            }
+            $this->validateLine($jointLineOptional, $cluster, 'joint_line_optional');
         }
 
-        // 10. Validate tipe_penyambungan
+        // 8. Validate tipe_penyambungan
         $tipePenyambungan = strtoupper(trim($data['tipe_penyambungan']));
         if (!in_array($tipePenyambungan, ['EF', 'BF'])) {
             throw new \Exception("Tipe penyambungan harus 'EF' atau 'BF'");
         }
 
-        // 11. Extract hyperlink for foto from joint_number cell (optional)
-        $fotoHyperlink = $this->getHyperlink($excelRowNumber, 'joint_number');
+        // 9. Foto hyperlink (column A)
+        $fotoHyperlink = $this->getHyperlink($row, 'A');
 
-        Log::info("Processing joint row", [
-            'row' => $excelRowNumber,
-            'joint_number' => $jointNumber,
-            'cluster' => $clusterCode,
-            'fitting' => $fittingCode,
-            'foto_hyperlink' => $fotoHyperlink ?? 'no photo',
-        ]);
-
-        // DRY RUN - Don't save to database
-        if ($this->dryRun) {
-            return [
-                'row' => $excelRowNumber,
-                'status' => 'success',
-                'data' => [
-                    'joint_number' => $jointNumber,
-                    'cluster' => $cluster->nama_cluster,
-                    'fitting_type' => $fittingType?->nama_fitting ?? '-',
-                    'tanggal_joint' => $tanggalJoint,
-                    'joint_line_from' => $jointLineFrom,
-                    'joint_line_to' => $jointLineTo,
-                    'joint_line_optional' => $jointLineOptional,
-                    'tipe_penyambungan' => $tipePenyambungan,
-                    'foto_hyperlink' => $fotoHyperlink,
-                    'keterangan' => $data['keterangan'] ?? null,
-                ],
-                'message' => 'Valid - Ready to import',
-            ];
-        }
-
-        // REAL IMPORT - Save to database
-        DB::beginTransaction();
-        try {
-            // Check for existing joint data by nomor_joint only
-            // Each joint number represents a unique physical joint
-            // Different joints (BF.05, BF.06) can have same line combinations (e.g., diameter 180 case)
-            $existingJoint = JalurJointData::where('nomor_joint', $jointNumber)->first();
-
-            if ($existingJoint) {
-                // Record exists - apply Smart Update logic
-                $updateResult = $this->smartUpdateJoint($existingJoint, [
-                    'cluster_id' => $cluster->id,
-                    'fitting_type_id' => $fittingType?->id,
-                    'joint_code' => $jointCode,
-                    'tanggal_joint' => $tanggalJoint,
-                    'joint_line_from' => $jointLineFrom,
-                    'joint_line_to' => $jointLineTo,
-                    'joint_line_optional' => $jointLineOptional,
-                    'tipe_penyambungan' => $tipePenyambungan,
-                    'keterangan' => $data['keterangan'] ?? null,
-                    'foto_hyperlink' => $fotoHyperlink,
-                ], $excelRowNumber);
-
-                $joint = $existingJoint;
-
-                Log::info("Joint import " . $updateResult['action'], [
-                    'row' => $excelRowNumber,
-                    'joint_id' => $joint->id,
-                    'result' => $updateResult
-                ]);
-            } else {
-                // No existing record - create new
-                $joint = JalurJointData::create([
-                    'nomor_joint' => $jointNumber,
-                    'cluster_id' => $cluster->id,
-                    'fitting_type_id' => $fittingType?->id,
-                    'joint_code' => $jointCode,
-                    'tanggal_joint' => $tanggalJoint,
-                    'joint_line_from' => $jointLineFrom,
-                    'joint_line_to' => $jointLineTo,
-                    'joint_line_optional' => $jointLineOptional,
-                    'tipe_penyambungan' => $tipePenyambungan,
-                    'keterangan' => $data['keterangan'] ?? null,
-                    'status_laporan' => 'draft',
-                    'created_by' => Auth::id(),
-                    'updated_by' => Auth::id(),
-                ]);
-
-                // Handle photo from Google Drive hyperlink (only for new records and if hyperlink exists)
-                if ($fotoHyperlink) {
-                    $this->handlePhotoFromDriveLink($joint, $fotoHyperlink, 'foto_evidence_joint');
-                }
-            }
-
-            DB::commit();
-
-            return [
-                'row' => $excelRowNumber,
-                'status' => 'success',
-                'data' => [
-                    'joint_id' => $joint->id,
-                    'joint_number' => $jointNumber,
-                    'cluster' => $cluster->nama_cluster,
-                    'fitting_type' => $fittingType?->nama_fitting ?? '-',
-                    'tanggal_joint' => $tanggalJoint,
-                ],
-                'message' => 'Joint berhasil diimport',
-            ];
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    private function parseJointNumber(string $jointNumber): ?array
-    {
-        // Format 1: {CLUSTER}-{FITTING}{CODE}
-        // Contoh: KRG-CP001, GDK-EL90124, KRG-TE002
-        // Note: Elbow has angle in code: EL90 (Elbow 90), EL45 (Elbow 45)
-
-        // Format 2 (Diameter 180): {FITTING}.{CODE} or {FITTING}{CODE}
-        // Contoh: BF.05, EF.010, BF.011
-        // Joint tanpa cluster, biasanya untuk diameter besar (180)
-
-        // Try Format 1: CLUSTER-FITTING_CODE+NUMBER
-        if (preg_match('/^([A-Z]+)-([A-Z]+\d*)(\d{3,})$/', $jointNumber, $matches)) {
-            return [
-                $matches[1], // Cluster Code (KRG, GDK)
-                $matches[2], // Fitting Code (CP, EL90, EL45, TE, RD, FA, VL, TF, TS, ECP)
-                $matches[3], // Joint Number (001, 124, etc - minimum 3 digits)
-            ];
-        }
-
-        // Try Format 2: TIPE_PENYAMBUNGAN.CODE (untuk diameter 180)
-        // Contoh: BF.05, EF.010
-        // BF/EF adalah tipe penyambungan (Butt Fusion / Electro Fusion), BUKAN fitting type
-        if (preg_match('/^([A-Z]+)[\.\-]?(\d{1,})$/', $jointNumber, $matches)) {
-            // For diameter 180, fitting type must be specified in separate Excel column
-            // Return special markers to indicate diameter 180 format
-            return [
-                'NONE',          // No cluster in joint number (will use from line_from)
-                'DIAMETER_180',  // Special marker: fitting type from Excel column, not from joint number
-                $matches[0],     // Full joint number as code (BF.05, EF.010, etc)
-            ];
-        }
-
-        return null;
-    }
-
-    private function validateRequiredFields(Collection $data): void
-    {
-        $required = [
-            'joint_number' => 'Nomor Joint',
-            'tanggal_joint' => 'Tanggal Joint',
-            'diameter' => 'Diameter',
-            'joint_line_from' => 'Joint Line From',
-            'joint_line_to' => 'Joint Line To',
-            'tipe_penyambungan' => 'Tipe Penyambungan',
+        // 10. Build canonical newData payload
+        $newData = [
+            'cluster_id'          => $cluster->id,
+            'cluster_name'        => $cluster->nama_cluster,
+            'fitting_type_id'     => $fittingType?->id,
+            'fitting_name'        => $fittingType?->nama_fitting ?? '-',
+            'joint_code'          => $jointCode,
+            'tanggal_joint'       => $tanggalJoint,
+            'joint_line_from'     => $jointLineFrom,
+            'joint_line_to'       => $jointLineTo,
+            'joint_line_optional' => $jointLineOptional,
+            'tipe_penyambungan'   => $tipePenyambungan,
+            'keterangan'          => $data['keterangan'] ?? null,
+            'foto_hyperlink'      => $fotoHyperlink,
         ];
 
-        foreach ($required as $field => $label) {
-            if (empty($data[$field]) || trim($data[$field]) === '') {
-                throw new \Exception("Field '{$label}' wajib diisi");
-            }
+        // 11. Existing or new?
+        // Lookup pakai composite key: nomor_joint + tanggal_joint + joint_line_from + joint_line_to
+        $matchingRecords = JalurJointData::where('nomor_joint', $jointNumber)
+            ->where('tanggal_joint', $tanggalJoint)
+            ->where('joint_line_from', $jointLineFrom)
+            ->where('joint_line_to', $jointLineTo)
+            ->get();
+
+        // Deteksi duplikat di DB (lebih dari 1 record dengan composite key yang sama)
+        if ($matchingRecords->count() > 1) {
+            return [
+                'row'     => $row,
+                'status'  => 'db_duplicate',
+                'data'    => [
+                    'joint_number'    => $jointNumber,
+                    'cluster'         => $cluster->nama_cluster,
+                    'tanggal_joint'   => $tanggalJoint,
+                    'joint_line_from' => $jointLineFrom,
+                    'joint_line_to'   => $jointLineTo,
+                    'duplicate_ids'   => $matchingRecords->pluck('id')->toArray(),
+                    'count'           => $matchingRecords->count(),
+                ],
+                'message' => "Ditemukan {$matchingRecords->count()} record duplikat di database untuk joint ini. Selesaikan duplikat terlebih dahulu melalui halaman Kelola Duplikat.",
+            ];
         }
+
+        $existing = $matchingRecords->first();
+
+        if ($existing) {
+            return $this->handleExisting($existing, $jointNumber, $cluster, $fittingType, $newData, $row);
+        }
+
+        return $this->handleNew($jointNumber, $cluster, $fittingType, $newData, $row);
     }
 
-    private function handlePhotoFromDriveLink(JalurJointData $joint, string $driveLink, string $fieldName): void
+    // ──────────────────────────────────────────────────────────────────────
+    //  HANDLE EXISTING JOINT
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function handleExisting($existing, string $jointNumber, $cluster, $fittingType, array $newData, int $row): array
+    {
+        $isApproved = $this->isApproved($existing);
+
+        $diff         = $this->computeDiff($existing, $newData);
+        $photoChanged = $this->hasPhotoChange($existing, $newData['foto_hyperlink']);
+
+        $hasKrusial    = collect($diff)->where('krusial', true)->isNotEmpty();
+        $hasNonKrusial = collect($diff)->where('krusial', false)->isNotEmpty();
+        $noDiff        = empty($diff) && !$photoChanged;
+
+        // ── No changes at all ────────────────────────────────────────────
+        if ($noDiff) {
+            return $this->buildResult($row, 'skip_no_change', $existing, $jointNumber, $cluster, $fittingType, $newData, [], false, 'Data sama persis, tidak ada perubahan');
+        }
+
+        // ── APPROVED / REJECTED record ───────────────────────────────────
+        if ($isApproved) {
+            if ($hasKrusial || $photoChanged) {
+                if (!$this->allowRecall) {
+                    // Protected → skip
+                    return $this->buildResult($row, 'skip_approved', $existing, $jointNumber, $cluster, $fittingType, $newData, $diff, $photoChanged,
+                        "Data sudah {$existing->status_laporan}. Aktifkan 'Allow Recall' untuk mengubah data krusial.");
+                }
+
+                // Recall → reset to draft + overwrite all
+                if (!$this->dryRun) {
+                    $this->applyUpdate($existing, $newData, [
+                        'cluster_id', 'fitting_type_id', 'joint_code', 'tanggal_joint',
+                        'joint_line_from', 'joint_line_to', 'joint_line_optional',
+                        'tipe_penyambungan', 'keterangan',
+                    ], resetStatus: true);
+
+                    if ($photoChanged && !empty($newData['foto_hyperlink'])) {
+                        $this->replacePhoto($existing, $newData['foto_hyperlink']);
+                    }
+                }
+
+                // Mark all diff as will_apply = true (recall forces overwrite)
+                $diff = array_map(fn($d) => array_merge($d, ['will_apply' => true]), $diff);
+
+                return $this->buildResult($row, 'recall', $existing, $jointNumber, $cluster, $fittingType, $newData, $diff, $photoChanged,
+                    "Di-recall dari '{$existing->status_laporan}' → draft dan diupdate");
+            }
+
+            // Only non-krusial changed → safe update without recall
+            if ($hasNonKrusial && !$this->dryRun) {
+                $this->applyUpdate($existing, $newData, ['keterangan'], resetStatus: false);
+            }
+
+            return $this->buildResult($row, 'update', $existing, $jointNumber, $cluster, $fittingType, $newData, $diff, false,
+                "Non-krusial diupdate (status tetap: {$existing->status_laporan})");
+        }
+
+        // ── DRAFT record ─────────────────────────────────────────────────
+        // Determine what will_apply for each diff field
+        $diff = array_map(function ($d) use ($existing) {
+            $oldVal = (string) ($existing->{$d['field']} instanceof \Carbon\Carbon
+                ? $existing->{$d['field']}->format('Y-m-d')
+                : ($existing->{$d['field']} ?? ''));
+            $oldIsEmpty     = $oldVal === '' || $oldVal === '0';
+            $d['will_apply'] = $this->forceUpdate || $oldIsEmpty;
+            return $d;
+        }, $diff);
+
+        $photoWillApply = $photoChanged && $this->forceUpdate;
+
+        $willApplyCount = collect($diff)->where('will_apply', true)->count();
+        if ($willApplyCount === 0 && !$photoWillApply) {
+            return $this->buildResult($row, 'skip_no_change', $existing, $jointNumber, $cluster, $fittingType, $newData, $diff, false,
+                'Tidak ada perubahan yang akan diterapkan (Force Update OFF, semua field sudah terisi)');
+        }
+
+        if (!$this->dryRun) {
+            $fieldsToApply = collect($diff)->where('will_apply', true)->pluck('field')->toArray();
+            if (!empty($fieldsToApply)) {
+                $this->applyUpdate($existing, $newData, $fieldsToApply, resetStatus: false);
+            }
+            if ($photoWillApply) {
+                $this->replacePhoto($existing, $newData['foto_hyperlink']);
+            }
+        }
+
+        return $this->buildResult($row, 'update', $existing, $jointNumber, $cluster, $fittingType, $newData, $diff, $photoWillApply,
+            'Updated field yang berubah (status: draft)');
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  HANDLE NEW JOINT
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function handleNew(string $jointNumber, $cluster, $fittingType, array $newData, int $row): array
+    {
+        if (!$this->dryRun) {
+            DB::beginTransaction();
+            try {
+                $joint = JalurJointData::create([
+                    'nomor_joint'         => $jointNumber,
+                    'cluster_id'          => $newData['cluster_id'],
+                    'fitting_type_id'     => $newData['fitting_type_id'],
+                    'joint_code'          => $newData['joint_code'],
+                    'tanggal_joint'       => $newData['tanggal_joint'],
+                    'joint_line_from'     => $newData['joint_line_from'],
+                    'joint_line_to'       => $newData['joint_line_to'],
+                    'joint_line_optional' => $newData['joint_line_optional'],
+                    'tipe_penyambungan'   => $newData['tipe_penyambungan'],
+                    'keterangan'          => $newData['keterangan'],
+                    'status_laporan'      => 'draft',
+                    'created_by'          => Auth::id(),
+                    'updated_by'          => Auth::id(),
+                ]);
+
+                if (!empty($newData['foto_hyperlink'])) {
+                    $this->copyPhotoFromDrive($joint, $newData['foto_hyperlink'], 'foto_evidence_joint');
+                }
+
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+        }
+
+        return [
+            'row'     => $row,
+            'status'  => 'new',
+            'data'    => [
+                'joint_number'    => $jointNumber,
+                'cluster'         => $cluster->nama_cluster,
+                'fitting_type'    => $fittingType?->nama_fitting ?? '-',
+                'tanggal_joint'   => $newData['tanggal_joint'],
+                'joint_line_from' => $newData['joint_line_from'],
+                'joint_line_to'   => $newData['joint_line_to'],
+                'tipe_penyambungan'=> $newData['tipe_penyambungan'],
+                'foto_hyperlink'  => $newData['foto_hyperlink'],
+            ],
+            'diff'    => [],
+            'message' => 'Baru — akan dibuat',
+        ];
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  DIFF COMPUTATION
+    //  Compares existing DB record to new Excel data.
+    //  Returns array of field entries with will_apply flag.
+    //  NOTE: will_apply for draft records is finalised in handleExisting.
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function computeDiff($existing, array $newData): array
+    {
+        $isApproved = $this->isApproved($existing);
+
+        $fieldDefs = [
+            'cluster_id'          => ['label' => 'Cluster',           'krusial' => true],
+            'fitting_type_id'     => ['label' => 'Fitting Type',      'krusial' => true],
+            'tanggal_joint'       => ['label' => 'Tanggal Joint',     'krusial' => true],
+            'joint_line_from'     => ['label' => 'Line From',         'krusial' => true],
+            'joint_line_to'       => ['label' => 'Line To',           'krusial' => true],
+            'joint_line_optional' => ['label' => 'Line Optional',     'krusial' => true],
+            'tipe_penyambungan'   => ['label' => 'Tipe Penyambungan', 'krusial' => true],
+            'keterangan'          => ['label' => 'Keterangan',        'krusial' => false],
+        ];
+
+        // Human-readable display values for ID fields
+        $displayOld = [
+            'cluster_id'      => optional($existing->cluster)->nama_cluster ?? '(kosong)',
+            'fitting_type_id' => optional($existing->fittingType)->nama_fitting ?? '(kosong)',
+        ];
+        $displayNew = [
+            'cluster_id'      => $newData['cluster_name'],
+            'fitting_type_id' => $newData['fitting_name'],
+        ];
+
+        $diff = [];
+
+        foreach ($fieldDefs as $field => $cfg) {
+            $rawOld = $existing->$field;
+
+            // Normalise Carbon to string
+            if ($rawOld instanceof \Carbon\Carbon) {
+                $rawOld = $rawOld->format('Y-m-d');
+            }
+
+            $oldStr = (string) ($rawOld ?? '');
+            $newStr = (string) ($newData[$field] ?? '');
+
+            if ($oldStr === $newStr) {
+                continue; // no change
+            }
+
+            $oldIsEmpty = $oldStr === '' || $oldStr === '0';
+
+            // Preliminary will_apply (may be overridden in handleExisting for draft)
+            if ($isApproved) {
+                $willApply = $cfg['krusial'] ? $this->allowRecall : true;
+            } else {
+                $willApply = $this->forceUpdate || $oldIsEmpty;
+            }
+
+            $diff[] = [
+                'field'      => $field,
+                'label'      => $cfg['label'],
+                'old'        => $displayOld[$field] ?? $oldStr,
+                'new'        => $displayNew[$field] ?? $newStr,
+                'krusial'    => $cfg['krusial'],
+                'will_apply' => $willApply,
+            ];
+        }
+
+        return $diff;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  HELPERS
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function isApproved($joint): bool
+    {
+        return in_array($joint->status_laporan, [
+            'tracer_approved', 'cgp_approved',
+            'tracer_rejected', 'cgp_rejected',
+        ]);
+    }
+
+    private function hasPhotoChange($joint, ?string $newLink): bool
+    {
+        if (empty($newLink)) return false;
+
+        return PhotoApproval::where('module_name', 'jalur_joint')
+            ->where('module_record_id', $joint->id)
+            ->where('photo_field_name', 'foto_evidence_joint')
+            ->exists();
+    }
+
+    private function applyUpdate($joint, array $newData, array $fields, bool $resetStatus): void
+    {
+        $payload = ['updated_by' => Auth::id()];
+        foreach ($fields as $f) {
+            if (array_key_exists($f, $newData)) {
+                $payload[$f] = $newData[$f];
+            }
+        }
+        if ($resetStatus) {
+            $payload['status_laporan'] = 'draft';
+        }
+        $joint->update($payload);
+    }
+
+    private function replacePhoto($joint, string $newLink): void
+    {
+        PhotoApproval::where('module_name', 'jalur_joint')
+            ->where('module_record_id', $joint->id)
+            ->delete();
+
+        $this->copyPhotoFromDrive($joint, $newLink, 'foto_evidence_joint');
+    }
+
+    private function copyPhotoFromDrive(JalurJointData $joint, string $driveLink, string $fieldName): void
     {
         try {
-            // Generate folder path: jalur_joint/{cluster}/{joint_number}/{date}
             $clusterSlug = \Illuminate\Support\Str::slug($joint->cluster->nama_cluster, '_');
-            $dateFolder = $joint->tanggal_joint->format('Y-m-d');
-            $customPath = "jalur_joint/{$clusterSlug}/{$joint->nomor_joint}/{$dateFolder}";
+            $dateFolder  = $joint->tanggal_joint->format('Y-m-d');
+            $customPath  = "jalur_joint/{$clusterSlug}/{$joint->nomor_joint}/{$dateFolder}";
+            $fileName    = "{$fieldName}_" . now()->format('YmdHis');
 
-            // Generate unique filename
-            $timestamp = now()->format('YmdHis');
-            $customFileName = "{$fieldName}_{$timestamp}";
+            $result = $this->googleDriveService->copyFromDriveLink($driveLink, $customPath, $fileName);
 
-            // Copy file from Google Drive link to project folder
-            $result = $this->googleDriveService->copyFromDriveLink(
-                $driveLink,
-                $customPath,
-                $customFileName
-            );
-
-            // Create PhotoApproval record
             PhotoApproval::create([
-                'module_name' => 'jalur_joint',
+                'module_name'      => 'jalur_joint',
                 'module_record_id' => $joint->id,
                 'photo_field_name' => $fieldName,
-                'photo_url' => $result['url'],
-                'drive_file_id' => $result['id'] ?? null,
-                'photo_status' => 'tracer_pending',
-                'uploaded_by' => Auth::id(),
-                'uploaded_at' => now(),
+                'photo_url'        => $result['url'],
+                'drive_file_id'    => $result['id'] ?? null,
+                'photo_status'     => 'tracer_pending',
+                'uploaded_by'      => Auth::id(),
+                'uploaded_at'      => now(),
             ]);
 
-            Log::info('Photo copied from Google Drive link', [
-                'joint_id' => $joint->id,
-                'field_name' => $fieldName,
-                'drive_link' => $driveLink,
-                'result' => $result
+            Log::info('Joint photo copied from Drive', [
+                'joint_id'  => $joint->id,
+                'field'     => $fieldName,
+                'drive_link'=> $driveLink,
             ]);
-
         } catch (\Exception $e) {
-            Log::error('Failed to copy photo from Google Drive link', [
+            Log::error('Failed to copy joint photo from Drive', [
                 'joint_id' => $joint->id,
-                'field_name' => $fieldName,
-                'drive_link' => $driveLink,
-                'error' => $e->getMessage()
+                'error'    => $e->getMessage(),
             ]);
             throw new \Exception("Gagal copy foto {$fieldName} dari Google Drive: " . $e->getMessage());
         }
     }
 
-    /**
-     * Extract all hyperlinks from Excel file using PhpSpreadsheet
-     */
+    private function buildResult(
+        int    $row,
+        string $status,
+        $existing,
+        string $jointNumber,
+        $cluster,
+        $fittingType,
+        array  $newData,
+        array  $diff,
+        bool   $photoChanged,
+        string $message
+    ): array {
+        return [
+            'row'             => $row,
+            'status'          => $status,
+            'data'            => [
+                'joint_number'     => $jointNumber,
+                'cluster'          => $cluster->nama_cluster,
+                'fitting_type'     => $fittingType?->nama_fitting ?? '-',
+                'tanggal_joint'    => $newData['tanggal_joint'],
+                'joint_line_from'  => $newData['joint_line_from'],
+                'joint_line_to'    => $newData['joint_line_to'],
+                'tipe_penyambungan'=> $newData['tipe_penyambungan'],
+                'existing_status'  => $existing->status_laporan,
+                'foto_hyperlink'   => $newData['foto_hyperlink'],
+            ],
+            'diff'            => $diff,
+            'photo_changed'   => $photoChanged,
+            'previous_status' => $existing->status_laporan,
+            'message'         => $message,
+        ];
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  VALIDATION HELPERS
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function parseJointNumber(string $jointNumber): ?array
+    {
+        // Format 1: {CLUSTER}-{FITTING}{CODE}  — mis. KRG-CP001, GDK-EL90124, KRG-TE002
+        if (preg_match('/^([A-Z0-9\-]+)-([A-Z]+\d*)(\d{3,})$/', $jointNumber, $m)) {
+            return [$m[1], $m[2], $m[3]];
+        }
+
+        // Format 2 (diameter 180): {TIPE}.{KODE} atau {TIPE}{KODE} — mis. BF.05, EF.010
+        if (preg_match('/^([A-Z]+)[\.\-]?(\d{1,})$/', $jointNumber, $m)) {
+            return ['NONE', 'DIAMETER_180', $m[0]];
+        }
+
+        return null;
+    }
+
+    private function resolveClusterCode(string $clusterCode, Collection $data): string
+    {
+        if ($clusterCode !== 'NONE') return $clusterCode;
+
+        if (!empty($data['cluster'])) {
+            return strtoupper(trim($data['cluster']));
+        }
+
+        $lineFrom = trim($data['joint_line_from'] ?? '');
+        $lineTo   = trim($data['joint_line_to'] ?? '');
+        $regex    = '/^\d+\s*-\s*([A-Za-z0-9\-\s]+?)\s*-\s*LN\d+$/i';
+
+        if (preg_match($regex, $lineFrom, $m)) return strtoupper(trim($m[1]));
+        if (preg_match($regex, $lineTo,   $m)) return strtoupper(trim($m[1]));
+
+        $jointNumber = $data['joint_number'] ?? '?';
+        throw new \Exception(
+            "Gagal mendeteksi Cluster.\nJoint: {$jointNumber}.\n"
+            . "Line From: '{$lineFrom}'. Line To: '{$lineTo}'.\n"
+            . "Pastikan format Line: {DIAMETER}-{CLUSTER}-LN{NUMBER} (mis. 180-KRG-LN001), "
+            . "atau isi kolom 'cluster' di Excel."
+        );
+    }
+
+    private function resolveFittingType(string $fittingCode, Collection $data): ?JalurFittingType
+    {
+        if ($fittingCode !== 'DIAMETER_180') {
+            $ft = JalurFittingType::where('code_fitting', $fittingCode)->first();
+            if (!$ft) throw new \Exception("Fitting Type '{$fittingCode}' tidak ditemukan di database");
+            return $ft;
+        }
+
+        // Diameter 180 format: fitting type from column or default
+        $fromColumn = !empty($data['fitting_type']) ? trim($data['fitting_type']) : null;
+        if ($fromColumn) {
+            $ft = JalurFittingType::where('code_fitting', $fromColumn)->first();
+            if (!$ft) throw new \Exception("Fitting Type '{$fromColumn}' tidak ditemukan di database");
+            return $ft;
+        }
+
+        $tipe = strtoupper(trim($data['tipe_penyambungan'] ?? ''));
+        if ($tipe === 'BF') return null; // pipe-to-pipe, no fitting
+
+        $ft = JalurFittingType::where('code_fitting', 'CP')->first();
+        if (!$ft) throw new \Exception("Fitting type default 'CP' tidak ditemukan. Tambah kolom 'fitting_type' di Excel.");
+        return $ft;
+    }
+
+    private function validateLine(string $lineNumber, $cluster, string $fieldName): ?JalurLineNumber
+    {
+        if (strtoupper($lineNumber) === 'EXISTING') return null;
+
+        $line = JalurLineNumber::where('line_number', $lineNumber)
+            ->where('cluster_id', $cluster->id)
+            ->first();
+
+        if (!$line) {
+            throw new \Exception("Line '{$lineNumber}' tidak ditemukan di cluster {$cluster->nama_cluster} ({$fieldName})");
+        }
+
+        return $line;
+    }
+
+    private function validateRequiredFields(Collection $data): void
+    {
+        $required = [
+            'joint_number'      => 'Nomor Joint',
+            'tanggal_joint'     => 'Tanggal Joint',
+            'diameter'          => 'Diameter',
+            'joint_line_from'   => 'Joint Line From',
+            'joint_line_to'     => 'Joint Line To',
+            'tipe_penyambungan' => 'Tipe Penyambungan',
+        ];
+
+        foreach ($required as $field => $label) {
+            if (empty($data[$field]) || trim((string) $data[$field]) === '') {
+                throw new \Exception("Field '{$label}' wajib diisi");
+            }
+        }
+    }
+
+    private function parseTanggal($value): string
+    {
+        if (is_numeric($value) && $value > 0) {
+            try {
+                return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('Y-m-d');
+            } catch (\Exception $e) {
+                // fall through
+            }
+        }
+        return (string) $value;
+    }
+
+    private function excelDateToString($value): string
+    {
+        try {
+            return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('Y-m-d');
+        } catch (\Exception $e) {
+            return (string) $value;
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  HYPERLINK EXTRACTION
+    // ──────────────────────────────────────────────────────────────────────
+
     private function extractAllHyperlinks(): void
     {
         try {
-            // Load Excel file directly using PhpSpreadsheet
-            $spreadsheet = IOFactory::load($this->filePath);
-            $worksheet = $spreadsheet->getActiveSheet();
+            $spreadsheet     = IOFactory::load($this->filePath);
+            $worksheet       = $spreadsheet->getActiveSheet();
+            $highestRow      = $worksheet->getHighestRow();
+            $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(
+                $worksheet->getHighestColumn()
+            );
 
-            $highestRow = $worksheet->getHighestRow();
-            $highestColumn = $worksheet->getHighestColumn();
-            $highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
-
-            // Start from row 2 (skip header)
             for ($row = 2; $row <= $highestRow; $row++) {
-                // Get joint_number (column A) and tanggal (column B) for mapping
-                $jointNumberCell = $worksheet->getCell('A' . $row);
-                $tanggalCell = $worksheet->getCell('B' . $row);
+                $jointNumber = $worksheet->getCell('A' . $row)->getValue();
+                $tanggal     = $worksheet->getCell('B' . $row)->getValue();
 
-                $jointNumber = $jointNumberCell->getValue();
-                $tanggal = $tanggalCell->getValue();
-
-                // Convert Excel date to Y-m-d format
                 if ($tanggal && is_numeric($tanggal)) {
-                    try {
-                        $tanggal = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($tanggal)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        // Keep original value if conversion fails
-                    }
+                    $tanggal = $this->excelDateToString($tanggal);
                 }
 
-                // Create mapping key: joint_number|date
                 if ($jointNumber && $tanggal) {
-                    $mappingKey = $jointNumber . '|' . $tanggal;
-                    $this->rowMapping[$mappingKey] = $row;
+                    $this->rowMapping[$jointNumber . '|' . $tanggal] = $row;
                 }
 
-                for ($col = 1; $col <= $highestColumnIndex; $col++) {
-                    $cellCoordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
-                    $cell = $worksheet->getCell($cellCoordinate);
+                for ($col = 1; $col <= $highestColIndex; $col++) {
+                    $coord = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $row;
+                    $cell  = $worksheet->getCell($coord);
 
                     if ($cell->getHyperlink() && $cell->getHyperlink()->getUrl()) {
-                        $url = $cell->getHyperlink()->getUrl();
-                        $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-
-                        if (!isset($this->hyperlinks[$row])) {
-                            $this->hyperlinks[$row] = [];
-                        }
-                        $this->hyperlinks[$row][$columnLetter] = $url;
-
-                        Log::info("Hyperlink found", [
-                            'row' => $row,
-                            'column' => $columnLetter,
-                            'cell' => $cellCoordinate,
-                            'url' => $url,
-                            'cell_value' => $cell->getValue()
-                        ]);
+                        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                        $this->hyperlinks[$row][$colLetter] = $cell->getHyperlink()->getUrl();
                     }
                 }
             }
 
-            Log::info("Total hyperlinks extracted", ['count' => count($this->hyperlinks)]);
-
+            Log::info('Joint hyperlinks extracted', ['count' => array_sum(array_map('count', $this->hyperlinks))]);
         } catch (\Exception $e) {
-            Log::error("Failed to extract hyperlinks", [
-                'file' => $this->filePath,
-                'error' => $e->getMessage()
+            Log::error('Failed to extract joint hyperlinks', [
+                'file'  => $this->filePath,
+                'error' => $e->getMessage(),
             ]);
         }
     }
 
-    /**
-     * Get hyperlink from specific cell
-     */
-    private function getHyperlink(int $excelRow, string $columnName): ?string
+    private function getHyperlink(int $excelRow, string $column): ?string
     {
-        // Map column names to Excel letters
-        $columnMap = [
-            'joint_number' => 'A', // Column A - hyperlink foto ada di cell joint_number
-        ];
-
-        $columnLetter = $columnMap[$columnName] ?? null;
-        if (!$columnLetter) {
-            return null;
-        }
-
-        return $this->hyperlinks[$excelRow][$columnLetter] ?? null;
+        return $this->hyperlinks[$excelRow][$column] ?? null;
     }
 
-    /**
-     * Smart Update Logic for Joint Data
-     * Only update what changed, protect approved data
-     */
-    private function smartUpdateJoint($existingJoint, array $newData, int $excelRowNumber): array
-    {
-        $statusApproved = in_array($existingJoint->status_laporan, ['tracer_approved', 'cgp_approved', 'tracer_rejected', 'cgp_rejected']);
-
-        // Define field categories
-        $nonKrusialFields = ['keterangan'];
-        $krusialDataFields = ['cluster_id', 'fitting_type_id', 'tanggal_joint', 'joint_line_from', 'joint_line_to', 'joint_line_optional', 'tipe_penyambungan'];
-
-        // Check what changed
-        $changedNonKrusial = [];
-        $changedKrusial = [];
-
-        // Check non-krusial fields
-        if (($existingJoint->keterangan ?? '') !== ($newData['keterangan'] ?? '')) {
-            $changedNonKrusial[] = 'keterangan';
-        }
-
-        // Check krusial data fields
-        if ($existingJoint->cluster_id !== $newData['cluster_id']) {
-            $changedKrusial[] = 'cluster_id';
-        }
-        if ($existingJoint->fitting_type_id !== $newData['fitting_type_id']) {
-            $changedKrusial[] = 'fitting_type_id';
-        }
-        if ($existingJoint->tanggal_joint !== $newData['tanggal_joint']) {
-            $changedKrusial[] = 'tanggal_joint';
-        }
-        if (($existingJoint->joint_line_from ?? '') !== ($newData['joint_line_from'] ?? '')) {
-            $changedKrusial[] = 'joint_line_from';
-        }
-        if (($existingJoint->joint_line_to ?? '') !== ($newData['joint_line_to'] ?? '')) {
-            $changedKrusial[] = 'joint_line_to';
-        }
-        if (($existingJoint->joint_line_optional ?? '') !== ($newData['joint_line_optional'] ?? '')) {
-            $changedKrusial[] = 'joint_line_optional';
-        }
-        if (($existingJoint->tipe_penyambungan ?? '') !== ($newData['tipe_penyambungan'] ?? '')) {
-            $changedKrusial[] = 'tipe_penyambungan';
-        }
-
-        // Check photo evidence changes (compare hyperlinks from photo_approvals)
-        $photoChanged = $this->checkJointPhotoLinkChanged($existingJoint, $newData['foto_hyperlink']);
-
-        // Decision logic
-        if (empty($changedNonKrusial) && empty($changedKrusial) && !$photoChanged) {
-            // No changes at all - SKIP
-            return [
-                'action' => 'skipped',
-                'reason' => 'no_changes',
-                'message' => 'Data sama persis, tidak ada perubahan'
-            ];
-        }
-
-        if ($statusApproved) {
-            // Data already approved - check what changed
-            if (!empty($changedKrusial) || $photoChanged) {
-                // Krusial fields or photos changed - CANNOT UPDATE
-                return [
-                    'action' => 'skipped',
-                    'reason' => 'protected_approved_data',
-                    'message' => 'Data sudah approved, tidak bisa mengubah data krusial atau foto',
-                    'changed_krusial' => $changedKrusial,
-                    'photo_changed' => $photoChanged
-                ];
-            }
-
-            // Only non-krusial changed - safe to update
-            if (!empty($changedNonKrusial)) {
-                $updateData = [];
-                if (in_array('keterangan', $changedNonKrusial)) {
-                    $updateData['keterangan'] = $newData['keterangan'] ?? null;
-                }
-
-                $existingJoint->update($updateData);
-
-                return [
-                    'action' => 'updated',
-                    'updated_fields' => $changedNonKrusial,
-                    'message' => 'Updated non-krusial fields only (status tetap ' . $existingJoint->status_laporan . ')'
-                ];
-            }
-        } else {
-            // Status still draft - can update everything
-            $updateData = [
-                'cluster_id' => $newData['cluster_id'],
-                'fitting_type_id' => $newData['fitting_type_id'],
-                'joint_code' => $newData['joint_code'],
-                'tanggal_joint' => $newData['tanggal_joint'],
-                'joint_line_from' => $newData['joint_line_from'],
-                'joint_line_to' => $newData['joint_line_to'],
-                'joint_line_optional' => $newData['joint_line_optional'],
-                'tipe_penyambungan' => $newData['tipe_penyambungan'],
-                'keterangan' => $newData['keterangan'],
-                'updated_by' => Auth::id(),
-            ];
-
-            $existingJoint->update($updateData);
-
-            // Update photo if link changed
-            if ($photoChanged) {
-                $this->updateJointPhotoIfChanged($existingJoint, $newData['foto_hyperlink']);
-            }
-
-            return [
-                'action' => 'updated',
-                'updated_fields' => array_merge($changedNonKrusial, $changedKrusial),
-                'photos_updated' => $photoChanged,
-                'message' => 'Updated all changed fields (status: draft)'
-            ];
-        }
-
-        return [
-            'action' => 'skipped',
-            'reason' => 'unknown',
-            'message' => 'Tidak ada aksi yang dilakukan'
-        ];
-    }
-
-    /**
-     * Check if joint photo link changed
-     */
-    private function checkJointPhotoLinkChanged($joint, string $newPhotoLink): bool
-    {
-        // Get existing photo approval
-        $existingPhoto = PhotoApproval::where('module_name', 'jalur_joint')
-            ->where('module_record_id', $joint->id)
-            ->where('photo_field_name', 'foto_evidence_joint')
-            ->first();
-
-        if ($existingPhoto && !empty($newPhotoLink)) {
-            // Compare drive links
-            if ($existingPhoto->drive_link !== $newPhotoLink) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Update joint photo if link changed (only for draft status)
-     */
-    private function updateJointPhotoIfChanged($joint, string $newPhotoLink): void
-    {
-        // Delete old photo approval
-        \App\Models\PhotoApproval::where('module_name', 'jalur_joint')
-            ->where('module_record_id', $joint->id)
-            ->delete();
-
-        // Re-upload with new link
-        if (!empty($newPhotoLink)) {
-            $this->handlePhotoFromDriveLink($joint, $newPhotoLink, 'foto_evidence_joint');
-        }
-    }
+    // ──────────────────────────────────────────────────────────────────────
+    //  PUBLIC API
+    // ──────────────────────────────────────────────────────────────────────
 
     public function getResults(): array
     {
         return $this->results;
     }
 
-    /**
-     * Chunk size for reading Excel file
-     * Process 100 rows at a time to avoid memory issues
-     */
+    public function getSummary(): array
+    {
+        $grouped = collect($this->results)->groupBy('status');
+
+        return [
+            'total_rows'        => count($this->results),
+            'new'               => $grouped->get('new',               collect())->count(),
+            'update'            => $grouped->get('update',            collect())->count(),
+            'skip_no_change'    => $grouped->get('skip_no_change',    collect())->count(),
+            'skip_approved'     => $grouped->get('skip_approved',     collect())->count(),
+            'recall'            => $grouped->get('recall',            collect())->count(),
+            'error'             => $grouped->get('error',             collect())->count(),
+            'duplicate_in_file' => $grouped->get('duplicate_in_file', collect())->count(),
+            'db_duplicate'      => $grouped->get('db_duplicate',      collect())->count(),
+            'force_update'      => $this->forceUpdate,
+            'allow_recall'      => $this->allowRecall,
+            'details'           => $this->results,
+        ];
+    }
+
     public function chunkSize(): int
     {
         return 100;
