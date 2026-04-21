@@ -769,6 +769,10 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                         return redirect()->route('jalur.joint.import.index')
                             ->with('info', 'Silakan upload file untuk melakukan import.');
                     });
+                    Route::get('/duplicates', [\App\Http\Controllers\Web\JalurJointImportController::class, 'duplicates'])
+                        ->name('duplicates');
+                    Route::post('/duplicates/resolve', [\App\Http\Controllers\Web\JalurJointImportController::class, 'resolveDuplicates'])
+                        ->name('duplicates.resolve');
                 });
 
                 // Resource routes with {joint} parameter - MUST BE AFTER import routes
