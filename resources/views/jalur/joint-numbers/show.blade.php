@@ -91,15 +91,15 @@
                 <div class="space-y-3">
                     <div>
                         <p class="text-sm font-medium text-gray-500">Nama Fitting</p>
-                        <p class="text-gray-900">{{ $jointNumber->fittingType->nama_fitting }}</p>
+                        <p class="text-gray-900">{{ $jointNumber->fittingType?->nama_fitting ?? '-' }}</p>
                     </div>
                     <div>
                         <p class="text-sm font-medium text-gray-500">Kode Fitting</p>
-                        <p class="text-gray-900">{{ $jointNumber->fittingType->code_fitting }}</p>
+                        <p class="text-gray-900">{{ $jointNumber->fittingType?->code_fitting ?? '-' }}</p>
                     </div>
                     <div>
                         <p class="text-sm font-medium text-gray-500">Status Fitting Type</p>
-                        @if($jointNumber->fittingType->is_active)
+                        @if($jointNumber->fittingType?->is_active)
                             <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
                                 Aktif
                             </span>

@@ -158,7 +158,7 @@
             <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div class="bg-cyan-50 rounded-lg p-3 border border-cyan-200">
                     <div class="text-xs font-medium text-cyan-600 mb-1">Fitting Type</div>
-                    <div class="text-lg font-bold text-cyan-900">{{ $joint->fittingType->nama_fitting ?? '-' }}</div>
+                    <div class="text-lg font-bold text-cyan-900">{{ $joint->fittingType?->nama_fitting ?? '-' }}</div>
                 </div>
                 <div class="bg-blue-50 rounded-lg p-3 border border-blue-200">
                     <div class="text-xs font-medium text-blue-600 mb-1">Tipe Penyambungan</div>
@@ -215,7 +215,7 @@
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-4">
                         <div class="text-center">
                             <div class="text-xs text-blue-100">Fitting Type</div>
-                            <div class="text-sm font-semibold">{{ $joint->fittingType->nama_fitting ?? '-' }}</div>
+                            <div class="text-sm font-semibold">{{ $joint->fittingType?->nama_fitting ?? '-' }}</div>
                         </div>
                         <div class="text-center">
                             <div class="text-xs text-blue-100">✅ Approved</div>

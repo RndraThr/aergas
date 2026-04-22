@@ -442,7 +442,7 @@ class GoogleSheetsService
                 $fitting = ''; // Empty for diameter 90
                 Log::info("Joint Sync Debug: Diameter 90 detected, Fitting column will be empty (direct pipe-to-pipe joint)");
             } else {
-                $fitting = strtoupper($joint->fittingType->nama_fitting ?? $joint->jenis_fitting ?? '-');
+                $fitting = strtoupper($joint->fittingType?->nama_fitting ?? $joint->jenis_fitting ?? '-');
             }
 
             // Use Abbreviation EF/BF (Do not convert to full name)

@@ -182,7 +182,7 @@
                                     @foreach($lineNumber->jointData->sortByDesc('tanggal_joint') as $joint)
                                         <tr>
                                             <td class="px-4 py-3 text-sm font-mono text-gray-900">{{ $joint->nomor_joint }}</td>
-                                            <td class="px-4 py-3 text-sm text-gray-900">{{ $joint->fittingType->nama_fitting }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-900">{{ $joint->fittingType?->nama_fitting ?? '-' }}</td>
                                             <td class="px-4 py-3 text-sm text-gray-900">{{ $joint->tanggal_joint->format('d/m/Y') }}</td>
                                             <td class="px-4 py-3">
                                                 <span class="inline-flex px-2 py-1 text-xs rounded-full
