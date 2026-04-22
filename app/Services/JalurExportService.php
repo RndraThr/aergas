@@ -280,7 +280,7 @@ class JalurExportService
                     $joint->joint_line_from,
                     $joint->joint_line_to,
                     $joint->joint_line_optional ?? '-',
-                    $joint->fittingType->nama_fitting ?? '-',
+                    $joint->fittingType?->nama_fitting ?? '-',
                     $joint->tipe_penyambungan,
                     $joint->lokasi_joint ?? '-',
                     $joint->status_label,

@@ -285,7 +285,7 @@
                                         </div>
                                         <div>
                                             <p class="font-medium text-gray-900">{{ $joint->nomor_joint }}</p>
-                                            <p class="text-sm text-gray-600">{{ $joint->fittingType->nama_fitting }} -
+                                            <p class="text-sm text-gray-600">{{ $joint->fittingType?->nama_fitting ?? '-' }} -
                                                 {{ $joint->tipe_penyambungan }}
                                             </p>
                                             <p class="text-xs text-gray-500">{{ $joint->tanggal_joint->format('d/m/Y') }}</p>

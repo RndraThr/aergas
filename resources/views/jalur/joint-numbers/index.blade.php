@@ -107,8 +107,8 @@
                                 <div class="text-sm text-gray-500">{{ $jointNumber->cluster->code_cluster }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-900">{{ $jointNumber->fittingType->nama_fitting }}</div>
-                                <div class="text-sm text-gray-500">{{ $jointNumber->fittingType->code_fitting }}</div>
+                                <div class="text-sm text-gray-900">{{ $jointNumber->fittingType?->nama_fitting ?? '-' }}</div>
+                                <div class="text-sm text-gray-500">{{ $jointNumber->fittingType?->code_fitting ?? '-' }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @if($jointNumber->is_active)
