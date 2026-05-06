@@ -702,6 +702,20 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                         ->name('preview');
                     Route::post('/', [JalurLoweringImportController::class, 'import'])
                         ->name('execute');
+                    Route::post('/sheet-sync-preview', [JalurLoweringImportController::class, 'sheetSyncPreview'])
+                        ->name('sheet-sync-preview');
+                    Route::get('/sheet-sync-preview', function () {
+                        return redirect()->route('jalur.lowering.import.index')
+                            ->with('info', 'Silakan fetch ulang dari Google Sheet.');
+                    });
+                    Route::post('/sheet-sync-commit', [JalurLoweringImportController::class, 'sheetSyncCommit'])
+                        ->name('sheet-sync-commit');
+                    Route::get('/sheet-sync-commit', function () {
+                        return redirect()->route('jalur.lowering.import.index')
+                            ->with('info', 'Silakan fetch ulang dari Google Sheet.');
+                    });
+                    Route::post('/sheet-create-lines', [JalurLoweringImportController::class, 'sheetCreateLines'])
+                        ->name('sheet-create-lines');
                 });
 
                 // Duplicate resolution
@@ -768,6 +782,18 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                     Route::get('/execute', function () {
                         return redirect()->route('jalur.joint.import.index')
                             ->with('info', 'Silakan upload file untuk melakukan import.');
+                    });
+                    Route::post('/sheet-sync-preview', [\App\Http\Controllers\Web\JalurJointImportController::class, 'sheetSyncPreview'])
+                        ->name('sheet-sync-preview');
+                    Route::get('/sheet-sync-preview', function () {
+                        return redirect()->route('jalur.joint.import.index')
+                            ->with('info', 'Silakan fetch ulang dari Google Sheet.');
+                    });
+                    Route::post('/sheet-sync-commit', [\App\Http\Controllers\Web\JalurJointImportController::class, 'sheetSyncCommit'])
+                        ->name('sheet-sync-commit');
+                    Route::get('/sheet-sync-commit', function () {
+                        return redirect()->route('jalur.joint.import.index')
+                            ->with('info', 'Silakan fetch ulang dari Google Sheet.');
                     });
                     Route::get('/duplicates', [\App\Http\Controllers\Web\JalurJointImportController::class, 'duplicates'])
                         ->name('duplicates');
