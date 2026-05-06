@@ -246,9 +246,35 @@
                                         {{ \Carbon\Carbon::parse($lowering->tanggal_jalur)->isoFormat('dddd') }}
                                     </p>
                                 </div>
-                                <div class="text-right">
-                                    <div class="text-sm text-purple-100">Photos</div>
-                                    <div class="text-2xl font-bold">{{ $photos->count() }}</div>
+                                <div class="flex items-center gap-3">
+                                    {{-- Edit / Detail Lowering Button --}}
+                                    @if(auth()->user()->hasAnyRole(['jalur', 'admin', 'super_admin']))
+                                        @php
+                                            $canEditLowering = in_array($lowering->status_laporan, ['draft', 'revisi_tracer', 'revisi_cgp']);
+                                        @endphp
+                                        @if($canEditLowering)
+                                            <a href="{{ route('jalur.lowering.edit', $lowering->id) }}"
+                                               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-amber-900 rounded-lg text-sm font-semibold transition shadow-sm">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                </svg>
+                                                Edit
+                                            </a>
+                                        @else
+                                            <a href="{{ route('jalur.lowering.show', $lowering->id) }}"
+                                               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-semibold transition">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                </svg>
+                                                Detail
+                                            </a>
+                                        @endif
+                                    @endif
+                                    <div class="text-right">
+                                        <div class="text-sm text-purple-100">Photos</div>
+                                        <div class="text-2xl font-bold">{{ $photos->count() }}</div>
+                                    </div>
                                 </div>
                             </div>
 
