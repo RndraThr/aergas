@@ -13,8 +13,13 @@
     $errorData  = $details->where('status', 'error');
     $dupData    = $details->where('status', 'duplicate_in_file');
 
-    $hasRecall  = $summary['recall'] > 0;
-    $toCommit   = $summary['new'] + $summary['update'] + $summary['recall'];
+    $hasRecall   = $summary['recall'] > 0;
+    $toCommit    = $summary['new'] + $summary['update'] + $summary['recall'];
+    $isSheetSync = $isSheetSync ?? false;
+
+    $commitAction = $isSheetSync
+        ? route('jalur.joint.import.sheet-sync-commit')
+        : route('jalur.joint.import.execute');
 @endphp
 
 <div class="container mx-auto px-6 py-8">
@@ -543,7 +548,7 @@
         </div>
         @endif
 
-        <form action="{{ route('jalur.joint.import.execute') }}" method="POST" id="commitForm">
+        <form action="{{ $commitAction }}" method="POST" id="commitForm">
             @csrf
             <input type="hidden" name="temp_file_path" value="{{ $tempFilePath }}">
             <input type="hidden" name="force_update"   value="{{ $forceUpdate ? '1' : '0' }}">

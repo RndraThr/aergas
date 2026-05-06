@@ -6,6 +6,9 @@
     $details = $summary['details'] ?? [];
     $hasRecall = ($summary['recall'] ?? 0) > 0;
     $hasAnyCommittable = ($summary['new'] ?? 0) + ($summary['update'] ?? 0) + ($summary['recall'] ?? 0) > 0;
+    $isSheetSync = $isSheetSync ?? false;
+    $missingLines = $missingLines ?? [];
+    $clusters = $clusters ?? collect();
 
     $fieldLabels = [
         'nama_jalan' => 'Nama Jalan',
@@ -92,6 +95,73 @@
             <div class="text-xs text-gray-600 mt-1">ERROR</div>
         </div>
     </div>
+
+    {{-- Missing Line Numbers (sheet sync only) --}}
+    @if($isSheetSync && count($missingLines) > 0)
+        <details class="mb-4 bg-orange-50 rounded-lg p-4 border-2 border-orange-400" open>
+            <summary class="cursor-pointer text-sm font-semibold text-orange-800 flex items-center gap-2">
+                ⚠️ Line Number Tidak Ditemukan — Perlu dibuat dulu ({{ count($missingLines) }})
+            </summary>
+            <div class="mt-2 p-3 bg-orange-100 border border-orange-300 rounded text-xs text-orange-900">
+                Line number berikut ada di sheet tapi belum terdaftar di database. Lengkapi data lalu klik
+                <strong>Tambah ke Database</strong>. Setelah berhasil, kembali dan fetch preview ulang agar data lowering-nya ikut ter-proses.
+            </div>
+            <div class="mt-3 overflow-x-auto rounded border border-orange-200">
+                <table class="min-w-full text-xs" id="missingLinesTable">
+                    <thead class="bg-orange-100 sticky top-0">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-semibold text-orange-800">Line Number</th>
+                            <th class="px-3 py-2 text-left font-semibold text-orange-800">Diameter</th>
+                            <th class="px-3 py-2 text-left font-semibold text-orange-800">Cluster <span class="text-red-500">*</span></th>
+                            <th class="px-3 py-2 text-left font-semibold text-orange-800">Nama Jalan</th>
+                            <th class="px-3 py-2 text-left font-semibold text-orange-800">Estimasi Panjang (m)</th>
+                            <th class="px-3 py-2 text-left font-semibold text-orange-800">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-orange-100 bg-white">
+                        @foreach($missingLines as $i => $ln)
+                            <tr data-idx="{{ $i }}">
+                                <td class="px-3 py-2 font-mono font-semibold text-orange-900">
+                                    {{ $ln['line_number'] }}
+                                    <input type="hidden" class="ml-ln" value="{{ $ln['line_number'] }}">
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input type="text" class="ml-dia border border-gray-200 rounded px-2 py-1 w-16 text-center text-xs" value="{{ $ln['diameter'] }}">
+                                </td>
+                                <td class="px-3 py-2">
+                                    <select class="ml-cluster border border-gray-200 rounded px-2 py-1 text-xs w-44">
+                                        <option value="">-- Pilih --</option>
+                                        @foreach($clusters as $cluster)
+                                            <option value="{{ $cluster->id }}" {{ $ln['cluster_id'] == $cluster->id ? 'selected' : '' }}>
+                                                {{ $cluster->code_cluster }} — {{ $cluster->nama_cluster }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input type="text" class="ml-jalan border border-gray-200 rounded px-2 py-1 w-40 text-xs" value="{{ $ln['nama_jalan'] }}" placeholder="Nama jalan">
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input type="number" class="ml-panjang border border-gray-200 rounded px-2 py-1 w-24 text-xs" value="{{ $ln['estimasi_panjang'] }}" min="0" step="0.01">
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input type="text" class="ml-status border border-gray-200 rounded px-2 py-1 w-20 text-xs" value="{{ $ln['status_line'] }}" placeholder="Aktif">
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3 flex items-center gap-3">
+                <button onclick="createMissingLines()" id="btnCreateLines"
+                        class="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Tambah ke Database
+                </button>
+                <span id="createLinesMsg" class="text-sm hidden"></span>
+            </div>
+        </details>
+    @endif
 
     {{-- NEW records --}}
     @if(!empty($details['new']))
@@ -386,7 +456,12 @@
     {{-- Action Buttons --}}
     <div class="bg-white rounded-lg shadow p-6 mt-6">
         @if($hasAnyCommittable)
-            <form action="{{ route('jalur.lowering.import.execute') }}" method="POST" id="commitForm">
+            @php
+                $commitAction = $isSheetSync
+                    ? route('jalur.lowering.import.sheet-sync-commit')
+                    : route('jalur.lowering.import.execute');
+            @endphp
+            <form action="{{ $commitAction }}" method="POST" id="commitForm">
                 @csrf
                 <input type="hidden" name="temp_file_path" value="{{ $tempFilePath }}">
                 <input type="hidden" name="force_update" value="{{ $forceUpdate ? 1 : 0 }}">
@@ -437,10 +512,63 @@
 @if($hasRecall)
 <script>
     const confirmBox = document.getElementById('confirmRecall');
-    const commitBtn = document.getElementById('commitBtn');
+    const commitBtn  = document.getElementById('commitBtn');
     confirmBox?.addEventListener('change', () => {
         commitBtn.disabled = !confirmBox.checked;
     });
+</script>
+@endif
+
+@if($isSheetSync && count($missingLines) > 0)
+<script>
+async function createMissingLines() {
+    const rows = document.querySelectorAll('#missingLinesTable tbody tr[data-idx]');
+    const lines = [];
+    let hasErr = false;
+
+    rows.forEach(row => {
+        const clusterId = row.querySelector('.ml-cluster').value;
+        row.querySelector('.ml-cluster').style.borderColor = clusterId ? '' : '#ef4444';
+        if (!clusterId) hasErr = true;
+        lines.push({
+            line_number:      row.querySelector('.ml-ln').value,
+            cluster_id:       clusterId,
+            diameter:         row.querySelector('.ml-dia').value,
+            nama_jalan:       row.querySelector('.ml-jalan').value,
+            estimasi_panjang: row.querySelector('.ml-panjang').value || 0,
+            status_line:      row.querySelector('.ml-status').value || 'Aktif',
+        });
+    });
+
+    if (hasErr) { alert('Pilih cluster untuk semua line number.'); return; }
+
+    const btn = document.getElementById('btnCreateLines');
+    const msg = document.getElementById('createLinesMsg');
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan...';
+
+    const fd = new FormData();
+    fd.append('_token', '{{ csrf_token() }}');
+    lines.forEach((ln, i) => Object.entries(ln).forEach(([k,v]) => fd.append(`lines[${i}][${k}]`, v)));
+
+    try {
+        const res  = await fetch('{{ route("jalur.lowering.import.sheet-create-lines") }}', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+            msg.textContent = '✅ ' + data.message + ' — Kembali ke import dan fetch preview ulang.';
+            msg.className = 'text-sm text-green-700 font-semibold';
+            msg.classList.remove('hidden');
+            btn.classList.add('hidden');
+        } else {
+            alert('❌ Gagal: ' + (data.error || 'Unknown'));
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Tambah ke Database';
+    }
+}
 </script>
 @endif
 @endsection

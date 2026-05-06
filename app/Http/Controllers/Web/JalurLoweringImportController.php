@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Imports\JalurLoweringImport;
 use App\Exports\JalurLoweringTemplateExport;
 use App\Models\JalurLoweringData;
+use App\Models\JalurLineNumber;
 use App\Models\PhotoApproval;
+use App\Services\GoogleSheetsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -140,6 +142,464 @@ class JalurLoweringImportController extends Controller
             return back()
                 ->with('error', 'Gagal mengimport data: ' . $e->getMessage())
                 ->withInput();
+        }
+    }
+
+    public function sheetSyncPreview(Request $request, GoogleSheetsService $sheetsService)
+    {
+        $forceUpdate = $request->boolean('force_update');
+        $allowRecall = $request->boolean('allow_recall');
+
+        try {
+            $sheetData = $sheetsService->getLoweringDataFromSheet();
+
+            $lineNumberMap = JalurLineNumber::pluck('id', 'line_number');
+
+            $existingLowering = JalurLoweringData::select(
+                    'id', 'line_number_id', 'status_laporan', 'tanggal_jalur', 'tipe_bongkaran',
+                    'penggelaran', 'bongkaran', 'kedalaman_lowering',
+                    'cassing_quantity', 'marker_tape_quantity', 'concrete_slab_quantity', 'landasan_quantity'
+                )
+                ->with(['lineNumber:id,line_number'])
+                ->get()
+                ->keyBy(fn($item) => ($item->lineNumber->line_number ?? '') . '|' . ($item->tanggal_jalur?->format('Y-m-d') ?? '') . '|' . $item->tipe_bongkaran);
+
+            $missingLines   = [];
+            $detailsNew     = [];
+            $detailsUpdate  = [];
+            $detailsSkipNC  = [];
+            $detailsSkipApp = [];
+            $detailsRecall  = [];
+            $rowNum         = 0;
+
+            $numericFields = [
+                'penggelaran'            => ['label' => 'Penggelaran (m)', 'integer' => false],
+                'bongkaran'              => ['label' => 'Bongkaran (m)',   'integer' => false],
+                'kedalaman_lowering'     => ['label' => 'Kedalaman (cm)',  'integer' => true],
+                'cassing_quantity'       => ['label' => 'Cassing',         'integer' => false],
+                'marker_tape_quantity'   => ['label' => 'Marker Tape',     'integer' => false],
+                'concrete_slab_quantity' => ['label' => 'Concrete Slab',   'integer' => true],
+                'landasan_quantity'      => ['label' => 'Landasan',        'integer' => false],
+            ];
+
+            foreach ($sheetData as $row) {
+                $rowNum++;
+                $lineNumber = $row['line_number'];
+
+                if (!isset($lineNumberMap[$lineNumber])) {
+                    if (!isset($missingLines[$lineNumber])) {
+                        preg_match('/^\d+-([A-Z0-9]+)-LN/i', $lineNumber, $m);
+                        $clusterCode = $m[1] ?? '';
+                        $cluster     = $clusterCode ? \App\Models\JalurCluster::where('code_cluster', $clusterCode)->first() : null;
+                        $missingLines[$lineNumber] = [
+                            'line_number'      => $lineNumber,
+                            'diameter'         => $row['diameter'] ?? '',
+                            'cluster_code'     => $clusterCode,
+                            'cluster_id'       => $cluster?->id,
+                            'cluster_name'     => $cluster?->nama_cluster ?? $row['cluster_name'] ?? '',
+                            'nama_jalan'       => $row['nama_jalan'] ?? '',
+                            'estimasi_panjang' => 0,
+                            'status_line'      => 'Aktif',
+                        ];
+                    }
+                    continue;
+                }
+
+                $key = $lineNumber . '|' . $row['tanggal_jalur'] . '|' . $row['tipe_bongkaran'];
+
+                if (isset($existingLowering[$key])) {
+                    $existing    = $existingLowering[$key];
+                    $isApproved  = in_array($existing->status_laporan, ['acc_tracer', 'acc_cgp']);
+                    $nonKrusial  = [];
+
+                    foreach ($numericFields as $field => $meta) {
+                        $sheetVal = $row[$field] ?? null;
+                        if ($sheetVal === null) continue;
+                        if ($meta['integer']) {
+                            $sn = (int) round((float) $sheetVal);
+                            $dn = (int) ($existing->$field ?? 0);
+                            if ($sn !== $dn) {
+                                $nonKrusial[] = ['field' => $field, 'old' => $dn, 'new' => $sn, 'will_apply' => !$isApproved || $allowRecall];
+                            }
+                        } else {
+                            if ((float) $sheetVal !== (float) ($existing->$field ?? 0)) {
+                                $nonKrusial[] = ['field' => $field, 'old' => $existing->$field, 'new' => $sheetVal, 'will_apply' => !$isApproved || $allowRecall];
+                            }
+                        }
+                    }
+
+                    $baseDetail = [
+                        'row'            => $rowNum,
+                        'line_number'    => $lineNumber,
+                        'tanggal'        => $row['tanggal_jalur'],
+                        'tipe_bongkaran' => $row['tipe_bongkaran'],
+                        'status'         => $existing->status_laporan,
+                        'existing_id'    => $existing->id,
+                        'diff'           => ['non_krusial' => $nonKrusial, 'krusial' => [], 'photos' => []],
+                        '_row'           => $row,
+                    ];
+
+                    if (empty($nonKrusial)) {
+                        $detailsSkipNC[] = $baseDetail;
+                    } elseif ($isApproved && !$allowRecall) {
+                        $detailsSkipApp[] = $baseDetail;
+                    } elseif ($isApproved && $allowRecall) {
+                        $detailsRecall[] = $baseDetail;
+                    } else {
+                        $detailsUpdate[] = $baseDetail;
+                    }
+                } else {
+                    $detailsNew[] = [
+                        'row'            => $rowNum,
+                        'line_number'    => $lineNumber,
+                        'tanggal'        => $row['tanggal_jalur'],
+                        'tipe_bongkaran' => $row['tipe_bongkaran'],
+                        'data'           => array_merge($row, ['has_photos' => false, 'line_number_id' => $lineNumberMap[$lineNumber]]),
+                        '_row'           => $row,
+                    ];
+                }
+            }
+
+            // Save raw payload to temp JSON for commit
+            $tempDir  = storage_path('app/temp-imports');
+            if (!file_exists($tempDir)) mkdir($tempDir, 0755, true);
+            $tempFile = $tempDir . DIRECTORY_SEPARATOR . time() . '_' . uniqid() . '_sheet_lowering.json';
+            file_put_contents($tempFile, json_encode([
+                'new'          => array_map(fn($d) => $d['_row'] + ['line_number_id' => $d['data']['line_number_id']], $detailsNew),
+                'updated'      => array_map(fn($d) => ['existing_id' => $d['existing_id'], 'data' => $d['_row'], 'is_recall' => false], $detailsUpdate),
+                'recalled'     => array_map(fn($d) => ['existing_id' => $d['existing_id'], 'data' => $d['_row'], 'is_recall' => true], $detailsRecall),
+                'force_update' => $forceUpdate,
+                'allow_recall' => $allowRecall,
+            ]));
+
+            $summary = [
+                'new'              => count($detailsNew),
+                'update'           => count($detailsUpdate) + count($detailsRecall),
+                'skip_no_change'   => count($detailsSkipNC),
+                'skip_approved'    => count($detailsSkipApp),
+                'recall'           => count($detailsRecall),
+                'duplicate_in_file'=> 0,
+                'error'            => 0,
+                'details'          => [
+                    'new'              => $detailsNew,
+                    'update'           => array_merge($detailsUpdate, $detailsRecall),
+                    'skip_no_change'   => $detailsSkipNC,
+                    'skip_approved'    => $detailsSkipApp,
+                    'recall'           => $detailsRecall,
+                    'duplicate_in_file'=> [],
+                    'error'            => [],
+                ],
+            ];
+
+            $clusters = \App\Models\JalurCluster::active()->select('id', 'nama_cluster', 'code_cluster')->get();
+
+            return view('jalur.lowering.import-preview', [
+                'summary'      => $summary,
+                'fileName'     => 'Google Sheet — ' . config('services.google_sheets.sheet_name_pe', 'PE'),
+                'tempFilePath' => 'temp-imports/' . basename($tempFile),
+                'forceUpdate'  => $forceUpdate,
+                'allowRecall'  => $allowRecall,
+                'isSheetSync'  => true,
+                'missingLines' => array_values($missingLines),
+                'clusters'     => $clusters,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Lowering sheet sync preview failed: ' . $e->getMessage());
+            return back()->with('error', 'Gagal mengambil data sheet: ' . $e->getMessage());
+        }
+    }
+
+    public function sheetSyncCommit(Request $request)
+    {
+        $tempFilePath = storage_path('app/' . $request->input('temp_file_path'));
+
+        if (!file_exists($tempFilePath)) {
+            return redirect()->route('jalur.lowering.import.index')
+                ->with('error', 'File temporary tidak ditemukan. Silakan fetch ulang dari sheet.');
+        }
+
+        $payload     = json_decode(file_get_contents($tempFilePath), true);
+        $forceUpdate = $payload['force_update'] ?? false;
+        $allowRecall = $payload['allow_recall'] ?? false;
+
+        try {
+            DB::beginTransaction();
+            $lineNumberMap = JalurLineNumber::pluck('id', 'line_number');
+            $toInt = fn($v, $fb) => isset($v) ? (int) round((float) $v) : $fb;
+            $countNew = $countUpdated = $countRecalled = 0;
+
+            foreach ($payload['new'] ?? [] as $item) {
+                $lineNumberId = $item['line_number_id'] ?? ($lineNumberMap[$item['line_number']] ?? null);
+                if (!$lineNumberId) continue;
+                JalurLoweringData::create([
+                    'line_number_id'         => $lineNumberId,
+                    'tanggal_jalur'          => $item['tanggal_jalur'],
+                    'tipe_bongkaran'         => $item['tipe_bongkaran'],
+                    'penggelaran'            => $item['penggelaran'],
+                    'bongkaran'              => $item['bongkaran'],
+                    'kedalaman_lowering'     => $toInt($item['kedalaman_lowering'] ?? null, null),
+                    'cassing_quantity'       => $item['cassing_quantity'] ?? null,
+                    'marker_tape_quantity'   => $item['marker_tape_quantity'] ?? null,
+                    'concrete_slab_quantity' => $toInt($item['concrete_slab_quantity'] ?? null, null),
+                    'landasan_quantity'      => $item['landasan_quantity'] ?? null,
+                    'aksesoris_cassing'      => !empty($item['cassing_quantity']),
+                    'aksesoris_marker_tape'  => !empty($item['marker_tape_quantity']),
+                    'aksesoris_concrete_slab'=> !empty($item['concrete_slab_quantity']),
+                    'aksesoris_landasan'     => !empty($item['landasan_quantity']),
+                    'status_laporan'         => 'draft',
+                    'created_by'             => Auth::id(),
+                    'updated_by'             => Auth::id(),
+                ]);
+                $countNew++;
+            }
+
+            foreach (array_merge($payload['updated'] ?? [], $payload['recalled'] ?? []) as $item) {
+                $existing = JalurLoweringData::find($item['existing_id']);
+                if (!$existing) continue;
+
+                $d          = $item['data'];
+                $isRecall   = $item['is_recall'] ?? false;
+                $updateData = $forceUpdate ? [
+                    'penggelaran'            => $d['penggelaran']            ?? $existing->penggelaran,
+                    'bongkaran'              => $d['bongkaran']              ?? $existing->bongkaran,
+                    'kedalaman_lowering'     => $toInt($d['kedalaman_lowering']     ?? null, $existing->kedalaman_lowering),
+                    'cassing_quantity'       => $d['cassing_quantity']       ?? $existing->cassing_quantity,
+                    'marker_tape_quantity'   => $d['marker_tape_quantity']   ?? $existing->marker_tape_quantity,
+                    'concrete_slab_quantity' => $toInt($d['concrete_slab_quantity'] ?? null, $existing->concrete_slab_quantity),
+                    'landasan_quantity'      => $d['landasan_quantity']      ?? $existing->landasan_quantity,
+                    'updated_by'             => Auth::id(),
+                ] : [
+                    'penggelaran'            => $existing->penggelaran            ?? $d['penggelaran'],
+                    'bongkaran'              => $existing->bongkaran              ?? $d['bongkaran'],
+                    'kedalaman_lowering'     => $existing->kedalaman_lowering     ?? $toInt($d['kedalaman_lowering'] ?? null, null),
+                    'cassing_quantity'       => $existing->cassing_quantity       ?? $d['cassing_quantity'],
+                    'marker_tape_quantity'   => $existing->marker_tape_quantity   ?? $d['marker_tape_quantity'],
+                    'concrete_slab_quantity' => $existing->concrete_slab_quantity ?? $toInt($d['concrete_slab_quantity'] ?? null, null),
+                    'landasan_quantity'      => $existing->landasan_quantity      ?? $d['landasan_quantity'],
+                    'updated_by'             => Auth::id(),
+                ];
+
+                if ($isRecall) {
+                    $updateData['status_laporan']     = 'draft';
+                    $updateData['tracer_approved_at'] = null;
+                    $updateData['tracer_approved_by'] = null;
+                    $updateData['cgp_approved_at']    = null;
+                    $updateData['cgp_approved_by']    = null;
+                    $updateData['tracer_notes']       = null;
+                    $updateData['cgp_notes']          = null;
+                    $existing->photoApprovals()->update([
+                        'photo_status'       => 'tracer_pending',
+                        'tracer_approved_at' => null, 'tracer_approved_by' => null, 'tracer_notes' => null,
+                        'cgp_approved_at'    => null, 'cgp_approved_by'    => null, 'cgp_notes'    => null,
+                    ]);
+                    $countRecalled++;
+                }
+
+                $existing->update($updateData);
+                $countUpdated++;
+            }
+
+            DB::commit();
+            @unlink($tempFilePath);
+
+            $parts = [];
+            if ($countNew > 0)      $parts[] = "{$countNew} data baru";
+            if ($countUpdated > 0)  $parts[] = "{$countUpdated} data diupdate";
+            if ($countRecalled > 0) $parts[] = "{$countRecalled} data di-recall (→ draft)";
+
+            return redirect()->route('jalur.lowering.import.index')
+                ->with('success', 'Sync selesai: ' . (empty($parts) ? 'tidak ada perubahan' : implode(', ', $parts)));
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Lowering sheet sync commit failed: ' . $e->getMessage());
+            return back()->with('error', 'Gagal commit: ' . $e->getMessage());
+        }
+    }
+
+    public function sheetCreateLines(Request $request)
+    {
+        $request->validate([
+            'lines'                    => 'required|array|min:1',
+            'lines.*.line_number'      => 'required|string',
+            'lines.*.cluster_id'       => 'required|integer|exists:jalur_clusters,id',
+            'lines.*.diameter'         => 'required|string',
+            'lines.*.nama_jalan'       => 'nullable|string|max:255',
+            'lines.*.estimasi_panjang' => 'nullable|numeric|min:0',
+            'lines.*.status_line'      => 'nullable|string|max:100',
+        ]);
+
+        try {
+            DB::beginTransaction();
+            $created = 0;
+            $skipped = 0;
+
+            foreach ($request->input('lines') as $line) {
+                if (JalurLineNumber::where('line_number', $line['line_number'])->exists()) {
+                    $skipped++;
+                    continue;
+                }
+
+                JalurLineNumber::create([
+                    'cluster_id'        => $line['cluster_id'],
+                    'line_number'       => $line['line_number'],
+                    'diameter'          => $line['diameter'],
+                    'nama_jalan'        => $line['nama_jalan'] ?? null,
+                    'estimasi_panjang'  => $line['estimasi_panjang'] ?? 0,
+                    'total_penggelaran' => 0,
+                    'status_line'       => $line['status_line'] ?? 'Aktif',
+                    'is_active'         => true,
+                    'created_by'        => Auth::id(),
+                    'updated_by'        => Auth::id(),
+                ]);
+                $created++;
+            }
+
+            DB::commit();
+
+            $parts = [];
+            if ($created > 0) $parts[] = "{$created} line number berhasil dibuat";
+            if ($skipped > 0) $parts[] = "{$skipped} sudah ada";
+
+            return response()->json([
+                'success' => true,
+                'message' => implode(', ', $parts),
+                'created' => $created,
+                'skipped' => $skipped,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('sheetCreateLines failed: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function sheetSyncProcess(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+
+            $lineNumberMap = JalurLineNumber::pluck('id', 'line_number');
+            $forceUpdate   = $request->boolean('force_update');
+            $allowRecall   = $request->boolean('allow_recall');
+            $countNew      = 0;
+            $countUpdated  = 0;
+            $countSkipped  = 0;
+            $countRecalled = 0;
+
+            foreach ($request->input('sync_new', []) as $item) {
+                $item = is_string($item) ? json_decode($item, true) : $item;
+                if (!$item) continue;
+
+                $lineNumberId = $lineNumberMap[$item['line_number']] ?? null;
+                if (!$lineNumberId) continue;
+
+                JalurLoweringData::create([
+                    'line_number_id'         => $lineNumberId,
+                    'tanggal_jalur'          => $item['tanggal_jalur'],
+                    'tipe_bongkaran'         => $item['tipe_bongkaran'],
+                    'penggelaran'            => $item['penggelaran'],
+                    'bongkaran'              => $item['bongkaran'],
+                    'kedalaman_lowering'     => isset($item['kedalaman_lowering']) ? (int) round((float) $item['kedalaman_lowering']) : null,
+                    'cassing_quantity'       => $item['cassing_quantity'] ?? null,
+                    'marker_tape_quantity'   => $item['marker_tape_quantity'] ?? null,
+                    'concrete_slab_quantity' => isset($item['concrete_slab_quantity']) ? (int) round((float) $item['concrete_slab_quantity']) : null,
+                    'landasan_quantity'      => $item['landasan_quantity'] ?? null,
+                    'aksesoris_cassing'      => !empty($item['cassing_quantity']),
+                    'aksesoris_marker_tape'  => !empty($item['marker_tape_quantity']),
+                    'aksesoris_concrete_slab'=> !empty($item['concrete_slab_quantity']),
+                    'aksesoris_landasan'     => !empty($item['landasan_quantity']),
+                    'status_laporan'         => 'draft',
+                    'created_by'             => Auth::id(),
+                    'updated_by'             => Auth::id(),
+                ]);
+                $countNew++;
+            }
+
+            foreach ($request->input('sync_updated', []) as $item) {
+                $item = is_string($item) ? json_decode($item, true) : $item;
+                if (!$item || !isset($item['existing_id'])) continue;
+
+                $existing = JalurLoweringData::find($item['existing_id']);
+                if (!$existing) continue;
+
+                $isApproved = in_array($existing->status_laporan, ['acc_tracer', 'acc_cgp']);
+
+                if ($isApproved && !$allowRecall) {
+                    $countSkipped++;
+                    continue;
+                }
+
+                $d     = $item['data'];
+                $toInt = fn($v, $fallback) => isset($v) ? (int) round((float) $v) : $fallback;
+
+                $updateData = $forceUpdate ? [
+                    // force update: overwrite all fields from sheet
+                    'penggelaran'            => $d['penggelaran']            ?? $existing->penggelaran,
+                    'bongkaran'              => $d['bongkaran']              ?? $existing->bongkaran,
+                    'kedalaman_lowering'     => $toInt($d['kedalaman_lowering']     ?? null, $existing->kedalaman_lowering),
+                    'cassing_quantity'       => $d['cassing_quantity']       ?? $existing->cassing_quantity,
+                    'marker_tape_quantity'   => $d['marker_tape_quantity']   ?? $existing->marker_tape_quantity,
+                    'concrete_slab_quantity' => $toInt($d['concrete_slab_quantity'] ?? null, $existing->concrete_slab_quantity),
+                    'landasan_quantity'      => $d['landasan_quantity']      ?? $existing->landasan_quantity,
+                    'updated_by'             => Auth::id(),
+                ] : [
+                    // default: only fill empty fields
+                    'penggelaran'            => $existing->penggelaran            ?? $d['penggelaran'],
+                    'bongkaran'              => $existing->bongkaran              ?? $d['bongkaran'],
+                    'kedalaman_lowering'     => $existing->kedalaman_lowering     ?? $toInt($d['kedalaman_lowering'] ?? null, null),
+                    'cassing_quantity'       => $existing->cassing_quantity       ?? $d['cassing_quantity'],
+                    'marker_tape_quantity'   => $existing->marker_tape_quantity   ?? $d['marker_tape_quantity'],
+                    'concrete_slab_quantity' => $existing->concrete_slab_quantity ?? $toInt($d['concrete_slab_quantity'] ?? null, null),
+                    'landasan_quantity'      => $existing->landasan_quantity      ?? $d['landasan_quantity'],
+                    'updated_by'             => Auth::id(),
+                ];
+
+                if ($isApproved && $allowRecall) {
+                    $updateData['status_laporan']     = 'draft';
+                    $updateData['tracer_approved_at'] = null;
+                    $updateData['tracer_approved_by'] = null;
+                    $updateData['cgp_approved_at']    = null;
+                    $updateData['cgp_approved_by']    = null;
+                    $updateData['tracer_notes']       = null;
+                    $updateData['cgp_notes']          = null;
+
+                    $existing->photoApprovals()->update([
+                        'photo_status'       => 'tracer_pending',
+                        'tracer_approved_at' => null,
+                        'tracer_approved_by' => null,
+                        'tracer_notes'       => null,
+                        'cgp_approved_at'    => null,
+                        'cgp_approved_by'    => null,
+                        'cgp_notes'          => null,
+                    ]);
+                    $countRecalled++;
+                }
+
+                $existing->update($updateData);
+                $countUpdated++;
+            }
+
+            DB::commit();
+
+            $parts = [];
+            if ($countNew > 0)      $parts[] = "{$countNew} data baru";
+            if ($countUpdated > 0)  $parts[] = "{$countUpdated} data diupdate";
+            if ($countRecalled > 0) $parts[] = "{$countRecalled} data di-recall (→ draft)";
+            if ($countSkipped > 0)  $parts[] = "{$countSkipped} data dilindungi";
+
+            return response()->json([
+                'success'       => true,
+                'message'       => 'Sync selesai: ' . (empty($parts) ? 'tidak ada perubahan' : implode(', ', $parts)),
+                'count_new'     => $countNew,
+                'count_updated' => $countUpdated,
+                'count_skipped' => $countSkipped,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Lowering sheet sync process failed: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 

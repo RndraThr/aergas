@@ -705,6 +705,178 @@ class GoogleSheetsService
         return null;
     }
 
+    private function parseDateFromSheet(string $dateStr): ?string
+    {
+        if (empty($dateStr)) return null;
+
+        $monthMap = [
+            'jan' => '01', 'feb' => '02', 'mar' => '03', 'apr' => '04',
+            'mei' => '05', 'may' => '05', 'jun' => '06', 'jul' => '07',
+            'agu' => '08', 'agt' => '08', 'aug' => '08', 'sep' => '09',
+            'sept' => '09', 'okt' => '10', 'oct' => '10', 'nov' => '11',
+            'des' => '12', 'dec' => '12',
+        ];
+
+        // DD-MMM-YYYY or DD-MMM-YY (Indonesian format)
+        if (preg_match('/^(\d{1,2})-([a-zA-Z]{3,4})-(\d{2,4})$/i', trim($dateStr), $m)) {
+            $day   = str_pad((int) $m[1], 2, '0', STR_PAD_LEFT);
+            $month = $monthMap[strtolower($m[2])] ?? null;
+            $year  = (int) $m[3];
+            if ($year < 100) $year += 2000;
+            if ($month) return "{$year}-{$month}-{$day}";
+        }
+
+        try {
+            return Carbon::parse($dateStr)->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    private function normalizeTipeBongkaran(string $raw): string
+    {
+        // Abbreviation map
+        $abbrevMap = [
+            'MB'    => 'Manual Boring',
+            'OC'    => 'Open Cut',
+            'CR'    => 'Crossing',
+            'ZK'    => 'Zinker',
+            'HDD'   => 'HDD',
+            'MB-PK' => 'Manual Boring - PK',
+            'CR-PK' => 'Crossing - PK',
+        ];
+
+        $upper = strtoupper(trim($raw));
+        if (isset($abbrevMap[$upper])) return $abbrevMap[$upper];
+
+        // Valid ENUM values (case-insensitive exact match)
+        $valid = ['Manual Boring', 'Open Cut', 'Crossing', 'Zinker', 'HDD', 'Manual Boring - PK', 'Crossing - PK'];
+        foreach ($valid as $v) {
+            if (strtolower($raw) === strtolower($v)) return $v;
+        }
+
+        // Fuzzy match: pick closest valid value by similarity
+        $best      = $raw;
+        $bestScore = 0;
+        foreach ($valid as $v) {
+            similar_text(strtolower($raw), strtolower($v), $pct);
+            if ($pct > $bestScore) {
+                $bestScore = $pct;
+                $best      = $v;
+            }
+        }
+
+        // Only apply fuzzy match if similarity > 70%
+        return $bestScore >= 70 ? $best : $raw;
+    }
+
+    private function parseNumberFromSheet($value): ?float
+    {
+        if ($value === null || $value === '' || $value === '-') return null;
+        $cleaned = preg_replace('/[^\d.]/', '', str_replace(',', '.', (string) $value));
+        return $cleaned !== '' ? (float) $cleaned : null;
+    }
+
+    public function getLoweringDataFromSheet(): array
+    {
+        try {
+            $sheetName = config('services.google_sheets.sheet_name_pe', 'PE');
+            $response  = $this->service->spreadsheets_values->get(
+                $this->spreadsheetId,
+                "{$sheetName}!A:T",
+                ['valueRenderOption' => 'FORMATTED_VALUE']
+            );
+            $rows = $response->getValues() ?? [];
+
+            // Rows 1–17 are headers/metadata, data starts at row 18 (index 17)
+            $rows = array_slice($rows, 17);
+            $data = [];
+
+            foreach ($rows as $row) {
+                $lineNumber    = trim($row[9]  ?? ''); // Col J
+                $tipeBongkaran = trim($row[10] ?? ''); // Col K
+                $dateRaw       = trim($row[8]  ?? ''); // Col I
+
+                if (empty($lineNumber) || empty($tipeBongkaran) || empty($dateRaw)) continue;
+
+                $date = $this->parseDateFromSheet($dateRaw);
+                if (!$date) continue;
+
+                $penggelaran = $this->parseNumberFromSheet($row[11] ?? ''); // Col L
+                $bongkaran   = $this->parseNumberFromSheet($row[12] ?? ''); // Col M
+                if ($penggelaran === null && $bongkaran === null) continue;
+
+                $data[] = [
+                    'tanggal_jalur'          => $date,
+                    'line_number'            => $lineNumber,
+                    'diameter'               => trim($row[7]  ?? ''), // Col H
+                    'cluster_name'           => trim($row[3]  ?? ''), // Col D
+                    'nama_jalan'             => trim($row[6]  ?? ''), // Col G
+                    'tipe_bongkaran'         => $this->normalizeTipeBongkaran($tipeBongkaran),
+                    'penggelaran'            => $penggelaran,
+                    'bongkaran'              => $bongkaran,
+                    'kedalaman_lowering'     => $this->parseNumberFromSheet($row[13] ?? null), // Col N
+                    'cassing_quantity'       => $this->parseNumberFromSheet($row[14] ?? null), // Col O
+                    'marker_tape_quantity'   => $this->parseNumberFromSheet($row[15] ?? null), // Col P
+                    'concrete_slab_quantity' => $this->parseNumberFromSheet($row[16] ?? null), // Col Q
+                    'landasan_quantity'      => $this->parseNumberFromSheet($row[17] ?? null), // Col R
+                ];
+            }
+
+            Log::info("getLoweringDataFromSheet: extracted " . count($data) . " rows from {$sheetName}");
+            return $data;
+        } catch (\Exception $e) {
+            Log::error('Failed to get lowering data from sheet: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    public function getJointDataFromSheet(): array
+    {
+        try {
+            $sheetName = config('services.google_sheets.sheet_name_pe', 'PE');
+            $response  = $this->service->spreadsheets_values->get(
+                $this->spreadsheetId,
+                "{$sheetName}!A:AB",
+                ['valueRenderOption' => 'FORMATTED_VALUE']
+            );
+            $rows = $response->getValues() ?? [];
+
+            // Rows 1–17 are headers/metadata, data starts at row 18 (index 17)
+            $rows = array_slice($rows, 17);
+            $data = [];
+
+            foreach ($rows as $row) {
+                $jointNumber = trim($row[23] ?? ''); // Col X
+                $dateRaw     = trim($row[22] ?? ''); // Col W
+
+                if (empty($jointNumber) || empty($dateRaw)) continue;
+
+                $date = $this->parseDateFromSheet($dateRaw);
+                if (!$date) continue;
+
+                $tipePenyambungan = strtoupper(trim($row[27] ?? '')); // Col AB
+                if (!in_array($tipePenyambungan, ['EF', 'BF'])) $tipePenyambungan = null;
+
+                $data[] = [
+                    'nomor_joint'       => $jointNumber,
+                    'tanggal_joint'     => $date,
+                    'diameter'          => trim($row[7]  ?? ''), // Col H
+                    'joint_line_from'   => trim($row[24] ?? ''), // Col Y
+                    'joint_line_to'     => trim($row[25] ?? ''), // Col Z
+                    'fitting_name'      => trim($row[26] ?? ''), // Col AA
+                    'tipe_penyambungan' => $tipePenyambungan,
+                ];
+            }
+
+            Log::info("getJointDataFromSheet: extracted " . count($data) . " rows from {$sheetName}");
+            return $data;
+        } catch (\Exception $e) {
+            Log::error('Failed to get joint data from sheet: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
     public function getCalonPelangganData(): array
     {
         try {
