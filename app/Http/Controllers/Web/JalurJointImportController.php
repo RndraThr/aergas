@@ -241,6 +241,15 @@ class JalurJointImportController extends Controller
                 }
                 $seenInSheet[$nomorJoint] = $rowNum;
 
+                // Auto-derive tipe_penyambungan dan fitting dari nomor_joint format BF/EF
+                // e.g. BF.54 → tipe='BF', EF.07 → tipe='EF'
+                if (empty($row['tipe_penyambungan']) && preg_match('/^(BF|EF)[\.\-]?\d+$/i', $nomorJoint, $tm)) {
+                    $row['tipe_penyambungan'] = strtoupper($tm[1]);
+                }
+                if (empty($row['fitting_name']) && preg_match('/^(BF|EF)[\.\-]?\d+$/i', $nomorJoint, $tm)) {
+                    $row['fitting_name'] = strtoupper($tm[1]);
+                }
+
                 if (isset($existingJoints[$nomorJoint])) {
                     $existing   = $existingJoints[$nomorJoint];
                     $isApproved = in_array($existing->status_laporan, ['acc_tracer', 'acc_cgp']);

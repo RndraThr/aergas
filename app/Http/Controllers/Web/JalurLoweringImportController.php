@@ -360,23 +360,14 @@ class JalurLoweringImportController extends Controller
 
                 $d          = $item['data'];
                 $isRecall   = $item['is_recall'] ?? false;
-                $updateData = $forceUpdate ? [
+                $updateData = [
                     'penggelaran'            => $d['penggelaran']            ?? $existing->penggelaran,
                     'bongkaran'              => $d['bongkaran']              ?? $existing->bongkaran,
-                    'kedalaman_lowering'     => $toInt($d['kedalaman_lowering']     ?? null, $existing->kedalaman_lowering),
+                    'kedalaman_lowering'     => $toInt($d['kedalaman_lowering'] ?? null, $existing->kedalaman_lowering),
                     'cassing_quantity'       => $d['cassing_quantity']       ?? $existing->cassing_quantity,
                     'marker_tape_quantity'   => $d['marker_tape_quantity']   ?? $existing->marker_tape_quantity,
                     'concrete_slab_quantity' => $toInt($d['concrete_slab_quantity'] ?? null, $existing->concrete_slab_quantity),
                     'landasan_quantity'      => $d['landasan_quantity']      ?? $existing->landasan_quantity,
-                    'updated_by'             => Auth::id(),
-                ] : [
-                    'penggelaran'            => $existing->penggelaran            ?? $d['penggelaran'],
-                    'bongkaran'              => $existing->bongkaran              ?? $d['bongkaran'],
-                    'kedalaman_lowering'     => $existing->kedalaman_lowering     ?? $toInt($d['kedalaman_lowering'] ?? null, null),
-                    'cassing_quantity'       => $existing->cassing_quantity       ?? $d['cassing_quantity'],
-                    'marker_tape_quantity'   => $existing->marker_tape_quantity   ?? $d['marker_tape_quantity'],
-                    'concrete_slab_quantity' => $existing->concrete_slab_quantity ?? $toInt($d['concrete_slab_quantity'] ?? null, null),
-                    'landasan_quantity'      => $existing->landasan_quantity      ?? $d['landasan_quantity'],
                     'updated_by'             => Auth::id(),
                 ];
 
@@ -453,7 +444,6 @@ class JalurLoweringImportController extends Controller
                     'nama_jalan'        => $line['nama_jalan'] ?? null,
                     'estimasi_panjang'  => $line['estimasi_panjang'] ?? 0,
                     'total_penggelaran' => 0,
-                    'status_line'       => $line['status_line'] ?? 'Aktif',
                     'is_active'         => true,
                     'created_by'        => Auth::id(),
                     'updated_by'        => Auth::id(),
