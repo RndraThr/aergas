@@ -441,9 +441,14 @@ class JalurLoweringImportController extends Controller
                     continue;
                 }
 
+                // Derive line_code from line_number e.g. '63-KWR-LN040B' → 'LN040B'
+                preg_match('/(LN\w+)$/i', $line['line_number'], $m);
+                $lineCode = $m[1] ?? $line['line_number'];
+
                 JalurLineNumber::create([
                     'cluster_id'        => $line['cluster_id'],
                     'line_number'       => $line['line_number'],
+                    'line_code'         => $lineCode,
                     'diameter'          => $line['diameter'],
                     'nama_jalan'        => $line['nama_jalan'] ?? null,
                     'estimasi_panjang'  => $line['estimasi_panjang'] ?? 0,
