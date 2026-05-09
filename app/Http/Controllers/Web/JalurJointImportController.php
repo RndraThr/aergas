@@ -414,6 +414,7 @@ class JalurJointImportController extends Controller
 
                 if ($status === 'new') {
                     if (empty($p['cluster_id'])) continue;
+                    if (empty($p['tipe_penyambungan'])) continue; // NOT NULL, skip jika kosong/invalid
                     // Safety: skip jika nomor_joint sudah ada di DB (duplikat lolos dari preview)
                     if (JalurJointData::where('nomor_joint', $p['nomor_joint'])->exists()) continue;
                     JalurJointData::create([
@@ -422,9 +423,9 @@ class JalurJointImportController extends Controller
                         'nomor_joint'       => $p['nomor_joint'],
                         'joint_code'        => $p['joint_code'] ?? $p['nomor_joint'],
                         'tanggal_joint'     => $p['tanggal_joint'],
-                        'joint_line_from'   => $p['joint_line_from'] ?? null,
-                        'joint_line_to'     => $p['joint_line_to'] ?? null,
-                        'tipe_penyambungan' => $p['tipe_penyambungan'] ?? null,
+                        'joint_line_from'   => $p['joint_line_from'] ?? '',
+                        'joint_line_to'     => $p['joint_line_to'] ?? '',
+                        'tipe_penyambungan' => $p['tipe_penyambungan'],
                         'diameter'          => $p['diameter'] ?? null,
                         'status_laporan'    => 'draft',
                         'created_by'        => Auth::id(),
