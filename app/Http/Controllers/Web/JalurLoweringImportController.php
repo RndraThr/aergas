@@ -9,10 +9,12 @@ use App\Models\JalurLoweringData;
 use App\Models\JalurLineNumber;
 use App\Models\PhotoApproval;
 use App\Services\GoogleSheetsService;
+use App\Services\GoogleDriveService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 
 class JalurLoweringImportController extends Controller
@@ -164,6 +166,27 @@ class JalurLoweringImportController extends Controller
                 ->get()
                 ->keyBy(fn($item) => ($item->lineNumber->line_number ?? '') . '|' . ($item->tanggal_jalur?->format('Y-m-d') ?? '') . '|' . $item->tipe_bongkaran);
 
+            // Preload existing photo drive_links keyed by lowering_id => [field => drive_link]
+            $existingPhotos = PhotoApproval::where('module_name', 'jalur_lowering')
+                ->whereIn('photo_field_name', [
+                    'foto_evidence_penggelaran_bongkaran',
+                    'foto_evidence_cassing',
+                    'foto_evidence_marker_tape',
+                    'foto_evidence_concrete_slab',
+                    'foto_evidence_landasan',
+                ])
+                ->get()
+                ->groupBy('module_record_id')
+                ->map(fn($photos) => $photos->pluck('drive_link', 'photo_field_name'));
+
+            $photoFieldMap = [
+                'lowering_link'      => 'foto_evidence_penggelaran_bongkaran',
+                'cassing_link'       => 'foto_evidence_cassing',
+                'marker_tape_link'   => 'foto_evidence_marker_tape',
+                'concrete_slab_link' => 'foto_evidence_concrete_slab',
+                'landasan_link'      => 'foto_evidence_landasan',
+            ];
+
             $missingLines   = [];
             $detailsNew     = [];
             $detailsUpdate  = [];
@@ -228,6 +251,23 @@ class JalurLoweringImportController extends Controller
                         }
                     }
 
+                    // Photo link comparison
+                    $recordPhotos = $existingPhotos[$existing->id] ?? collect();
+                    $photoDiff    = [];
+                    foreach ($photoFieldMap as $rowField => $photoField) {
+                        $sheetLink    = $row[$rowField] ?? null;
+                        $existingLink = $recordPhotos[$photoField] ?? null;
+                        if ($sheetLink && $sheetLink !== $existingLink) {
+                            $photoDiff[] = [
+                                'field'      => $photoField,
+                                'label'      => ucwords(str_replace(['foto_evidence_', '_'], ['', ' '], $photoField)),
+                                'old'        => $existingLink ? 'Ada' : '(kosong)',
+                                'new'        => 'Ada (baru)',
+                                'will_apply' => !$isApproved || $allowRecall,
+                            ];
+                        }
+                    }
+
                     $baseDetail = [
                         'row'            => $rowNum,
                         'line_number'    => $lineNumber,
@@ -235,11 +275,13 @@ class JalurLoweringImportController extends Controller
                         'tipe_bongkaran' => $row['tipe_bongkaran'],
                         'status'         => $existing->status_laporan,
                         'existing_id'    => $existing->id,
-                        'diff'           => ['non_krusial' => $nonKrusial, 'krusial' => [], 'photos' => []],
+                        'diff'           => ['non_krusial' => $nonKrusial, 'krusial' => [], 'photos' => $photoDiff],
                         '_row'           => $row,
                     ];
 
-                    if (empty($nonKrusial)) {
+                    $hasChanges = !empty($nonKrusial) || !empty($photoDiff);
+
+                    if (!$hasChanges) {
                         $detailsSkipNC[] = $baseDetail;
                     } elseif ($isApproved && !$allowRecall) {
                         $detailsSkipApp[] = $baseDetail;
@@ -310,7 +352,56 @@ class JalurLoweringImportController extends Controller
         }
     }
 
-    public function sheetSyncCommit(Request $request)
+    private function copyPhotoForLowering(JalurLoweringData $lowering, string $fieldName, string $driveLink, GoogleDriveService $driveService): void
+    {
+        try {
+            // Skip if already downloaded with the same link
+            if (PhotoApproval::where('module_name', 'jalur_lowering')
+                ->where('module_record_id', $lowering->id)
+                ->where('photo_field_name', $fieldName)
+                ->where('drive_link', $driveLink)
+                ->exists()) return;
+
+            // Delete old approval for this field before replacing
+            PhotoApproval::where('module_name', 'jalur_lowering')
+                ->where('module_record_id', $lowering->id)
+                ->where('photo_field_name', $fieldName)
+                ->delete();
+
+            $lineNumberStr = $lowering->lineNumber->line_number ?? 'unknown';
+            $clusterName   = $lowering->lineNumber->cluster->nama_cluster ?? 'unknown';
+            $clusterSlug   = Str::slug($clusterName, '_');
+            $tanggalFolder = \Carbon\Carbon::parse($lowering->tanggal_jalur)->format('Y-m-d');
+            $customPath    = "jalur_lowering/{$clusterSlug}/{$lineNumberStr}/{$tanggalFolder}";
+            $fileName      = "{$fieldName}_" . now()->format('YmdHis');
+
+            $result = $driveService->copyFromDriveLink($driveLink, $customPath, $fileName);
+
+            PhotoApproval::create([
+                'module_name'      => 'jalur_lowering',
+                'module_record_id' => $lowering->id,
+                'photo_field_name' => $fieldName,
+                'photo_url'        => $result['url'],
+                'drive_file_id'    => $result['id'] ?? null,
+                'drive_link'       => $driveLink,
+                'photo_status'     => 'tracer_pending',
+                'uploaded_by'      => Auth::id(),
+                'uploaded_at'      => now(),
+            ]);
+
+            Log::info('Lowering photo copied from Drive', ['lowering_id' => $lowering->id, 'field' => $fieldName]);
+        } catch (\Exception $e) {
+            Log::error('Failed to copy lowering photo from Drive', [
+                'lowering_id' => $lowering->id,
+                'field'       => $fieldName,
+                'drive_link'  => $driveLink,
+                'error'       => $e->getMessage(),
+            ]);
+            // Jangan throw — foto gagal tidak boleh rollback data record
+        }
+    }
+
+    public function sheetSyncCommit(Request $request, GoogleDriveService $driveService)
     {
         $tempFilePath = storage_path('app/' . $request->input('temp_file_path'));
 
@@ -332,7 +423,7 @@ class JalurLoweringImportController extends Controller
             foreach ($payload['new'] ?? [] as $item) {
                 $lineNumberId = $item['line_number_id'] ?? ($lineNumberMap[$item['line_number']] ?? null);
                 if (!$lineNumberId) continue;
-                JalurLoweringData::create([
+                $lowering = JalurLoweringData::create([
                     'line_number_id'         => $lineNumberId,
                     'tanggal_jalur'          => $item['tanggal_jalur'],
                     'tipe_bongkaran'         => $item['tipe_bongkaran'],
@@ -351,6 +442,19 @@ class JalurLoweringImportController extends Controller
                     'created_by'             => Auth::id(),
                     'updated_by'             => Auth::id(),
                 ]);
+                $lowering->load('lineNumber.cluster');
+                $photoMap = [
+                    'foto_evidence_penggelaran_bongkaran' => $item['lowering_link']      ?? null,
+                    'foto_evidence_cassing'               => $item['cassing_link']       ?? null,
+                    'foto_evidence_marker_tape'           => $item['marker_tape_link']   ?? null,
+                    'foto_evidence_concrete_slab'         => $item['concrete_slab_link'] ?? null,
+                    'foto_evidence_landasan'              => $item['landasan_link']      ?? null,
+                ];
+                foreach ($photoMap as $field => $link) {
+                    if (!empty($link)) {
+                        $this->copyPhotoForLowering($lowering, $field, $link, $driveService);
+                    }
+                }
                 $countNew++;
             }
 
@@ -388,6 +492,22 @@ class JalurLoweringImportController extends Controller
                 }
 
                 $existing->update($updateData);
+
+                // Download foto baru jika link berubah
+                $existing->load('lineNumber.cluster');
+                $photoMap = [
+                    'foto_evidence_penggelaran_bongkaran' => $d['lowering_link']      ?? null,
+                    'foto_evidence_cassing'               => $d['cassing_link']       ?? null,
+                    'foto_evidence_marker_tape'           => $d['marker_tape_link']   ?? null,
+                    'foto_evidence_concrete_slab'         => $d['concrete_slab_link'] ?? null,
+                    'foto_evidence_landasan'              => $d['landasan_link']      ?? null,
+                ];
+                foreach ($photoMap as $field => $link) {
+                    if (!empty($link)) {
+                        $this->copyPhotoForLowering($existing, $field, $link, $driveService);
+                    }
+                }
+
                 $countUpdated++;
             }
 

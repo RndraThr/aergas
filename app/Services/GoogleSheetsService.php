@@ -705,6 +705,50 @@ class GoogleSheetsService
         return null;
     }
 
+    private function parseHyperlinkFormula(string $value): ?string
+    {
+        // =HYPERLINK("url", "label") or =HYPERLINK("url")
+        if (preg_match('/=HYPERLINK\s*\(\s*"([^"]+)"/i', $value, $m)) {
+            return $m[1];
+        }
+        // Plain URL in cell (no formula)
+        if (filter_var($value, FILTER_VALIDATE_URL)) {
+            return $value;
+        }
+        return null;
+    }
+
+    /**
+     * Fetch hyperlinks for a range using spreadsheets->get() with includeGridData.
+     * This handles "Insert Link" hyperlinks (not just =HYPERLINK() formulas).
+     * Returns array indexed same as sheet rows (0-based, after header slice).
+     * Each element is an array of hyperlinks keyed by column index within the range.
+     */
+    private function fetchHyperlinks(string $sheetName, string $range, int $headerRows = 17): array
+    {
+        $response = $this->service->spreadsheets->get(
+            $this->spreadsheetId,
+            [
+                'ranges'          => ["{$sheetName}!{$range}"],
+                'includeGridData' => true,
+                'fields'          => 'sheets.data.rowData.values.hyperlink',
+            ]
+        );
+
+        $rowData = $response->getSheets()[0]->getData()[0]->getRowData() ?? [];
+        $rowData = array_slice($rowData, $headerRows);
+
+        $result = [];
+        foreach ($rowData as $row) {
+            $links = [];
+            foreach (($row->getValues() ?? []) as $colIdx => $cell) {
+                $links[$colIdx] = $cell->getHyperlink() ?: null;
+            }
+            $result[] = $links;
+        }
+        return $result;
+    }
+
     private function parseDateFromSheet(string $dateStr): ?string
     {
         if (empty($dateStr)) return null;
@@ -781,18 +825,23 @@ class GoogleSheetsService
     {
         try {
             $sheetName = config('services.google_sheets.sheet_name_pe', 'PE');
-            $response  = $this->service->spreadsheets_values->get(
+
+            // Main data (formatted values)
+            $response = $this->service->spreadsheets_values->get(
                 $this->spreadsheetId,
                 "{$sheetName}!A:T",
                 ['valueRenderOption' => 'FORMATTED_VALUE']
             );
             $rows = $response->getValues() ?? [];
 
+            // Hyperlinks from quantity columns L,O,P,Q,R (Insert Link support)
+            $colFormulas = $this->fetchHyperlinks($sheetName, 'L:R');
+
             // Rows 1–17 are headers/metadata, data starts at row 18 (index 17)
             $rows = array_slice($rows, 17);
             $data = [];
 
-            foreach ($rows as $row) {
+            foreach ($rows as $idx => $row) {
                 $lineNumber    = trim($row[9]  ?? ''); // Col J
                 $tipeBongkaran = trim($row[10] ?? ''); // Col K
                 $dateRaw       = trim($row[8]  ?? ''); // Col I
@@ -806,6 +855,8 @@ class GoogleSheetsService
                 $bongkaran   = $this->parseNumberFromSheet($row[12] ?? ''); // Col M
                 if ($penggelaran === null && $bongkaran === null) continue;
 
+                // Extract hyperlinks from quantity cells (L=idx0, M=idx1, N=idx2, O=idx3, P=idx4, Q=idx5, R=idx6)
+                $fRow = $colFormulas[$idx] ?? [];
                 $data[] = [
                     'tanggal_jalur'          => $date,
                     'line_number'            => $lineNumber,
@@ -820,10 +871,17 @@ class GoogleSheetsService
                     'marker_tape_quantity'   => $this->parseNumberFromSheet($row[15] ?? null), // Col P
                     'concrete_slab_quantity' => $this->parseNumberFromSheet($row[16] ?? null), // Col Q
                     'landasan_quantity'      => $this->parseNumberFromSheet($row[17] ?? null), // Col R
+                    // Photo hyperlinks from quantity cells (Insert Link)
+                    'lowering_link'          => $fRow[0] ?? null, // Col L
+                    'cassing_link'           => $fRow[3] ?? null, // Col O
+                    'marker_tape_link'       => $fRow[4] ?? null, // Col P
+                    'concrete_slab_link'     => $fRow[5] ?? null, // Col Q
+                    'landasan_link'          => $fRow[6] ?? null, // Col R
                 ];
             }
 
-            Log::info("getLoweringDataFromSheet: extracted " . count($data) . " rows from {$sheetName}");
+            $withLoweringLink = count(array_filter($data, fn($r) => !empty($r['lowering_link'])));
+            Log::info("getLoweringDataFromSheet: extracted " . count($data) . " rows from {$sheetName}, {$withLoweringLink} with lowering photo link");
             return $data;
         } catch (\Exception $e) {
             Log::error('Failed to get lowering data from sheet: ' . $e->getMessage());
@@ -835,18 +893,23 @@ class GoogleSheetsService
     {
         try {
             $sheetName = config('services.google_sheets.sheet_name_pe', 'PE');
-            $response  = $this->service->spreadsheets_values->get(
+
+            // Main data (formatted values)
+            $response = $this->service->spreadsheets_values->get(
                 $this->spreadsheetId,
                 "{$sheetName}!A:AB",
                 ['valueRenderOption' => 'FORMATTED_VALUE']
             );
             $rows = $response->getValues() ?? [];
 
+            // Column X hyperlinks — nomor_joint cell has the photo link (Insert Link)
+            $colAFormulas = $this->fetchHyperlinks($sheetName, 'X:X');
+
             // Rows 1–17 are headers/metadata, data starts at row 18 (index 17)
             $rows = array_slice($rows, 17);
             $data = [];
 
-            foreach ($rows as $row) {
+            foreach ($rows as $idx => $row) {
                 $jointNumber = trim($row[23] ?? ''); // Col X
                 $dateRaw     = trim($row[22] ?? ''); // Col W
 
@@ -858,6 +921,8 @@ class GoogleSheetsService
                 $tipePenyambungan = strtoupper(trim($row[27] ?? '')); // Col AB
                 if (!in_array($tipePenyambungan, ['EF', 'BF'])) $tipePenyambungan = null;
 
+                $fotoHyperlink = $colAFormulas[$idx][0] ?? null;
+
                 $data[] = [
                     'nomor_joint'       => $jointNumber,
                     'tanggal_joint'     => $date,
@@ -866,10 +931,12 @@ class GoogleSheetsService
                     'joint_line_to'     => trim($row[25] ?? ''), // Col Z
                     'fitting_name'      => trim($row[26] ?? ''), // Col AA
                     'tipe_penyambungan' => $tipePenyambungan,
+                    'foto_hyperlink'    => $fotoHyperlink,
                 ];
             }
 
-            Log::info("getJointDataFromSheet: extracted " . count($data) . " rows from {$sheetName}");
+            $withPhoto = count(array_filter($data, fn($r) => !empty($r['foto_hyperlink'])));
+            Log::info("getJointDataFromSheet: extracted " . count($data) . " rows from {$sheetName}, {$withPhoto} with photo link");
             return $data;
         } catch (\Exception $e) {
             Log::error('Failed to get joint data from sheet: ' . $e->getMessage());
