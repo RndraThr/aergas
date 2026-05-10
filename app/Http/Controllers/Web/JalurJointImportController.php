@@ -9,10 +9,13 @@ use App\Models\JalurJointData;
 use App\Models\JalurLineNumber;
 use App\Models\JalurCluster;
 use App\Models\JalurFittingType;
+use App\Models\PhotoApproval;
 use App\Services\GoogleSheetsService;
+use App\Services\GoogleDriveService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Log;
 
@@ -207,6 +210,11 @@ class JalurJointImportController extends Controller
                 ->get()
                 ->keyBy('nomor_joint'); // duplicate nomor_joint: keeps highest id (last in asc order)
 
+            // Preload existing drive_link per joint id for photo comparison
+            $existingDriveLinks = PhotoApproval::where('module_name', 'jalur_joint')
+                ->where('photo_field_name', 'foto_evidence_joint')
+                ->pluck('drive_link', 'module_record_id');
+
             $fittingMap  = JalurFittingType::all()->mapWithKeys(fn($f) => [strtoupper($f->nama_fitting) => $f->id]);
             $clusterMap  = JalurCluster::pluck('nama_cluster', 'id');
             $fittingNMap = JalurFittingType::pluck('nama_fitting', 'id');
@@ -276,11 +284,25 @@ class JalurJointImportController extends Controller
                         ];
                     }
 
+                    // Foto hyperlink comparison — pakai PhotoApproval.drive_link sebagai referensi
+                    $sheetFoto    = $row['foto_hyperlink'] ?? null;
+                    $existingFoto = $existingDriveLinks[$existing->id] ?? null;
+                    $photoChanged = $sheetFoto && $sheetFoto !== $existingFoto;
+                    if ($photoChanged) {
+                        $diff[] = [
+                            'label'      => 'Foto',
+                            'old'        => $existingFoto ? 'Ada' : '(kosong)',
+                            'new'        => 'Ada (baru)',
+                            'will_apply' => !$isApproved || $allowRecall,
+                            'krusial'    => false,
+                        ];
+                    }
+
                     $baseItem = [
                         'row'          => $rowNum,
-                        'data'         => ['joint_number' => $nomorJoint, 'existing_status' => $existing->status_laporan, 'foto_hyperlink' => ''],
+                        'data'         => ['joint_number' => $nomorJoint, 'existing_status' => $existing->status_laporan, 'foto_hyperlink' => $sheetFoto ?? ''],
                         'diff'         => $diff,
-                        'photo_changed'=> false,
+                        'photo_changed'=> $photoChanged,
                         'existing_id'  => $existing->id,
                         '_payload'     => $row,
                     ];
@@ -398,7 +420,7 @@ class JalurJointImportController extends Controller
         }
     }
 
-    public function sheetSyncCommit(Request $request)
+    public function sheetSyncCommit(Request $request, GoogleDriveService $driveService)
     {
         $tempFilePath = storage_path('app/' . $request->input('temp_file_path'));
 
@@ -426,7 +448,7 @@ class JalurJointImportController extends Controller
                     if (empty($p['tipe_penyambungan'])) continue; // NOT NULL, skip jika kosong/invalid
                     // Safety: skip jika nomor_joint sudah ada di DB (duplikat lolos dari preview)
                     if (JalurJointData::where('nomor_joint', $p['nomor_joint'])->exists()) continue;
-                    JalurJointData::create([
+                    $joint = JalurJointData::create([
                         'cluster_id'        => $p['cluster_id'],
                         'fitting_type_id'   => $p['fitting_type_id'] ?? null,
                         'nomor_joint'       => $p['nomor_joint'],
@@ -440,6 +462,10 @@ class JalurJointImportController extends Controller
                         'created_by'        => Auth::id(),
                         'updated_by'        => Auth::id(),
                     ]);
+                    if (!empty($p['foto_hyperlink'])) {
+                        $joint->load('cluster');
+                        $this->copyPhotoForJoint($joint, $p['foto_hyperlink'], $driveService);
+                    }
                     $countNew++;
 
                 } elseif (in_array($status, ['update', 'recall'])) {
@@ -448,6 +474,7 @@ class JalurJointImportController extends Controller
 
                     $fittingId = isset($p['fitting_name']) ? ($fittingMap[strtoupper($p['fitting_name'])] ?? $existing->fitting_type_id) : $existing->fitting_type_id;
 
+                    $newFoto   = $p['foto_hyperlink'] ?? null;
                     $updateData = [
                         'tanggal_joint'     => $p['tanggal_joint']     ?? $existing->tanggal_joint,
                         'joint_line_from'   => $p['joint_line_from']   ?? $existing->joint_line_from,
@@ -473,6 +500,13 @@ class JalurJointImportController extends Controller
                     }
 
                     $existing->update($updateData);
+
+                    // Download foto jika link baru berbeda dari yang sudah ada di PhotoApproval
+                    if (!empty($newFoto)) {
+                        $existing->load('cluster');
+                        $this->copyPhotoForJoint($existing, $newFoto, $driveService);
+                    }
+
                     $countUpdated++;
                 }
             }
@@ -492,6 +526,52 @@ class JalurJointImportController extends Controller
             DB::rollBack();
             Log::error('Joint sheet sync commit failed: ' . $e->getMessage());
             return back()->with('error', 'Gagal commit: ' . $e->getMessage());
+        }
+    }
+
+    private function copyPhotoForJoint(JalurJointData $joint, string $driveLink, GoogleDriveService $driveService): void
+    {
+        try {
+            // Skip if already downloaded with the same link
+            if (PhotoApproval::where('module_name', 'jalur_joint')
+                ->where('module_record_id', $joint->id)
+                ->where('photo_field_name', 'foto_evidence_joint')
+                ->where('drive_link', $driveLink)
+                ->exists()) return;
+
+            // Delete old photo approval before replacing
+            PhotoApproval::where('module_name', 'jalur_joint')
+                ->where('module_record_id', $joint->id)
+                ->where('photo_field_name', 'foto_evidence_joint')
+                ->delete();
+
+            $clusterSlug = Str::slug($joint->cluster->nama_cluster ?? 'unknown', '_');
+            $dateFolder  = $joint->tanggal_joint->format('Y-m-d');
+            $customPath  = "jalur_joint/{$clusterSlug}/{$joint->nomor_joint}/{$dateFolder}";
+            $fileName    = 'foto_evidence_joint_' . now()->format('YmdHis');
+
+            $result = $driveService->copyFromDriveLink($driveLink, $customPath, $fileName);
+
+            PhotoApproval::create([
+                'module_name'      => 'jalur_joint',
+                'module_record_id' => $joint->id,
+                'photo_field_name' => 'foto_evidence_joint',
+                'photo_url'        => $result['url'],
+                'drive_file_id'    => $result['id'] ?? null,
+                'drive_link'       => $driveLink,
+                'photo_status'     => 'tracer_pending',
+                'uploaded_by'      => Auth::id(),
+                'uploaded_at'      => now(),
+            ]);
+
+            Log::info('Joint photo copied from Drive', ['joint_id' => $joint->id, 'drive_link' => $driveLink]);
+        } catch (\Exception $e) {
+            Log::error('Failed to copy joint photo from Drive', [
+                'joint_id'   => $joint->id,
+                'drive_link' => $driveLink,
+                'error'      => $e->getMessage(),
+            ]);
+            // Jangan throw — foto gagal tidak boleh rollback data record
         }
     }
 
