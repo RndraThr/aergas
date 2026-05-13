@@ -296,7 +296,12 @@ class JalurLoweringImportController extends Controller
                         'line_number'    => $lineNumber,
                         'tanggal'        => $row['tanggal_jalur'],
                         'tipe_bongkaran' => $row['tipe_bongkaran'],
-                        'data'           => array_merge($row, ['has_photos' => false, 'line_number_id' => $lineNumberMap[$lineNumber]]),
+                        'data'           => array_merge($row, [
+                            'has_photos'     => !empty($row['lowering_link']) || !empty($row['cassing_link'])
+                                             || !empty($row['marker_tape_link']) || !empty($row['concrete_slab_link'])
+                                             || !empty($row['landasan_link']),
+                            'line_number_id' => $lineNumberMap[$lineNumber],
+                        ]),
                         '_row'           => $row,
                     ];
                 }
