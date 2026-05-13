@@ -371,7 +371,7 @@ class JalurJointImportController extends Controller
                             'joint_line_from'  => $row['joint_line_from'] ?? '',
                             'joint_line_to'    => $row['joint_line_to'] ?? '',
                             'tipe_penyambungan'=> $row['tipe_penyambungan'] ?? '',
-                            'foto_hyperlink'   => '',
+                            'foto_hyperlink'   => $row['foto_hyperlink'] ?? '',
                         ],
                         '_payload' => array_merge($row, [
                             'cluster_id'      => $clusterId,
