@@ -41,3 +41,6 @@ PAGINATION-IMPLEMENTATION.md
 PAGINATION-PROGRESS.md
 PAGINATION-STATUS-UPDATED.md
 PAGINATION-STATUS.md
+
+# Local SQL scripts / ad-hoc test queries (jangan di-deploy)
+/database/sql/

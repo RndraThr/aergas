@@ -1,0 +1,35 @@
+name: Deploy to Production
+
+# Auto-deploy ketiga site (aergas, spk2, spk3) setiap ada push ke main.
+# Semua langkah build/migrate dijalankan DI SERVER lewat script /home/deploy/deploy-all.sh
+# Runner hanya SSH ke server dan memicu script tersebut.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}   # tombol "Run workflow" manual di tab Actions
+
+# Cegah dua deploy jalan bersamaan
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH deploy (aergas + spk2 + spk3)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${{ secrets.SSH_PORT }}" -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy all sites
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -p "${{ secrets.SSH_PORT }}" \
+              -o BatchMode=yes \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+              'bash /home/deploy/deploy-all.sh'
