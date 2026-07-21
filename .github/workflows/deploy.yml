@@ -1,23 +1,29 @@
 name: Deploy to Production
 
 # Auto-deploy ketiga site (aergas, spk2, spk3) setiap ada push ke main.
-# Semua langkah build/migrate dijalankan DI SERVER lewat script /home/deploy/deploy-all.sh
-# Runner hanya SSH ke server dan memicu script tersebut.
+# PARALEL: tiap site jadi job terpisah lewat matrix -> ketiganya deploy bersamaan.
+# Langkah build/migrate dijalankan DI SERVER lewat /home/deploy/deploy-site.sh <folder>.
 
 on:
   push:
     branches: [main]
   workflow_dispatch: {}   # tombol "Run workflow" manual di tab Actions
 
-# Cegah dua deploy jalan bersamaan
+# Cegah dua gelombang deploy jalan bersamaan (mis. 2 push beruntun).
+# Antri, jangan batalkan yang sedang jalan agar deploy tidak terpotong di tengah.
 concurrency:
   group: production-deploy
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: SSH deploy (aergas + spk2 + spk3)
+    name: Deploy ${{ matrix.site }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false        # kalau 1 site gagal, 2 lainnya tetap lanjut
+      max-parallel: 3         # ketiganya jalan bersamaan
+      matrix:
+        site: [aergas, aergas_spk2, aergas_spk3]
     env:
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_USER: ${{ secrets.SSH_USER }}
@@ -30,10 +36,9 @@ jobs:
           chmod 700 ~/.ssh
           printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # Default port 22 kalau secret SSH_PORT kosong
           echo "PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
 
-      - name: Deploy all sites
+      - name: Deploy ${{ matrix.site }}
         run: |
           set -e
           ssh -i ~/.ssh/deploy_key \
@@ -42,4 +47,4 @@ jobs:
               -o StrictHostKeyChecking=accept-new \
               -o ConnectTimeout=20 \
               "${SSH_USER}@${SSH_HOST}" \
-              'bash /home/deploy/deploy-all.sh'
+              "bash /home/deploy/deploy-site.sh ${{ matrix.site }}"
